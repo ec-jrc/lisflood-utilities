@@ -2,7 +2,7 @@
 from setuptools import setup, find_packages
 
 
-packages_deps = ['numpy', 'pyyaml', 'netCDF4']
+packages_deps = ['numpy', 'pyyaml', 'netCDF4', 'GDAL']
 
 setup_args = dict(name='pcr2nc',
                   version='0.1',
