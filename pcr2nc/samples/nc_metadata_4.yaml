@@ -1,0 +1,10 @@
+# test for a single map (not a time series)
+variable:
+  shortname: lzavin
+  description: LZAVIN
+  longname: LZAVIN
+  units: m
+source: JRC Space, Security, Migration
+reference: JRC Space, Security, Migration
+geographical:
+  datum: ETRS89

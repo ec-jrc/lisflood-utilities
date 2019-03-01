@@ -1,0 +1,12 @@
+variable:
+  shortname: dis
+  description: Discharge
+  longname: discharge
+  units: m^3/s
+source: JRC Space, Security, Migration
+reference: JRC Space, Security, Migration
+geographical:
+  datum: GISCO
+time:
+  calendar: proleptic_gregorian
+  units: days since 2001

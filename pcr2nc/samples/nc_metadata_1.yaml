@@ -1,0 +1,14 @@
+variable:
+  shortname: dis
+  description: Discharge
+  longname: discharge
+  units: m3/s
+  compression: 9
+  least_significant_digit: 2
+source: JRC Space, Security, Migration
+reference: JRC Space, Security, Migration
+geographical:
+  datum: WGS84
+time:
+  calendar: proleptic_gregorian
+  units: days since 1996-01-01

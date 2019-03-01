@@ -1,0 +1,11 @@
+variable:
+  shortname: Alpha
+  description: Parameter alpha of Gumbel distribution
+  longname: Parameter Alpha
+  units: "-"
+  compression: 9
+  least_significant_digit: 2
+source: JRC Space, Security, Migration
+reference: JRC Space, Security, Migration
+geographical:
+  datum: ETRS89

@@ -1,0 +1,19 @@
+{
+ "variable": {
+  "longname": "discharge",
+  "units": "m^3/s",
+  "description": "Discharge",
+  "shortname": "dis",
+  "compression": 9,
+  "least_significant_digit": 2
+ },
+ "reference": "JRC Space, Security, Migration",
+ "source": "JRC Space, Security, Migration",
+ "time": {
+  "units": "days since 1994",
+  "calendar": "proleptic_gregorian"
+ },
+ "geographical": {
+  "datum": "WGS84"
+ }
+}
