@@ -31,3 +31,8 @@ The Gfit2 tool performs the following steps:
 - An extreme value fitting is performed on each pixel of the map, using L-moments and a 2-parameter Gumbel distribution. As option, the user can limit the analysis to a specific number of years. Also, one can use the option to remove from the fitting all values smaller than the long-term average. The fitting is performed only where at least 5 annual maxima are available, otherwise a NA is returned on the output map
 - Output return level maps (corresponding to user-selected years of recurrence interval) are saved in a netcdf file (return_levels.nc) and as ascii files. If a clone map in PCRaster format is provided, maps are also saved in PCRaster (return level maps and parameters of the Gumbel distribution)
 - After the EV fitting, the tool estimates some further statistics from the long-term input file, including minimum, maximum, and different percentile maps. This part can be commented out if not of interest
+
+### Reference
+[L-Moments: Analysis and Estimation of Distributions Using Linear Combinations of Order Statistics](https://www.jstor.org/stable/2345653)
+
+Hosking, J.R.M., 1990. L-Moments: Analysis and Estimation of Distributions Using Linear Combinations of Order Statistics. J. R. Stat. Soc. Ser. B Methodol. 52, 105124.
