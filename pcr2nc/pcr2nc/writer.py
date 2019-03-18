@@ -114,13 +114,14 @@ class NetCDFWriter:
         Write last maps to the stack and close the NetCDF4 dataset.
         """
         print('Writing...', self.name)
-        dtype = self.temp_values[0].dtype
-        if self.is_mapstack:
-            self.time[:] = np.array(self.temp_time, dtype=np.uint32)
-            self.current_idx2 += self.current_count
-            self.variable[:, :, self.current_idx1:self.current_idx2] = np.array(self.temp_values, dtype=dtype)
-        else:
-            self.variable[:, :] = np.array(self.temp_values, dtype=dtype)
+        if self.temp_values:
+            dtype = self.temp_values[0].dtype
+            if self.is_mapstack:
+                self.time[:] = np.array(self.temp_time, dtype=np.uint32)
+                self.current_idx2 += self.current_count
+                self.variable[:, :, self.current_idx1:self.current_idx2] = np.array(self.temp_values, dtype=dtype)
+            else:
+                self.variable[:, :] = np.array(self.temp_values, dtype=dtype)
         self.nf.close()
 
     def define_wgs84(self):
