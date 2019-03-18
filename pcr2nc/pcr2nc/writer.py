@@ -60,7 +60,7 @@ class NetCDFWriter:
             time_nc.standard_name = 'time'
             time_nc.units = self.nc_metadata['time'].get('units', '')
             time_nc.calendar = self.nc_metadata['time'].get('calendar', '')
-            vardimensions = ('time', 'yc', 'xc')
+            vardimensions = ('yc', 'xc', 'time', )
 
         # data variable
         complevel = self.nc_metadata['variable'].get('compression')
@@ -73,8 +73,7 @@ class NetCDFWriter:
 
         values_nc = self.nf.createVariable(self.nc_metadata['variable'].get('shortname', ''),
                                            self.pcr_metadata['dtype'],
-                                           vardimensions,
-                                           **additional_args)
+                                           vardimensions, **additional_args)
         getattr(self, post_datum_function)(values_nc)
 
         values_nc.standard_name = self.nc_metadata['variable'].get('shortname', '')
@@ -95,12 +94,12 @@ class NetCDFWriter:
             values[values == pcr_map.mv] = np.nan
         self.temp_values.append(values)
         self.current_count += 1
-        if self.current_count == 50:
+        if self.current_count == 10:
             self.current_idx2 += self.current_count
             print('Writing a chunk...')
             dtype = self.temp_values[0].dtype
             if self.is_mapstack:
-                self.variable[self.current_idx1:self.current_idx2, :, :] = np.array(self.temp_values, dtype=dtype)
+                self.variable[:, :, self.current_idx1:self.current_idx2] = np.array(self.temp_values, dtype=dtype)
             else:
                 self.variable[:, :] = np.array(self.temp_values, dtype=dtype)
             # update slicing indexes
@@ -119,7 +118,7 @@ class NetCDFWriter:
         if self.is_mapstack:
             self.time[:] = np.array(self.temp_time, dtype=np.uint32)
             self.current_idx2 += self.current_count
-            self.variable[self.current_idx1:self.current_idx2, :, :] = np.array(self.temp_values, dtype=dtype)
+            self.variable[:, :, self.current_idx1:self.current_idx2] = np.array(self.temp_values, dtype=dtype)
         else:
             self.variable[:, :] = np.array(self.temp_values, dtype=dtype)
         self.nf.close()
