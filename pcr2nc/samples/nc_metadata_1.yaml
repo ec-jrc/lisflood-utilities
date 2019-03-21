@@ -1,9 +1,8 @@
 variable:
-  shortname: dis
-  description: Discharge
-  longname: discharge
-  units: m3/s
-  compression: 9
+  shortname: e0
+  description: E0
+  longname: E0
+  units: K
   least_significant_digit: 2
 format: NETCDF4
 source: JRC Space, Security, Migration

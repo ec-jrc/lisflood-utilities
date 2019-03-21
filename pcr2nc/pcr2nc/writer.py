@@ -25,10 +25,13 @@ class NetCDFWriter:
     def __init__(self, filename, nc_metadata, pcr_metadata, mapstack=True):
         self.name = '{}.nc'.format(filename) if not filename.endswith('.nc') else filename
         self.nc_metadata = nc_metadata
+        self.hour = self.nc_metadata.get('time', {}).get('hour', '00')
+
         self.pcr_metadata = pcr_metadata
         self.is_mapstack = mapstack
         self.time, self.variable = self._init_dataset()
-        self.hour_timestep = float(self.nc_metadata.get('time', {}).get('hour', '00')) / 24
+
+        self.hour_timestep = float(self.hour) / 24
         self.values = []
         self.timesteps = []
         self.current_count = 0
@@ -62,7 +65,7 @@ class NetCDFWriter:
             # time variable
             time_nc = self.nf.createVariable('time', 'f8', ('time',))
             time_nc.standard_name = 'time'
-            time_nc.units = self.nc_metadata['time'].get('units', '')
+            time_nc.units = '{} {}:00:00.0'.format(self.nc_metadata['time'].get('units', ''), self.hour)
             time_nc.calendar = self.nc_metadata['time'].get('calendar', 'proleptic_gregorian')
             vardimensions = ('time', 'yc', 'xc')
 
@@ -92,12 +95,12 @@ class NetCDFWriter:
             For single files (ie not time series) time_step is None
         :param pcr_map: PCRasterMap object
         """
-        print('Adding', pcr_map.filename, 'timestep', str(time_step))
+        print('Adding', pcr_map.filename, 'timestep', str(time_step), 'hour', self.hour_timestep)
         values = pcr_map.data
         if not np.issubdtype(values.dtype, np.integer):
             values[values == pcr_map.mv] = np.nan
         self.values.append(values)
-        self.timesteps.append(time_step - 1 + self.hour_timestep)
+        self.timesteps.append(time_step + self.hour_timestep)
         self.current_count += 1
         if self.current_count == 10:
             self.current_idx2 += self.current_count
