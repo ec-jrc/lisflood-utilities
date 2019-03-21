@@ -44,7 +44,7 @@ class NetCDFWriter:
         self.nf = Dataset(self.name, 'w', format=self.frmt)
         self.nf.history = 'Created {}'.format(time.ctime(time.time()))
         self.nf.Conventions = 'CF-1.7'
-        self.nf.Source_Software = 'JRC pcr2nc'
+        self.nf.Source_Software = 'JRC.E1 lisflood nexus wefe - pcr2nc'
         self.nf.source = self.nc_metadata.get('source')
         self.nf.reference = self.nc_metadata.get('reference')
 
@@ -63,9 +63,10 @@ class NetCDFWriter:
         vardimensions = ('yc', 'xc')
         if self.is_mapstack:
             # time variable
+            time_units = self.nc_metadata['time'].get('units', '')
             time_nc = self.nf.createVariable('time', 'f8', ('time',))
             time_nc.standard_name = 'time'
-            time_nc.units = '{} {}:00:00.0'.format(self.nc_metadata['time'].get('units', ''), self.hour)
+            time_nc.units = '{} {}:00'.format(time_units, self.hour)
             time_nc.calendar = self.nc_metadata['time'].get('calendar', 'proleptic_gregorian')
             vardimensions = ('time', 'yc', 'xc')
 
@@ -100,7 +101,7 @@ class NetCDFWriter:
         if not np.issubdtype(values.dtype, np.integer):
             values[values == pcr_map.mv] = np.nan
         self.values.append(values)
-        self.timesteps.append(time_step + self.hour_timestep)
+        self.timesteps.append(float(time_step))
         self.current_count += 1
         if self.current_count == 10:
             self.current_idx2 += self.current_count
@@ -122,7 +123,8 @@ class NetCDFWriter:
         """
         print('Writing...', self.name)
         if self.is_mapstack:
-            self.time[:] = np.array(self.timesteps, dtype=np.uint32)
+            print('Writing time dimension...', self.timesteps[:4], '...', self.timesteps[-4:])
+            self.time[:] = np.array(self.timesteps, dtype=np.float64)
 
         if self.values:
             dtype = self.values[0].dtype
