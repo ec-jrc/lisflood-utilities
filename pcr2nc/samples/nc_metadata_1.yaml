@@ -12,4 +12,4 @@ geographical:
 time:
   calendar: proleptic_gregorian
   units: days since 1996-01-01
-  hour: 12
+  hour: 24

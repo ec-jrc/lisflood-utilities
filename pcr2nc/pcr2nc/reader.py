@@ -191,4 +191,4 @@ class PCRasterReader:
         except IndexError:
             return None
         else:
-            return int(step)
+            return int(step) - 1
