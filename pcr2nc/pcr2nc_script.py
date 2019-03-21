@@ -12,7 +12,7 @@ try:
 except ImportError:
     from yaml import Loader, Dumper
 
-from pcr2nc.converter import convert
+from pcr2nc.writer import convert
 
 
 class ParserHelpOnError(argparse.ArgumentParser):
@@ -57,6 +57,7 @@ def main(args):
     configuration = {'input_set': parsed_args.input,
                      'output_filename': parsed_args.output_file,
                      'metadata': parse_metadata(parsed_args.metadata)}
+    # MAIN METHOD
     convert(configuration)
 
 

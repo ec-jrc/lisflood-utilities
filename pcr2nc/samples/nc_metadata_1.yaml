@@ -5,6 +5,7 @@ variable:
   units: m3/s
   compression: 9
   least_significant_digit: 2
+format: NETCDF4
 source: JRC Space, Security, Migration
 reference: JRC Space, Security, Migration
 geographical:
@@ -12,3 +13,4 @@ geographical:
 time:
   calendar: proleptic_gregorian
   units: days since 1996-01-01
+  hour: 6

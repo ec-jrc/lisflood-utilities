@@ -7,6 +7,8 @@ import time
 import numpy as np
 from netCDF4 import Dataset
 
+from pcr2nc.reader import PCRasterReader
+
 
 class NetCDFWriter:
     """
@@ -26,15 +28,17 @@ class NetCDFWriter:
         self.pcr_metadata = pcr_metadata
         self.is_mapstack = mapstack
         self.time, self.variable = self._init_dataset()
-        self.temp_values = []
-        self.temp_time = []
+        self.hour_timestep = float(self.nc_metadata.get('time', {}).get('hour', '00')) / 24
+        self.values = []
+        self.timesteps = []
         self.current_count = 0
         self.current_idx1 = 0
         self.current_idx2 = 0
 
     def _init_dataset(self):
-        frmt = 'normal' if np.issubdtype(self.pcr_metadata['dtype'], np.unsignedinteger) else 'classic'
-        self.nf = Dataset(self.name, 'w', format=self.FORMATS[frmt])
+        # frmt = 'normal' if np.issubdtype(self.pcr_metadata['dtype'], np.unsignedinteger) else 'classic'
+        self.frmt = self.nc_metadata.get('format', 'NETCDF4')
+        self.nf = Dataset(self.name, 'w', format=self.frmt)
         self.nf.history = 'Created {}'.format(time.ctime(time.time()))
         self.nf.Conventions = 'CF-1.7'
         self.nf.Source_Software = 'JRC pcr2nc'
@@ -56,10 +60,10 @@ class NetCDFWriter:
         vardimensions = ('yc', 'xc')
         if self.is_mapstack:
             # time variable
-            time_nc = self.nf.createVariable('time', 'i', ('time',))
+            time_nc = self.nf.createVariable('time', 'f8', ('time',))
             time_nc.standard_name = 'time'
             time_nc.units = self.nc_metadata['time'].get('units', '')
-            time_nc.calendar = self.nc_metadata['time'].get('calendar', '')
+            time_nc.calendar = self.nc_metadata['time'].get('calendar', 'proleptic_gregorian')
             vardimensions = ('time', 'yc', 'xc')
 
         # data variable
@@ -88,40 +92,42 @@ class NetCDFWriter:
             For single files (ie not time series) time_step is None
         :param pcr_map: PCRasterMap object
         """
-        print('Adding', pcr_map.filename)
+        print('Adding', pcr_map.filename, 'timestep', str(time_step))
         values = pcr_map.data
         if not np.issubdtype(values.dtype, np.integer):
             values[values == pcr_map.mv] = np.nan
-        self.temp_values.append(values)
+        self.values.append(values)
+        self.timesteps.append(time_step - 1 + self.hour_timestep)
         self.current_count += 1
         if self.current_count == 10:
             self.current_idx2 += self.current_count
             print('Writing a chunk...')
-            dtype = self.temp_values[0].dtype
+            dtype = self.values[0].dtype
             if self.is_mapstack:
-                self.variable[self.current_idx1:self.current_idx2, :, :] = np.array(self.temp_values, dtype=dtype)
+                self.variable[self.current_idx1:self.current_idx2, :, :] = np.array(self.values, dtype=dtype)
             else:
-                self.variable[:, :] = np.array(self.temp_values, dtype=dtype)
+                self.variable[:, :] = np.array(self.values, dtype=dtype)
             # update slicing indexes
             self.current_idx1 = self.current_idx2
             # reset
-            self.temp_values = []
+            self.values = []
             self.current_count = 0
-        self.temp_time.append(time_step)
 
     def finalize(self):
         """
         Write last maps to the stack and close the NetCDF4 dataset.
         """
         print('Writing...', self.name)
-        if self.temp_values:
-            dtype = self.temp_values[0].dtype
+        if self.is_mapstack:
+            self.time[:] = np.array(self.timesteps, dtype=np.uint32)
+
+        if self.values:
+            dtype = self.values[0].dtype
             if self.is_mapstack:
-                self.time[:] = np.array(self.temp_time, dtype=np.uint32)
                 self.current_idx2 += self.current_count
-                self.variable[self.current_idx1:self.current_idx2, :, :] = np.array(self.temp_values, dtype=dtype)
+                self.variable[self.current_idx1:self.current_idx2, :, :] = np.array(self.values, dtype=dtype)
             else:
-                self.variable[:, :] = np.array(self.temp_values, dtype=dtype)
+                self.variable[:, :] = np.array(self.values, dtype=dtype)
         self.nf.close()
 
     def define_wgs84(self):
@@ -213,3 +219,17 @@ class NetCDFWriter:
         values_var.coordinates = 'x y'
         values_var.grid_mapping = 'lambert_azimuthal_equal_area'
         values_var.esri_pe_string = self.DATUM.get(self.nc_metadata['geographical'].get('datum', 'WGS84').upper(), '')
+
+
+def convert(config):
+    input_set = config['input_set']
+    reader = PCRasterReader(input_set)
+    pcr_metadata = reader.get_metadata_from_set()
+    writer = NetCDFWriter(config.get('output_filename') or config.get('variable'),
+                          config['metadata'],
+                          pcr_metadata,
+                          mapstack=not reader.input_is_single_file())
+    for pcr_map, time_step in reader.fileset:
+        writer.add_to_stack(pcr_map, time_step)
+        pcr_map.close()
+    writer.finalize()
