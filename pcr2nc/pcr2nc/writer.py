@@ -1,7 +1,7 @@
 """
 Module containing the code for the NetCDFWriter class
 """
-
+import datetime
 import time
 
 import numpy as np
@@ -66,7 +66,13 @@ class NetCDFWriter:
             time_units = self.nc_metadata['time'].get('units', '')
             time_nc = self.nf.createVariable('time', 'f8', ('time',))
             time_nc.standard_name = 'time'
-            time_nc.units = '{} {}:00'.format(time_units, self.hour)
+            if str(self.hour) != '24':
+                time_nc.units = '{} {}:00'.format(time_units, str(self.hour).zfill(2))
+            else:
+                # observation is at 24h...need to rotate one day more
+                start_date = datetime.datetime.strptime(time_units[-10:], '%Y-%m-%d')  # 'days since 1996-01-01'
+                start_date = start_date + datetime.timedelta(days=1)
+                time_nc.units = 'days since {} 00:00'.format(start_date.strftime('%Y-%m-%d'))
             time_nc.calendar = self.nc_metadata['time'].get('calendar', 'proleptic_gregorian')
             vardimensions = ('time', 'yc', 'xc')
 
