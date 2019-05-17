@@ -39,3 +39,9 @@ vignettes/*.pdf
 
 # Shiny token, see https://shiny.rstudio.com/articles/shinyapps.html
 rsconnect/
+*.yml
+*.yaml
+*.json
+!/pcr2nc/samples/*.json
+!/pcr2nc/samples/*.yaml
+!/pcr2nc/samples/*.yml

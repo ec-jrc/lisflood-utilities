@@ -95,7 +95,7 @@ class NetCDFWriter:
         values_nc.units = self.nc_metadata['variable'].get('units', '')
         return time_nc, values_nc
 
-    def add_to_stack(self, pcr_map, time_step):
+    def add_to_stack(self, pcr_map, time_step=None):
         """
         Add a PCRaster map to the NetCDF4 file.
         :param time_step: int, it's basically the extension of pcraster map file
@@ -107,8 +107,10 @@ class NetCDFWriter:
         if not np.issubdtype(values.dtype, np.integer):
             values[values == pcr_map.mv] = np.nan
         self.values.append(values)
-        self.timesteps.append(float(time_step))
+        if time_step:
+            self.timesteps.append(float(time_step))
         self.current_count += 1
+
         if self.current_count == 10:
             self.current_idx2 += self.current_count
             print('Writing a chunk...')
