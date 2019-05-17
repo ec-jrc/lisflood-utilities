@@ -20,5 +20,5 @@ Other useful resources
 User guide of each tool is placed under the relative directory in a README.md file.
 
 * [PCRaster to netCDF converter](pcr2nc/README.md)
-* [gfit] (gfit/README.md)
-* [netCDF Cookie Cutter] (cookie-cutter/README.md)
+* [gfit](gfit/README.md)
+* [netCDF Cookie Cutter](cookie-cutter/README.md)
