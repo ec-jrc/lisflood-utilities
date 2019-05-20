@@ -45,3 +45,5 @@ rsconnect/
 !/pcr2nc/samples/*.json
 !/pcr2nc/samples/*.yaml
 !/pcr2nc/samples/*.yml
+pcr2nc.egg-info/
+dist/
