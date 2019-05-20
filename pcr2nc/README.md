@@ -34,20 +34,30 @@ $ source /path/to/virtualenvs/pcr2nc/bin/activate
 
 
 ### Install by cloning the repository
-Assuming your virtualenv is called pcr2nc and you have virtualenvwrapper installed:
+
+Assuming your Python 3 virtualenv is called pcr2nc and you have virtualenvwrapper installed:
 
 ```bash
-$ git clone https://github.com/domeniconappo/pcr2nc.git
-$ cd pcr2nc
+git clone https://github.com/ec-jrc/lisflood-utilities
+cd lisflood-utilities/pcr2nc
+workon pcr2nc
 ```
 
 Install requirements
+
 ```bash
 $ pip install -r requirements.txt
 ```
 
 If GDAL library fails to install, ensure to install the same package version of the
 library you have on your system.
+To check which version of GDAL libraries you have installed on your computer, use gdal-config
+
+```bash
+gdal-config --version
+2.1
+```
+
 Example: you have installed gdal 2.1, then:
 
 ```bash
@@ -60,13 +70,14 @@ $ pip install -r requirements.txt
 Activate the virtualenv and then:
 
 ```bash
-$ pip install git+https://github.com/domeniconappo/pcr2nc.git
+$ pip install pcr2nc
 ```
 
 After the install was complete, you still have to install the proper GDAL package,
 according to the version of gdal library that is installed on your machine.
 
 E.g.
+
 ```bash
 $ pip install GDAL==2.1
 ```
