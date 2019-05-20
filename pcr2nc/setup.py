@@ -23,7 +23,7 @@ To upload new package on PyPi:
 twine upload dist/*
 
 Test package install
-pip install --index-url https://test.pypi.org/simple/ pcr2nc==0.1
+pip install --index-url https://test.pypi.org/simple/ pcr2nc==0.4
 
 In prod:
 pip install pcr2nc
@@ -33,7 +33,7 @@ import os
 from setuptools import setup, find_packages
 
 
-packages_deps = ['numpy>=1.15', 'pyyaml>4.2b1', 'netCDF4>=1.3.1']
+packages_deps = ['numpy>=1.15', 'pyyaml', 'netCDF4>=1.3.1']
 current_dir = os.path.dirname(os.path.abspath(__file__))
 readme_file = os.path.join(current_dir, 'README.md')
 version_file = os.path.join(current_dir, 'VERSION')
@@ -74,8 +74,6 @@ setup_args = dict(name='pcr2nc',
                       'Programming Language :: Python :: 3',
                       'Topic :: Scientific/Engineering :: Physics',
                   ],
-                  )
-
+)
 
 setup(**setup_args)
-
