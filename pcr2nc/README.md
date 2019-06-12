@@ -20,7 +20,7 @@ Ensure you have properly installed the following software:
 - GDAL C library and software
 - netCDF4 C library
 
-Create a python3.5 virtualenv for using the software and activate it.
+Create a python3 virtualenv for using the software and activate it.
 
 If you have virtualenvwrapper:
 ```bash
@@ -32,6 +32,27 @@ Otherwise just execute the activate script
 $ source /path/to/virtualenvs/pcr2nc/bin/activate
 ```
 
+### Install via pip tool
+
+Activate the virtualenv and then:
+
+```bash
+$ pip install pcr2nc
+```
+
+After the install was complete, you still have to install the proper GDAL package,
+according to the version of gdal library that is installed on your machine.
+You will also need C GDAL headers to properly install python GDAL wrapper.
+
+E.g.
+
+```bash
+sudo apt-get install libgdal-dev libgdal
+export CPLUS_INCLUDE_PATH=/usr/include/gdal
+export C_INCLUDE_PATH=/usr/include/gdal
+gdal-config --version  # 2.2.3
+pip install GDAL==2.2.3
+```
 
 ### Install by cloning the repository
 
@@ -63,23 +84,6 @@ Example: you have installed gdal 2.1, then:
 ```bash
 $ pip install GDAL==2.1
 $ pip install -r requirements.txt
-```
-
-### Install via pip tool
-
-Activate the virtualenv and then:
-
-```bash
-$ pip install pcr2nc
-```
-
-After the install was complete, you still have to install the proper GDAL package,
-according to the version of gdal library that is installed on your machine.
-
-E.g.
-
-```bash
-$ pip install GDAL==2.1
 ```
 
 ## Usage

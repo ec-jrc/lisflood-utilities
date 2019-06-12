@@ -5,10 +5,24 @@ PCRaster related code. It contains classes representing a PCRaster map and the r
 import os
 import glob
 import re
+import sys
 
-from osgeo import gdal
-from osgeo.gdalconst import GA_ReadOnly
 import numpy as np
+
+try:
+    from osgeo import gdal
+    from osgeo.gdalconst import GA_ReadOnly
+except (ModuleNotFoundError, ImportError) as e:
+    print("""
+    [!] GDAL is not installed. Please, install GDAL binaries and libraries for your system and then install the relative pip package.
+    [!] Important note: you have to install same version of GDAL for its python interface. You also need to install GDAL C headers.
+    [!] sudo apt-get install libgdal-dev libgdal
+    [!] export CPLUS_INCLUDE_PATH=/usr/include/gdal
+    [!] export C_INCLUDE_PATH=/usr/include/gdal
+    [!] To know your gdal version execute `gdal-config --version` ex. 2.2.3
+    [!] pip install GDAL==2.2.3
+    """)
+    sys.exit(1)
 
 
 class PCRasterMap:

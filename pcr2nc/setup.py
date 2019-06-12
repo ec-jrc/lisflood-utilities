@@ -32,8 +32,6 @@ pip install pcr2nc
 import os
 from setuptools import setup, find_packages
 
-
-packages_deps = ['numpy>=1.15', 'pyyaml', 'netCDF4>=1.3.1']
 current_dir = os.path.dirname(os.path.abspath(__file__))
 readme_file = os.path.join(current_dir, 'README.md')
 version_file = os.path.join(current_dir, 'VERSION')
@@ -44,36 +42,38 @@ with open(readme_file, 'r') as f:
 with open(version_file, 'r') as f:
     version = f.read()
 
-setup_args = dict(name='pcr2nc',
-                  version=version,
-                  packages=find_packages(),
-                  description='Convert PCRaster files to netCDF4',
-                  long_description=long_description,
-                  long_description_content_type='text/markdown',
-                  install_requires=packages_deps,
-                  author="Domenico Nappo",
-                  author_email="domenico.nappo@gmail.com",
-                  keywords=['netCDF4', 'PCRaster', 'mapstack'],
-                  license='EUPL 1.2',
-                  url='https://github.com/ec-jrc/lisflood-model',
-                  entry_points={'console_scripts': ['pcr2nc = pcr2nc_script:main_script']},
-                  zip_safe=True,
-                  classifiers=[
-                      # complete classifier list: http://pypi.python.org/pypi?%3Aaction=list_classifiers
-                      'Development Status :: 4 - Beta',
-                      'Intended Audience :: Developers',
-                      'Intended Audience :: Education',
-                      'Intended Audience :: Other Audience',
-                      'Intended Audience :: Science/Research',
-                      'License :: OSI Approved :: European Union Public Licence 1.2 (EUPL 1.2)',
-                      'Operating System :: Unix',
-                      'Operating System :: POSIX',
-                      'Operating System :: Microsoft :: Windows',
-                      'Operating System :: MacOS :: MacOS X',
-                      'Programming Language :: Python',
-                      'Programming Language :: Python :: 3',
-                      'Topic :: Scientific/Engineering :: Physics',
-                  ],
+setup_args = dict(
+    name='pcr2nc',
+    version=version,
+    packages=find_packages(),
+    description='Convert PCRaster files to netCDF4',
+    long_description=long_description,
+    long_description_content_type='text/markdown',
+    install_requires=['numpy>=1.15', 'pyyaml', 'netCDF4>=1.3.1'],
+    author="Domenico Nappo",
+    author_email="domenico.nappo@gmail.com",
+    keywords=['netCDF4', 'PCRaster', 'mapstack'],
+    license='EUPL 1.2',
+    url='https://github.com/ec-jrc/lisflood-model',
+    # entry_points={'console_scripts': ['pcr2nc = pcr2nc_script:main_script']},
+    scripts=['bin/pcr2nc'],
+    zip_safe=True,
+    classifiers=[
+          # complete classifier list: http://pypi.python.org/pypi?%3Aaction=list_classifiers
+          'Development Status :: 4 - Beta',
+          'Intended Audience :: Developers',
+          'Intended Audience :: Education',
+          'Intended Audience :: Other Audience',
+          'Intended Audience :: Science/Research',
+          'License :: OSI Approved :: European Union Public Licence 1.2 (EUPL 1.2)',
+          'Operating System :: Unix',
+          'Operating System :: POSIX',
+          'Operating System :: Microsoft :: Windows',
+          'Operating System :: MacOS :: MacOS X',
+          'Programming Language :: Python',
+          'Programming Language :: Python :: 3',
+          'Topic :: Scientific/Engineering :: Physics',
+    ],
 )
 
 setup(**setup_args)
