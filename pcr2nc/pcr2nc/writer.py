@@ -111,7 +111,7 @@ class NetCDFWriter:
             self.timesteps.append(float(time_step))
         self.current_count += 1
 
-        if self.current_count == 10:
+        if self.current_count == 20:
             self.current_idx2 += self.current_count
             print('Writing a chunk...')
             dtype = self.values[0].dtype

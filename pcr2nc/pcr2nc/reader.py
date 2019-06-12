@@ -151,11 +151,11 @@ class PCRasterReader:
         if self.input_is_single_file():
             yield PCRasterMap.build(self.input_set), None
         elif self.input_is_wildcard():
-            filelist = sorted(glob.glob(self.input_set), key=lambda x: self._extract_timestep(x))
+            filelist = sorted(glob.glob(self.input_set), key=self._extract_timestep)
             for f in filelist:
                 yield PCRasterMap.build(f), self._extract_timestep(f)
         elif self.input_is_dir():
-            filelist = sorted(os.listdir(self.input_set), key=lambda x: self._extract_timestep(x))
+            filelist = sorted((f for f in os.listdir(self.input_set) if not f.endswith('.nc')), key=self._extract_timestep)
             for f in filelist:
                 f = os.path.join(self.input_set, f)
                 yield PCRasterMap.build(f), self._extract_timestep(f)
@@ -191,4 +191,4 @@ class PCRasterReader:
         except IndexError:
             return None
         else:
-            return int(step) - 1
+            return int(step)

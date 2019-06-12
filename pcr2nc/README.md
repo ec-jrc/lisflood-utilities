@@ -169,11 +169,16 @@ instead of 'lossless', that is some precision in the data is sacrificed for the 
 
 #### Geographical section
 
-In `geographical` section the only setting to configure is `datum`. Currently, `WGS84`, `ETRS89` and `GISCO` are the reference systems that are supported by pcr2nc.
+In `geographical` section the only setting to configure is `datum`. 
+Currently, pcr2nc supports the following list:
+
+  * `WGS84`
+  * `ETRS89`
+  * `GISCO`
 
 #### Time section
 
-This section is optional and is only required if the output file is a mapstack.
+This section is optional and is only required if the output file is a mapstack (a timeseries of georeferenced 2D arrays)
 In this section you have to configure `units` and `calendar`.
 
 - `units`: Can be one of the following strings (replacing placeholders with the actual date):
