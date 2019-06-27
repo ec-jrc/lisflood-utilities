@@ -1,3 +1,5 @@
 dask
 xarray
 pandas
+numpy
+netCDF4
