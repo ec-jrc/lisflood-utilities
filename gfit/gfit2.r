@@ -22,14 +22,14 @@
 ##    Jan 2018  - fixed bug in the threshold estimation in presence of NA and replaced for loops with parallel computing
 ##    Sep 2018  - fixed bug in the estimation of the gumbel parameters
 
-# USAGE: /usr/bin/Rscript gfit2.r <input.file> <output.file.path> <Return.Periods> <warmup_years> <N of years> <MaxGTavgDis>
+# USAGE: /usr/bin/Rscript gfit2.r <input.file> <output.file.path> <Return.Periods> <warmup_years> <N of years> <MaxGTavgDis> <VarNumber>
 # e.g. : /usr/bin/Rscript gfit2.r "/myInputPath/disAMax.nc" "/myOutputPath" 2-5-10-20-50-100-200-500 1 
 
 
 ######################################################
 ############   Input arguments   #####################
-
 args <- commandArgs(TRUE)
+
 input.file<-as.character(args[1])      #File with annual maxima (from cdo yearmax command)
 out.file.path<-as.character(args[2])   #Output folder
 rp1<-try(as.character(args[3]))        #Vector of output return periods
@@ -38,10 +38,10 @@ rp1<-try(as.character(args[3]))        #Vector of output return periods
 warmup_yrs<-try(as.numeric(args[4]))   #default=0         Warm-up years are excluded from the calculations of return levels. Normally this value is zero as Warmup years are removed already in the Gfit2.sh
 MaxGTavgDis<-try(as.numeric(args[5]))  #default=1 (Yes)   Option (1 or 0) to use only annual maxima larger than the long term average discharge. The latter must be put in out.file.path and named <whatever>Avg.nc (e.g., disAvg.nc)
 Nyears<-try(as.numeric(args[6]))       #default=all       Calculations of return levels is done on this number of years (normally 20-30 years)
+varNumber<-try(as.numeric(args[7]))    #default=1         Position of variable to extract in the netcdf file
 
 ptm <- proc.time() # used for estimating processing time
 dir.create(out.file.path, showWarnings = FALSE, recursive = TRUE)
-
 ####################################################################################################
 
 rp<-as.numeric(unlist(strsplit(rp1, split='-', fixed=TRUE)))
@@ -79,20 +79,25 @@ lmom.ub.LA <- function (x)
     return(z)
 }
 
+######################################
+#extract data from source nc file
+# varNumber<-2  #Change this if the variable to extract is in a different position in the netcdf file
+if(!exists("varNumber")){varNumber<-1} #default=1  Change this if the variable to extract is in a different position in the netcdf file
+######################################
 
 #extract data from source nc file
 nc = nc_open(filename = input.file,write=FALSE,suppress_dimvals=FALSE)	#open file with annual maxima from cdo
-xDim = nc$var[[1]]$dim[[1]]
-yDim = nc$var[[1]]$dim[[2]]
+xDim = nc$var[[varNumber]]$dim[[1]]
+yDim = nc$var[[varNumber]]$dim[[2]]
 data = ncvar_get(nc)
 
-Units<-nc$var[[1]]$units
-nCols<-nc$var[[1]]$size[1]   
-nRows<-nc$var[[1]]$size[2]
+Units<-nc$var[[varNumber]]$units
+nCols<-nc$var[[varNumber]]$size[1]   
+nRows<-nc$var[[varNumber]]$size[2]
 xllCenter<-min(nc$dim[[1]]$vals)
 yllCenter<-min(nc$dim[[2]]$vals)
 cellSize<-abs(nc$dim[[1]]$vals[1]-nc$dim[[1]]$vals[2])
-MV<-nc$var[[1]]$missval
+MV<-nc$var[[varNumber]]$missval
 
 Header<-list(paste0("ncols      ",nCols),paste0("nrows      ",nRows),paste0("xllcenter  ",xllCenter),paste0("yllcenter  ",yllCenter),paste0("cellsize   ",cellSize),paste0("NODATA_value  ",MV))
 
