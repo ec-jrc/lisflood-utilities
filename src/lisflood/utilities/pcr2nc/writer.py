@@ -21,7 +21,7 @@ import time
 import numpy as np
 from netCDF4 import Dataset
 
-from pcr2nc.reader import PCRasterReader
+from lisflood.utilities.pcr2nc.reader import PCRasterReader
 
 
 class NetCDFWriter:
