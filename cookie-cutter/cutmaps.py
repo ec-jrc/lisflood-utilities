@@ -12,55 +12,40 @@ from netCDF4 import Dataset
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-m", "--mask", help='mask file (cookie-cutter), .map if pcraster, .nc if netcdf', required=True)
+    # FIXME use mutual exclusive groups in argparse for -m/-c and -l/-f options
+    parser.add_argument("-m", "--mask", help='mask file (cookie-cutter), .map if pcraster, .nc if netcdf',
+                        required=False)
+    parser.add_argument("-c", "--cuts", help='Cut coordinates in the form Xmin-Xmax:Ymin-Ymax',
+                        required=False)
     parser.add_argument("-l", "--list",
                         help='list of files to be cut, in a text file, one file per line, '
                              'main variable i.e. pr/e0/tx/tavg must be last variable in the input file', required=False)
     parser.add_argument("-f", "--folder", help='Directory with netCDF files to be cut', required=False)
+
     parser.add_argument("-o", "--outpath", help='path where to save cut files', required=True)
     args = parser.parse_args()
 
-    filelist = args.list
     mask = args.mask
+    cuts = args.cuts
+    filelist = args.list
     pathout = args.outpath
     input_folder = args.folder
-    print('File list{} Mask: {} Output: {} Input: {}'.format(filelist, mask, pathout, input_folder))
-    if filelist:
-        list_to_cut = open(filelist).readlines()
-    elif input_folder:
-        list_to_cut = glob.glob(os.path.join(input_folder, '*.nc'))
-    else:
-        raise ValueError('You must issue either list or folder input arguments.')
+    print('Mask: {}\n Cuts: {}\n Files: {}\n Output: {}\n Input: {}\n'.format(mask, cuts, filelist, pathout, input_folder))
+    if mask and cuts or not (mask or cuts):
+        raise ValueError('You must issue either a mask file or cuts coordinates (not both).')
+    if filelist and input_folder or not (filelist or input_folder):
+        raise ValueError('You must issue either list or folder input arguments (not both).')
 
-    maskname, ext = os.path.splitext(mask)
-
-    if ext == '.map':
-        if os.path.isfile(mask):
-            print('maskmap', mask)
-            maskmap = pcraster.setclone(mask)
-            maskmap = pcraster.readmap(mask)
-            masknp = pcr2numpy(maskmap, False)
-        else:
-            print('wrong pcraster input mask file')
-            sys.exit(1)
-    elif ext == '.nc':
-        masknp = Dataset(mask, 'r')
-
-    else:
-        print('mask map format not recognized')
-        sys.exit(1)
-
-    mask_filter = np.where(masknp)
-    x_min = np.min(mask_filter[0])
-    x_max = np.max(mask_filter[0])
-    y_min = np.min(mask_filter[1])
-    y_max = np.max(mask_filter[1])
+    list_to_cut = get_filelist(filelist, input_folder)
+    x_max, x_min, y_max, y_min = get_cuts(cuts, mask)
     print('{} {} {} {}'.format(x_min, x_max, y_min, y_max))
+
     # walk through list_to_cut
     for f in list_to_cut:
         fileout = os.path.join(pathout, os.path.basename(f))
         if os.path.isfile(fileout) and os.path.exists(fileout):
-            print(fileout, 'Alreay existing, are you sure you are not swiping original file with cut version? this file will not be overwrote ')
+            print(fileout, 'Alreay existing, be sure you are not swiping original file with cut version.'
+                           'This file will not be overwritten')
             continue
         filename, ext = os.path.splitext(f)
         if ext != '.nc':
@@ -82,9 +67,48 @@ def main():
         else:
             sliced_var = nc[var][x_min:x_max+1, y_min:y_max+1]
 
-        print('Creating ', fileout)
+        print('Creating: ', fileout)
         sliced_var.to_netcdf(fileout)
         nc.close()
+
+
+def get_filelist(filelist, input_folder):
+    list_to_cut = []
+    if filelist:
+        list_to_cut = open(filelist).readlines()
+    elif input_folder:
+        list_to_cut = glob.glob(os.path.join(input_folder, '*.nc'))
+    return list_to_cut
+
+
+def get_cuts(cuts, mask):
+    if mask:
+        maskname, ext = os.path.splitext(mask)
+        if ext == '.map':
+            if os.path.isfile(mask):
+                print('maskmap', mask)
+                maskmap = pcraster.setclone(mask)
+                maskmap = pcraster.readmap(mask)
+                masknp = pcr2numpy(maskmap, False)
+            else:
+                print('wrong pcraster input mask file')
+                sys.exit(1)
+        elif ext == '.nc':
+            masknp = Dataset(mask, 'r')
+        else:
+            print('mask map format not recognized')
+            sys.exit(1)
+
+        mask_filter = np.asarray(masknp).nonzero()
+        x_min = np.min(mask_filter[0])
+        x_max = np.max(mask_filter[0])
+        y_min = np.min(mask_filter[1])
+        y_max = np.max(mask_filter[1])
+    elif cuts:
+        x, y = cuts.split(':')
+        x_min, x_max = x.split('-')
+        y_min, y_max = x.split('-')
+    return x_max, x_min, y_max, y_min
 
 
 if __name__ == '__main__':
