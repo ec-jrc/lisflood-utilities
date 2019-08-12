@@ -14,6 +14,10 @@ See the Licence for the specific language governing permissions and limitations 
 
 
 ---------------------------------------------------------------------------------------------------------------------------------------
+To publish a new version of this distribution (git tags and pypi package), after pushed on main branch:
+
+python setup.py publish
+
 python setup.py sdist
 
 To upload new package on PyPi Test:
@@ -30,7 +34,10 @@ pip install pcr2nc
 """
 
 import os
-from setuptools import setup, find_packages
+import sys
+from shutil import rmtree
+
+from setuptools import setup, find_packages, Command
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 readme_file = os.path.join(current_dir, 'README.md')
@@ -42,21 +49,65 @@ with open(readme_file, 'r') as f:
 with open(version_file, 'r') as f:
     version = f.read()
 
+
+class UploadCommand(Command):
+    """Support setup.py upload."""
+
+    description = 'Publish lisflood-utilities package.'
+    user_options = []
+
+    @staticmethod
+    def print_console(s):
+        print('\033[1m{0}\033[0m'.format(s))
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        try:
+            self.print_console('Removing previous builds...')
+            rmtree(os.path.join(current_dir, 'dist'))
+        except OSError:
+            pass
+
+        self.print_console('Building Source and Wheel (universal) distribution...')
+        os.system('{0} setup.py sdist'.format(sys.executable))
+
+        self.print_console('Uploading the package to PyPI via Twine...')
+        os.system('twine upload dist/*')
+
+        self.print_console('Pushing git tags...')
+        os.system('git tag v{0}'.format(version))
+        os.system('git push --tags')
+
+        sys.exit()
+
+
 setup_args = dict(
-    name='pcr2nc',
+    name='lisflood-utilities',
+    package_dir={'': 'src/'},
     version=version,
-    packages=find_packages(),
-    description='Convert PCRaster files to netCDF4',
+    packages=find_packages('src'),
+    description='A set of utilities for lisflood users. '
+                'pcr2nc: Convert PCRaster files to netCDF; '
+                'cutmaps: cut netCDF files',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    install_requires=['numpy>=1.15', 'pyyaml', 'netCDF4>=1.3.1'],
-    author="Domenico Nappo",
-    author_email="domenico.nappo@gmail.com",
-    keywords=['netCDF4', 'PCRaster', 'mapstack'],
+    setup_requires=[
+            # Setuptools 18.0 properly handles Cython extensions.
+            'setuptools>=41.0',
+            'numpy>=1.15,<1.17',
+    ],
+    install_requires=['numpy>=1.15', 'pyyaml', 'netCDF4>=1.3.1', 'xarray', 'dask', 'pandas'],
+    author="Valerio Lorini, Domenico Nappo",
+    author_email="valerio.lorini@ec.europa.eu,domenico.nappo@gmail.com",
+    keywords=['netCDF4', 'PCRaster', 'mapstack', 'lisflood', 'efas', 'glofas', 'ecmwf'],
     license='EUPL 1.2',
-    url='https://github.com/ec-jrc/lisflood-model',
-    # entry_points={'console_scripts': ['pcr2nc = pcr2nc_script:main_script']},
-    scripts=['bin/pcr2nc'],
+    url='https://github.com/ec-jrc/lisflood-utilities',
+    scripts=['bin/pcr2nc', 'bin/cutmaps'],
     zip_safe=True,
     classifiers=[
           # complete classifier list: http://pypi.python.org/pypi?%3Aaction=list_classifiers
@@ -74,6 +125,11 @@ setup_args = dict(
           'Programming Language :: Python :: 3',
           'Topic :: Scientific/Engineering :: Physics',
     ],
+    # setup.py publish to pypi.
+    cmdclass={
+        'publish': UploadCommand,
+        'upload': UploadCommand,
+    },
 )
 
 setup(**setup_args)

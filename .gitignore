@@ -45,3 +45,4 @@ vignettes/*.pdf
 dist/
 *.egg-info/
 **/build/
+.eggs/
