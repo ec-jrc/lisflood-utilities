@@ -63,7 +63,8 @@ def main_script():
 
 
 def main(args):
-    parser = ParserHelpOnError(description='Convert PCRaster maps to a NetCDF map stack')
+    parser = ParserHelpOnError(description='Convert a (or a set of) PCRaster map(s) '
+                                           'to a single NetCDF file (map stack).')
 
     parser.add_args()
     parsed_args = parser.parse_args(args)

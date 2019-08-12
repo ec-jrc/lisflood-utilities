@@ -18,14 +18,14 @@ class ParserHelpOnError(argparse.ArgumentParser):
         group_mask = self.add_mutually_exclusive_group()
         group_filelist = self.add_mutually_exclusive_group()
 
-        group_mask.add_argument("-m", "--mask", help='mask file (cutmaps__), .map if pcraster, .nc if netcdf')
+        group_mask.add_argument("-m", "--mask", help='mask file cookie-cutter, .map if pcraster, .nc if netcdf')
         group_mask.add_argument("-c", "--cuts", help='Cut coordinates in the form Xmin-Xmax:Ymin-Ymax')
         group_filelist.add_argument("-l", "--list", help='list of files to be cut, in a text file, one file per line, '
                                                          'main variable i.e. pr/e0/tx/tavg must be '
                                                          'last variable in the input file')
         group_filelist.add_argument("-f", "--folder", help='Directory with netCDF files to be cut')
 
-        self.add_argument("-o", "--outpath", help='path where to save cut files', required=True)
+        self.add_argument("-o", "--outpath", help='path where to save cut files', default='./cutmaps_out', required=True)
 
 
 def main(cliargs):
