@@ -17,6 +17,28 @@ source $settFile
 eval echo "source $settFile"             #Import settings file
 set +o allexport
 
+#######################################################################
+# check default values for input variables
+if [ -z "$warmup_yrs" ]; then
+    echo "warmup_yrs is unset"
+    warmup_yrs=0
+fi
+
+if [ -z "$MaxGTavgDis" ]; then
+    echo "MaxGTavgDis is unset"
+    MaxGTavgDis=1
+fi
+
+if [ -z "$Nyears" ]; then
+    echo "Nyears is unset"
+    Nyears="NaN"
+fi
+if [ -z "$varNumber" ]; then
+    echo "varNumber is unset"
+    varNumber=1
+fi
+#######################################################################
+
 
 mkdir -p $outDir
 
@@ -46,6 +68,8 @@ cdo yearmax $outDir/${varName}2.nc $outDir/${varName}AMax.nc
 echo "Extract the average map"
 cdo timmean $outDir/${varName}2.nc $outDir/${varName}Avg.nc
 
+# Copy pcraster clone map
+echo "Copy pcraster clone map"
 cp $cloneMap $outDir
 ########################################################################
 # Fitting of Gumbel extreme value distributions with L-moments
