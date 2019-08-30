@@ -91,7 +91,7 @@ setup_args = dict(
     package_dir={'': 'src/'},
     version=version,
     packages=find_packages('src'),
-    description='A set of utilities for lisflood users. '
+    description='A set of utilities for lisfloodutilities users. '
                 'pcr2nc: Convert PCRaster files to netCDF; '
                 'cutmaps: cut netCDF files',
     long_description=long_description,

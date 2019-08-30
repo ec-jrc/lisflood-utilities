@@ -8,3 +8,4 @@ GDAL
 dask
 xarray
 pandas
+toolz
