@@ -91,5 +91,3 @@ def get_cuts(cuts, mask):
         sys.exit(1)
     logger.info('CUTS: \nmin x: %s \nmax x: %s \nmin y: %s \nmax y: %s', x_min, x_max, y_min, y_max)
     return x_max, x_min, y_max, y_min
-
-

@@ -15,11 +15,9 @@ Other useful resources
 | Lisflood Usecases   |                                                           | https://github.com/ec-jrc/lisflood-usecases                     |
 
 
-## lisflood-utilities
-
 User guide of each tool is placed under the relative directory in a README.md file.
 
-### pcr2nc
+## pcr2nc
 
 __pcr2nc__ is a tool to convert PCRaster maps to netCDF4 files.
 It's developed at JRC E1 directorate, as a Floods group initiative.
@@ -29,11 +27,11 @@ It's developed at JRC E1 directorate, as a Floods group initiative.
 - support for WGS84 and ETRS89 (LAEA) reference systems
 - fine tuning of output files (compression, significant digits, etc.)
 
-#### Installation
+### Installation
 
 There are two ways to install the software: one via pip tool and one by cloning the repository.
 
-##### Requisites
+#### Requisites
 
 Ensure you have properly installed the following software:
 
@@ -53,7 +51,7 @@ Otherwise just execute the activate script
 $ source /path/to/virtualenvs/pcr2nc/bin/activate
 ```
 
-##### Install via pip tool
+#### Install via pip tool
 
 Activate the virtualenv and then:
 
@@ -75,7 +73,7 @@ gdal-config --version  # 2.2.3
 pip install GDAL==2.2.3
 ```
 
-##### Install by cloning the repository
+#### Install by cloning the repository
 
 Assuming your Python 3 virtualenv is called pcr2nc and you have virtualenvwrapper installed:
 
@@ -107,7 +105,7 @@ $ pip install GDAL==2.1
 $ pip install -r requirements.txt
 ```
 
-#### Usage
+### Usage
 
 > __Note:__ This guide assumes you have installed the program with pip tool.
 > If you cloned the source code instead, just substitute the executable `pcr2nc` with `python pcr2nc_script.py` that is in the root folder of the cloned project.
@@ -120,7 +118,7 @@ The tool takes three command line input arguments:
 
 Unless the input is a single file, the resulting NetCDF4 file will be a mapstack according to a time dimension.
 
-##### Example of usages:
+#### Example of usages:
 
 Input as a folder containing PCRaster maps. In this case, the folder must contain ONLY PCraster files and the output will be a mapstack.
 
@@ -140,7 +138,7 @@ Input as a _Unix style pathname pattern expansion_. The output will be a mapstac
 pcr2nc -i "/path/to/input/pcr00*" -o /path/to/output/out.nc -m ./nc_metadata.json
 ```
 
-##### Writing metadata configuration file
+#### Writing metadata configuration file
 
 Format of resulting NetCDF4 file is configured into a metadata configuration file. This file can be written in YAML or JSON format.
 
@@ -164,7 +162,7 @@ time:
 
 ```
 
-##### Variable section
+#### Variable section
 
 In `variable` section you can configure metadata for the main variable:
 
@@ -188,11 +186,11 @@ and bits is determined so that a precision of 0.1 is retained
 (in this case bits=4). Effectively, this makes the compression 'lossy'
 instead of 'lossless', that is some precision in the data is sacrificed for the sake of disk space.
 
-##### Source and reference
+#### Source and reference
 
 `source` and `reference` add information for the institution that is providing the NetCDF4 file.
 
-##### Geographical section
+#### Geographical section
 
 In `geographical` section the only setting to configure is `datum`. 
 Currently, pcr2nc supports the following list:
@@ -201,7 +199,7 @@ Currently, pcr2nc supports the following list:
   * `ETRS89`
   * `GISCO`
 
-##### Time section
+#### Time section
 
 This section is optional and is only required if the output file is a mapstack (a timeseries of georeferenced 2D arrays)
 In this section you have to configure `units` and `calendar`.
@@ -213,9 +211,33 @@ In this section you have to configure `units` and `calendar`.
 
 ## Cutmaps: a NetCDF files cookie-cutter
 
+This tool accepts a template/cookie-cutter as input, along with a list of files to cut, and produces cut netcdf files.  
 
 ### Usage:
-TODO
+The tool accepts as input:
+
+* a mask map (either PCRaster or netCDF format) or alternatively, passing directly indices in the form min_x_ind-max_x_ind:min_y_ind-max_y_ind
+* a textfile with a list of filepaths for files to cut or alternatively a path to a folder containing netCDF files to cut 
+* a path to a folder where to write cut files.
+
+#### Examples of usage:
+
+The following command will cut all netcdf files inside _/workarea/Madeira/lai/_ folder 
+and produced files will be writte in current folder. 
+The cookie-cutter that will be used is _/workarea/Madeira/maps/MaskMap/Bacia_madeira.nc_. 
+This file is a mask (boolean map with 1 only in the area of interest) where cutmaps takes the bounding box from.
+The mask can also be in PCRaster format.
+
+```console
+cutmaps -m /workarea/Madeira/maps/MaskMap/Bacia_madeira.nc -f /workarea/Madeira/lai/ -o ./
+```
+
+Indices can also be passed as an argument (using -c argument instead of -m). Knowing your area of interest from your netCDF files, 
+you can determine indices of the array and you can pass in the form `i_min-i_max:j_min-j_max`.
+
+```console
+cutmaps -c 150-350:80:180 -f /workarea/Madeira/lai/ -o ./
+```
 
 ## gfit
 
