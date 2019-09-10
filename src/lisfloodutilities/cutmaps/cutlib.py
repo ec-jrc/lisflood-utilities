@@ -20,39 +20,60 @@ def cutmap(f, fileout, x_max, x_min, y_max, y_min):
     # FIXME assuming last variable is what we have to slice...
     var = list(nc.variables.items())[-1][0]
     logger.info('Variable: %s', var)
+
     if 'lat' in nc.variables:
         nc.variables[var].attrs['esri_pe_string'] = 'GEOGCS[\"GCS_WGS_1984\",DATUM[\"D_WGS_1984\",SPHEROID[\"WGS_1984\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"Degree\",0.0174532925199433]]"'
     else:
         nc.variables[var].attrs['esri_pe_string'] = 'PROJCS["ETRS_1989_LAEA",GEOGCS["GCS_ETRS_1989",DATUM["D_ETRS_1989",SPHEROID["GRS_1980",6378137.0,298.257222101]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Lambert_Azimuthal_Equal_Area"],PARAMETER["False_Easting",4321000.0],PARAMETER["False_Northing",3210000.0],PARAMETER["Central_Meridian",10.0],PARAMETER["Latitude_Of_Origin",52.0],UNIT["Meter",1.0]]'
         nc.variables[var].attrs['proj4_params'] = "+proj=laea +lat_0=52 +lon_0=10 +x_0=4321000 +y_0=3210000 +ellps=GRS80 +units=m +no_defs"
 
-    if x_min.dtype in ('float64', 'float32'):
-        # we have coordinates bounds and not indices yet
-        lats = nc.variables['lat'][:]
-        lons = nc.variables['lon'][:]
-        lat_inds = np.where((lats >= y_min) & (lats <= y_max))[0]
-        lon_inds = np.where((lons >= x_min) & (lons <= x_max))[0]
-        if 'time' in nc.variables:
-            sliced_var = nc[var][:, lat_inds, lon_inds]
-        else:
-            sliced_var = nc[var][lat_inds, lon_inds]
+    if isinstance(x_min, float):
+        # bounding box input from user
+        sliced_var = _cut_from_coords(nc, var, x_max, x_min, y_max, y_min)
     else:
-        if 'time' in nc.variables:
-            sliced_var = nc[var][:, x_min:x_max + 1, y_min:y_max + 1]
-        else:
-            sliced_var = nc[var][x_min:x_max + 1, y_min:y_max + 1]
+        # user provides with indices directly (not coordinates)
+        sliced_var = _cut_from_indices(nc, var, x_max, x_min, y_max, y_min)
 
-    logger.info('Creating: %s', fileout)
-    sliced_var.to_netcdf(fileout)
+    if sliced_var is not None:
+        logger.info('Creating: %s', fileout)
+        sliced_var.to_netcdf(fileout)
     nc.close()
 
 
-def get_filelist(filelist, input_folder):
+def _cut_from_indices(nc, var, x_max, x_min, y_max, y_min):
+    if 'time' in nc.variables:
+        sliced_var = nc[var][:, x_min:x_max + 1, y_min:y_max + 1]
+    else:
+        sliced_var = nc[var][x_min:x_max + 1, y_min:y_max + 1]
+    return sliced_var
+
+
+def _cut_from_coords(nc, var, x_max, x_min, y_max, y_min):
+    # we have coordinates bounds and not indices yet
+    lats = nc.variables['lat'][:]
+    lons = nc.variables['lon'][:]
+    # find indices
+    lat_inds = np.where((lats >= y_min) & (lats <= y_max))[0]
+    lon_inds = np.where((lons >= x_min) & (lons <= x_max))[0]
+    if 'time' in nc.variables:
+        sliced_var = nc[var][:, lat_inds, lon_inds]
+    else:
+        try:
+            sliced_var = nc[var][lat_inds, lon_inds]
+        except IndexError:
+            # it happens when cutting lat or lon netcdf files (not 2D array)
+            sliced_var = nc[var][lat_inds] if var in ('lat', 'latitude', 'latitudes', 'x') else None
+    return sliced_var
+
+
+def get_filelist(filelist, input_folder, glofas_folder):
     list_to_cut = []
     if filelist:
         list_to_cut = open(filelist).readlines()
     elif input_folder:
         list_to_cut = [f for f in Path(input_folder).glob('**/*.nc')]
+    elif glofas_folder:
+        list_to_cut = [f for f in Path(glofas_folder).glob('**/*')]
     logger.info('==================> Going to cut %d files', len(list_to_cut))
     return list_to_cut
 
@@ -84,10 +105,10 @@ def get_cuts(cuts, mask):
     elif cuts:
         # user provided coordinates bounds
         x, y = cuts.split(':')
-        x_min, x_max = list(map(int, x.split('-')))
-        y_min, y_max = list(map(int, y.split('-')))
+        x_min, x_max = list(map(float, x.split('_')))
+        y_min, y_max = list(map(float, y.split('_')))
     else:
-        logger.error('You must provide either cuts (in the format a-b:c-d) or a mask map')
+        logger.error('You must provide either cuts (in the format minlon_maxlon:minlat_maxlat) or a mask map')
         sys.exit(1)
     logger.info('CUTS: \nmin x: %s \nmax x: %s \nmin y: %s \nmax y: %s', x_min, x_max, y_min, y_max)
     return x_max, x_min, y_max, y_min

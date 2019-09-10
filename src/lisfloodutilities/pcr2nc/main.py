@@ -30,9 +30,9 @@ from .writer import convert
 
 class ParserHelpOnError(argparse.ArgumentParser):
     def error(self, message):
-        sys.stderr.write('error: %s\n' % message)
+        sys.stderr.write('Error: %s\n' % message)
         self.print_help()
-        sys.exit(2)
+        sys.exit(1)
 
     def add_args(self):
         required_group = self.add_argument_group('required arguments')
