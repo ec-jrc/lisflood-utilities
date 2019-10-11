@@ -93,7 +93,8 @@ setup_args = dict(
     packages=find_packages('src'),
     description='A set of utilities for lisfloodutilities users. '
                 'pcr2nc: Convert PCRaster files to netCDF; '
-                'cutmaps: cut netCDF files',
+                'cutmaps: cut netCDF files;'
+                'compare: to compare two set of netcdf files',
     long_description=long_description,
     long_description_content_type='text/markdown',
     setup_requires=[
