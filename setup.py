@@ -98,14 +98,13 @@ setup_args = dict(
     long_description=long_description,
     long_description_content_type='text/markdown',
     setup_requires=[
-            # Setuptools 18.0 properly handles Cython extensions.
             'setuptools>=41.0',
             'numpy>=1.15,<1.17',
     ],
     install_requires=['numpy>=1.15', 'pyyaml', 'netCDF4>=1.3.1', 'xarray', 'dask', 'pandas'],
-    author="Valerio Lorini, Domenico Nappo",
-    author_email="valerio.lorini@ec.europa.eu,domenico.nappo@gmail.com",
-    keywords=['netCDF4', 'PCRaster', 'mapstack', 'lisflood', 'efas', 'glofas', 'ecmwf'],
+    author="Valerio Lorini, Domenico Nappo, Lorenzo Alfieri",
+    author_email="valerio.lorini@ec.europa.eu,domenico.nappo@gmail.com,lorenzo.alfieri@ec.europa.eu",
+    keywords=['netCDF4', 'PCRaster', 'mapstack', 'lisflood', 'efas', 'glofas', 'ecmwf', 'copernicus'],
     license='EUPL 1.2',
     url='https://github.com/ec-jrc/lisflood-utilities',
     scripts=['bin/pcr2nc', 'bin/cutmaps', 'bin/compare'],
