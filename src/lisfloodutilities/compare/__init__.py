@@ -13,7 +13,7 @@ class NetCDFComparator:
     def __init__(self, mask, atol=0.05, rtol=0.1, max_perc_diff=0.2, max_perc_large_diff=0.1):
         self.mask = Dataset(mask)
         maskvar = [k for k in self.mask.variables if len(self.mask.variables[k].dimensions) == 2][0]
-        self.maskarea = np.logical_not(maskvar[:, :])
+        self.maskarea = np.logical_not(self.mask.variables[maskvar][:, :])
         self.atol = atol
         self.rtol = rtol
         self.max_perc_large_diff = max_perc_large_diff
@@ -74,13 +74,13 @@ class NetCDFComparator:
             for i, step in enumerate(stepsa):
                 vara_step = vara[i][:, :]
                 varb_step = varb[i][:, :]
-                err = self.check_vars(self.maskarea, i, vara_step, varb_step, var_name, fa)
+                err = self.check_vars(self.maskarea, i, vara_step, varb_step, var_name, file_a)
                 if err:
                     errors.append(err)
         else:
             vara_step = vara[:, :]
             varb_step = varb[:, :]
-            err = self.check_vars(self.maskarea, None, vara_step, varb_step, var_name, fa)
+            err = self.check_vars(self.maskarea, None, vara_step, varb_step, var_name, file_a)
             if err:
                 errors.append(err)
         nca.close()
