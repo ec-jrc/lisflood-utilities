@@ -16,13 +16,11 @@ Usage: compare -a /workarea/datatests/modela_results/ -b /workarea/datatests/mod
 """
 
 import sys
-import os
-from pathlib import Path
 
 import numpy as np
-from netCDF4 import Dataset
 
-from .helpers import logger, ParserHelpOnError, check_vars
+from . import NetCDFComparator, logger
+from .helpers import ParserHelpOnError
 
 np.set_printoptions(precision=4, linewidth=300, suppress=True)
 
@@ -35,39 +33,9 @@ def main(cliargs):
     dataset_a = args.dataset_a
     dataset_b = args.dataset_b
     maskfile = args.maskarea
-    masknc = Dataset(maskfile)
-    maskvar = masknc.variables['areaModel']
-    maskarea = np.logical_not(maskvar[:, :])
-
+    comparator = NetCDFComparator(maskfile)
     logger.info('\n\nComparing %s and %s\n\n ', dataset_a, dataset_b)
-    errors = []
-    for fa in Path(dataset_a).glob('**/*.nc'):
-        fb = os.path.join(dataset_b, os.path.basename(fa))
-        if not os.path.exists(fb):
-            logger.info('skipping %s as it is not in %s', fb, dataset_b)
-            continue
-        nca = Dataset(fa)
-        ncb = Dataset(fb)
-
-        num_dims = 3 if 'time' in nca.variables else 2
-        var_name = [k for k in nca.variables if len(nca.variables[k].dimensions) == num_dims][0]
-        vara = nca.variables[var_name]
-        varb = ncb.variables[var_name]
-        if 'time' in nca.variables:
-            stepsa = nca.variables['time'][:]
-            stepsb = ncb.variables['time'][:]
-            if len(stepsa) != len(stepsb):
-                logger.error('Different number of timesteps')
-                errors.append('File: {}: different size in time axis A:{} B:{}'.format(os.path.basename(fa), len(stepsa), len(stepsb)))
-                continue
-            for i, step in enumerate(stepsa):
-                vara_step = vara[i][:, :]
-                varb_step = varb[i][:, :]
-                check_vars(maskarea, i, vara_step, varb_step, var_name, fa, errors)
-        else:
-            vara_step = vara[:, :]
-            varb_step = varb[:, :]
-            check_vars(maskarea, None, vara_step, varb_step, var_name, fa, errors)
+    errors = comparator.compare_dirs(dataset_a, dataset_b, )
 
     for i, e in enumerate(errors):
         logger.error('%d - %s', i, e)
@@ -78,4 +46,4 @@ def main_script():
 
 
 if __name__ == '__main__':
-    sys.exit(main(sys.argv[1:]))
+    main_script()
