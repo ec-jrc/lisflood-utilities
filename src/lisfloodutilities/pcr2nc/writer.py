@@ -44,8 +44,8 @@ class NetCDFWriter:
         self.pcr_metadata = pcr_metadata
         # you can pass the MV to set in netcdf files directly in yaml configuration, otherwuse np.nan is used
         self.mv = self.nc_metadata['variable'].get('mv')
-        if self.mv:
-            self.mv = int(self.mv) if self.pcr_metadata['dtype'] in (np.int8, np.int16, np.int32, np.int64, np.uint8, np.uint16, np.uint32, np.uint64) else float(self.mv)
+        if self.mv is not None:
+            self.mv = int(self.mv) if np.issubdtype(pcr_metadata['dtype'], np.integer) else float(self.mv)
         else:
             self.mv = np.nan
         self.is_mapstack = mapstack
@@ -107,7 +107,7 @@ class NetCDFWriter:
 
         values_nc = self.nf.createVariable(self.nc_metadata['variable'].get('shortname', ''),
                                            self.pcr_metadata['dtype'], vardimensions,
-                                           fill_value=self.mv or np.nan, **additional_args)
+                                           fill_value=self.mv, **additional_args)
         getattr(self, post_datum_function)(values_nc)
 
         values_nc.standard_name = self.nc_metadata['variable'].get('shortname', '')
@@ -124,8 +124,7 @@ class NetCDFWriter:
         """
         print('Adding', pcr_map.filename, 'timestep', str(time_step), 'hour', self.hour_timestep)
         values = pcr_map.data
-        if not np.issubdtype(values.dtype, np.integer):
-            values[values == pcr_map.mv] = np.nan
+        values[values == pcr_map.mv] = self.mv
         self.values.append(values)
         if time_step:
             self.timesteps.append(float(time_step))
