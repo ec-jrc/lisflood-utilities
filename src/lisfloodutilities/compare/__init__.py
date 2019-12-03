@@ -9,7 +9,48 @@ logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
 logger = logging.getLogger()
 
 
-class NetCDFComparator:
+class Comparator:
+    ext = None
+
+    def __init__(self):
+        self.errors = []
+
+    def compare_dirs(self, path_a, path_b):
+        for fa in Path(path_a).glob(f'**/*.{self.ext}'):
+            fb = os.path.join(path_b, os.path.basename(fa))
+            if not os.path.exists(fb):
+                logger.info('skipping %s as it is not in %s', fb, path_b)
+                continue
+            errors = self.compare_files(fa, fb)
+            if errors:
+                self.errors += errors
+        return self.errors
+
+    def compare_files(self, fa, fb):
+        raise NotImplementedError()
+
+
+class TSSComparator(Comparator):
+    ext = 'tss'
+
+    def compare_files(self, fa, fb):
+        with open(fa, 'rb') as fp1, open(fb, 'rb') as fp2:
+            # need to skip first line in TSS as it reports settings filename
+            next(fp1)
+            next(fp2)
+            while True:
+                b1 = fp1.readline()
+                b2 = fp2.readline()
+                if (b1 != b2) or (not b1 and b2) or (not b2 and b1):
+                    err = [f'{fa} different from {fb}']
+                    return err
+                if not b1:
+                    return None
+
+
+class NetCDFComparator(Comparator):
+    ext = 'nc'
+
     def __init__(self, mask, atol=0.05, rtol=0.1, max_perc_diff=0.2, max_perc_large_diff=0.1):
         self.mask = Dataset(mask)
         maskvar = [k for k in self.mask.variables if len(self.mask.variables[k].dimensions) == 2][0]
@@ -19,7 +60,7 @@ class NetCDFComparator:
         self.max_perc_large_diff = max_perc_large_diff
         self.max_perc_diff = max_perc_diff
         self.large_diff_th = self.atol * 10
-        self.errors = []
+        super().__init__()
 
     def check_vars(self, maskarea, step, vara_step, varb_step, varname, filepath):
         step = step if step is not None else '(no time)'
@@ -43,17 +84,6 @@ class NetCDFComparator:
                 logger.error(f'Var: {varname} - STEP {step}: {perc_wrong:3.2f}% of values are different. max diff: {max_diff:3.2f} (rel diff: {rel_diff}%)')
                 logger.error('\nA: %s\nB: %s', np.array_str(vara_step[result]), np.array_str(varb_step[result]))
                 return f'{filepath}/{varname}/{step} - {perc_wrong:3.2f}% of different values - max diff: {max_diff:3.2f} (rel diff: {rel_diff}%)'
-
-    def compare_dirs(self, path_a, path_b):
-        for fa in Path(path_a).glob('**/*.nc'):
-            fb = os.path.join(path_b, os.path.basename(fa))
-            if not os.path.exists(fb):
-                logger.info('skipping %s as it is not in %s', fb, path_b)
-                continue
-            errors = self.compare_files(fa, fb)
-            if errors:
-                self.errors += errors
-        return self.errors
 
     def compare_files(self, file_a, file_b):
         errors = []

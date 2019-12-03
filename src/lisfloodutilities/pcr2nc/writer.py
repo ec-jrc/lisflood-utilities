@@ -42,6 +42,12 @@ class NetCDFWriter:
         self.hour = self.nc_metadata.get('time', {}).get('hour', '00')
 
         self.pcr_metadata = pcr_metadata
+        # you can pass the MV to set in netcdf files directly in yaml configuration, otherwuse np.nan is used
+        self.mv = self.nc_metadata['variable'].get('mv')
+        if self.mv:
+            self.mv = int(self.mv) if self.pcr_metadata['dtype'] in (np.int8, np.int16, np.int32, np.int64, np.uint8, np.uint16, np.uint32, np.uint64) else float(self.mv)
+        else:
+            self.mv = np.nan
         self.is_mapstack = mapstack
         self.time, self.variable = self._init_dataset()
 
@@ -100,8 +106,8 @@ class NetCDFWriter:
             additional_args['least_significant_digit'] = self.nc_metadata.get('least_significant_digit', None)
 
         values_nc = self.nf.createVariable(self.nc_metadata['variable'].get('shortname', ''),
-                                           self.pcr_metadata['dtype'],
-                                           vardimensions, **additional_args)
+                                           self.pcr_metadata['dtype'], vardimensions,
+                                           fill_value=self.mv or np.nan, **additional_args)
         getattr(self, post_datum_function)(values_nc)
 
         values_nc.standard_name = self.nc_metadata['variable'].get('shortname', '')
