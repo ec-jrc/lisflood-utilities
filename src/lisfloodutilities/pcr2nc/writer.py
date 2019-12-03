@@ -71,8 +71,8 @@ class NetCDFWriter:
         # Dimensions
         if self.is_mapstack:
             self.nf.createDimension('time', None)
-        self.nf.createDimension('yc', self.pcr_metadata['rows'])
-        self.nf.createDimension('xc', self.pcr_metadata['cols'])
+        self.nf.createDimension('lat', self.pcr_metadata['rows'])
+        self.nf.createDimension('lon', self.pcr_metadata['cols'])
 
         # define coordinates variables by calling one of the define_* functions
         datum_function = 'define_{}'.format(self.nc_metadata['geographical']['datum'].lower())
@@ -80,7 +80,7 @@ class NetCDFWriter:
         getattr(self, datum_function)()
 
         time_nc = None
-        vardimensions = ('yc', 'xc')
+        vardimensions = ('lat', 'lon')
         if self.is_mapstack:
             # time variable
             time_units = self.nc_metadata['time'].get('units', '')
@@ -94,7 +94,7 @@ class NetCDFWriter:
                 start_date = start_date + datetime.timedelta(days=1)
                 time_nc.units = 'days since {} 00:00'.format(start_date.strftime('%Y-%m-%d'))
             time_nc.calendar = self.nc_metadata['time'].get('calendar', 'proleptic_gregorian')
-            vardimensions = ('time', 'yc', 'xc')
+            vardimensions = ('time', 'lat', 'lon')
 
         # data variable
         complevel = self.nc_metadata['variable'].get('compression')
@@ -168,12 +168,12 @@ class NetCDFWriter:
         """
         # coordinates variables
         print('Defining WGS84 coordinates variables')
-        longitude = self.nf.createVariable('lon', 'f8', ('xc',))
+        longitude = self.nf.createVariable('lon', 'f8', ('lon',))
         longitude.standard_name = 'longitude'
         longitude.long_name = 'longitude coordinate'
         longitude.units = 'degrees_east'
 
-        latitude = self.nf.createVariable('lat', 'f8', ('yc',))
+        latitude = self.nf.createVariable('lat', 'f8', ('lat',))
         latitude.standard_name = 'latitude'
         latitude.long_name = 'latitude coordinate'
         latitude.units = 'degrees_north'
@@ -190,8 +190,8 @@ class NetCDFWriter:
         """
         print('Defining ETRS89 coordinates variables')
         # Variables
-        x = self.nf.createVariable('x', 'f8', ('xc',))
-        y = self.nf.createVariable('y', 'f8', ('yc',))
+        x = self.nf.createVariable('x', 'f8', ('lon',))
+        y = self.nf.createVariable('y', 'f8', ('lat',))
         x.standard_name = 'projection_x_coordinate'
         x.long_name = 'x coordinate of projection'
         x.units = 'Meter'
@@ -224,8 +224,8 @@ class NetCDFWriter:
         """
         print('Defining GISCO coordinates variables')
         # Variables
-        x = self.nf.createVariable('x', 'f8', ('xc',))
-        y = self.nf.createVariable('y', 'f8', ('yc',))
+        x = self.nf.createVariable('x', 'f8', ('lon',))
+        y = self.nf.createVariable('y', 'f8', ('lat',))
         x.standard_name = 'projection_x_coordinate'
         x.long_name = 'x coordinate of projection'
         x.units = 'Meter'
