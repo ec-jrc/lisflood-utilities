@@ -1,0 +1,10 @@
+# test for a single map (not a time series)
+variable:
+  shortname: dem
+  description: elevation
+  longname: Elevation
+  units: m
+source: JRC Space, Security, Migration
+reference: JRC Space, Security, Migration
+geographical:
+  datum: WGS84

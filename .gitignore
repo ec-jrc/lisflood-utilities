@@ -40,9 +40,8 @@ vignettes/*.pdf
 *.yml
 *.yaml
 *.json
-!/pcr2nc/samples/*.yaml
-!/pcr2nc/samples/*.yml
 dist/
 *.egg-info/
 **/build/
 .eggs/
+!/**/samples/*
