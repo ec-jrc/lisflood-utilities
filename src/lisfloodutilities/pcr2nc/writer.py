@@ -21,7 +21,7 @@ import time
 import numpy as np
 from netCDF4 import Dataset
 
-from .reader import PCRasterReader
+from lisfloodutilities.readers import PCRasterReader
 
 
 class NetCDFWriter:
@@ -102,8 +102,8 @@ class NetCDFWriter:
         if complevel:
             print('Applying compression level', str(complevel))
             additional_args['complevel'] = complevel
-        if np.issubdtype(self.pcr_metadata['dtype'], np.floating):
-            additional_args['least_significant_digit'] = self.nc_metadata.get('least_significant_digit', None)
+            if np.issubdtype(self.pcr_metadata['dtype'], np.floating):
+                additional_args['least_significant_digit'] = self.nc_metadata.get('least_significant_digit')
 
         values_nc = self.nf.createVariable(self.nc_metadata['variable'].get('shortname', ''),
                                            self.pcr_metadata['dtype'], vardimensions,

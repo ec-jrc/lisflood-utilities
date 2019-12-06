@@ -1,25 +1,31 @@
 import os
 import logging
+import itertools
 from pathlib import Path
 
 import numpy as np
 from netCDF4 import Dataset
+
+from lisfloodutilities.readers import PCRasterMap
+
 
 logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
 logger = logging.getLogger()
 
 
 class Comparator:
-    ext = None
+    glob_expr = None
 
     def __init__(self):
         self.errors = []
 
     def compare_dirs(self, path_a, path_b):
-        for fa in Path(path_a).glob(f'**/*.{self.ext}'):
-            fb = os.path.join(path_b, os.path.basename(fa))
-            if not os.path.exists(fb):
-                logger.info('skipping %s as it is not in %s', fb, path_b)
+        path_a = Path(path_a)
+        path_b = Path(path_b)
+        for fa in itertools.chain(*(path_a.glob(e) for e in self.glob_expr)):
+            fb = path_b.joinpath(fa.name)
+            if not fb.exists():
+                logger.info('skipping %s as it is not in %s', fb.name, path_b.as_posix())
                 continue
             errors = self.compare_files(fa, fb)
             if errors:
@@ -30,8 +36,21 @@ class Comparator:
         raise NotImplementedError()
 
 
+class PCRComparator(Comparator):
+    glob_expr = ['**/*.[0-9][0-9][0-9]', '**/*.map']
+
+    def compare_files(self, fa, fb):
+        map_a = PCRasterMap(fa)
+        map_b = PCRasterMap(fb)
+        err = [f'{fa} different from {fb}'] if map_a != map_b else None
+        map_a.close()
+        map_b.close()
+        return err
+
+
+
 class TSSComparator(Comparator):
-    ext = 'tss'
+    glob_expr = ['**/*.tss']
 
     def compare_files(self, fa, fb):
         with open(fa, 'rb') as fp1, open(fb, 'rb') as fp2:
@@ -49,7 +68,7 @@ class TSSComparator(Comparator):
 
 
 class NetCDFComparator(Comparator):
-    ext = 'nc'
+    glob_expr = ['**/*.nc']
 
     def __init__(self, mask, atol=0.05, rtol=0.1, max_perc_diff=0.2, max_perc_large_diff=0.1):
         self.mask = Dataset(mask)

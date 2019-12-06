@@ -1,20 +1,3 @@
-"""
-Copyright 2019 European Union
-
-Licensed under the EUPL, Version 1.2 or as soon they will be approved by the European Commission  subsequent versions of the EUPL (the "Licence");
-
-You may not use this work except in compliance with the Licence.
-You may obtain a copy of the Licence at:
-
-https://joinup.ec.europa.eu/sites/default/files/inline-files/EUPL%20v1_2%20EN(1).txt
-
-Unless required by applicable law or agreed to in writing, software distributed under the Licence is distributed on an "AS IS" basis,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the Licence for the specific language governing permissions and limitations under the Licence.
-
-PCRaster related code. It contains classes representing a PCRaster map and the reader.
-"""
-
 import os
 import glob
 import re
@@ -50,6 +33,18 @@ class PCRasterMap:
         self.cols = self.dataset.RasterXSize
         self.rows = self.dataset.RasterYSize
         self.band = self.dataset.GetRasterBand(1)
+
+    def __eq__(self, other):
+        res = (self.cols == other.cols and self.rows ==  other.rows
+                and self.min == other.min and self.max == other.max
+                and self.geo_transform == other.geo_transform)
+        if not res:
+            return False
+        diff = np.abs(self.data - other.data)
+        return np.allclose(diff, np.zeros(diff.shape), rtol=1.e-2, atol=1.e-3, equal_nan=True)
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
     def close(self):
         """
@@ -173,7 +168,7 @@ class PCRasterReader:
         """
         A generator that yield a tuple (PCRasterMap object, timestep int) at each iteration.
 
-        :return: A generator object yielding a PCRasterMap object and a timestep tuple
+        :return: A generator object yielding a tuple of PCRasterMap object and an integer timestep
         """
         if self.input_is_single_file():
             yield PCRasterMap.build(self.input_set), None
