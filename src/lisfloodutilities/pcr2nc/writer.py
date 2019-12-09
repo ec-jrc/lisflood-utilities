@@ -17,11 +17,15 @@ Module containing the code for the NetCDFWriter class
 
 import datetime
 import time
+import logging
 
 import numpy as np
 from netCDF4 import Dataset
 
 from lisfloodutilities.readers import PCRasterReader
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger()
 
 
 class NetCDFWriter:
@@ -100,7 +104,7 @@ class NetCDFWriter:
         complevel = self.nc_metadata['variable'].get('compression')
         additional_args = {'zlib': bool(complevel)}
         if complevel:
-            print('Applying compression level', str(complevel))
+            logger.info('Applying compression level %s', str(complevel))
             additional_args['complevel'] = complevel
             if np.issubdtype(self.pcr_metadata['dtype'], np.floating):
                 additional_args['least_significant_digit'] = self.nc_metadata.get('least_significant_digit')
@@ -122,7 +126,7 @@ class NetCDFWriter:
             For single files (ie not time series) time_step is None
         :param pcr_map: PCRasterMap object
         """
-        print('Adding', pcr_map.filename, 'timestep', str(time_step), 'hour', self.hour_timestep)
+        logger.info('Adding %s - timestep %s - hour %s', pcr_map.filename, str(time_step), self.hour_timestep)
         values = pcr_map.data
         values[values == pcr_map.mv] = self.mv
         self.values.append(values)
@@ -132,7 +136,7 @@ class NetCDFWriter:
 
         if self.current_count == 20:
             self.current_idx2 += self.current_count
-            print('Writing a chunk...')
+            logger.info('Writing a chunk into output file...')
             dtype = self.values[0].dtype
             if self.is_mapstack:
                 self.variable[self.current_idx1:self.current_idx2, :, :] = np.array(self.values, dtype=dtype)
@@ -148,9 +152,9 @@ class NetCDFWriter:
         """
         Write last maps to the stack and close the NetCDF4 dataset.
         """
-        print('Writing...', self.name)
+        logger.info('Writing %s', self.name)
         if self.is_mapstack:
-            print('Writing time dimension...', self.timesteps[:4], '...', self.timesteps[-4:])
+            logger.info('Writing time dimension... %s ... %s', self.timesteps[:4], self.timesteps[-4:])
             self.time[:] = np.array(self.timesteps, dtype=np.float64)
 
         if self.values:
@@ -167,7 +171,7 @@ class NetCDFWriter:
         Define WGS84 reference system
         """
         # coordinates variables
-        print('Defining WGS84 coordinates variables')
+        logger.info('Defining WGS84 coordinates variables')
         longitude = self.nf.createVariable('lon', 'f8', ('lon',))
         longitude.standard_name = 'longitude'
         longitude.long_name = 'longitude coordinate'
@@ -188,7 +192,7 @@ class NetCDFWriter:
         """
         Define a ETRS89 reference system
         """
-        print('Defining ETRS89 coordinates variables')
+        logger.info('Defining ETRS89 coordinates variables')
         # Variables
         x = self.nf.createVariable('x', 'f8', ('lon',))
         y = self.nf.createVariable('y', 'f8', ('lat',))
@@ -257,10 +261,12 @@ def convert(config):
     input_set = config['input_set']
     reader = PCRasterReader(input_set)
     pcr_metadata = reader.get_metadata_from_set()
-    writer = NetCDFWriter(config.get('output_filename') or config.get('variable'),
-                          config['metadata'],
-                          pcr_metadata,
-                          mapstack=not reader.input_is_single_file())
+    writer = NetCDFWriter(
+        config.get('output_filename') or config.get('variable'),
+        config['metadata'],
+        pcr_metadata,
+        mapstack=not reader.input_is_single_file()
+    )
     for pcr_map, time_step in reader.fileset:
         writer.add_to_stack(pcr_map, time_step)
         pcr_map.close()
