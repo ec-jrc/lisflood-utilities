@@ -27,7 +27,7 @@ class Comparator:
             if not fb.exists():
                 logger.info('skipping %s as it is not in %s', fb.name, path_b.as_posix())
                 continue
-            errors = self.compare_files(fa, fb)
+            errors = self.compare_files(fa.as_posix(), fb.as_posix())
             if errors:
                 self.errors += errors
         return self.errors
@@ -71,6 +71,7 @@ class NetCDFComparator(Comparator):
     glob_expr = ['**/*.nc']
 
     def __init__(self, mask, atol=0.05, rtol=0.1, max_perc_diff=0.2, max_perc_large_diff=0.1):
+        super().__init__()
         self.mask = Dataset(mask)
         maskvar = [k for k in self.mask.variables if len(self.mask.variables[k].dimensions) == 2][0]
         self.maskarea = np.logical_not(self.mask.variables[maskvar][:, :])
@@ -79,7 +80,6 @@ class NetCDFComparator(Comparator):
         self.max_perc_large_diff = max_perc_large_diff
         self.max_perc_diff = max_perc_diff
         self.large_diff_th = self.atol * 10
-        super().__init__()
 
     def check_vars(self, maskarea, step, vara_step, varb_step, varname, filepath):
         step = step if step is not None else '(no time)'
@@ -106,32 +106,30 @@ class NetCDFComparator(Comparator):
 
     def compare_files(self, file_a, file_b):
         errors = []
-        nca = Dataset(file_a)
-        ncb = Dataset(file_b)
-        num_dims = 3 if 'time' in nca.variables else 2
-        var_name = [k for k in nca.variables if len(nca.variables[k].dimensions) == num_dims][0]
-        vara = nca.variables[var_name]
-        varb = ncb.variables[var_name]
-        if 'time' in nca.variables:
-            stepsa = nca.variables['time'][:]
-            stepsb = ncb.variables['time'][:]
-            if len(stepsa) != len(stepsb):
-                logger.error('Different number of timesteps')
-                len_stepsa = len(stepsa)
-                len_stepsb = len(stepsb)
-                return f'Files: {file_a} vs {file_b}: different size in time axis A:{len_stepsa} B:{len_stepsb}'
-            for i, step in enumerate(stepsa):
-                vara_step = vara[i][:, :]
-                varb_step = varb[i][:, :]
-                err = self.check_vars(self.maskarea, i, vara_step, varb_step, var_name, file_a)
+        logger.info('Comparing %s and %s', file_a, file_b)
+        with Dataset(file_a)as nca, Dataset(file_b) as ncb:
+            num_dims = 3 if 'time' in nca.variables else 2
+            var_name = [k for k in nca.variables if len(nca.variables[k].dimensions) == num_dims][0]
+            vara = nca.variables[var_name]
+            varb = ncb.variables[var_name]
+            if 'time' in nca.variables:
+                stepsa = nca.variables['time'][:]
+                stepsb = ncb.variables['time'][:]
+                if len(stepsa) != len(stepsb):
+                    logger.error('Different number of timesteps')
+                    len_stepsa = len(stepsa)
+                    len_stepsb = len(stepsb)
+                    return f'Files: {file_a} vs {file_b}: different size in time axis A:{len_stepsa} B:{len_stepsb}'
+                for i, step in enumerate(stepsa):
+                    vara_step = vara[i][:, :]
+                    varb_step = varb[i][:, :]
+                    err = self.check_vars(self.maskarea, i, vara_step, varb_step, var_name, file_a)
+                    if err:
+                        errors.append(err)
+            else:
+                vara_step = vara[:, :]
+                varb_step = varb[:, :]
+                err = self.check_vars(self.maskarea, None, vara_step, varb_step, var_name, file_a)
                 if err:
                     errors.append(err)
-        else:
-            vara_step = vara[:, :]
-            varb_step = varb[:, :]
-            err = self.check_vars(self.maskarea, None, vara_step, varb_step, var_name, file_a)
-            if err:
-                errors.append(err)
-        nca.close()
-        ncb.close()
         return errors
