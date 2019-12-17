@@ -19,14 +19,19 @@ class Comparator:
     def __init__(self):
         self.errors = []
 
-    def compare_dirs(self, path_a, path_b):
+    def compare_dirs(self, path_a, path_b, skip_missing=True):
+        logger.info('Comparing %s and %s [skip missing: %s]', path_a, path_b, str(skip_missing))
         path_a = Path(path_a)
         path_b = Path(path_b)
         for fa in itertools.chain(*(path_a.glob(e) for e in self.glob_expr)):
             fb = path_b.joinpath(fa.name)
             if not fb.exists():
-                logger.info('skipping %s as it is not in %s', fb.name, path_b.as_posix())
-                continue
+                if skip_missing:
+                    logger.info('skipping %s as it is not in %s', fb.name, path_b.as_posix())
+                    continue
+                else:
+                    self.errors += [f'{fb.name} is missing in {path_b.as_posix()}']
+                    continue
             errors = self.compare_files(fa.as_posix(), fb.as_posix())
             if errors:
                 self.errors += errors
@@ -39,21 +44,22 @@ class Comparator:
 class PCRComparator(Comparator):
     glob_expr = ['**/*.[0-9][0-9][0-9]', '**/*.map']
 
-    def compare_files(self, fa, fb):
-        map_a = PCRasterMap(fa)
-        map_b = PCRasterMap(fb)
-        err = [f'{fa} different from {fb}'] if map_a != map_b else None
+    def compare_files(self, file_a, file_b):
+        logger.info('Comparing %s and %s', file_a, file_b)
+        map_a = PCRasterMap(file_a)
+        map_b = PCRasterMap(file_b)
+        err = [f'{file_a} different from {file_b}'] if map_a != map_b else None
         map_a.close()
         map_b.close()
         return err
 
 
-
 class TSSComparator(Comparator):
     glob_expr = ['**/*.tss']
 
-    def compare_files(self, fa, fb):
-        with open(fa, 'rb') as fp1, open(fb, 'rb') as fp2:
+    def compare_files(self, file_a, file_b):
+        logger.info('Comparing %s and %s', file_a, file_b)
+        with open(file_a, 'rb') as fp1, open(file_b, 'rb') as fp2:
             # need to skip first line in TSS as it reports settings filename
             next(fp1)
             next(fp2)
@@ -61,7 +67,7 @@ class TSSComparator(Comparator):
                 b1 = fp1.readline()
                 b2 = fp2.readline()
                 if (b1 != b2) or (not b1 and b2) or (not b2 and b1):
-                    err = [f'{fa} different from {fb}']
+                    err = [f'{file_a} different from {file_b}']
                     return err
                 if not b1:
                     return None
@@ -81,7 +87,7 @@ class NetCDFComparator(Comparator):
         self.max_perc_diff = max_perc_diff
         self.large_diff_th = self.atol * 10
 
-    def check_vars(self, maskarea, step, vara_step, varb_step, varname, filepath):
+    def _check_vars(self, maskarea, step, vara_step, varb_step, varname, filepath):
         step = step if step is not None else '(no time)'
         filepath = os.path.basename(filepath)
         vara_step = np.ma.masked_array(vara_step, maskarea)
@@ -100,8 +106,8 @@ class NetCDFComparator(Comparator):
             rel_diff = max_diff * 100. / np.maximum(vara_step[result], varb_step[result])
             if np.max(rel_diff) > 0.01 and (perc_wrong >= self.max_perc_diff or (perc_wrong >= self.max_perc_large_diff and max_diff > self.large_diff_th)):
                 rel_diff = np.array_str(rel_diff)
-                logger.error(f'Var: {varname} - STEP {step}: {perc_wrong:3.2f}% of values are different. max diff: {max_diff:3.2f} (rel diff: {rel_diff}%)')
-                logger.error('\nA: %s\nB: %s', np.array_str(vara_step[result]), np.array_str(varb_step[result]))
+                # logger.error(f'Var: {varname} - STEP {step}: {perc_wrong:3.2f}% of values are different. max diff: {max_diff:3.2f} (rel diff: {rel_diff}%)')
+                # logger.error('\nA: %s\nB: %s', np.array_str(vara_step[result]), np.array_str(varb_step[result]))
                 return f'{filepath}/{varname}/{step} - {perc_wrong:3.2f}% of different values - max diff: {max_diff:3.2f} (rel diff: {rel_diff}%)'
 
     def compare_files(self, file_a, file_b):
@@ -116,20 +122,20 @@ class NetCDFComparator(Comparator):
                 stepsa = nca.variables['time'][:]
                 stepsb = ncb.variables['time'][:]
                 if len(stepsa) != len(stepsb):
-                    logger.error('Different number of timesteps')
+                    # logger.error('Different number of timesteps')
                     len_stepsa = len(stepsa)
                     len_stepsb = len(stepsb)
                     return f'Files: {file_a} vs {file_b}: different size in time axis A:{len_stepsa} B:{len_stepsb}'
                 for i, step in enumerate(stepsa):
                     vara_step = vara[i][:, :]
                     varb_step = varb[i][:, :]
-                    err = self.check_vars(self.maskarea, i, vara_step, varb_step, var_name, file_a)
+                    err = self._check_vars(self.maskarea, i, vara_step, varb_step, var_name, file_a)
                     if err:
                         errors.append(err)
             else:
                 vara_step = vara[:, :]
                 varb_step = varb[:, :]
-                err = self.check_vars(self.maskarea, None, vara_step, varb_step, var_name, file_a)
+                err = self._check_vars(self.maskarea, None, vara_step, varb_step, var_name, file_a)
                 if err:
                     errors.append(err)
         return errors
