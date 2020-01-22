@@ -90,25 +90,23 @@ class NetCDFComparator(Comparator):
     def _check_vars(self, maskarea, step, vara_step, varb_step, varname, filepath):
         step = step if step is not None else '(no time)'
         filepath = os.path.basename(filepath)
-        vara_step = np.ma.masked_array(vara_step, maskarea)
-        varb_step = np.ma.masked_array(varb_step, maskarea)
-        vara_step = np.ma.compressed(vara_step).astype('float64')
-        varb_step = np.ma.compressed(varb_step).astype('float64')
+        vara_step = np.ma.compressed(np.ma.masked_array(vara_step, maskarea)).astype('float64')
+        varb_step = np.ma.compressed(np.ma.masked_array(varb_step, maskarea)).astype('float64')
         diff_values = np.ma.abs(vara_step - varb_step)
         same_values = np.ma.allclose(diff_values, np.zeros(diff_values.shape), atol=self.atol, rtol=self.rtol)
         all_ok = vara_step.size == varb_step.size and same_values
         array_ok = np.isclose(diff_values, np.zeros(diff_values.shape), atol=self.atol, rtol=self.rtol, equal_nan=True)
         different_values_size = array_ok[~array_ok].size
         if (not all_ok) and (different_values_size > 0):
-            max_diff = np.ma.amax(diff_values)
-            perc_wrong = different_values_size * 100 / diff_values.size
-            result = np.where(diff_values >= max_diff)
+            max_diff = np.ma.amax(diff_values)  # returns a scalar
+            perc_wrong = different_values_size * 100 / vara_step.size
+            result = np.ma.where(diff_values >= max_diff)
             rel_diff = max_diff * 100. / np.maximum(vara_step[result], varb_step[result])
-            if np.max(rel_diff) > 0.01 and (perc_wrong >= self.max_perc_diff or (perc_wrong >= self.max_perc_large_diff and max_diff > self.large_diff_th)):
-                rel_diff = np.array_str(rel_diff)
-                # logger.error(f'Var: {varname} - STEP {step}: {perc_wrong:3.2f}% of values are different. max diff: {max_diff:3.2f} (rel diff: {rel_diff}%)')
-                # logger.error('\nA: %s\nB: %s', np.array_str(vara_step[result]), np.array_str(varb_step[result]))
-                return f'{filepath}/{varname}/{step} - {perc_wrong:3.2f}% of different values - max diff: {max_diff:3.2f} (rel diff: {rel_diff}%)'
+            if rel_diff.size > 0 and np.max(rel_diff) > 0.01 and (perc_wrong >= self.max_perc_diff or (perc_wrong >= self.max_perc_large_diff and max_diff > self.large_diff_th)):
+                filepath = os.path.basename(filepath)
+                mess = f'{filepath}/{varname}@{step} - {perc_wrong:3.2f}% of different values - max diff: {max_diff:3.2f}'
+                logger.error(mess)
+                return mess
 
     def compare_files(self, file_a, file_b):
         errors = []
@@ -126,16 +124,16 @@ class NetCDFComparator(Comparator):
                     len_stepsa = len(stepsa)
                     len_stepsb = len(stepsb)
                     return f'Files: {file_a} vs {file_b}: different size in time axis A:{len_stepsa} B:{len_stepsb}'
-                for i, step in enumerate(stepsa):
-                    vara_step = vara[i][:, :]
-                    varb_step = varb[i][:, :]
-                    err = self._check_vars(self.maskarea, i, vara_step, varb_step, var_name, file_a)
+                for step, _ in enumerate(stepsa):
+                    values_a = vara[step][:, :]
+                    values_b = varb[step][:, :]
+                    err = self._check_vars(self.maskarea, step, values_a, values_b, var_name, file_a)
                     if err:
                         errors.append(err)
             else:
-                vara_step = vara[:, :]
-                varb_step = varb[:, :]
-                err = self._check_vars(self.maskarea, None, vara_step, varb_step, var_name, file_a)
+                values_a = vara[:, :]
+                values_b = varb[:, :]
+                err = self._check_vars(self.maskarea, None, values_a, values_b, var_name, file_a)
                 if err:
                     errors.append(err)
         return errors
