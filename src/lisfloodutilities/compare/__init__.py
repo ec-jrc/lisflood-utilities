@@ -78,20 +78,22 @@ class NetCDFComparator(Comparator):
 
     def __init__(self, mask, atol=0.05, rtol=0.1, max_perc_diff=0.2, max_perc_large_diff=0.1):
         super().__init__()
-        self.mask = Dataset(mask)
-        maskvar = [k for k in self.mask.variables if len(self.mask.variables[k].dimensions) == 2][0]
-        self.maskarea = np.logical_not(self.mask.variables[maskvar][:, :])
+        if isinstance(mask, str):
+            mask = Dataset(mask)
+            maskvar = [k for k in mask.variables if len(mask.variables[k].dimensions) == 2][0]
+            self.maskarea = np.logical_not(mask.variables[maskvar][:, :])
+        else:
+            self.maskarea = mask
         self.atol = atol
         self.rtol = rtol
         self.max_perc_large_diff = max_perc_large_diff
         self.max_perc_diff = max_perc_diff
         self.large_diff_th = self.atol * 10
 
-    def _check_vars(self, maskarea, step, vara_step, varb_step, varname, filepath):
-        step = step if step is not None else '(no time)'
-        filepath = os.path.basename(filepath)
-        vara_step = np.ma.compressed(np.ma.masked_array(vara_step, maskarea)).astype('float64')
-        varb_step = np.ma.compressed(np.ma.masked_array(varb_step, maskarea)).astype('float64')
+    def compare_arrays(self, vara_step, varb_step, varname=None, step=None, filepath=None):
+
+        vara_step = np.ma.compressed(np.ma.masked_array(vara_step, self.maskarea)).astype('float64')
+        varb_step = np.ma.compressed(np.ma.masked_array(varb_step, self.maskarea)).astype('float64')
         diff_values = np.ma.abs(vara_step - varb_step)
         same_values = np.ma.allclose(diff_values, np.zeros(diff_values.shape), atol=self.atol, rtol=self.rtol)
         all_ok = vara_step.size == varb_step.size and same_values
@@ -103,7 +105,9 @@ class NetCDFComparator(Comparator):
             result = np.ma.where(diff_values >= max_diff)
             rel_diff = max_diff * 100. / np.maximum(vara_step[result], varb_step[result])
             if rel_diff.size > 0 and np.max(rel_diff) > 0.01 and (perc_wrong >= self.max_perc_diff or (perc_wrong >= self.max_perc_large_diff and max_diff > self.large_diff_th)):
-                filepath = os.path.basename(filepath)
+                step = step if step is not None else '(no time)'
+                filepath = os.path.basename(filepath) if filepath else '<mem>'
+                varname = varname or '<unknown var>'
                 mess = f'{filepath}/{varname}@{step} - {perc_wrong:3.2f}% of different values - max diff: {max_diff:3.2f}'
                 logger.error(mess)
                 return mess
@@ -111,7 +115,7 @@ class NetCDFComparator(Comparator):
     def compare_files(self, file_a, file_b):
         errors = []
         logger.info('Comparing %s and %s', file_a, file_b)
-        with Dataset(file_a)as nca, Dataset(file_b) as ncb:
+        with Dataset(file_a) as nca, Dataset(file_b) as ncb:
             num_dims = 3 if 'time' in nca.variables else 2
             var_name = [k for k in nca.variables if len(nca.variables[k].dimensions) == num_dims][0]
             vara = nca.variables[var_name]
@@ -120,20 +124,19 @@ class NetCDFComparator(Comparator):
                 stepsa = nca.variables['time'][:]
                 stepsb = ncb.variables['time'][:]
                 if len(stepsa) != len(stepsb):
-                    # logger.error('Different number of timesteps')
                     len_stepsa = len(stepsa)
                     len_stepsb = len(stepsb)
                     return f'Files: {file_a} vs {file_b}: different size in time axis A:{len_stepsa} B:{len_stepsb}'
                 for step, _ in enumerate(stepsa):
                     values_a = vara[step][:, :]
                     values_b = varb[step][:, :]
-                    err = self._check_vars(self.maskarea, step, values_a, values_b, var_name, file_a)
+                    err = self.compare_arrays(values_a, values_b, var_name, step, file_a)
                     if err:
                         errors.append(err)
             else:
                 values_a = vara[:, :]
                 values_b = varb[:, :]
-                err = self._check_vars(self.maskarea, None, values_a, values_b, var_name, file_a)
+                err = self.compare_arrays(values_a, values_b, var_name, filepath=file_a)
                 if err:
                     errors.append(err)
         return errors
