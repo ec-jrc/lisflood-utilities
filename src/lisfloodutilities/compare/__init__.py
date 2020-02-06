@@ -30,7 +30,7 @@ class Comparator:
                     logger.info('skipping %s as it is not in %s', fb.name, path_b.as_posix())
                     continue
                 else:
-                    self.errors += [f'{fb.name} is missing in {path_b.as_posix()}']
+                    self.errors += ['{} is missing in {}'.format(fb.name, path_b.as_posix())]
                     continue
             errors = self.compare_files(fa.as_posix(), fb.as_posix())
             if errors:
@@ -48,7 +48,7 @@ class PCRComparator(Comparator):
         logger.info('Comparing %s and %s', file_a, file_b)
         map_a = PCRasterMap(file_a)
         map_b = PCRasterMap(file_b)
-        err = [f'{file_a} different from {file_b}'] if map_a != map_b else None
+        err = ['{} different from {}'.format(file_a, file_b)] if map_a != map_b else None
         map_a.close()
         map_b.close()
         return err
@@ -67,7 +67,7 @@ class TSSComparator(Comparator):
                 b1 = fp1.readline()
                 b2 = fp2.readline()
                 if (b1 != b2) or (not b1 and b2) or (not b2 and b1):
-                    err = [f'{file_a} different from {file_b}']
+                    err = ['{} different from {}'.format(file_a, file_b)]
                     return err
                 if not b1:
                     return None
@@ -108,7 +108,7 @@ class NetCDFComparator(Comparator):
                 step = step if step is not None else '(no time)'
                 filepath = os.path.basename(filepath) if filepath else '<mem>'
                 varname = varname or '<unknown var>'
-                mess = f'{filepath}/{varname}@{step} - {perc_wrong:3.2f}% of different values - max diff: {max_diff:3.2f}'
+                mess = '{}/{}@{} - {:3.2f}% of different values - max diff: {:3.2f}'.format(filepath, varname, step, perc_wrong, max_diff)
                 logger.error(mess)
                 return mess
 
@@ -126,7 +126,7 @@ class NetCDFComparator(Comparator):
                 if len(stepsa) != len(stepsb):
                     len_stepsa = len(stepsa)
                     len_stepsb = len(stepsb)
-                    return f'Files: {file_a} vs {file_b}: different size in time axis A:{len_stepsa} B:{len_stepsb}'
+                    return 'Files: {} vs {}: different size in time axis A:{} B:{}'.format(file_a, file_b, len_stepsa, len_stepsb)
                 for step, _ in enumerate(stepsa):
                     values_a = vara[step][:, :]
                     values_b = varb[step][:, :]
