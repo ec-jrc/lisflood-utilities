@@ -9,3 +9,6 @@ dask
 xarray
 pandas
 toolz
+
+pathlib2
+nine
