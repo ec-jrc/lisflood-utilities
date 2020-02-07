@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
 logger = logging.getLogger()
 
 
-class Comparator:
+class Comparator(object):
     glob_expr = None
 
     def __init__(self):
