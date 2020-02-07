@@ -101,7 +101,7 @@ setup_args = dict(
             'setuptools>=41.0',
             'numpy>=1.15,<1.17',
     ],
-    install_requires=['numpy>=1.15', 'pyyaml', 'netCDF4>=1.3.1', 'xarray', 'dask', 'pandas'],
+    install_requires=['numpy>=1.15', 'pyyaml', 'netCDF4>=1.3.1', 'xarray', 'dask', 'pandas', 'pathlib2', 'nine'],
     author="Valerio Lorini, Domenico Nappo, Lorenzo Alfieri",
     author_email="valerio.lorini@ec.europa.eu,domenico.nappo@gmail.com,lorenzo.alfieri@ec.europa.eu",
     keywords=['netCDF4', 'PCRaster', 'mapstack', 'lisflood', 'efas', 'glofas', 'ecmwf', 'copernicus'],

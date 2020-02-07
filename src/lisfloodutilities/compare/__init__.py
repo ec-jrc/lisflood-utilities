@@ -82,7 +82,7 @@ class NetCDFComparator(Comparator):
     glob_expr = ['**/*.nc']
 
     def __init__(self, mask, atol=0.05, rtol=0.1, max_perc_diff=0.2, max_perc_large_diff=0.1):
-        super().__init__()
+        super(NetCDFComparator, self).__init__()
         if isinstance(mask, str):
             mask = Dataset(mask)
             maskvar = [k for k in mask.variables if len(mask.variables[k].dimensions) == 2][0]
