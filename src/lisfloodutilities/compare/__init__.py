@@ -66,8 +66,8 @@ class TSSComparator(Comparator):
         logger.info('Comparing %s and %s', file_a, file_b)
         with open(file_a, 'rb') as fp1, open(file_b, 'rb') as fp2:
             # need to skip first line in TSS as it reports settings filename
-            next(fp1)
-            next(fp2)
+            fp1.readline()
+            fp2.readline()
             while True:
                 b1 = fp1.readline()
                 b2 = fp2.readline()
