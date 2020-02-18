@@ -8,7 +8,7 @@ import numpy as np
 try:
     from osgeo import gdal
     from osgeo.gdalconst import GA_ReadOnly
-except (ModuleNotFoundError, ImportError) as e:
+except ImportError as e:
     print("""
     [!] GDAL is not installed. Please, install GDAL binaries and libraries for your system and then install the relative pip package.
     [!] Important note: you have to install same version of GDAL for its python interface. You also need to install GDAL C headers.
