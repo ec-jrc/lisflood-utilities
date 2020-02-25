@@ -25,6 +25,7 @@ class Comparator(object):
         self.errors = []
 
     def compare_dirs(self, path_a, path_b, skip_missing=True):
+        errors = []
         logger.info('Comparing %s and %s [skip missing: %s]', path_a, path_b, str(skip_missing))
         path_a = Path(path_a)
         path_b = Path(path_b)
@@ -35,12 +36,12 @@ class Comparator(object):
                     logger.info('skipping %s as it is not in %s', fb.name, path_b.as_posix())
                     continue
                 else:
-                    self.errors += ['{} is missing in {}'.format(fb.name, path_b.as_posix())]
+                    errors += ['{} is missing in {}'.format(fb.name, path_b.as_posix())]
                     continue
-            errors = self.compare_files(fa.as_posix(), fb.as_posix())
-            if errors:
-                self.errors += errors
-        return self.errors
+            err_file = self.compare_files(fa.as_posix(), fb.as_posix())
+            if err_file:
+                errors += err_file
+        return errors
 
     def compare_files(self, fa, fb):
         raise NotImplementedError()
