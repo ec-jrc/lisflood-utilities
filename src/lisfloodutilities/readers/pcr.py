@@ -15,8 +15,8 @@ except ImportError as e:
     [!] sudo apt-get install libgdal-dev libgdal
     [!] export CPLUS_INCLUDE_PATH=/usr/include/gdal
     [!] export C_INCLUDE_PATH=/usr/include/gdal
-    [!] To know your gdal version execute `gdal-config --version` ex. 2.2.3
-    [!] pip install GDAL==2.2.3
+    [!] To know the gdal library version you have installed on your machine, run `gdal-config --version` 
+    [!] e.g. 2.2.3 ==> pip install GDAL==2.2.3
     """)
     sys.exit(1)
 

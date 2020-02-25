@@ -100,6 +100,7 @@ class NetCDFComparator(Comparator):
         vara_step = np.ma.compressed(np.ma.masked_array(vara_step, self.maskarea)).astype('float64')
         varb_step = np.ma.compressed(np.ma.masked_array(varb_step, self.maskarea)).astype('float64')
         diff_values = np.ma.abs(vara_step - varb_step)
+        diff_values = diff_values[~np.isnan(diff_values)]
         same_values = np.ma.allclose(diff_values, np.zeros(diff_values.shape), atol=self.atol, rtol=self.rtol)
         all_ok = vara_step.size == varb_step.size and same_values
         array_ok = np.isclose(diff_values, np.zeros(diff_values.shape), atol=self.atol, rtol=self.rtol, equal_nan=True)
@@ -124,7 +125,11 @@ class NetCDFComparator(Comparator):
             num_dims = 3 if 'time' in nca.variables else 2
             var_name = [k for k in nca.variables if len(nca.variables[k].dimensions) == num_dims][0]
             vara = nca.variables[var_name]
-            varb = ncb.variables[var_name]
+            try:
+                varb = ncb.variables[var_name]
+            except KeyError:
+                var_nameb = [k for k in nca.variables if len(nca.variables[k].dimensions) == num_dims][0]
+                return 'Files: {} vs {} have different variables names A:{} B:{}'.format(file_a, file_b, var_name, var_nameb)
             if 'time' in nca.variables:
                 stepsa = nca.variables['time'][:]
                 stepsb = ncb.variables['time'][:]

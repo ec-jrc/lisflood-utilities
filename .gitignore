@@ -45,3 +45,4 @@ dist/
 **/build/
 .eggs/
 !/**/samples/*
+!tests/**/*.nc
