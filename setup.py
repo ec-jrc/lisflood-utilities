@@ -100,7 +100,7 @@ setup_args = dict(
     long_description=long_description,
     long_description_content_type='text/markdown',
     setup_requires=[
-            'setuptools>=41.0',
+            'setuptools>=41.0', 'nine',
             'numpy=={}'.format(numpy_version),
     ],
     install_requires=['numpy=={}'.format(numpy_version), 'pyyaml==5.3', 'netCDF4==1.5.3', 'xarray==0.15.0',
