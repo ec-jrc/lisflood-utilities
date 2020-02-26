@@ -49,6 +49,8 @@ with open(readme_file, 'r') as f:
 with open(version_file, 'r') as f:
     version = f.read()
 
+IS_PYTHON2 = sys.version_info.major == 2
+numpy_version = '1.17.2' if not IS_PYTHON2 else '1.15.4'
 
 class UploadCommand(Command):
     """Support setup.py upload."""
@@ -98,10 +100,9 @@ setup_args = dict(
     long_description=long_description,
     long_description_content_type='text/markdown',
     setup_requires=[
-            'setuptools>=41.0', 'nine',
-            'numpy<=1.17.2',
+            'setuptools>=41.0', 'numpy=={}'.format(numpy_version),
     ],
-    install_requires=['numpy<=1.17.2', 'pyyaml==5.3', 'netCDF4==1.5.3', 'xarray==0.15.0',
+    install_requires=['numpy=={}'.format(numpy_version), 'pyyaml==5.3', 'netCDF4==1.5.3', 'xarray==0.15.0',
                       'dask==2.7.0', 'pandas==0.25.1', 'pathlib2==2.3.5', 'nine'],
     author="Valerio Lorini, Domenico Nappo, Lorenzo Alfieri",
     author_email="valerio.lorini@ec.europa.eu,domenico.nappo@gmail.com,lorenzo.alfieri@ec.europa.eu",
