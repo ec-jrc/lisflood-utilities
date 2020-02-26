@@ -51,6 +51,7 @@ with open(version_file, 'r') as f:
 
 IS_PYTHON2 = sys.version_info.major == 2
 numpy_version = '1.17.2' if not IS_PYTHON2 else '1.15.4'
+dask_version = '2.7.0' if not IS_PYTHON2 else '1.2.2'
 
 class UploadCommand(Command):
     """Support setup.py upload."""
@@ -103,7 +104,7 @@ setup_args = dict(
             'setuptools>=41.0', 'numpy=={}'.format(numpy_version),
     ],
     install_requires=['numpy=={}'.format(numpy_version), 'pyyaml==5.3', 'netCDF4==1.5.3', 'xarray==0.15.0',
-                      'dask==2.7.0', 'pandas==0.25.1', 'pathlib2==2.3.5', 'nine'],
+                      'dask=={}'.format(dask_version), 'pandas==0.25.1', 'pathlib2==2.3.5', 'nine'],
     author="Valerio Lorini, Domenico Nappo, Lorenzo Alfieri",
     author_email="valerio.lorini@ec.europa.eu,domenico.nappo@gmail.com,lorenzo.alfieri@ec.europa.eu",
     keywords=['netCDF4', 'PCRaster', 'mapstack', 'lisflood', 'efas', 'glofas', 'ecmwf', 'copernicus'],
