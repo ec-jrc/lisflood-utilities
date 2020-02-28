@@ -14,13 +14,12 @@ See the Licence for the specific language governing permissions and limitations 
 
 Usage: compare -a /workarea/datatests/modela_results/ -b /workarea/datatests/modelb_results/ -m /workarea/GLOFAS/maps/areamodel.nc
 """
-
+import argparse
 import sys
 
 import numpy as np
 
 from . import NetCDFComparator, logger
-from .helpers import ParserHelpOnError
 
 np.set_printoptions(precision=4, linewidth=300, suppress=True)
 
@@ -47,3 +46,16 @@ def main_script():
 
 if __name__ == '__main__':
     main_script()
+
+
+class ParserHelpOnError(argparse.ArgumentParser):
+    def error(self, message):
+        sys.stderr.write('Error: %s\n' % message)
+        self.print_help()
+        sys.exit(1)
+
+    def add_args(self):
+
+        self.add_argument("-a", "--dataset_a", help='path to outputh of LisFlood version A', required=True)
+        self.add_argument("-b", "--dataset_b", help='path to outputh of LisFlood version B', required=True)
+        self.add_argument("-m", "--maskarea", help='path to mask', required=True)

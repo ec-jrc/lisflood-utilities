@@ -46,3 +46,4 @@ dist/
 .eggs/
 !/**/samples/*
 !tests/**/*.nc
+.coverage
