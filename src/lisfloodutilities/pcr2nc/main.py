@@ -25,7 +25,7 @@ try:
 except ImportError:
     from yaml import Loader, Dumper
 
-from .writer import convert
+from . import convert
 
 
 class ParserHelpOnError(argparse.ArgumentParser):

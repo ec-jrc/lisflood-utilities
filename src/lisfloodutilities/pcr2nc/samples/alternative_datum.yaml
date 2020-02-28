@@ -3,8 +3,8 @@ variable:
   description: Discharge
   longname: discharge
   units: m^3/s
-source: JRC Space, Security, Migration
-reference: JRC Space, Security, Migration
+source: JRC E.1 Space, Security, Migration
+reference: JRC E.1 Space, Security, Migration
 geographical:
   datum: GISCO
 time:

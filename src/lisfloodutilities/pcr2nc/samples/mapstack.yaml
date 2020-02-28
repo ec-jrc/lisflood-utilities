@@ -6,8 +6,8 @@ variable:
   least_significant_digit: 2
   compression: 9
 format: NETCDF4
-source: JRC Space, Security, Migration
-reference: JRC Space, Security, Migration
+source: JRC E.1 Space, Security, Migration
+reference: JRC E.1 Space, Security, Migration
 geographical:
   datum: WGS84
 time:

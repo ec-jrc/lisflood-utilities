@@ -42,8 +42,19 @@ class TestPCRasterMap:
 class TestPCRasterReader:
 
     def test_input_singlefile(self):
-        pass
+        reader = PCRasterReader('tests/data/folder_a/1.map')
+        assert reader.input_is_single_file()
+        assert len(list(reader.fileset)) == 1
+        assert next(reader.fileset)[1] is None
+
     def test_input_directory(self):
-        pass
+        reader = PCRasterReader('tests/data/folder_d/')
+        assert reader.input_is_dir()
+        assert len(list(reader.fileset)) == 4
+        for i, (f, ts) in enumerate(reader.fileset, start=1):
+            assert i == ts
+
     def test_input_wildcard(self):
-        pass
+        reader = PCRasterReader('tests/data/folder_a/*.map')
+        assert reader.input_is_wildcard()
+        assert len(list(reader.fileset)) == 5

@@ -13,6 +13,14 @@ class TestComparators:
         assert not comp.compare_dirs('tests/data/folder_a/', 'tests/data/folder_b/')
         assert comp.compare_dirs('tests/data/folder_a/', 'tests/data/folder_b/', skip_missing=False)
 
+    def test_netcdfcomp_atol(self):
+        comp = NetCDFComparator('tests/data/folder_d/mask.nc', atol=0.05, rtol=0.1)
+        assert not comp.compare_files('tests/data/folder_d/a.nc', 'tests/data/folder_d/b.nc')
+        comp = NetCDFComparator('tests/data/folder_d/mask.nc', atol=0.005, rtol=0.01)
+        assert not comp.compare_files('tests/data/folder_d/a.nc', 'tests/data/folder_d/b.nc')
+        comp = NetCDFComparator('tests/data/folder_d/mask.nc', atol=0.0005, rtol=0.001)
+        assert comp.compare_files('tests/data/folder_d/a.nc', 'tests/data/folder_d/b.nc')
+
     def test_tss(self):
         comp =TSSComparator()
         assert not comp.compare_files('tests/data/folder_a/qLakeIn.tss', 'tests/data/folder_b/qLakeIn.tss')

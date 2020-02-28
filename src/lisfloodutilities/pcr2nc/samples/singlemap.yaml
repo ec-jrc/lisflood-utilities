@@ -4,7 +4,7 @@ variable:
   description: elevation
   longname: Elevation
   units: m
-source: JRC Space, Security, Migration
-reference: JRC Space, Security, Migration
+source: JRC E.1 Space, Security, Migration
+reference: JRC E.1 Space, Security, Migration
 geographical:
   datum: WGS84

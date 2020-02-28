@@ -22,8 +22,6 @@ import logging
 import numpy as np
 from netCDF4 import Dataset
 
-from lisfloodutilities.readers import PCRasterReader
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 
@@ -63,7 +61,6 @@ class NetCDFWriter:
         self.current_idx2 = 0
 
     def _init_dataset(self):
-        # frmt = 'normal' if np.issubdtype(self.pcr_metadata['dtype'], np.unsignedinteger) else 'classic'
         self.frmt = self.nc_metadata.get('format', 'NETCDF4')
         self.nf = Dataset(self.name, 'w', format=self.frmt)
         self.nf.history = 'Created {}'.format(time.ctime(time.time()))
@@ -255,19 +252,3 @@ class NetCDFWriter:
         values_var.coordinates = 'x y'
         values_var.grid_mapping = 'lambert_azimuthal_equal_area'
         values_var.esri_pe_string = self.DATUM.get(self.nc_metadata['geographical'].get('datum', 'WGS84').upper(), '')
-
-
-def convert(config):
-    input_set = config['input_set']
-    reader = PCRasterReader(input_set)
-    pcr_metadata = reader.get_metadata_from_set()
-    writer = NetCDFWriter(
-        config.get('output_filename') or config.get('variable'),
-        config['metadata'],
-        pcr_metadata,
-        mapstack=not reader.input_is_single_file()
-    )
-    for pcr_map, time_step in reader.fileset:
-        writer.add_to_stack(pcr_map, time_step)
-        pcr_map.close()
-    writer.finalize()
