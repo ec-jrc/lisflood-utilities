@@ -22,6 +22,8 @@ import logging
 import numpy as np
 from netCDF4 import Dataset
 
+from lisfloodutilities.readers import PCRasterMap
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 
@@ -31,29 +33,58 @@ class NetCDFWriter:
     This class manages all aspects concerning definition and writing of a NetCDF4 file.
     """
 
-    FORMATS = {'classic': 'NETCDF4_CLASSIC', 'normal': 'NETCDF4'}
     DATUM = {
         'ETRS89': 'PROJCS["JRC_LAEA_ETRS-DEF",GEOGCS["GCS_ETRS_1989",DATUM["D_ETRS_1989",SPHEROID["GRS_1980",6378137.0,298.257222101]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Lambert_Azimuthal_Equal_Area"],PARAMETER["False_Easting",4321000.0],PARAMETER["False_Northing",3210000.0],PARAMETER["Central_Meridian",10.0],PARAMETER["Latitude_Of_Origin",52.0],UNIT["Meter",1.0]]',
         'WGS84': 'GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137,298.257223563]],PRIMEM["Greenwich",0],UNIT["Degree",0.0174532925199433]]',
         'GISCO': 'PROJCS["PCS_Lambert_Azimuthal_Equal_Area",GEOGCS["GCS_User_Defined",DATUM["D_User_Defined",SPHEROID["User_Defined_Spheroid",6378388.0,0.0]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Lambert_Azimuthal_Equal_Area"],PARAMETER["False_Easting",0.0],PARAMETER["False_Northing",0.0],PARAMETER["Central_Meridian",9.0],PARAMETER["Latitude_Of_Origin",48.0],UNIT["Meter",1.0]]',
     }
 
-    def __init__(self, filename, nc_metadata, pcr_metadata, mapstack=True):
+    def __init__(self, filename, is_mapstack=True, **metadata):
+        """
+        :param filename: output filename
+        :param is_mapstack: True if output file is a mapstack
+        :param metadata: metadata dict
+            format: NETCDF4 or NETCDF_CLASSIC
+            time:
+                calendar: netcdf calendar (e.g. proleptic_gregorian)
+                units: time unit (days since 1999-01-01)
+            variable: dictionary
+              shortname: name of variable
+              description: description
+              longname: long name
+              units: variable units
+              least_significant_digit: (to use in conjuction with compression:
+                    power of ten of the smallest decimal place in the data that is a reliable value.
+                    For example if the data has a precision of 0.1, then setting least_significant_digit=1
+                    will cause data the data to be quantized using numpy.around(scale*data)/scale,
+                    where scale = 2**bits, and bits is determined so that a precision of 0.1 is retained
+                    (in this case bits=4))
+              compression: compression level [1-9]
+            source: Organisation producing the file (ECMWF)
+            reference: Organisation reference (JRC E1)
+            geographical: dictionary
+                datum: [WGS84|ETRS89|GISCO]
+            dtype: internal numpy type (e.g. float64, int8 etc.)
+            rows: number of rows in 2D values array
+            cols: number of cols in 2D values array
+            lats: 1D latitude array
+            lons: 1D longitude array
+        """
         self.name = '{}.nc'.format(filename) if not filename.endswith('.nc') else filename
-        self.nc_metadata = nc_metadata
-        self.hour = self.nc_metadata.get('time', {}).get('hour', '00')
+        self.metadata = metadata
+        self.is_mapstack = is_mapstack
+        self.hour = float(self.metadata.get('time', {}).get('hour', 0))
 
-        self.pcr_metadata = pcr_metadata
         # you can pass the MV to set in netcdf files directly in yaml configuration, otherwuse np.nan is used
-        self.mv = self.nc_metadata['variable'].get('mv')
+        self.mv = self.metadata['variable'].get('mv')
         if self.mv is not None:
-            self.mv = int(self.mv) if np.issubdtype(pcr_metadata['dtype'], np.integer) else float(self.mv)
+            self.mv = int(self.mv) if np.issubdtype(self.metadata['dtype'], np.integer) else float(self.mv)
         else:
             self.mv = np.nan
-        self.is_mapstack = mapstack
+
         self.time, self.variable = self._init_dataset()
 
-        self.hour_timestep = float(self.hour) / 24
+        self.hour_timestep = self.hour / 24.
         self.values = []
         self.timesteps = []
         self.current_count = 0
@@ -61,22 +92,27 @@ class NetCDFWriter:
         self.current_idx2 = 0
 
     def _init_dataset(self):
-        self.frmt = self.nc_metadata.get('format', 'NETCDF4')
+        """
+        Create dimensions and variables
+
+        :return: (time, values) netCDF4 variables in a tuple
+        """
+        self.frmt = self.metadata.get('format', 'NETCDF4')
         self.nf = Dataset(self.name, 'w', format=self.frmt)
         self.nf.history = 'Created {}'.format(time.ctime(time.time()))
         self.nf.Conventions = 'CF-1.7'
         self.nf.Source_Software = 'JRC.E1 lisfloodutilities nexus wefe - pcr2nc'
-        self.nf.source = self.nc_metadata.get('source')
-        self.nf.reference = self.nc_metadata.get('reference')
+        self.nf.source = self.metadata.get('source')
+        self.nf.reference = self.metadata.get('reference')
 
         # Dimensions
         if self.is_mapstack:
             self.nf.createDimension('time', None)
-        self.nf.createDimension('lat', self.pcr_metadata['rows'])
-        self.nf.createDimension('lon', self.pcr_metadata['cols'])
+        self.nf.createDimension('lat', self.metadata.get('rows') or self.metadata['lats'].size)
+        self.nf.createDimension('lon', self.metadata.get('cols') or self.metadata['lons'].size)
 
         # define coordinates variables by calling one of the define_* functions
-        datum_function = 'define_{}'.format(self.nc_metadata['geographical']['datum'].lower())
+        datum_function = 'define_{}'.format(self.metadata['geographical']['datum'].lower())
         post_datum_function = '{}_post'.format(datum_function)
         getattr(self, datum_function)()
 
@@ -84,7 +120,7 @@ class NetCDFWriter:
         vardimensions = ('lat', 'lon')
         if self.is_mapstack:
             # time variable
-            time_units = self.nc_metadata['time'].get('units', '')
+            time_units = self.metadata['time'].get('units', '')
             time_nc = self.nf.createVariable('time', 'f8', ('time',))
             time_nc.standard_name = 'time'
             if str(self.hour) != '24':
@@ -94,41 +130,50 @@ class NetCDFWriter:
                 start_date = datetime.datetime.strptime(time_units[-10:], '%Y-%m-%d')  # 'days since 1996-01-01'
                 start_date = start_date + datetime.timedelta(days=1)
                 time_nc.units = 'days since {} 00:00'.format(start_date.strftime('%Y-%m-%d'))
-            time_nc.calendar = self.nc_metadata['time'].get('calendar', 'proleptic_gregorian')
+            time_nc.calendar = self.metadata['time'].get('calendar', 'proleptic_gregorian')
             vardimensions = ('time', 'lat', 'lon')
 
         # data variable
-        complevel = self.nc_metadata['variable'].get('compression')
+        complevel = self.metadata['variable'].get('compression')
         additional_args = {'zlib': bool(complevel)}
         if complevel:
             logger.info('Applying compression level %s', str(complevel))
             additional_args['complevel'] = complevel
-            if np.issubdtype(self.pcr_metadata['dtype'], np.floating):
-                additional_args['least_significant_digit'] = self.nc_metadata.get('least_significant_digit')
+            if np.issubdtype(self.metadata['dtype'], np.floating):
+                additional_args['least_significant_digit'] = self.metadata.get('least_significant_digit')
 
-        values_nc = self.nf.createVariable(self.nc_metadata['variable'].get('shortname', ''),
-                                           self.pcr_metadata['dtype'], vardimensions,
+        values_nc = self.nf.createVariable(self.metadata['variable'].get('shortname', ''),
+                                           self.metadata['dtype'], vardimensions,
                                            fill_value=self.mv, **additional_args)
         getattr(self, post_datum_function)(values_nc)
 
-        values_nc.standard_name = self.nc_metadata['variable'].get('shortname', '')
-        values_nc.long_name = self.nc_metadata['variable'].get('longname', '')
-        values_nc.units = self.nc_metadata['variable'].get('units', '')
+        values_nc.standard_name = self.metadata['variable'].get('shortname', '')
+        values_nc.long_name = self.metadata['variable'].get('longname', '')
+        values_nc.units = self.metadata['variable'].get('units', '')
         return time_nc, values_nc
 
-    def add_to_stack(self, pcr_map, time_step=None):
+    def add_to_stack(self, amap, time_step=None):
         """
         Add a PCRaster map to the NetCDF4 file.
         :param time_step: int, it's basically the extension of pcraster map file
             For single files (ie not time series) time_step is None
-        :param pcr_map: PCRasterMap object
+        :param amap: numpy.ndarray or PCRasterMap object
         """
-        logger.info('Adding %s - timestep %s - hour %s', pcr_map.filename, str(time_step), self.hour_timestep)
-        values = pcr_map.data
-        values[values == pcr_map.mv] = self.mv
+        if isinstance(amap, PCRasterMap):
+            # PCRasterMap
+            logger.info('Adding %s - timestep %s - hour %s', amap.filename, str(time_step), self.hour_timestep)
+            values = amap.data
+            values[values == amap.mv] = self.mv
+        else:
+            # amap is a simple numpy array
+            logger.info('Adding array - timestep %s - hour %s', str(time_step), self.hour_timestep)
+            values = amap
+            values[values == np.nan] = self.mv
         self.values.append(values)
-        if time_step:
+
+        if time_step is not None:
             self.timesteps.append(float(time_step))
+
         self.current_count += 1
 
         if self.current_count == 20:
@@ -178,12 +223,12 @@ class NetCDFWriter:
         latitude.standard_name = 'latitude'
         latitude.long_name = 'latitude coordinate'
         latitude.units = 'degrees_north'
-        longitude[:] = self.pcr_metadata['lons']
-        latitude[:] = self.pcr_metadata['lats']
+        longitude[:] = self.metadata['lons']
+        latitude[:] = self.metadata['lats']
 
     def define_wgs84_post(self, values_var):
         values_var.coordinates = 'lon lat'
-        values_var.esri_pe_string = self.DATUM.get(self.nc_metadata['geographical'].get('datum', 'WGS84').upper(), '')
+        values_var.esri_pe_string = self.DATUM.get(self.metadata['geographical'].get('datum', 'WGS84').upper(), '')
 
     def define_etrs89(self):
         """
@@ -200,8 +245,8 @@ class NetCDFWriter:
         y.standard_name = 'projection_y_coordinate'
         y.long_name = 'y coordinate of projection'
         y.units = 'Meter'
-        x[:] = self.pcr_metadata['lons']
-        y[:] = self.pcr_metadata['lats']
+        x[:] = self.metadata['lons']
+        y[:] = self.metadata['lats']
 
         proj = self.nf.createVariable('laea', 'i4')
         proj.grid_mapping_name = 'lambert_azimuthal_equal_area'
@@ -217,7 +262,7 @@ class NetCDFWriter:
     def define_etrs89_post(self, values_var):
         values_var.coordinates = 'x y'
         values_var.grid_mapping = 'lambert_azimuthal_equal_area'
-        values_var.esri_pe_string = self.DATUM.get(self.nc_metadata['geographical'].get('datum', 'WGS84').upper(), '')
+        values_var.esri_pe_string = self.DATUM.get(self.metadata['geographical'].get('datum', 'WGS84').upper(), '')
 
     def define_gisco(self):
         """
@@ -234,8 +279,8 @@ class NetCDFWriter:
         y.standard_name = 'projection_y_coordinate'
         y.long_name = 'y coordinate of projection'
         y.units = 'Meter'
-        x[:] = self.pcr_metadata['lons']
-        y[:] = self.pcr_metadata['lats']
+        x[:] = self.metadata['lons']
+        y[:] = self.metadata['lats']
 
         proj = self.nf.createVariable('laea', 'i4')
         proj.grid_mapping_name = 'lambert_azimuthal_equal_area'
@@ -251,4 +296,4 @@ class NetCDFWriter:
     def define_gisco_post(self, values_var):
         values_var.coordinates = 'x y'
         values_var.grid_mapping = 'lambert_azimuthal_equal_area'
-        values_var.esri_pe_string = self.DATUM.get(self.nc_metadata['geographical'].get('datum', 'WGS84').upper(), '')
+        values_var.esri_pe_string = self.DATUM.get(self.metadata['geographical'].get('datum', 'WGS84').upper(), '')
