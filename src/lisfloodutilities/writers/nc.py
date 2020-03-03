@@ -101,7 +101,7 @@ class NetCDFWriter:
         self.nf = Dataset(self.name, 'w', format=self.frmt)
         self.nf.history = 'Created {}'.format(time.ctime(time.time()))
         self.nf.Conventions = 'CF-1.7'
-        self.nf.Source_Software = 'JRC.E1 lisfloodutilities nexus wefe - pcr2nc'
+        self.nf.Source_Software = 'JRC.E1 lisfloodutilities - pcr2nc'
         self.nf.source = self.metadata.get('source')
         self.nf.reference = self.metadata.get('reference')
 
