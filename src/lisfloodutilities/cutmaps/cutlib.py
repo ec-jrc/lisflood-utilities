@@ -18,7 +18,9 @@ def cutmap(f, fileout, x_max, x_min, y_max, y_min):
     except Exception:  # file has no time component
         nc = xr.open_dataset(f)
     # FIXME assuming last variable is what we have to slice...
-    var = list(nc.variables.items())[-1][0]
+    # var = list(nc.variables.items())[-1][0]
+    num_dims = 3 if 'time' in nc.variables else 2
+    var = [v for v in nc.variables if len(nc.variables[v].dims) == num_dims][0]
     logger.info('Variable: %s', var)
 
     if 'lat' in nc.variables:
@@ -66,10 +68,11 @@ def _cut_from_coords(nc, var, x_max, x_min, y_max, y_min):
     return sliced_var
 
 
-def get_filelist(filelist, input_folder, glofas_folder):
+def get_filelist(filelist=None, input_folder=None, glofas_folder=None):
     list_to_cut = []
     if filelist:
         list_to_cut = open(filelist).readlines()
+        list_to_cut = [Path(l.strip()) for l in list_to_cut]
     elif input_folder:
         list_to_cut = [f for f in Path(input_folder).glob('**/*.nc')]
     elif glofas_folder:
@@ -78,17 +81,16 @@ def get_filelist(filelist, input_folder, glofas_folder):
     return list_to_cut
 
 
-def get_cuts(cuts, mask):
+def get_cuts(cuts=None, mask=None):
     if mask:
+        if not os.path.isfile(mask):
+            raise FileNotFoundError('Wrong input mask: %s not a file' % mask)
         maskname, ext = os.path.splitext(mask)
         if ext == '.map':
-            if not os.path.isfile(mask):
-                logger.error('Wrong pcraster input mask: %s not a file', mask)
-                sys.exit(1)
-            maskmap = pcraster.setclone(mask)
-            maskmap = pcraster.readmap(mask)
-            masknp = pcr2numpy(maskmap, False)
-            mask_filter = np.asarray(masknp).nonzero()
+            pcraster.setclone(mask)
+            mask = pcraster.readmap(mask)
+            mask = pcr2numpy(mask, False)
+            mask_filter = np.asarray(mask).nonzero()
             x_min = np.min(mask_filter[0])
             x_max = np.max(mask_filter[0])
             y_min = np.min(mask_filter[1])
@@ -111,4 +113,4 @@ def get_cuts(cuts, mask):
         logger.error('You must provide either cuts (in the format minlon_maxlon:minlat_maxlat) or a mask map')
         sys.exit(1)
     logger.info('CUTS: \nmin x: %s \nmax x: %s \nmin y: %s \nmax y: %s', x_min, x_max, y_min, y_max)
-    return x_max, x_min, y_max, y_min
+    return x_min, x_max, y_min, y_max

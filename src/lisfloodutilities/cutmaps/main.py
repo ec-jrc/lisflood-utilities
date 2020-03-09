@@ -49,17 +49,16 @@ class ParserHelpOnError(argparse.ArgumentParser):
 
 def main(cliargs):
     parser = ParserHelpOnError(description='Convert PCRaster maps to a NetCDF map stack')
-
     parser.add_args()
-
     args = parser.parse_args(cliargs)
 
     mask = args.mask
     cuts = args.cuts
-    filelist = args.list
 
+    filelist = args.list
     input_folder = args.folder
     glofas_folder = args.global_setup
+
     pathout = args.outpath
 
     logger.info('\n\nCutting using: %s\n Files to cut from: %s\n Output: %s\n\n ',
@@ -68,7 +67,7 @@ def main(cliargs):
                 pathout)
 
     list_to_cut = get_filelist(filelist, input_folder, glofas_folder)
-    x_max, x_min, y_max, y_min = get_cuts(cuts, mask)
+    x_min, x_max, y_min, y_max = get_cuts(cuts=cuts, mask=mask)
 
     # walk through list_to_cut
     for file_to_cut in list_to_cut:
