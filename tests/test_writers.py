@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 from netCDF4 import Dataset
 
@@ -5,7 +7,7 @@ from lisfloodutilities.writers import NetCDFWriter
 
 
 class TestNetcdfWriter:
-    filename = 'test.nc'
+    filename = 'tests/data/test.nc'
     step = 0.1
     start_x = -180
     end_x = 180
@@ -39,6 +41,7 @@ class TestNetcdfWriter:
         with Dataset(self.filename) as f:
             assert np.allclose(f.variables['x'][:, :], a)
             assert f.variables['x'].units == metadata['variable']['units']
+        os.unlink(self.filename)
 
     def test_mapstack(self):
         metadata = {
@@ -74,3 +77,4 @@ class TestNetcdfWriter:
                 nc_values = f.variables['x'][i, :, :]
                 assert nc_values.shape == values.shape
                 assert np.allclose(nc_values, values)
+        os.unlink(self.filename)
