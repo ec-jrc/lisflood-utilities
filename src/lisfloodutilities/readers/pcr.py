@@ -78,7 +78,7 @@ class PCRasterMap:
     @property
     def yul(self):
         """
-        :return: top left x
+        :return: top left y
         """
         return self.geo_transform[3]
 

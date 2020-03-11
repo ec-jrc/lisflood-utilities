@@ -5,8 +5,8 @@ from pathlib import Path
 
 import xarray as xr
 import numpy as np
-from pcraster.numpy_operations import pcr2numpy
-from pcraster import pcraster
+
+from lisfloodutilities.readers import PCRasterMap
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
@@ -41,8 +41,6 @@ def cutmap(f, fileout, x_min, x_max, y_min, y_max):
 
 
 def _cut_from_indices(nc, var, x_min, x_max, y_min, y_max):
-    logger.info(nc[var][0, 0, 2])
-    logger.info(nc[var][0, 3, 5])
     # note: netcdf has lats on first dimension e.g. y_min:y_max are Y/lat dimension indices
     # that in nc file are stored on first dimension: ta(time, lat, lon)
     # you can always adjust indices in input in order to match your nc files structure
@@ -58,16 +56,19 @@ def _cut_from_coords(nc, var, x_min, x_max, y_min, y_max):
     lats = nc.variables['lat'][:]
     lons = nc.variables['lon'][:]
     # find indices
-    lat_inds = np.where((lats >= y_min) & (lats <= y_max))[0]
-    lon_inds = np.where((lons >= x_min) & (lons <= x_max))[0]
+    ys = np.where((lats >= y_min) & (lats <= y_max))[0]
+    xs = np.where((lons >= x_min) & (lons <= x_max))[0]
     if 'time' in nc.variables:
-        sliced_var = nc[var][:, lat_inds, lon_inds]
+        sliced_var = nc[var][:, ys, xs]
     else:
         try:
-            sliced_var = nc[var][lat_inds, lon_inds]
+            sliced_var = nc[var][ys, xs]
         except IndexError:
             # it happens when cutting lat or lon netcdf files (not 2D array)
-            sliced_var = nc[var][lat_inds] if var in ('lat', 'latitude', 'latitudes', 'x') else None
+            if var not in ('lats', 'lat', 'latitude', 'latitudes', 'x', 'y', 'lons', 'longitude', 'longitudes', 'lon'):
+                raise ValueError('Cannot find main variable to cut')
+
+            sliced_var = nc[var][ys] if var in ('lats', 'lat', 'latitude', 'latitudes', 'y') else nc[var][xs]
     return sliced_var
 
 
@@ -90,14 +91,12 @@ def get_cuts(cuts=None, mask=None):
             raise FileNotFoundError('Wrong input mask: %s not a file' % mask)
         maskname, ext = os.path.splitext(mask)
         if ext == '.map':
-            pcraster.setclone(mask)
-            mask = pcraster.readmap(mask)
-            mask = pcr2numpy(mask, False)
-            mask_filter = np.asarray(mask).nonzero()
-            x_min = np.min(mask_filter[0])
-            x_max = np.max(mask_filter[0])
-            y_min = np.min(mask_filter[1])
-            y_max = np.max(mask_filter[1])
+            mask = PCRasterMap(mask)
+            lats = mask.lats
+            lons = mask.lons
+            mask.close()
+            x_min, x_max = float(np.min(lons)), float(np.max(lons))
+            y_min, y_max = float(np.min(lats)), float(np.max(lats))
         elif ext == '.nc':
             maskmap = xr.open_dataset(mask)
             latitudes = maskmap['lat'][:]

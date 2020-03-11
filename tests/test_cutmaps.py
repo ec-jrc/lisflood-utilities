@@ -44,15 +44,17 @@ class TestCutlib:
         with Dataset(fout) as nc:
             lons = nc.variables['lon'][:]
             lats = nc.variables['lat'][:]
-            assert np.round(np.min(lons), 2) == -126.95
-            assert np.round(np.min(lats), 2) == 53.25
+            res_x = np.round(np.min(lons), 2)
+            res_y = np.round(np.min(lats), 2)
         os.unlink(fout)
+        assert res_x == -126.95
+        assert res_y == 53.25
 
     def test_get_cuts_indices(self):
         # minxi_maxxi:minyi_maxyi
-        cuts = '2_5:0_3'
+        cuts = '2_5:0_2'
         x_min, x_max, y_min, y_max = get_cuts(cuts=cuts)
-        assert (x_min, x_max, y_min, y_max) == (2, 5, 0, 3)
+        assert (x_min, x_max, y_min, y_max) == (2, 5, 0, 2)
         fin = 'tests/data/folder_a/ta.nc'
         fout = 'tests/data/folder_a/ta_cut.nc'
         cutmap(fin, fout, x_min, x_max, y_min, y_max)
@@ -63,7 +65,7 @@ class TestCutlib:
             res_y = np.round(np.min(lats), 2)
         os.unlink(fout)
         assert res_x == -127.05
-        assert res_y == 53.15
+        assert res_y == 53.25
 
     def test_get_cuts_withmaskfile(self):
         maskfile = 'tests/data/area.nc'
@@ -81,3 +83,20 @@ class TestCutlib:
         os.unlink(fout)
         assert res_x == -127.25
         assert res_y == 53.05
+
+    def test_get_cuts_withmaskpcr(self):
+        maskfile = 'tests/data/asia.map'
+        x_min, x_max, y_min, y_max = get_cuts(mask=maskfile)
+        x_minr, x_maxr, y_minr, y_maxr = np.round(x_min, 2), np.round(x_max, 2), np.round(y_min, 2), np.round(y_max, 2)
+        assert (x_minr, x_maxr, y_minr, y_maxr) == (58.65, 179.95, 0.65, 81.25)
+        fin = 'tests/data/area_global.nc'
+        fout = 'tests/data/area_cut.nc'
+        cutmap(fin, fout, x_min, x_max, y_min, y_max)
+        with Dataset(fout) as nc:
+            lons = nc.variables['lon'][:]
+            lats = nc.variables['lat'][:]
+            res_x = np.round(np.min(lons), 2)
+            res_y = np.round(np.min(lats), 2)
+        os.unlink(fout)
+        assert res_x == 58.75
+        assert res_y == 0.65
