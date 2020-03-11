@@ -57,7 +57,6 @@ Ensure you have properly installed the following software:
 - Python 3.5+
 - GDAL C library and software
 - netCDF4 C library
-- PCRaster python (needed from cutmaps; we are removing this dependency in next releases)
 
 #### Install via pip tool
 
