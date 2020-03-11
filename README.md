@@ -15,21 +15,40 @@ Other useful resources
 | Lisflood Usecases   |                                                           | https://github.com/ec-jrc/lisflood-usecases                     |
 
 
-User guide of each tool is placed under the relative directory in a README.md file.
+## lisflood utilities
 
-## pcr2nc
+**Note:** User guide of each tool is placed under the relative directory in a README.md file.
 
-__pcr2nc__ is a tool to convert PCRaster maps to netCDF4 files.
-It's developed at JRC E1 directorate, as a Floods group initiative.
+Lisflood Utilities is a set of tools to help LISFLOOD users (or any users of PCRaster/netCDF files) 
+to execute some mundane tasks that are necessary to operate lisflood.
+Here's a list of utilities you can find in lisflood-utilities package.
 
-- convert a single map into a NetCDF4 file
-- convert a time series of maps into a NetCDF4 mapstack
-- support for WGS84 and ETRS89 (LAEA) reference systems
-- fine tuning of output files (compression, significant digits, etc.)
+* __pcr2nc__ is a tool to convert PCRaster maps to netCDF4 files.
+  - convert a single map into a NetCDF4 file
+  - convert a time series of maps into a NetCDF4 mapstack
+  - support for WGS84 and ETRS89 (LAEA) reference systems
+  - fine tuning of output files (compression, significant digits, etc.)
+
+* __cutmaps__ is a tool to cut netcdf files in order to reduce size, using either
+  - a bounding box of coordinates
+  - a bounding box of matrix indices
+  - an existing boolean area mask
+ 
+* __compare__ is a package containing a set of simple Python classes that helps to compare 
+netCDF, PCRaster and TSS files.
+
+The package contains convenient classes for reading/writing:
+
+* PCRasterMap
+* PCRasterReader
+* NetCDFWriter
 
 ### Installation
 
-There are two ways to install the software: one via pip tool and one by cloning the repository.
+There are two ways to get the software: 
+
+* install it via pip tool
+* clone the repository
 
 #### Requisites
 
@@ -38,25 +57,14 @@ Ensure you have properly installed the following software:
 - Python 3.5+
 - GDAL C library and software
 - netCDF4 C library
-
-Create a python3 virtualenv for using the software and activate it.
-
-If you have virtualenvwrapper:
-```bash
-$ workon pcr2nc
-```
-
-Otherwise just execute the activate script
-```bash
-$ source /path/to/virtualenvs/pcr2nc/bin/activate
-```
+- PCRaster python (needed from cutmaps; we are removing this dependency in next releases)
 
 #### Install via pip tool
 
-Activate the virtualenv and then:
+Activate your virtualenv and then:
 
 ```bash
-$ pip install pcr2nc
+$ pip install lisflood-utilities
 ```
 
 After the install was complete, you still have to install the proper GDAL package,
@@ -75,12 +83,8 @@ pip install GDAL==2.2.3
 
 #### Install by cloning the repository
 
-Assuming your Python 3 virtualenv is called pcr2nc and you have virtualenvwrapper installed:
-
 ```bash
 git clone https://github.com/ec-jrc/lisflood-utilities
-cd lisflood-utilities/pcr2nc
-workon pcr2nc
 ```
 
 Install requirements
@@ -105,6 +109,8 @@ $ pip install GDAL==2.1
 $ pip install -r requirements.txt
 ```
 
+## pcr2nc
+
 ### Usage
 
 > __Note:__ This guide assumes you have installed the program with pip tool.
@@ -117,8 +123,6 @@ The tool takes three command line input arguments:
 - -m, --metadata: Path to a yaml or json file containing configuration for the NetCDF4 output file.
 
 Unless the input is a single file, the resulting NetCDF4 file will be a mapstack according to a time dimension.
-
-#### Example of usages:
 
 Input as a folder containing PCRaster maps. In this case, the folder must contain ONLY PCraster files and the output will be a mapstack.
 
@@ -216,11 +220,11 @@ This tool accepts a template/cookie-cutter as input, along with a list of files 
 ### Usage:
 The tool accepts as input:
 
-* a mask map (either PCRaster or netCDF format) or alternatively, passing directly indices in the form min_x_ind-max_x_ind:min_y_ind-max_y_ind
+* a mask map (either PCRaster or netCDF format) or 
+  - alternatively, matrix indices in the form xmini_xmaxi:ymini_ymaxi or
+  - alternatively, coordinates bounding box in the form xmin_xmax:ymin_ymax
 * a textfile with a list of filepaths for files to cut or alternatively a path to a folder containing netCDF files to cut 
 * a path to a folder where to write cut files.
-
-#### Examples of usage:
 
 The following command will cut all netcdf files inside _/workarea/Madeira/lai/_ folder 
 and produced files will be writte in current folder. 
@@ -233,10 +237,10 @@ cutmaps -m /workarea/Madeira/maps/MaskMap/Bacia_madeira.nc -f /workarea/Madeira/
 ```
 
 Indices can also be passed as an argument (using -c argument instead of -m). Knowing your area of interest from your netCDF files, 
-you can determine indices of the array and you can pass in the form `i_min-i_max:j_min-j_max`.
+you can determine indices of the array and you can pass in the form `imin_i_max:jmin_jmax`.
 
 ```console
-cutmaps -c 150-350:80:180 -f /workarea/Madeira/lai/ -o ./
+cutmaps -c 150_350:80_180 -f /workarea/Madeira/lai/ -o ./
 ```
 
 ## gfit

@@ -63,7 +63,7 @@ class TestNetcdfWriter:
         }
         w = NetCDFWriter(self.filename, is_mapstack=True, **metadata)
         values_to_compare = []
-        for i in range(1, 30):
+        for i in range(1, 10):
             a = np.random.uniform(size=(self.cols, self.rows))
             w.add_to_stack(a, i)
             values_to_compare.append(a)

@@ -7,12 +7,12 @@ from lisfloodutilities.readers import PCRasterMap, PCRasterReader
 class TestPCRasterMap:
 
     def test_init(self):
-        map = PCRasterMap('tests/data/folder_b/1.map')
-        assert map.filename == 'tests/data/folder_b/1.map'
-        assert map.cols == 35
-        assert map.rows == 35
-        assert map.min < 0.33
-        assert map.max > 0.378
+        m = PCRasterMap('tests/data/folder_b/1.map')
+        assert m.filename == 'tests/data/folder_b/1.map'
+        assert m.cols == 35
+        assert m.rows == 35
+        assert m.min < 0.33
+        assert m.max > 0.378
 
     def test_eq(self):
         map_a = PCRasterMap('tests/data/folder_a/1.map')

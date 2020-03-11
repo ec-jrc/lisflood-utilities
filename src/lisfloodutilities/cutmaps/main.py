@@ -94,7 +94,7 @@ def main(cliargs):
             logger.warning('%s already existing. This file will not be overwritten', fileout)
             continue
 
-        cutmap(file_to_cut, fileout, x_max, x_min, y_max, y_min)
+        cutmap(file_to_cut, fileout, x_min, x_max, y_min, y_max)
 
 
 def main_script():

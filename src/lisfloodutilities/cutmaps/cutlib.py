@@ -12,14 +12,13 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 
 
-def cutmap(f, fileout, x_max, x_min, y_max, y_min):
+def cutmap(f, fileout, x_min, x_max, y_min, y_max):
     try:
         nc = xr.open_dataset(f, chunks={'time': 100}, decode_cf=False)
+        num_dims = 3
     except Exception:  # file has no time component
+        num_dims = 2
         nc = xr.open_dataset(f)
-    # FIXME assuming last variable is what we have to slice...
-    # var = list(nc.variables.items())[-1][0]
-    num_dims = 3 if 'time' in nc.variables else 2
     var = [v for v in nc.variables if len(nc.variables[v].dims) == num_dims][0]
     logger.info('Variable: %s', var)
 
@@ -31,10 +30,10 @@ def cutmap(f, fileout, x_max, x_min, y_max, y_min):
 
     if isinstance(x_min, float):
         # bounding box input from user
-        sliced_var = _cut_from_coords(nc, var, x_max, x_min, y_max, y_min)
+        sliced_var = _cut_from_coords(nc, var, x_min, x_max, y_min, y_max)
     else:
         # user provides with indices directly (not coordinates)
-        sliced_var = _cut_from_indices(nc, var, x_max, x_min, y_max, y_min)
+        sliced_var = _cut_from_indices(nc, var, x_min, x_max, y_min, y_max)
 
     if sliced_var is not None:
         logger.info('Creating: %s', fileout)
@@ -42,15 +41,20 @@ def cutmap(f, fileout, x_max, x_min, y_max, y_min):
     nc.close()
 
 
-def _cut_from_indices(nc, var, x_max, x_min, y_max, y_min):
+def _cut_from_indices(nc, var, x_min, x_max, y_min, y_max):
+    logger.info(nc[var][0, 0, 2])
+    logger.info(nc[var][0, 3, 5])
+    # note: netcdf has lats on first dimension e.g. y_min:y_max are Y/lat dimension indices
+    # that in nc file are stored on first dimension: ta(time, lat, lon)
+    # you can always adjust indices in input in order to match your nc files structure
     if 'time' in nc.variables:
-        sliced_var = nc[var][:, x_min:x_max + 1, y_min:y_max + 1]
+        sliced_var = nc[var][:, y_min:y_max + 1, x_min:x_max + 1]
     else:
-        sliced_var = nc[var][x_min:x_max + 1, y_min:y_max + 1]
+        sliced_var = nc[var][y_min:y_max + 1, x_min:x_max + 1]
     return sliced_var
 
 
-def _cut_from_coords(nc, var, x_max, x_min, y_max, y_min):
+def _cut_from_coords(nc, var, x_min, x_max, y_min, y_max):
     # we have coordinates bounds and not indices yet
     lats = nc.variables['lat'][:]
     lons = nc.variables['lon'][:]
@@ -107,8 +111,9 @@ def get_cuts(cuts=None, mask=None):
     elif cuts:
         # user provided coordinates bounds
         x, y = cuts.split(':')
-        x_min, x_max = list(map(float, x.split('_')))
-        y_min, y_max = list(map(float, y.split('_')))
+        apply = float if '.' in x or '.' in y else int  # user can provide coords (float) or matrix indices bbox (int)
+        x_min, x_max = list(map(apply, x.split('_')))
+        y_min, y_max = list(map(apply, y.split('_')))
     else:
         logger.error('You must provide either cuts (in the format minlon_maxlon:minlat_maxlat) or a mask map')
         sys.exit(1)

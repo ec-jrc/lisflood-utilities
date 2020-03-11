@@ -60,6 +60,6 @@ def main():
     file_b.close()
     file_mask.close()
 
+
 if __name__ == '__main__':
     sys.exit(main())
-
