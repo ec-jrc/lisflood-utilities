@@ -2,15 +2,15 @@ from lisfloodutilities.readers import PCRasterReader
 from lisfloodutilities.writers.nc import NetCDFWriter
 
 
-def convert(config):
-    input_set = config['input_set']
-    reader = PCRasterReader(input_set)
+def convert(dataset=None, output=None, metadata=None):
+
+    reader = PCRasterReader(dataset)
     pcr_metadata = reader.get_metadata_from_set()
-    config['metadata'].update(pcr_metadata)
+    metadata.update(pcr_metadata)
     writer = NetCDFWriter(
-        config.get('output_filename') or config.get('variable'),
+        output or metadata['variable'].get('shortname', 'pcr2nc_output'),
         is_mapstack=not reader.input_is_single_file(),
-        **config['metadata'],
+        **metadata,
 
     )
     for pcr_map, time_step in reader.fileset:

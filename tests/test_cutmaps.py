@@ -33,7 +33,7 @@ class TestCutlib:
                        'tests/data/folder_a/qLakeOut.tss', 'tests/data/folder_a/ta.nc',
                        'tests/data/folder_a/tp.nc']))) == res
 
-    def test_get_cuts_withcuts(self):
+    def test_get_cuts_withcoords(self):
         # lonmin_lonmax:latmin_latmax
         cuts = '-127.0_-126.5:53.2_53.4'
         x_min, x_max, y_min, y_max = get_cuts(cuts=cuts)

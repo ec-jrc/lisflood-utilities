@@ -68,11 +68,11 @@ def main(args):
 
     parser.add_args()
     parsed_args = parser.parse_args(args)
-    configuration = {'input_set': parsed_args.input,
-                     'output_filename': parsed_args.output_file,
+    configuration = {'dataset': parsed_args.input,
+                     'output': parsed_args.output_file,
                      'metadata': parse_metadata(parsed_args.metadata)}
     # MAIN METHOD
-    convert(configuration)
+    convert(**configuration)
 
 
 if __name__ == '__main__':
