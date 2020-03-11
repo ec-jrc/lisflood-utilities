@@ -27,7 +27,6 @@ def cutmap(f, fileout, x_min, x_max, y_min, y_max):
     else:
         nc.variables[var].attrs['esri_pe_string'] = 'PROJCS["ETRS_1989_LAEA",GEOGCS["GCS_ETRS_1989",DATUM["D_ETRS_1989",SPHEROID["GRS_1980",6378137.0,298.257222101]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Lambert_Azimuthal_Equal_Area"],PARAMETER["False_Easting",4321000.0],PARAMETER["False_Northing",3210000.0],PARAMETER["Central_Meridian",10.0],PARAMETER["Latitude_Of_Origin",52.0],UNIT["Meter",1.0]]'
         nc.variables[var].attrs['proj4_params'] = "+proj=laea +lat_0=52 +lon_0=10 +x_0=4321000 +y_0=3210000 +ellps=GRS80 +units=m +no_defs"
-
     if isinstance(x_min, float):
         # bounding box input from user
         sliced_var = _cut_from_coords(nc, var, x_min, x_max, y_min, y_max)
@@ -103,8 +102,8 @@ def get_cuts(cuts=None, mask=None):
             maskmap = xr.open_dataset(mask)
             latitudes = maskmap['lat'][:]
             longitudes = maskmap['lon'][:]
-            y_min, y_max = np.min(latitudes).values, np.max(latitudes).values
-            x_min, x_max = np.min(longitudes).values, np.max(longitudes).values
+            y_min, y_max = float(np.min(latitudes)), float(np.max(latitudes))
+            x_min, x_max = float(np.min(longitudes)), float(np.max(longitudes))
         else:
             logger.error('Mask map format not recognized. Must be either .map or .nc. Found %s', ext)
             sys.exit(1)

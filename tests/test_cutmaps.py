@@ -66,4 +66,18 @@ class TestCutlib:
         assert res_y == 53.15
 
     def test_get_cuts_withmaskfile(self):
-        pass
+        maskfile = 'tests/data/area.nc'
+        x_min, x_max, y_min, y_max = get_cuts(mask=maskfile)
+        x_minr, x_maxr, y_minr, y_maxr = np.round(x_min, 2), np.round(x_max, 2), np.round(y_min, 2), np.round(y_max, 2)
+        assert (x_minr, x_maxr, y_minr, y_maxr) == (-127.25, -126.15, 53.05, 53.45)
+        fin = 'tests/data/area_global.nc'
+        fout = 'tests/data/area_cut.nc'
+        cutmap(fin, fout, x_min, x_max, y_min, y_max)
+        with Dataset(fout) as nc:
+            lons = nc.variables['lon'][:]
+            lats = nc.variables['lat'][:]
+            res_x = np.round(np.min(lons), 2)
+            res_y = np.round(np.min(lats), 2)
+        os.unlink(fout)
+        assert res_x == -127.25
+        assert res_y == 53.05
