@@ -29,7 +29,8 @@ class Comparator(object):
 
         """
         self.array_equal = array_equal
-        self.for_testing=for_testing
+        self.for_testing = for_testing
+        self.errors = []
 
     def compare_dirs(self, path_a, path_b, skip_missing=True):
         logger.info('Comparing %s and %s [skip missing: %s]', path_a, path_b, str(skip_missing))
@@ -42,11 +43,15 @@ class Comparator(object):
                     logger.info('skipping %s as it is not in %s', fb.name, path_b.as_posix())
                     continue
                 else:
+                    message = '{} is missing in {}'.format(fb.name, path_b.as_posix())
                     if self.for_testing:
-                        assert False, '{} is missing in {}'.format(fb.name, path_b.as_posix())
+                        assert False, message
                     else:
-                        
+                        self.errors.append(message)
+
             self.compare_files(fa.as_posix(), fb.as_posix())
+        if not self.for_testing:
+            return self.errors
 
     def compare_files(self, fa, fb):
         raise NotImplementedError()
@@ -62,7 +67,12 @@ class PCRComparator(Comparator):
         if map_a != map_b:
             map_a.close()
             map_b.close()
-            assert False, '{} different from {}'.format(file_a, file_b)
+            message = '{} different from {}'.format(file_a, file_b)
+            if self.for_testing:
+                assert False, message
+            else:
+                self.errors.append(message)
+                return message
         else:
             map_a.close()
             map_b.close()
@@ -82,8 +92,12 @@ class TSSComparator(Comparator):
                 b1 = fp1.readline()
                 b2 = fp2.readline()
                 if (b1 != b2) or (not b1 and b2) or (not b2 and b1):
-                    err = '{} different from {}'.format(file_a, file_b)
-                    assert False, err
+                    message = '{} different from {}'.format(file_a, file_b)
+                    if self.for_testing:
+                        assert False, message
+                    else:
+                        self.errors.append(message)
+                        return message
                 if not b1:
                     return None
 
@@ -91,8 +105,9 @@ class TSSComparator(Comparator):
 class NetCDFComparator(Comparator):
     glob_expr = ['**/*.nc']
 
-    def __init__(self, mask, atol=0.05, rtol=0.1, max_perc_diff=0.2, max_perc_large_diff=0.1, array_equal=False):
-        super(NetCDFComparator, self).__init__(array_equal=array_equal)
+    def __init__(self, mask, atol=0.05, rtol=0.1, max_perc_diff=0.2, max_perc_large_diff=0.1,
+                 array_equal=False, for_testing=True):
+        super(NetCDFComparator, self).__init__(array_equal=array_equal, for_testing=for_testing)
         if isinstance(mask, str):
             mask = Dataset(mask)
             maskvar = [k for k in mask.variables if len(mask.variables[k].dimensions) == 2][0]
@@ -124,9 +139,13 @@ class NetCDFComparator(Comparator):
                 step = step if step is not None else '(no time)'
                 filepath = os.path.basename(filepath) if filepath else '<mem>'
                 varname = varname or '<unknown var>'
-                mess = '{}/{}@{} - {:3.2f}% of different values - max diff: {:3.2f}'.format(filepath, varname, step, perc_wrong, max_diff)
-                logger.error(mess)
-                assert False, mess
+                message = '{}/{}@{} - {:3.2f}% of different values - max diff: {:3.2f}'.format(filepath, varname, step, perc_wrong, max_diff)
+                logger.error(message)
+                if self.for_testing:
+                    assert False, message
+                else:
+                    self.errors.append(message)
+                    return message
         assert True
 
     def compare_files(self, file_a, file_b):
@@ -139,27 +158,50 @@ class NetCDFComparator(Comparator):
                 varb = ncb.variables[var_name]
             except KeyError:
                 var_nameb = [k for k in ncb.variables if len(ncb.variables[k].dimensions) == num_dims][0]
-                assert False, 'Files: {} vs {} have different variables names A:{} B:{}'.format(file_a, file_b, var_name, var_nameb)
+                message = 'Files: {} vs {} have different variables names A:{} B:{}'.format(file_a, file_b, var_name, var_nameb)
+                if self.for_testing:
+                    assert False, message
+                else:
+                    self.errors.append(message)
+                    return message
             if 'time' in nca.variables:
                 stepsa = nca.variables['time'][:]
                 stepsb = ncb.variables['time'][:]
                 if len(stepsa) != len(stepsb):
                     len_stepsa = len(stepsa)
                     len_stepsb = len(stepsb)
-                    assert False, 'Files: {} vs {}: different size in time axis A:{} B:{}'.format(file_a, file_b, len_stepsa, len_stepsb)
+                    message = 'Files: {} vs {}: different size in time axis A:{} B:{}'.format(file_a, file_b, len_stepsa, len_stepsb)
+                    if self.for_testing:
+                        assert False, message
+                    else:
+                        self.errors.append(message)
+                        return message
                 for step, _ in enumerate(stepsa):
                     values_a = vara[step][:, :]
                     values_b = varb[step][:, :]
                     if not self.array_equal:
-                        self.compare_arrays(values_a, values_b, var_name, step, file_a)
+                        mess = self.compare_arrays(values_a, values_b, var_name, step, file_a)
                     else:
-                        self.compare_arrays_equal(values_a, values_b, var_name, step, file_a)
+                        mess = self.compare_arrays_equal(values_a, values_b, var_name, step, file_a)
+                    if mess:
+                        self.errors.append(mess)
             else:
                 values_a = vara[:, :]
                 values_b = varb[:, :]
-                self.compare_arrays(values_a, values_b, var_name, filepath=file_a)
+                if not self.array_equal:
+                    mess = self.compare_arrays(values_a, values_b, var_name, filepath=file_a)
+                else:
+                    mess = self.compare_arrays_equal(values_a, values_b, var_name, filepath=file_a)
+                if mess:
+                    self.errors.append(mess)
+            return self.errors
 
-    def compare_arrays_equal(self, values_a, values_b, var_name, step, file_a):
-        filepath = os.path.basename(file_a) if file_a else '<mem>'
-        mess = '{}/{}@{} is different '.format(filepath, var_name, step)
-        np.testing.assert_array_equal(values_a, values_b, mess)
+    def compare_arrays_equal(self, values_a, values_b, varname=None, step=None, filepath=None):
+        filepath = os.path.basename(filepath) if filepath else '<mem>'
+        message = '{}/{}@{} is different'.format(filepath, varname, step)
+        if self.for_testing:
+            np.testing.assert_array_equal(values_a, values_b, message)
+        else:
+            if not np.array_equal(values_a, values_b):
+                self.errors.append(message)
+                return message

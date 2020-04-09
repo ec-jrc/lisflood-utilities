@@ -32,7 +32,7 @@ def main(cliargs):
     dataset_a = args.dataset_a
     dataset_b = args.dataset_b
     maskfile = args.maskarea
-    comparator = NetCDFComparator(maskfile)
+    comparator = NetCDFComparator(maskfile, for_testing=False)
     logger.info('\n\nComparing %s and %s\n\n ', dataset_a, dataset_b)
     errors = comparator.compare_dirs(dataset_a, dataset_b, )
 

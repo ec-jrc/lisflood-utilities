@@ -59,3 +59,11 @@ class TestComparators:
         with pytest.raises(AssertionError) as excinfo:
             comp.compare_dirs('tests/data/folder_a/', 'tests/data/folder_c/', skip_missing=False)
             assert '.map is missing in tests/data/folder_c' in excinfo.value
+
+    def test_comp_no_asserts(self):
+        comp = NetCDFComparator('tests/data/folder_d/mask.nc', array_equal=True, for_testing=False)
+        errors = comp.compare_files('tests/data/folder_a/ta.nc', 'tests/data/folder_b/ta.nc')
+        assert not errors
+        errors = comp.compare_files('tests/data/folder_d/a.nc', 'tests/data/folder_d/b.nc')
+        assert errors
+        assert 'a.nc/field@0 is different' in errors
