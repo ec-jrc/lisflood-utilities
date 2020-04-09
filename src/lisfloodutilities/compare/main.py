@@ -33,9 +33,10 @@ def main(cliargs):
     dataset_b = args.dataset_b
     maskfile = args.maskarea
     array_equal = args.array_equal
+    skip_missing = args.skip_missing
     comparator = NetCDFComparator(maskfile, array_equal=array_equal, for_testing=False)
     logger.info('\n\nComparing %s and %s\n\n ', dataset_a, dataset_b)
-    errors = comparator.compare_dirs(dataset_a, dataset_b, )
+    errors = comparator.compare_dirs(dataset_a, dataset_b, skip_missing=skip_missing)
 
     for i, e in enumerate(errors):
         logger.error('%d - %s', i, e)
@@ -60,4 +61,7 @@ class ParserHelpOnError(argparse.ArgumentParser):
         self.add_argument("-a", "--dataset_a", help='path to outputh of LisFlood version A', required=True)
         self.add_argument("-b", "--dataset_b", help='path to outputh of LisFlood version B', required=True)
         self.add_argument("-m", "--maskarea", help='path to mask', required=True)
-        self.add_argument("-e", "--array_equal", help='path to mask', required=False, default=False, action='store_true')
+        self.add_argument("-e", "--array-equal", help='flag to compare files to be identical',
+                          required=False, default=False, action='store_true')
+        self.add_argument("-s", "--skip-missing", help='flag to skip missing files in comparison',
+                          required=False, default=True, action='store_false')

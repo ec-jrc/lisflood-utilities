@@ -48,6 +48,7 @@ class Comparator(object):
                         assert False, message
                     else:
                         self.errors.append(message)
+                        continue
 
             self.compare_files(fa.as_posix(), fb.as_posix())
         if not self.for_testing:

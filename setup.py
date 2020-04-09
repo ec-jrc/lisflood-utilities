@@ -47,11 +47,12 @@ with open(readme_file, 'r') as f:
     long_description = f.read()
 
 with open(version_file, 'r') as f:
-    version = f.read()
+    version = f.read().strip()
 
 IS_PYTHON2 = sys.version_info.major == 2
 numpy_version = '1.17.2' if not IS_PYTHON2 else '1.15.4'
 dask_version = '2.7.0' if not IS_PYTHON2 else '1.2.2'
+
 
 class UploadCommand(Command):
     """Support setup.py upload."""
