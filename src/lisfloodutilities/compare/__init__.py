@@ -19,13 +19,19 @@ logger = logging.getLogger()
 
 
 class Comparator(object):
+    """
+
+    """
     glob_expr = None
 
-    def __init__(self):
-        self.errors = []
+    def __init__(self, array_equal=False, for_testing=True):
+        """
+
+        """
+        self.array_equal = array_equal
+        self.for_testing=for_testing
 
     def compare_dirs(self, path_a, path_b, skip_missing=True):
-        errors = []
         logger.info('Comparing %s and %s [skip missing: %s]', path_a, path_b, str(skip_missing))
         path_a = Path(path_a)
         path_b = Path(path_b)
@@ -36,12 +42,11 @@ class Comparator(object):
                     logger.info('skipping %s as it is not in %s', fb.name, path_b.as_posix())
                     continue
                 else:
-                    errors += ['{} is missing in {}'.format(fb.name, path_b.as_posix())]
-                    continue
-            err_file = self.compare_files(fa.as_posix(), fb.as_posix())
-            if err_file:
-                errors += err_file
-        return errors
+                    if self.for_testing:
+                        assert False, '{} is missing in {}'.format(fb.name, path_b.as_posix())
+                    else:
+                        
+            self.compare_files(fa.as_posix(), fb.as_posix())
 
     def compare_files(self, fa, fb):
         raise NotImplementedError()
@@ -54,10 +59,14 @@ class PCRComparator(Comparator):
         logger.info('Comparing %s and %s', file_a, file_b)
         map_a = PCRasterMap(file_a)
         map_b = PCRasterMap(file_b)
-        err = ['{} different from {}'.format(file_a, file_b)] if map_a != map_b else None
-        map_a.close()
-        map_b.close()
-        return err
+        if map_a != map_b:
+            map_a.close()
+            map_b.close()
+            assert False, '{} different from {}'.format(file_a, file_b)
+        else:
+            map_a.close()
+            map_b.close()
+            assert True
 
 
 class TSSComparator(Comparator):
@@ -73,8 +82,8 @@ class TSSComparator(Comparator):
                 b1 = fp1.readline()
                 b2 = fp2.readline()
                 if (b1 != b2) or (not b1 and b2) or (not b2 and b1):
-                    err = ['{} different from {}'.format(file_a, file_b)]
-                    return err
+                    err = '{} different from {}'.format(file_a, file_b)
+                    assert False, err
                 if not b1:
                     return None
 
@@ -82,8 +91,8 @@ class TSSComparator(Comparator):
 class NetCDFComparator(Comparator):
     glob_expr = ['**/*.nc']
 
-    def __init__(self, mask, atol=0.05, rtol=0.1, max_perc_diff=0.2, max_perc_large_diff=0.1):
-        super(NetCDFComparator, self).__init__()
+    def __init__(self, mask, atol=0.05, rtol=0.1, max_perc_diff=0.2, max_perc_large_diff=0.1, array_equal=False):
+        super(NetCDFComparator, self).__init__(array_equal=array_equal)
         if isinstance(mask, str):
             mask = Dataset(mask)
             maskvar = [k for k in mask.variables if len(mask.variables[k].dimensions) == 2][0]
@@ -117,10 +126,10 @@ class NetCDFComparator(Comparator):
                 varname = varname or '<unknown var>'
                 mess = '{}/{}@{} - {:3.2f}% of different values - max diff: {:3.2f}'.format(filepath, varname, step, perc_wrong, max_diff)
                 logger.error(mess)
-                return mess
+                assert False, mess
+        assert True
 
     def compare_files(self, file_a, file_b):
-        errors = []
         logger.info('Comparing %s and %s', file_a, file_b)
         with Dataset(file_a) as nca, Dataset(file_b) as ncb:
             num_dims = 3 if 'time' in nca.variables else 2
@@ -129,25 +138,28 @@ class NetCDFComparator(Comparator):
             try:
                 varb = ncb.variables[var_name]
             except KeyError:
-                var_nameb = [k for k in nca.variables if len(nca.variables[k].dimensions) == num_dims][0]
-                return 'Files: {} vs {} have different variables names A:{} B:{}'.format(file_a, file_b, var_name, var_nameb)
+                var_nameb = [k for k in ncb.variables if len(ncb.variables[k].dimensions) == num_dims][0]
+                assert False, 'Files: {} vs {} have different variables names A:{} B:{}'.format(file_a, file_b, var_name, var_nameb)
             if 'time' in nca.variables:
                 stepsa = nca.variables['time'][:]
                 stepsb = ncb.variables['time'][:]
                 if len(stepsa) != len(stepsb):
                     len_stepsa = len(stepsa)
                     len_stepsb = len(stepsb)
-                    return 'Files: {} vs {}: different size in time axis A:{} B:{}'.format(file_a, file_b, len_stepsa, len_stepsb)
+                    assert False, 'Files: {} vs {}: different size in time axis A:{} B:{}'.format(file_a, file_b, len_stepsa, len_stepsb)
                 for step, _ in enumerate(stepsa):
                     values_a = vara[step][:, :]
                     values_b = varb[step][:, :]
-                    err = self.compare_arrays(values_a, values_b, var_name, step, file_a)
-                    if err:
-                        errors.append(err)
+                    if not self.array_equal:
+                        self.compare_arrays(values_a, values_b, var_name, step, file_a)
+                    else:
+                        self.compare_arrays_equal(values_a, values_b, var_name, step, file_a)
             else:
                 values_a = vara[:, :]
                 values_b = varb[:, :]
-                err = self.compare_arrays(values_a, values_b, var_name, filepath=file_a)
-                if err:
-                    errors.append(err)
-        return errors
+                self.compare_arrays(values_a, values_b, var_name, filepath=file_a)
+
+    def compare_arrays_equal(self, values_a, values_b, var_name, step, file_a):
+        filepath = os.path.basename(file_a) if file_a else '<mem>'
+        mess = '{}/{}@{} is different '.format(filepath, var_name, step)
+        np.testing.assert_array_equal(values_a, values_b, mess)
