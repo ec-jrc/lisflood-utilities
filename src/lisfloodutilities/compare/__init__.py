@@ -24,7 +24,7 @@ class Comparator(object):
     """
     glob_expr = None
 
-    def __init__(self, array_equal=False, for_testing=True):
+    def __init__(self, array_equal=False, for_testing=False):
         """
 
         """
@@ -59,12 +59,14 @@ class Comparator(object):
 
 
 class PCRComparator(Comparator):
+    # TODO add comparison with tolerance
     glob_expr = ['**/*.[0-9][0-9][0-9]', '**/*.map']
 
     def compare_files(self, file_a, file_b):
         logger.info('Comparing %s and %s', file_a, file_b)
         map_a = PCRasterMap(file_a)
         map_b = PCRasterMap(file_b)
+
         if map_a != map_b:
             map_a.close()
             map_b.close()
@@ -83,12 +85,19 @@ class PCRComparator(Comparator):
 class TSSComparator(Comparator):
     glob_expr = ['**/*.tss']
 
-    def compare_files(self, file_a, file_b):
-        logger.info('Comparing %s and %s', file_a, file_b)
+    def __init__(self, atol=0.005, rtol=0.01,
+                 array_equal=False, for_testing=True):
+
+        super(TSSComparator, self).__init__(array_equal=array_equal, for_testing=for_testing)
+        self.atol = atol
+        self.rtol = rtol
+
+    def compare_lines_equal(self, file_a, file_b):
         with open(file_a, 'rb') as fp1, open(file_b, 'rb') as fp2:
-            # need to skip first line in TSS as it reports settings filename
+            # skip first line in TSS as it just reports settings filename
             fp1.readline()
             fp2.readline()
+
             while True:
                 b1 = fp1.readline()
                 b2 = fp2.readline()
@@ -100,21 +109,59 @@ class TSSComparator(Comparator):
                         self.errors.append(message)
                         return message
                 if not b1:
-                    return None
+                    break
+
+    def compare_lines_tolerance(self, file_a, file_b):
+        fp1 = open(file_a)
+        fp2 = open(file_b)
+        # skip first lines in TSS as it just reports settings filename
+        line = ''
+        numline = 1
+        while 'timestep' not in line:
+            fp1.readline()
+            line = fp2.readline()
+            numline += 1
+
+        while True:
+            b1 = fp1.readline().strip()
+            b2 = fp2.readline().strip()
+            if not b1:
+                break
+            array1 = np.array([elem for elem in b1.split(' ') if elem], dtype='float64')
+            array2 = np.array([elem for elem in b2.split(' ') if elem], dtype='float64')
+            if not np.allclose(array1, array2, rtol=self.rtol, atol=self.atol):
+                message = '{} different from {} (line: {})\n line A: {}\n line B: {}'.format(file_a, file_b, numline, b1, b2)
+                if self.for_testing:
+                    assert False, message
+                else:
+                    self.errors.append(message)
+        assert True
+        return self.errors
+
+    def compare_files(self, file_a, file_b):
+        logger.info('Comparing %s and %s', file_a, file_b)
+        if self.array_equal:
+            self.compare_lines_equal(file_a, file_b)
+        else:
+            self.compare_lines_tolerance(file_a, file_b)
 
 
 class NetCDFComparator(Comparator):
     glob_expr = ['**/*.nc']
 
-    def __init__(self, mask, atol=0.05, rtol=0.1, max_perc_diff=0.2, max_perc_large_diff=0.1,
+    def __init__(self, mask, atol=0.005, rtol=0.01,
+                 max_perc_diff=0.2, max_perc_large_diff=0.1,
                  array_equal=False, for_testing=True):
+
         super(NetCDFComparator, self).__init__(array_equal=array_equal, for_testing=for_testing)
+
         if isinstance(mask, str):
             mask = Dataset(mask)
             maskvar = [k for k in mask.variables if len(mask.variables[k].dimensions) == 2][0]
             self.maskarea = np.logical_not(mask.variables[maskvar][:, :])
         else:
             self.maskarea = mask
+
         self.atol = atol
         self.rtol = rtol
         self.max_perc_large_diff = max_perc_large_diff
@@ -169,9 +216,7 @@ class NetCDFComparator(Comparator):
                 stepsa = nca.variables['time'][:]
                 stepsb = ncb.variables['time'][:]
                 if len(stepsa) != len(stepsb):
-                    len_stepsa = len(stepsa)
-                    len_stepsb = len(stepsb)
-                    message = 'Files: {} vs {}: different size in time axis A:{} B:{}'.format(file_a, file_b, len_stepsa, len_stepsb)
+                    message = 'Files: {} vs {}: different size in time axis A:{} B:{}'.format(file_a, file_b, len(stepsa), len(stepsb))
                     if self.for_testing:
                         assert False, message
                     else:

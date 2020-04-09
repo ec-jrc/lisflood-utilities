@@ -30,6 +30,7 @@ class TestCutlib:
             map(Path, ['tests/data/folder_a/1.map', 'tests/data/folder_a/2.map',
                        'tests/data/folder_a/3.map', 'tests/data/folder_a/4.map',
                        'tests/data/folder_a/5.map', 'tests/data/folder_a/qLakeIn.tss',
+                       'tests/data/folder_a/test_tol_fail_1.tss', 'tests/data/folder_a/test_tol_ok_1.tss',
                        'tests/data/folder_a/qLakeOut.tss', 'tests/data/folder_a/ta.nc',
                        'tests/data/folder_a/tp.nc']))) == res
 
