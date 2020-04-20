@@ -85,7 +85,7 @@ class PCRComparator(Comparator):
 class TSSComparator(Comparator):
     glob_expr = ['**/*.tss']
 
-    def __init__(self, atol=0.005, rtol=0.01,
+    def __init__(self, atol=0.0001, rtol=0.001,
                  array_equal=False, for_testing=True):
 
         super(TSSComparator, self).__init__(array_equal=array_equal, for_testing=for_testing)
@@ -123,15 +123,17 @@ class TSSComparator(Comparator):
             numline += 1
 
         while True:
-            b1 = fp1.readline().strip()
-            b2 = fp2.readline().strip()
+            b1 = fp1.readline().strip().split()
+            b2 = fp2.readline().strip().split()
             if not b1:
                 break
-            array1 = np.array([elem for elem in b1.split(' ') if elem], dtype='float64')
-            array2 = np.array([elem for elem in b2.split(' ') if elem], dtype='float64')
-            if not np.allclose(array1, array2, rtol=self.rtol, atol=self.atol):
-                message = '{} different from {} (line: {})\n line A: {}\n line B: {}'.format(file_a, file_b, numline, b1, b2)
+            array1 = np.array(b1, dtype='float64')
+            array2 = np.array(b2, dtype='float64')
+            if not np.allclose(array1, array2, rtol=self.rtol, atol=self.atol, equal_nan=True):
+                message = '{} different from {} (line: {})\n line A: {}\n line B: {}'.format(file_a, file_b, numline, array1, array2)
+                message += '\n {}'.format(np.abs(array1 - array2))
                 if self.for_testing:
+                    np.testing.assert_allclose(array1, array2, rtol=self.rtol, atol=self.atol, equal_nan=True)
                     assert False, message
                 else:
                     self.errors.append(message)
@@ -149,7 +151,7 @@ class TSSComparator(Comparator):
 class NetCDFComparator(Comparator):
     glob_expr = ['**/*.nc']
 
-    def __init__(self, mask, atol=0.005, rtol=0.01,
+    def __init__(self, mask, atol=0.0001, rtol=0.001,
                  max_perc_diff=0.2, max_perc_large_diff=0.1,
                  array_equal=False, for_testing=True):
 
@@ -216,7 +218,7 @@ class NetCDFComparator(Comparator):
                 stepsa = nca.variables['time'][:]
                 stepsb = ncb.variables['time'][:]
                 if len(stepsa) != len(stepsb):
-                    message = 'Files: {} vs {}: different size in time axis A:{} B:{}'.format(file_a, file_b, len(stepsa), len(stepsb))
+                    message = 'Files: {} vs {}: different number of steps A:{} B:{}'.format(file_a, file_b, len(stepsa), len(stepsb))
                     if self.for_testing:
                         assert False, message
                     else:
