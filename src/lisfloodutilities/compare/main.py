@@ -14,6 +14,7 @@ See the Licence for the specific language governing permissions and limitations 
 
 Usage: compare -a /workarea/datatests/modela_results/ -b /workarea/datatests/modelb_results/ -m /workarea/GLOFAS/maps/areamodel.nc
 """
+
 import argparse
 import sys
 

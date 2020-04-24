@@ -18,18 +18,13 @@ To publish a new version of this distribution (git tags and pypi package), after
 
 python setup.py publish
 
-python setup.py sdist
-
 To upload new package on PyPi Test:
 twine upload --repository-url https://test.pypi.org/legacy/ dist/*
-
-To upload new package on PyPi:
-twine upload dist/*
 
 Test package install
 pip install --index-url https://test.pypi.org/simple/ lisflood-utilities==0.11.7
 
-In prod:
+Installation with pip:
 pip install lisflood-utilities
 """
 
@@ -50,7 +45,7 @@ with open(version_file, 'r') as f:
     version = f.read().strip()
 
 IS_PYTHON2 = sys.version_info.major == 2
-numpy_version = '1.17.2' if not IS_PYTHON2 else '1.15.4'
+numpy_version = '1.18.3' if not IS_PYTHON2 else '1.15.4'
 dask_version = '2.7.0' if not IS_PYTHON2 else '1.2.2'
 
 
@@ -104,7 +99,7 @@ setup_args = dict(
     setup_requires=[
             'setuptools>=41.0', 'numpy=={}'.format(numpy_version),
     ],
-    install_requires=['numpy=={}'.format(numpy_version), 'pyyaml==5.3', 'netCDF4==1.5.3', 'xarray==0.15.0',
+    install_requires=['numpy=={}'.format(numpy_version), 'pyyaml==5.3', 'netCDF4==1.5.3', 'toolz', 'xarray==0.15.0',
                       'dask=={}'.format(dask_version), 'pandas==0.25.1', 'pathlib2==2.3.5', 'nine'],
     author="Valerio Lorini, Domenico Nappo, Lorenzo Alfieri",
     author_email="valerio.lorini@ec.europa.eu,domenico.nappo@gmail.com,lorenzo.alfieri@ec.europa.eu",
