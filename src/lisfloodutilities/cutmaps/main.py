@@ -41,10 +41,13 @@ class ParserHelpOnError(argparse.ArgumentParser):
                                                          'main variable i.e. pr/e0/tx/tavg must be '
                                                          'last variable in the input file')
         group_filelist.add_argument("-f", "--folder", help='Directory with netCDF files to be cut')
-        group_filelist.add_argument("-g", "--global-setup", help='Directory with GloFAS static maps. '
-                                                                 'Output files will have same directories structure')
+        group_filelist.add_argument("-S", "--static-data", help='Directory with EFAS/GloFAS static maps. '
+                                                                'Output files will have same directories structure')
 
-        self.add_argument("-o", "--outpath", help='path where to save cut files', default='./cutmaps_out', required=True)
+        self.add_argument("-o", "--outpath", help='path where to save cut files', default='./cutmaps_out',
+                          required=True)
+        self.add_argument("-W", "--overwrite", help='Set flag to overwrite existing files', default=False,
+                          required=False, action='store_true')
 
 
 def main(cliargs):
@@ -57,16 +60,16 @@ def main(cliargs):
 
     filelist = args.list
     input_folder = args.folder
-    glofas_folder = args.global_setup
-
+    lisflood_static_data_folder = args.static_data
+    overwrite = args.overwrite
     pathout = args.outpath
 
-    logger.info('\n\nCutting using: %s\n Files to cut from: %s\n Output: %s\n\n ',
+    logger.info('\n\nCutting using: %s\n Files to cut from: %s\n Output: %s\n Overwrite existing: %s\n\n',
                 mask or cuts,
-                filelist or input_folder or glofas_folder,
-                pathout)
+                filelist or input_folder or lisflood_static_data_folder,
+                pathout, overwrite)
 
-    list_to_cut = get_filelist(filelist, input_folder, glofas_folder)
+    list_to_cut = get_filelist(filelist, input_folder, lisflood_static_data_folder)
     x_min, x_max, y_min, y_max = get_cuts(cuts=cuts, mask=mask)
 
     # walk through list_to_cut
@@ -74,23 +77,24 @@ def main(cliargs):
 
         filename, ext = os.path.splitext(file_to_cut)
 
-        # localdir used only with glofas_folder.
-        # It will track folder structures in a GloFAS like setup and replicate it on output folder
-        localdir = os.path.dirname(file_to_cut).replace(os.path.dirname(glofas_folder), '').lstrip('/') if glofas_folder else ''
+        # localdir used only with lisflood_static_data_folder.
+        # It will track folder structures in a EFAS/GloFAS like setup and replicate it in output folder
+        localdir = os.path.dirname(file_to_cut).replace(os.path.dirname(lisflood_static_data_folder), '').lstrip(
+            '/') if lisflood_static_data_folder else ''
 
         fileout = os.path.join(pathout, localdir, os.path.basename(file_to_cut))
-        if os.path.isdir(file_to_cut) and glofas_folder:
+        if os.path.isdir(file_to_cut) and lisflood_static_data_folder:
             # just create folder
             os.makedirs(fileout, exist_ok=True)
             continue
         if ext != '.nc':
-            if glofas_folder:
+            if lisflood_static_data_folder:
                 logger.warning('%s is not in netcdf format, just copying to ouput folder', file_to_cut)
                 shutil.copy(file_to_cut, fileout)
             else:
                 logger.warning('%s is not in netcdf format, skipping...', file_to_cut)
             continue
-        elif os.path.isfile(fileout) and os.path.exists(fileout):
+        elif os.path.isfile(fileout) and os.path.exists(fileout) and not overwrite:
             logger.warning('%s already existing. This file will not be overwritten', fileout)
             continue
 

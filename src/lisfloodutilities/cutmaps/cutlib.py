@@ -30,20 +30,10 @@ logger = logging.getLogger()
 
 
 def cutmap(f, fileout, x_min, x_max, y_min, y_max):
-    try:
-        nc = xr.open_dataset(f, chunks={'time': 100}, decode_cf=False)
-        num_dims = 3
-    except Exception:  # file has no time component
-        num_dims = 2
-        nc = xr.open_dataset(f)
+    nc, num_dims = open_dataset(f)
     var = [v for v in nc.variables if len(nc.variables[v].dims) == num_dims][0]
     logger.info('Variable: %s', var)
 
-    if 'lat' in nc.variables:
-        nc.variables[var].attrs['esri_pe_string'] = 'GEOGCS[\"GCS_WGS_1984\",DATUM[\"D_WGS_1984\",SPHEROID[\"WGS_1984\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"Degree\",0.0174532925199433]]"'
-    else:
-        nc.variables[var].attrs['esri_pe_string'] = 'PROJCS["ETRS_1989_LAEA",GEOGCS["GCS_ETRS_1989",DATUM["D_ETRS_1989",SPHEROID["GRS_1980",6378137.0,298.257222101]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Lambert_Azimuthal_Equal_Area"],PARAMETER["False_Easting",4321000.0],PARAMETER["False_Northing",3210000.0],PARAMETER["Central_Meridian",10.0],PARAMETER["Latitude_Of_Origin",52.0],UNIT["Meter",1.0]]'
-        nc.variables[var].attrs['proj4_params'] = "+proj=laea +lat_0=52 +lon_0=10 +x_0=4321000 +y_0=3210000 +ellps=GRS80 +units=m +no_defs"
     if isinstance(x_min, float):
         # bounding box input from user
         sliced_var = _cut_from_coords(nc, var, x_min, x_max, y_min, y_max)
@@ -53,8 +43,42 @@ def cutmap(f, fileout, x_min, x_max, y_min, y_max):
 
     if sliced_var is not None:
         logger.info('Creating: %s', fileout)
+        if 'missing_value' in sliced_var.encoding:
+            sliced_var.encoding['_FillValue'] = sliced_var.encoding['missing_value']
         sliced_var.to_netcdf(fileout)
+    if 'laea' in nc.variables or 'lambert_azimuthal_equal_area' in nc.variables:
+        var = nc.variables['laea'] if 'laea' in nc.variables else nc.variables['lambert_azimuthal_equal_area']
+        xr.DataArray(name='laea', data=var.data, dims=var.dims, attrs=var.attrs).to_netcdf(fileout, mode='a')
+    # TODO add global attrs
+    """
+    // global attributes:
+    :history = "Created Tue Feb 03 18:06:52 2015";
+    :conventions = "CF-1.6";
+    :source_software = "Python netCDF3_Classic";
+    :title = "Lisflood maps for European setting Januar 2015";
+    :keywords = "Lisflood, Europe";
+    :source = "Lisflood European maps - pb2015";
+    :institition = "JRC H01";
+    """
+    nc_out, _ = open_dataset(fileout)
+    nc_out.attrs = nc.attrs
+    nc_out.attrs['conventions'] = 'CF-1.6'
+    nc_out.attrs['institution'] = 'JRC E1'
+    nc_out.attrs['Source_Software'] = 'lisfloodutilities cutmaps 0.12.12'
+    nc_out.attrs['source_software'] = 'lisfloodutilities cutmaps 0.12.12'
+    nc_out.close()
+    nc_out.to_netcdf(fileout, 'a')
     nc.close()
+
+
+def open_dataset(f):
+    try:
+        nc = xr.open_dataset(f, chunks={'time': 100}, decode_cf=False)
+        num_dims = 3
+    except Exception:  # file has no time component
+        num_dims = 2
+        nc = xr.open_dataset(f)
+    return nc, num_dims
 
 
 def _cut_from_indices(nc, var, x_min, x_max, y_min, y_max):
@@ -70,8 +94,12 @@ def _cut_from_indices(nc, var, x_min, x_max, y_min, y_max):
 
 def _cut_from_coords(nc, var, x_min, x_max, y_min, y_max):
     # we have coordinates bounds and not indices yet
-    lats = nc.variables['lat'][:]
-    lons = nc.variables['lon'][:]
+    if 'lats' in nc.variables:
+        lats = nc.variables['lat'][:]
+        lons = nc.variables['lon'][:]
+    else:
+        lats = nc.variables['y'][:]
+        lons = nc.variables['x'][:]
     # find indices
     ys = np.where((lats >= y_min) & (lats <= y_max))[0]
     xs = np.where((lons >= x_min) & (lons <= x_max))[0]
@@ -97,7 +125,7 @@ def get_filelist(filelist=None, input_folder=None, glofas_folder=None):
     elif input_folder:
         list_to_cut = [f for f in Path(input_folder).glob('**/*.nc')]
     elif glofas_folder:
-        list_to_cut = [f for f in Path(glofas_folder).glob('**/*')]
+        list_to_cut = [f for f in Path(glofas_folder).glob('**/*') if '/.git/' not in f.as_posix()]
     logger.info('==================> Going to cut %d files', len(list_to_cut))
     return list_to_cut
 

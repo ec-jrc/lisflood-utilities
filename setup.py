@@ -85,6 +85,24 @@ class UploadCommand(Command):
         sys.exit()
 
 
+class UploadCommandTest(UploadCommand):
+
+    def run(self):
+        try:
+            self.print_console('Removing previous builds...')
+            rmtree(os.path.join(current_dir, 'dist'))
+        except OSError:
+            pass
+
+        self.print_console('Building Source and Wheel (universal) distribution...')
+        os.system('{} setup.py sdist'.format(sys.executable))
+
+        self.print_console('Uploading the package to test PyPI via Twine...')
+        os.system('twine upload --repository testpypi dist/*')
+
+        sys.exit()
+
+
 setup_args = dict(
     name='lisflood-utilities',
     package_dir={'': 'src/'},
@@ -99,7 +117,7 @@ setup_args = dict(
     setup_requires=[
             'setuptools>=41.0', 'numpy=={}'.format(numpy_version),
     ],
-    install_requires=['numpy=={}'.format(numpy_version), 'pyyaml==5.3', 'netCDF4==1.5.3', 'toolz', 'xarray==0.15.0',
+    install_requires=['numpy=={}'.format(numpy_version), 'pyyaml==5.3', 'netCDF4==1.5.3', 'toolz', 'xarray==0.15.1',
                       'dask=={}'.format(dask_version), 'pandas==0.25.1', 'pathlib2==2.3.5', 'nine'],
     author="Valerio Lorini, Domenico Nappo, Lorenzo Alfieri",
     author_email="valerio.lorini@ec.europa.eu,domenico.nappo@gmail.com,lorenzo.alfieri@ec.europa.eu",
@@ -128,6 +146,7 @@ setup_args = dict(
     cmdclass={
         'publish': UploadCommand,
         'upload': UploadCommand,
+        'testpypi': UploadCommandTest,
     },
 )
 
