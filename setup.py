@@ -30,6 +30,7 @@ pip install lisflood-utilities
 
 import os
 import sys
+import subprocess
 from shutil import rmtree
 
 from setuptools import setup, find_packages, Command
@@ -44,9 +45,23 @@ with open(readme_file, 'r') as f:
 with open(version_file, 'r') as f:
     version = f.read().strip()
 
+
+def _get_gdal_version():
+    try:
+        p = subprocess.Popen(['gdal-config', '--version'], stdout=subprocess.PIPE)
+    except FileNotFoundError:
+        raise SystemError('gdal-config not found.'
+                          'GDAL seems not installed. '
+                          'Please, install GDAL binaries and libraries for your system '
+                          'and then install the relative pip package.')
+    else:
+        return p.communicate()[0].splitlines()[0].decode()
+
+
 IS_PYTHON2 = sys.version_info.major == 2
 numpy_version = '1.18.3' if not IS_PYTHON2 else '1.15.4'
 dask_version = '2.7.0' if not IS_PYTHON2 else '1.2.2'
+gdal_version = _get_gdal_version()
 
 
 class UploadCommand(Command):
@@ -117,7 +132,8 @@ setup_args = dict(
     setup_requires=[
             'setuptools>=41.0', 'numpy=={}'.format(numpy_version),
     ],
-    install_requires=['numpy=={}'.format(numpy_version), 'pyyaml==5.3', 'netCDF4==1.5.3', 'toolz', 'xarray==0.15.1',
+    install_requires=['numpy=={}'.format(numpy_version), 'pyyaml==5.3', 'GDAL=={}'.format(gdal_version),
+                      'netCDF4==1.5.3', 'toolz', 'xarray==0.15.1',
                       'dask=={}'.format(dask_version), 'pandas==0.25.1', 'pathlib2==2.3.5', 'nine'],
     author="Valerio Lorini, Domenico Nappo, Lorenzo Alfieri",
     author_email="valerio.lorini@ec.europa.eu,domenico.nappo@gmail.com,lorenzo.alfieri@ec.europa.eu",

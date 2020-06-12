@@ -15,11 +15,9 @@ Other useful resources
 | Lisflood Usecases   |                                                           | https://github.com/ec-jrc/lisflood-usecases                     |
 
 
-## lisflood utilities
+## Intro
 
-**Note:** User guide of each tool is placed under the relative directory in a README.md file.
-
-Lisflood Utilities is a set of tools to help LISFLOOD users (or any users of PCRaster/netCDF files) 
+Lisflood Utilities is a set of tools to help LISFLOOD users (or any users of PCRaster/netCDF files)
 to execute some mundane tasks that are necessary to operate lisflood.
 Here's a list of utilities you can find in lisflood-utilities package.
 
@@ -45,67 +43,43 @@ The package contains convenient classes for reading/writing:
 
 ### Installation
 
-There are two ways to get the software: 
-
-* install it via pip tool
-* clone the repository
-
 #### Requisites
+The easy way is to use conda environment as they incapsulate C dependencies as well, so you wouldn't need to install libraries.
 
-Ensure you have properly installed the following software:
+Otherwise, ensure you have properly installed the following software:
 
 - Python 3.5+
 - GDAL C library and software
 - netCDF4 C library
 
-#### Install via pip tool
-
-Activate your virtualenv and then:
+#### Install
+If you use conda, create a new env (or use an existing one) and install gdal and lisflood-utilities:
 
 ```bash
-$ pip install lisflood-utilities
+conda create --name myenv python=3.7 -c conda-forge
+conda activate myenv
+conda install -c conda-forge gdal
+pip install lisflood-utilities
 ```
 
-After the install was complete, you still have to install the proper GDAL package,
-according to the version of gdal library that is installed on your machine.
-You will also need C GDAL headers to properly install python GDAL wrapper.
+If you don't use conda but a straight python3 virtualenv:
 
-E.g.
+```bash
+source /path/myenv/bin/activate
+pip install lisflood-utilities
+```
+
+If GDAL library fails to install, ensure to install the same package version of the
+C library you have on your system. You may also need to setup paths to gdal headers.
+
+To check which version of GDAL libraries you have installed on your computer, use gdal-config
 
 ```bash
 sudo apt-get install libgdal-dev libgdal
 export CPLUS_INCLUDE_PATH=/usr/include/gdal
 export C_INCLUDE_PATH=/usr/include/gdal
-gdal-config --version  # 2.2.3
-pip install GDAL==2.2.3
-```
-
-#### Install by cloning the repository
-
-```bash
-git clone https://github.com/ec-jrc/lisflood-utilities
-```
-
-Install requirements
-
-```bash
-$ pip install -r requirements.txt
-```
-
-If GDAL library fails to install, ensure to install the same package version of the
-library you have on your system.
-To check which version of GDAL libraries you have installed on your computer, use gdal-config
-
-```bash
-gdal-config --version
-2.1
-```
-
-Example: you have installed gdal 2.1, then:
-
-```bash
-$ pip install GDAL==2.1
-$ pip install -r requirements.txt
+gdal-config --version  # 3.0.1
+pip install GDAL==3.0.1
 ```
 
 ## pcr2nc
@@ -231,15 +205,21 @@ The cookie-cutter that will be used is _/workarea/Madeira/maps/MaskMap/Bacia_mad
 This file is a mask (boolean map with 1 only in the area of interest) where cutmaps takes the bounding box from.
 The mask can also be in PCRaster format.
 
-```console
+```bash
 cutmaps -m /workarea/Madeira/maps/MaskMap/Bacia_madeira.nc -f /workarea/Madeira/lai/ -o ./
 ```
 
 Indices can also be passed as an argument (using -c argument instead of -m). Knowing your area of interest from your netCDF files, 
 you can determine indices of the array and you can pass in the form `imin_i_max:jmin_jmax`.
 
-```console
+```bash
 cutmaps -c 150_350:80_180 -f /workarea/Madeira/lai/ -o ./
+```
+
+Example with coordinates and path to EFAS/GloFAS static data (-S option), with -W to allow overwriting existing files in output directory:
+
+```bash
+cutmaps -S /home/projects/lisflood-eu -c 4078546.12_4463723.85:811206.57_1587655.50 -o /Work/Tunisia/cutmaps -W
 ```
 
 ## gfit
