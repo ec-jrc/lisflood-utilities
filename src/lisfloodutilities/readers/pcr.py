@@ -1,6 +1,6 @@
 """
 
-Copyright 2019 European Union
+Copyright 2019-2020 European Union
 
 Licensed under the EUPL, Version 1.2 or as soon they will be approved by the European Commission  subsequent versions of the EUPL (the "Licence");
 
@@ -33,7 +33,7 @@ except ImportError as e:
     [!] export CPLUS_INCLUDE_PATH=/usr/include/gdal
     [!] export C_INCLUDE_PATH=/usr/include/gdal
     [!] To know the gdal library version you have installed on your machine, run `gdal-config --version` 
-    [!] e.g. 2.2.3 ==> pip install GDAL==2.2.3
+    [!] e.g. 3.1.0 ==> pip install GDAL==3.1.0
     """)
     sys.exit(1)
 

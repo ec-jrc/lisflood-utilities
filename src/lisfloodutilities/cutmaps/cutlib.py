@@ -1,6 +1,6 @@
 """
 
-Copyright 2019 European Union
+Copyright 2019-2020 European Union
 
 Licensed under the EUPL, Version 1.2 or as soon they will be approved by the European Commission  subsequent versions of the EUPL (the "Licence");
 
@@ -23,10 +23,11 @@ from pathlib import Path
 import xarray as xr
 import numpy as np
 
-from lisfloodutilities.readers import PCRasterMap
+from ..readers.pcr import PCRasterMap
+from .. import version
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger()
+logger = logging.getLogger('CUTMAPS')
 
 
 def cutmap(f, fileout, x_min, x_max, y_min, y_max):
@@ -35,7 +36,7 @@ def cutmap(f, fileout, x_min, x_max, y_min, y_max):
     logger.info('Variable: %s', var)
 
     if isinstance(x_min, float):
-        # bounding box input from user
+        # bounding box input from user  #FIXME weak isistance test
         sliced_var = _cut_from_coords(nc, var, x_min, x_max, y_min, y_max)
     else:
         # user provides with indices directly (not coordinates)
@@ -47,27 +48,25 @@ def cutmap(f, fileout, x_min, x_max, y_min, y_max):
             sliced_var.encoding['_FillValue'] = sliced_var.encoding['missing_value']
         sliced_var.to_netcdf(fileout)
     if 'laea' in nc.variables or 'lambert_azimuthal_equal_area' in nc.variables:
+
         var = nc.variables['laea'] if 'laea' in nc.variables else nc.variables['lambert_azimuthal_equal_area']
+        logger.info('Found projection variable: %s', var)
         xr.DataArray(name='laea', data=var.data, dims=var.dims, attrs=var.attrs).to_netcdf(fileout, mode='a')
-    # TODO add global attrs
-    """
-    // global attributes:
-    :history = "Created Tue Feb 03 18:06:52 2015";
-    :conventions = "CF-1.6";
-    :source_software = "Python netCDF3_Classic";
-    :title = "Lisflood maps for European setting Januar 2015";
-    :keywords = "Lisflood, Europe";
-    :source = "Lisflood European maps - pb2015";
-    :institition = "JRC H01";
-    """
+
+    # adding global attributes
     nc_out, _ = open_dataset(fileout)
     nc_out.attrs = nc.attrs
     nc_out.attrs['conventions'] = 'CF-1.6'
     nc_out.attrs['institution'] = 'JRC E1'
-    nc_out.attrs['Source_Software'] = 'lisfloodutilities cutmaps 0.12.12'
-    nc_out.attrs['source_software'] = 'lisfloodutilities cutmaps 0.12.12'
+    nc_out.attrs['Conventions'] = 'CF-1.6'
+    nc_out.attrs['Institution'] = 'JRC E1'
+    nc_out.attrs['Source_Software'] = 'lisfloodutilities cutmaps {}'.format(version)
+    nc_out.attrs['source_software'] = 'lisfloodutilities cutmaps {}'.format(version)
     nc_out.close()
-    nc_out.to_netcdf(fileout, 'a')
+    try:
+        nc_out.to_netcdf(fileout, 'a')
+    except ValueError:
+        logger.warning('Cannot add global attributes to %s', fileout)
     nc.close()
 
 
@@ -117,12 +116,9 @@ def _cut_from_coords(nc, var, x_min, x_max, y_min, y_max):
     return sliced_var
 
 
-def get_filelist(filelist=None, input_folder=None, glofas_folder=None):
+def get_filelist(input_folder=None, glofas_folder=None):
     list_to_cut = []
-    if filelist:
-        list_to_cut = open(filelist).readlines()
-        list_to_cut = [Path(l.strip()) for l in list_to_cut]
-    elif input_folder:
+    if input_folder:
         list_to_cut = [f for f in Path(input_folder).glob('**/*.nc')]
     elif glofas_folder:
         list_to_cut = [f for f in Path(glofas_folder).glob('**/*') if '/.git/' not in f.as_posix()]
@@ -162,3 +158,7 @@ def get_cuts(cuts=None, mask=None):
         sys.exit(1)
     logger.info('CUTS: \nmin x: %s \nmax x: %s \nmin y: %s \nmax y: %s', x_min, x_max, y_min, y_max)
     return x_min, x_max, y_min, y_max
+
+
+def mask_from_ldd(ldd, stations):
+    pass

@@ -21,7 +21,8 @@ import os
 import shutil
 import sys
 
-from .cutlib import get_filelist, get_cuts, cutmap, logger
+from .. import version
+from .cutlib import mask_from_ldd, get_filelist, get_cuts, cutmap, logger
 
 
 class ParserHelpOnError(argparse.ArgumentParser):
@@ -33,13 +34,15 @@ class ParserHelpOnError(argparse.ArgumentParser):
     def add_args(self):
         group_mask = self.add_mutually_exclusive_group()
         group_filelist = self.add_mutually_exclusive_group()
+        group_stations = self.add_mutually_exclusive_group()
 
         group_mask.add_argument("-m", "--mask", help='mask file cookie-cutter, .map if pcraster, .nc if netcdf')
         group_mask.add_argument("-c", "--cuts", help='Cut coordinates in the form lonmin_lonmax:latmin_latmax')
 
-        group_filelist.add_argument("-l", "--list", help='list of files to be cut, in a text file, one file per line, '
-                                                         'main variable i.e. pr/e0/tx/tavg must be '
-                                                         'last variable in the input file')
+        group_stations.add_argument("-l", "--ldd", help='Path to LDD file')
+        group_stations.add_argument("-N", "--stations", help='Path to stations.txt file.'
+                                                             'Read documentation to know about the format')
+
         group_filelist.add_argument("-f", "--folder", help='Directory with netCDF files to be cut')
         group_filelist.add_argument("-S", "--static-data", help='Directory with EFAS/GloFAS static maps. '
                                                                 'Output files will have same directories structure')
@@ -51,25 +54,30 @@ class ParserHelpOnError(argparse.ArgumentParser):
 
 
 def main(cliargs):
-    parser = ParserHelpOnError(description='Convert PCRaster maps to a NetCDF map stack')
+    parser = ParserHelpOnError(description='Cut netCDF file: {}'.format(version))
     parser.add_args()
     args = parser.parse_args(cliargs)
 
     mask = args.mask
     cuts = args.cuts
 
-    filelist = args.list
+    ldd = args.ldd
+    stations = args.stations
+
     input_folder = args.folder
-    lisflood_static_data_folder = args.static_data
+    static_data_folder = args.static_data
     overwrite = args.overwrite
     pathout = args.outpath
+    if ldd and stations:
+        logger.info('\nTry to produce a mask from LDD and stations points: %s %s', ldd, stations)
+        mask = mask_from_ldd(ldd, stations)
 
     logger.info('\n\nCutting using: %s\n Files to cut from: %s\n Output: %s\n Overwrite existing: %s\n\n',
                 mask or cuts,
-                filelist or input_folder or lisflood_static_data_folder,
+                input_folder or static_data_folder,
                 pathout, overwrite)
 
-    list_to_cut = get_filelist(filelist, input_folder, lisflood_static_data_folder)
+    list_to_cut = get_filelist(input_folder, static_data_folder)
     x_min, x_max, y_min, y_max = get_cuts(cuts=cuts, mask=mask)
 
     # walk through list_to_cut
@@ -79,16 +87,17 @@ def main(cliargs):
 
         # localdir used only with lisflood_static_data_folder.
         # It will track folder structures in a EFAS/GloFAS like setup and replicate it in output folder
-        localdir = os.path.dirname(file_to_cut).replace(os.path.dirname(lisflood_static_data_folder), '').lstrip(
-            '/') if lisflood_static_data_folder else ''
+        localdir = os.path.dirname(file_to_cut)\
+            .replace(os.path.dirname(static_data_folder), '')\
+            .lstrip('/') if static_data_folder else ''
 
         fileout = os.path.join(pathout, localdir, os.path.basename(file_to_cut))
-        if os.path.isdir(file_to_cut) and lisflood_static_data_folder:
+        if os.path.isdir(file_to_cut) and static_data_folder:
             # just create folder
             os.makedirs(fileout, exist_ok=True)
             continue
         if ext != '.nc':
-            if lisflood_static_data_folder:
+            if static_data_folder:
                 logger.warning('%s is not in netcdf format, just copying to ouput folder', file_to_cut)
                 shutil.copy(file_to_cut, fileout)
             else:

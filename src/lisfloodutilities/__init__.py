@@ -1,6 +1,6 @@
 """
 
-Copyright 2019 European Union
+Copyright 2019-2020 European Union
 
 Licensed under the EUPL, Version 1.2 or as soon they will be approved by the European Commission  subsequent versions of the EUPL (the "Licence");
 
@@ -18,3 +18,12 @@ See the Licence for the specific language governing permissions and limitations 
 import sys
 
 IS_PYTHON2 = sys.version_info[0] == 2
+version = open('VERSION').read().strip()
+__version__ = []
+for numb in version.split('.'):
+    try:
+        __version__.append(int(numb))
+    except ValueError:
+        # avoid to add to __version__ suffixes like 'post1'
+        pass
+__version__ = tuple(__version__)

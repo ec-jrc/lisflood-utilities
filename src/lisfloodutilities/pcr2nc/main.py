@@ -1,5 +1,5 @@
 """
-Copyright 2019 European Union
+Copyright 2019-2020 European Union
 
 Licensed under the EUPL, Version 1.2 or as soon they will be approved by the European Commission  subsequent versions of the EUPL (the "Licence");
 
@@ -27,6 +27,7 @@ except ImportError:
     from yaml import Loader, Dumper
 
 from . import convert
+from .. import version
 
 
 class ParserHelpOnError(argparse.ArgumentParser):
@@ -64,8 +65,7 @@ def main_script():
 
 
 def main(args):
-    parser = ParserHelpOnError(description='Convert a (or a set of) PCRaster map(s) '
-                                           'to a single NetCDF file (map stack).')
+    parser = ParserHelpOnError(description='Convert PCRaster to netCDF {}'.format(version))
 
     parser.add_args()
     parsed_args = parser.parse_args(args)

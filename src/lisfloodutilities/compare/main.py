@@ -1,5 +1,5 @@
 """
-Copyright 2019 European Union
+Copyright 2019-2020 European Union
 
 Licensed under the EUPL, Version 1.2 or as soon they will be approved by the European Commission  subsequent versions of the EUPL (the "Licence");
 
@@ -21,12 +21,13 @@ import sys
 import numpy as np
 
 from . import NetCDFComparator, logger
+from .. import version
 
 np.set_printoptions(precision=4, linewidth=300, suppress=True)
 
 
 def main(cliargs):
-    parser = ParserHelpOnError(description='Compare netCDF outputs from two different LisFlood versions')
+    parser = ParserHelpOnError(description='Compare netCDF outputs: {}'.format(version))
     parser.add_args()
     args = parser.parse_args(cliargs)
 

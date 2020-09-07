@@ -16,6 +16,7 @@ See the Licence for the specific language governing permissions and limitations 
 ---------------------------------------------------------------------------------------------------------------------------------------
 To publish a new version of this distribution (git tags and pypi package), after pushed on main branch:
 
+python setup.py testpypi
 python setup.py publish
 
 To upload new package on PyPi Test:
