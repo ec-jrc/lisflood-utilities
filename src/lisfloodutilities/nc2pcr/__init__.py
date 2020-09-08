@@ -15,18 +15,17 @@ See the Licence for the specific language governing permissions and limitations 
 
 """
 
-from lisfloodutilities.readers import PCRasterReader, NetCDFMap
-from lisfloodutilities.writers import NetCDFWriter, PCRasterWriter
+from lisfloodutilities.readers import NetCDFMap
+from lisfloodutilities.writers import PCRasterWriter
 
 
-def convert(dataset, clonemap, output=None):
+def convert(in_filename, clonemap, out_filename):
 
-    reader = NetCDFMap(dataset)
+    reader = NetCDFMap(in_filename)
     writer = PCRasterWriter(clonemap)
 
     for varname, values in reader.data:
-        writer.add_to_stack(pcr_map, time_step)
-        pcr_map.close()
+        writer.write(out_filename.replace('.map', '_{}.map'.format(varname)), values)
 
     reader.close()
     writer.close()
