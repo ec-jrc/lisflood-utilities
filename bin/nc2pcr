@@ -1,0 +1,14 @@
+#!python
+
+import os
+import sys
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+src_dir = os.path.normpath(os.path.join(current_dir, '../src/'))
+if os.path.exists(src_dir):
+    sys.path.append(src_dir)
+
+from lisfloodutilities.nc2pcr.main import main_script
+
+if __name__ == '__main__':
+    main_script()
