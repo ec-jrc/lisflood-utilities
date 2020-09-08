@@ -23,6 +23,7 @@ from pathlib import Path
 import xarray as xr
 import numpy as np
 
+from .helpers import pcraster_command
 from ..readers.pcr import PCRasterMap
 from .. import version
 
@@ -161,4 +162,10 @@ def get_cuts(cuts=None, mask=None):
 
 
 def mask_from_ldd(ldd, stations):
-    pass
+    if ldd.endswith('.nc'):
+        # convert to PCRaster format
+        pass
+    station_map = os.path.join(os.path.dirname(stations), 'outlet.map')
+    pcraster_command(cmd='col2map F0 F1 -N --clone F2 --large', files={'F0': stations, 'F1': station_map, 'F2': ldd})
+    accuflux_map = os.path.join(os.path.dirname(stations), 'accuflux.map')
+    pcraster_command(cmd='pcrcalc "F0 = accuflux(F1,1)"', files={"F0": accuflux_map, "F1": ldd})

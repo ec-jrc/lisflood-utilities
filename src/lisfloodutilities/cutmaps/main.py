@@ -40,7 +40,7 @@ class ParserHelpOnError(argparse.ArgumentParser):
         group_mask.add_argument("-c", "--cuts", help='Cut coordinates in the form lonmin_lonmax:latmin_latmax')
 
         group_stations.add_argument("-l", "--ldd", help='Path to LDD file')
-        group_stations.add_argument("-N", "--stations", help='Path to stations.txt file.'
+        group_stations.add_argument("-N", "--stations", help='Path to stations.csv file.'
                                                              'Read documentation to know about the format')
 
         group_filelist.add_argument("-f", "--folder", help='Directory with netCDF files to be cut')

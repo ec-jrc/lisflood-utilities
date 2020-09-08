@@ -16,3 +16,4 @@ See the Licence for the specific language governing permissions and limitations 
 """
 
 from .nc import NetCDFWriter
+from .pcr import PCRasterWriter
