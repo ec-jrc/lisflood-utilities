@@ -18,7 +18,7 @@ See the Licence for the specific language governing permissions and limitations 
 import numpy as np
 from osgeo.gdal import Band
 
-from lisfloodutilities.readers import PCRasterMap, PCRasterReader
+from lisfloodutilities.readers import PCRasterMap, PCRasterReader, NetCDFMap
 
 
 class TestPCRasterMap:
@@ -75,3 +75,20 @@ class TestPCRasterReader:
         reader = PCRasterReader('tests/data/folder_a/*.map')
         assert reader.input_is_wildcard()
         assert len(list(reader.fileset)) == 5
+
+
+class TestNetCDFMap:
+    def test_input_singlefile(self):
+        test_file = NetCDFMap('tests/data/area.nc')
+        variables = {n: v for n, v in test_file.data}
+        assert len(variables) == 1
+        assert variables['areaOrigin'].shape == (5, 12)
+        assert np.alltrue(variables['areaOrigin'])
+        coordinates = {n: v for n, v in test_file.coordinates}
+        assert len(coordinates) == 2
+        assert np.round(np.min(coordinates['lat']), 2) == 53.05
+        assert np.round(np.min(coordinates['lon']), 2) == -127.25
+        assert np.round(np.max(coordinates['lat']), 2) == 53.45
+        assert np.round(np.max(coordinates['lon']), 2) == -126.15
+        assert coordinates['lat'].shape == (5, )
+        assert coordinates['lon'].shape == (12, )

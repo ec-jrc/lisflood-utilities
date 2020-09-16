@@ -18,9 +18,32 @@ See the Licence for the specific language governing permissions and limitations 
 import os
 
 import numpy as np
+from numpy import ma
+
 from netCDF4 import Dataset
 
-from lisfloodutilities.writers import NetCDFWriter
+from lisfloodutilities.writers import NetCDFWriter, PCRasterWriter
+from lisfloodutilities.readers import PCRasterMap
+
+
+class TestPCRasterWriter:
+    filename = 'tests/data/test.map'
+    clonemap_filename = 'tests/data/asia.map'
+
+    def test_simple(self):
+        writer = PCRasterWriter(self.clonemap_filename)
+        clonemap = PCRasterMap(self.clonemap_filename)
+        values = np.random.random(clonemap.data.shape)
+        writer.write(self.filename, values)
+        writer.close()
+        outmap = PCRasterMap(self.filename)
+        values = ma.masked_where(writer._mask, values, copy=False)
+        values = ma.filled(values, writer.mv)
+
+        assert outmap.data.shape == values.shape
+        assert outmap.data.shape == (writer.rows, writer.cols)
+        assert np.allclose(outmap.data, values.data, equal_nan=True)
+        os.unlink(self.filename)
 
 
 class TestNetcdfWriter:

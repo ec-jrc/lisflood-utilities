@@ -27,8 +27,10 @@ try:
     from osgeo.gdalconst import GA_ReadOnly
 except ImportError as e:
     print("""
-    [!] GDAL is not installed. Please, install GDAL binaries and libraries for your system and then install the relative pip package.
-    [!] Important note: you have to install same version of GDAL for its python interface. You also need to install GDAL C headers.
+    [!] GDAL is not installed. 
+    [!] Please, install GDAL binaries and libraries for your system and then install the relative GDAL Python interface.
+    [!] If you are using a conda env, you can install with `conda install gdal`.
+    [!] For a system installation in Debian/Ubuntu:
     [!] sudo apt-get install libgdal-dev libgdal
     [!] export CPLUS_INCLUDE_PATH=/usr/include/gdal
     [!] export C_INCLUDE_PATH=/usr/include/gdal
@@ -42,6 +44,7 @@ class PCRasterMap:
     """
     A class representing a PCRaster map file.
     """
+
     def __init__(self, pcr_map_filename):
         dataset = gdal.Open(pcr_map_filename.encode('utf-8'), GA_ReadOnly)
         self.filename = pcr_map_filename
@@ -52,9 +55,9 @@ class PCRasterMap:
         self.band = self.dataset.GetRasterBand(1)
 
     def __eq__(self, other):
-        res = (self.cols == other.cols and self.rows ==  other.rows
-                and self.min == other.min and self.max == other.max
-                and self.geo_transform == other.geo_transform)
+        res = (self.cols == other.cols and self.rows == other.rows
+               and self.min == other.min and self.max == other.max
+               and self.geo_transform == other.geo_transform)
         if not res:
             return False
         diff = np.abs(self.data - other.data)
@@ -194,7 +197,8 @@ class PCRasterReader:
             for f in filelist:
                 yield PCRasterMap.build(f), self._extract_timestep(f)
         elif self.input_is_dir():
-            filelist = sorted((f for f in os.listdir(self.input_set) if not f.endswith('.nc')), key=self._extract_timestep)
+            filelist = sorted((f for f in os.listdir(self.input_set) if not f.endswith('.nc')),
+                              key=self._extract_timestep)
             for f in filelist:
                 f = os.path.join(self.input_set, f)
                 yield PCRasterMap.build(f), self._extract_timestep(f)

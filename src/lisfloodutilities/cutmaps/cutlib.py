@@ -94,7 +94,7 @@ def _cut_from_indices(nc, var, x_min, x_max, y_min, y_max):
 
 def _cut_from_coords(nc, var, x_min, x_max, y_min, y_max):
     # we have coordinates bounds and not indices yet
-    if 'lats' in nc.variables:
+    if 'lat' in nc.variables:
         lats = nc.variables['lat'][:]
         lons = nc.variables['lon'][:]
     else:

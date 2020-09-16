@@ -31,12 +31,6 @@ else:
 
 class TestCutlib:
 
-    def test_getfiles_to_cut_filelist(self):
-        res = sorted(get_filelist(filelist='tests/data/cutlist.txt'))
-        assert sorted(list(map(Path, ['tests/data/folder_a/ta.nc', 'tests/data/folder_a/tp.nc',
-                                      'tests/data/folder_b/ta.nc', 'tests/data/folder_d/a.nc',
-                                      'tests/data/folder_d/b.nc']))) == res
-
     def test_getfiles_to_cut_folder(self):
         res = sorted(get_filelist(input_folder='tests/data/folder_a'))
         assert sorted(list(map(Path, ['tests/data/folder_a/ta.nc', 'tests/data/folder_a/tp.nc']))) == res
