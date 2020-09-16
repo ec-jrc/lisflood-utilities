@@ -10,14 +10,22 @@ class NetCDFMap:
     e.g. To convert ldd.nc
     """
     def __init__(self, netcdf_filename):
-        self.ds = xr.open_dataset(netcdf_filename)
+        self.ds = xr.open_dataset(netcdf_filename, decode_cf=False)
+
+    @property
+    def mv(self):
+        for variable in self.ds.variables.values():
+            if len(variable.dims) < 2:
+                continue
+            input(variable.attrs)
+            return variable.attrs['_FillValue'] if '_FillValue' in variable.attrs else variable.attrs['missing_value']
 
     @property
     def data(self):
         for varname, variable in self.ds.variables.items():
             if len(variable.dims) < 2:
                 continue
-            yield varname, variable.values
+            yield varname, variable
 
     @property
     def coordinates(self):

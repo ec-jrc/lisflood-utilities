@@ -112,3 +112,6 @@ class TestCutlib:
         os.unlink(fout)
         assert res_x == 58.75
         assert res_y == 0.65
+
+    def test_createmask_ldd(self):
+        pass

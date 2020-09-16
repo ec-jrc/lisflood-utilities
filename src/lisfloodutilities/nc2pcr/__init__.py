@@ -25,6 +25,7 @@ def convert(in_filename, clonemap, out_filename):
     writer = PCRasterWriter(clonemap)
 
     for varname, values in reader.data:
+        print(str(values.dtype))
         writer.write(out_filename.replace('.map', '_{}.map'.format(varname)), values)
 
     reader.close()
