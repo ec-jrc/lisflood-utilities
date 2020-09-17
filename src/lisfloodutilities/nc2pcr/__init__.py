@@ -22,10 +22,9 @@ from lisfloodutilities.writers import PCRasterWriter
 def convert(in_filename, clonemap, out_filename):
 
     reader = NetCDFMap(in_filename)
-    writer = PCRasterWriter(clonemap)
+    writer = PCRasterWriter(clonemap, mv=reader.mv)
 
     for varname, values in reader.data:
-        print(str(values.dtype))
         writer.write(out_filename.replace('.map', '_{}.map'.format(varname)), values)
 
     reader.close()

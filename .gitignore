@@ -46,4 +46,5 @@ dist/
 .eggs/
 !/**/samples/*
 !tests/**/*.nc
+tests/**/*aux.xml
 .coverage
