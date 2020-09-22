@@ -25,23 +25,23 @@ from lisfloodutilities.nc2pcr import convert
 
 class TestNc2Pcr:
     def test_convert(self):
-        dataset = 'tests/data/cutmaps/ldd.nc'
+        dataset = 'tests/data/cutmaps/ldd_europe.nc'
         out = 'tests/data/nc2pcr_test.map'
-        outfilename = 'tests/data/nc2pcr_test_ec_ldd_repaired.map'
-        clonemap = 'tests/data/cutmaps/areawithdeadsea.map'
+        clonemap = 'tests/data/cutmaps/area_europe.map'
 
-        convert(dataset, clonemap, out)
-        assert os.path.exists(outfilename)
+        convert(dataset, clonemap, out, is_ldd=True)
+        assert os.path.exists(out)
 
-        mappcr_0 = PCRasterMap(outfilename)
+        mappcr_0 = PCRasterMap(out)
         map_0 = NetCDFMap(dataset)
 
         variable = {n: v for n, v in map_0.data}['ec_ldd_repaired']
-        values = variable.values
-        values = np.where(values == map_0.mv, mappcr_0.mv, values)
-        assert values.shape == mappcr_0.data.shape
-        assert np.allclose(values, mappcr_0.data, equal_nan=True)
-        # assert map_0.mv == mappcr_0.mv
-        os.unlink(outfilename)
+        # test non masked values
+        values = np.ma.masked_where(variable.values == map_0.mv, variable.values, copy=False)
+        mask = np.ma.getmask(values)
+        values_pcr = np.ma.masked_where(mask, mappcr_0.data, copy=False)
+        assert values.shape == values_pcr.shape
+        assert np.ma.allclose(values, values_pcr, masked_equal=True)
+        os.unlink(out)
         mappcr_0.close()
         map_0.close()

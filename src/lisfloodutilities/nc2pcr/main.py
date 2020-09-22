@@ -33,9 +33,9 @@ class ParserHelpOnError(argparse.ArgumentParser):
         self.add_argument('-i', '--input', required=True,
                           help='Path to input NetCDF. Current version does not work with mapstacks',
                           metavar='input')
-        self.add_argument('-o', '--output_file', help='Path to PCRaster output map.', default='./out.map',
+        self.add_argument('-o', '--output', help='Path to PCRaster output map.', default='./out.map',
                           metavar='output')
-        self.add_argument('-c', '--clonemap', help='Path to PCRaster clone map.', default='./clone.map',
+        self.add_argument('-c', '--clonemap', help='Path to PCRaster clone map.', required=True,
                           metavar='clonemap')
 
 
@@ -48,9 +48,9 @@ def main(args):
 
     parser.add_args()
     parsed_args = parser.parse_args(args)
-    configuration = {'input': parsed_args.input,
+    configuration = {'inf': parsed_args.input,
                      'clonemap': parsed_args.clonemap,
-                     'output': parsed_args.output, }
+                     'outf': parsed_args.output, }
     # MAIN METHOD
     convert(**configuration)
 

@@ -40,8 +40,10 @@ class ParserHelpOnError(argparse.ArgumentParser):
         group_mask.add_argument("-c", "--cuts", help='Cut coordinates in the form lonmin_lonmax:latmin_latmax')
 
         group_stations.add_argument("-l", "--ldd", help='Path to LDD file')
-        group_stations.add_argument("-N", "--stations", help='Path to stations.csv file.'
+        group_stations.add_argument("-N", "--stations", help='Path to stations.txt file.'
                                                              'Read documentation to know about the format')
+        group_stations.add_argument("-C", "--clonemap",
+                                    help='Path to PCRaster clonemap; used to convert ldd.nc to ldd.map')
 
         group_filelist.add_argument("-f", "--folder", help='Directory with netCDF files to be cut')
         group_filelist.add_argument("-S", "--static-data", help='Directory with EFAS/GloFAS static maps. '
@@ -70,6 +72,10 @@ def main(cliargs):
     pathout = args.outpath
     if ldd and stations:
         logger.info('\nTry to produce a mask from LDD and stations points: %s %s', ldd, stations)
+        if ldd.endswith('nc'):
+            from lisfloodutilities.nc2pcr import convert
+            clonemap = args.clonemap
+            convert(ldd, clonemap, '.map')
         mask = mask_from_ldd(ldd, stations)
 
     logger.info('\n\nCutting using: %s\n Files to cut from: %s\n Output: %s\n Overwrite existing: %s\n\n',

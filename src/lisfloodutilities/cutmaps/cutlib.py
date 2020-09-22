@@ -162,10 +162,23 @@ def get_cuts(cuts=None, mask=None):
 
 
 def mask_from_ldd(ldd, stations):
-    if ldd.endswith('.nc'):
-        # convert to PCRaster format
-        pass
+    # steps from calibration script
+    # 1. col2map stations.txt stations.map --clone ldd.map --large
+    # 2. pcrcalc "accuflux.map=accuflux(ldd.map,1)"
+    # 3. for each station, compute catchment mask
+    #   col2map + " F0 F1 -N --clone F2 --large" ,{"F0": tmp_txt, "F1":tmp_map, "F2":ldd_map})
+    #   catchment_map = os.path.join(path_temp,"catchmask%05d.map" % float(index))
+    #   pcrcalc + " 'F0 = boolean(catchment(F1,F2))'", {"F0": catchment_map, "F1":ldd_map, "F2":tmp_map})
+    #   pcrcalc + " 'F0 = if((scalar(F0) gt (scalar(F0) *0)) then F0)' ", {"F0": catchment_map})
+    # 4. Make interstations region
+    #  pcrasterCommand(pcrcalc + " 'F0 = scalar(F1)*0-1'", {"F0": interstation_regions_map, "F1":ldd_map}) # initialize interstation_regions_map
+    # 	stationdata_sorted = stationdata.sort_index(by=['CatchmentArea'],ascending=False)
+    # 	for index, row in stationdata_sorted.iterrows():
+    # 		sys.stdout.write(".")
+    # 		catchment_map = os.path.join(path_temp,"catchmask%05d.map" % float(index))
+    # 		pcrasterCommand(pcrcalc + " 'F0 = F0 * (1-scalar(cover(F1,0.0)))'", {"F0": interstation_regions_map, "F1":catchment_map})
+    # 		pcrasterCommand(pcrcalc + " 'F0 = F0 + scalar(cover(F1,0.0)) * " + str(index) + "'", {"F0": interstation_regions_map, "F1":catchment_map})
     station_map = os.path.join(os.path.dirname(stations), 'outlet.map')
-    pcraster_command(cmd='col2map F0 F1 -N --clone F2 --large', files={'F0': stations, 'F1': station_map, 'F2': ldd})
+    pcraster_command(cmd='col2map F0 F1 -N --clone F2 --large', files=dict(F0=stations, F1=station_map, F2=ldd))
     accuflux_map = os.path.join(os.path.dirname(stations), 'accuflux.map')
-    pcraster_command(cmd='pcrcalc "F0 = accuflux(F1,1)"', files={"F0": accuflux_map, "F1": ldd})
+    pcraster_command(cmd="pcrcalc 'F0 = accuflux(F1,1)'", files=dict(F0=accuflux_map, F1=ldd))

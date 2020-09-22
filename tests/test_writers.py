@@ -36,13 +36,18 @@ class TestPCRasterWriter:
         values = np.random.random(clonemap.data.shape)
         writer.write(self.filename, values)
         writer.close()
+
         outmap = PCRasterMap(self.filename)
+        values_pcr = ma.masked_where(writer._mask, outmap.data, copy=False)
+        values_pcr = ma.filled(values_pcr, outmap.mv)
+
         values = ma.masked_where(writer._mask, values, copy=False)
         values = ma.filled(values, writer.mv)
 
-        assert outmap.data.shape == values.shape
-        assert outmap.data.shape == (writer.rows, writer.cols)
-        assert np.allclose(outmap.data, values.data, equal_nan=True)
+        assert outmap.mv == writer.mv
+        assert values_pcr.shape == values.shape
+        assert values_pcr.shape == (writer.rows, writer.cols)
+        assert np.ma.allclose(values_pcr, values, masked_equal=True)
         os.unlink(self.filename)
 
 
