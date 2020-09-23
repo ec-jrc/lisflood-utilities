@@ -25,9 +25,9 @@ from lisfloodutilities.nc2pcr import convert
 
 class TestNc2Pcr:
     def test_convert(self):
-        dataset = 'tests/data/cutmaps/ldd_europe.nc'
+        dataset = 'tests/data/cutmaps/ldd_eu.nc'
         out = 'tests/data/nc2pcr_test.map'
-        clonemap = 'tests/data/cutmaps/area_europe.map'
+        clonemap = 'tests/data/cutmaps/area_eu.map'
 
         convert(dataset, clonemap, out, is_ldd=True)
         assert os.path.exists(out)
