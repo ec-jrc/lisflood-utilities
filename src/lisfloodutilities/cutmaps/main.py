@@ -72,10 +72,10 @@ def main(cliargs):
     pathout = args.outpath
     if ldd and stations:
         logger.info('\nTry to produce a mask from LDD and stations points: %s %s', ldd, stations)
-        if ldd.endswith('nc'):
+        if ldd.endswith('.nc'):
             from lisfloodutilities.nc2pcr import convert
             clonemap = args.clonemap
-            convert(ldd, clonemap, '.map')
+            ldd = convert(ldd, clonemap, '.map')
         mask = mask_from_ldd(ldd, stations)
 
     logger.info('\n\nCutting using: %s\n Files to cut from: %s\n Output: %s\n Overwrite existing: %s\n\n',

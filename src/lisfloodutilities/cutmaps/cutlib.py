@@ -38,10 +38,10 @@ def cutmap(f, fileout, x_min, x_max, y_min, y_max):
 
     if isinstance(x_min, float):
         # bounding box input from user  #FIXME weak isistance test
-        sliced_var = _cut_from_coords(nc, var, x_min, x_max, y_min, y_max)
+        sliced_var = cut_from_coords(nc, var, x_min, x_max, y_min, y_max)
     else:
         # user provides with indices directly (not coordinates)
-        sliced_var = _cut_from_indices(nc, var, x_min, x_max, y_min, y_max)
+        sliced_var = cut_from_indices(nc, var, x_min, x_max, y_min, y_max)
 
     if sliced_var is not None:
         logger.info('Creating: %s', fileout)
@@ -81,7 +81,7 @@ def open_dataset(f):
     return nc, num_dims
 
 
-def _cut_from_indices(nc, var, x_min, x_max, y_min, y_max):
+def cut_from_indices(nc, var, x_min, x_max, y_min, y_max):
     # note: netcdf has lats on first dimension e.g. y_min:y_max are Y/lat dimension indices
     # that in nc file are stored on first dimension: ta(time, lat, lon)
     # you can always adjust indices in input in order to match your nc files structure
@@ -92,7 +92,7 @@ def _cut_from_indices(nc, var, x_min, x_max, y_min, y_max):
     return sliced_var
 
 
-def _cut_from_coords(nc, var, x_min, x_max, y_min, y_max):
+def cut_from_coords(nc, var, x_min, x_max, y_min, y_max):
     # we have coordinates bounds and not indices yet
     if 'lat' in nc.variables:
         lats = nc.variables['lat'][:]
@@ -162,23 +162,9 @@ def get_cuts(cuts=None, mask=None):
 
 
 def mask_from_ldd(ldd_map, stations):
-    # steps from calibration script
-    # 1. col2map stations.txt stations.map --clone ldd.map --large
-    # 2. pcrcalc "accuflux.map=accuflux(ldd.map,1)"
-    # 3. for each station, compute catchment mask
-    #   col2map tmp_txt tmp_map -N --clone ldd_map --large
-    #   catchment_map = os.path.join(path_temp,"catchmask%05d.map" % float(index))
-    #   pcrcalc 'catchment_map = boolean(catchment(ldd_map, tmp_map))'
-    #   pcrcalc 'catchment_map = if((scalar(catchment_map) gt (scalar(catchment_map) * 0)) then catchment_map)'
+    """
 
-    # 4. Make interstations region
-    # pcrcalc 'regions_map = scalar(ldd_map)*0-1'  # init regions_map
-    # stationdata_sorted = stationdata.sort_index(by=['CatchmentArea'], ascending=False)
-    # For each stations
-    #   catchment_map = os.path.join(path_temp,"catchmask%05d.map" % float(index))
-    # 	pcrcalc + " 'F0 = F0 * (1-scalar(cover(F1,0.0)))'", {"F0": interstation_regions_map, "F1":catchment_map})
-    # 	pcrcalc + " 'F0 = F0 + scalar(cover(F1,0.0)) * " + str(index) + "'", {"F0": interstation_regions_map, "F1":catchment_map})
-
+    """
     try:
         from pcraster import accuflux
     except ImportError as e:
@@ -191,20 +177,19 @@ def mask_from_ldd(ldd_map, stations):
     station_map = os.path.join(path, 'outlet.map')
     pcraster_command(cmd='col2map F0 F1 -N --clone F2 --large', files=dict(F0=stations, F1=station_map, F2=ldd_map))
 
-    accuflux_map = os.path.join(path, 'accuflux.map')
-    pcraster_command(cmd="pcrcalc 'F0 = accuflux(F1,1)'", files=dict(F0=accuflux_map, F1=ldd_map))
-
+    # accuflux_map = os.path.join(path, 'accuflux.map')
+    # pcraster_command(cmd="pcrcalc 'F0 = accuflux(F1,1)'", files=dict(F0=accuflux_map, F1=ldd_map))
+    tmp_txt = os.path.join(path, 'tmp.txt')
+    tmp_map = os.path.join(path, 'tmp.map')
     with open(stations) as f:
         for line in f.readlines():
             x, y, idx = line.split()
             # make map of station location
             content = "%s %s %s\n" % (x, y, 1)
-            tmp_txt = os.path.join(path, 'tmp.txt')
-            tmp_map = os.path.join(path, 'tmp.map')
             f1 = open(tmp_txt, "w")
             f1.write(content)
             f1.close()
-            catchment_map = os.path.join(path, "catchmask%05d.map" % int(idx))
+            catchment_map = os.path.join(path, 'catchmask%05d.map' % int(idx))
 
             pcraster_command(cmd='col2map F0 F1 -N --clone F2 --large', files=dict(F0=tmp_txt, F1=tmp_map, F2=ldd_map))
             pcraster_command(cmd="pcrcalc 'F0 = boolean(catchment(F1, F2))'", files=dict(F0=catchment_map, F1=ldd_map, F2=tmp_map))
@@ -230,7 +215,7 @@ def mask_from_ldd(ldd_map, stations):
     pcraster_command(cmd="pcrcalc 'F0 = boolean(if(scalar(F1) != -1, scalar(1)))'",
                      files=dict(F0=tempmask_map, F1=regions_map))
     pcraster_command(cmd='resample -c 0 F0 F1', files=dict(F0=tempmask_map, F1=smallmask_map))
-    os.unlink(accuflux_map)
+    # os.unlink(accuflux_map)
     os.unlink(tempmask_map)
     os.unlink(regions_map)
     return smallmask_map

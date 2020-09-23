@@ -20,18 +20,25 @@ from lisfloodutilities.writers import PCRasterWriter
 
 
 def convert(inf, clonemap, outf, is_ldd=False):
+    """
+
+    """
 
     reader = NetCDFMap(inf)
     writer = PCRasterWriter(clonemap, mv=reader.mv)
-
+    outfilenames = []
     variables = {varname: values for varname, values in reader.data}
     if len(variables) > 1:
         for varname, values in variables:
-            writer.write(outf.replace('.map', '_{}.map'.format(varname)), values, is_ldd=is_ldd)
+            output = outf.replace('.map', '_{}.map'.format(varname))
+            outfilenames.append(output)
+            writer.write(output, values, is_ldd=is_ldd)
     else:
         varname = list(variables.keys())[0]
         values = variables[varname]
+        outfilenames.append(outf)
         writer.write(outf, values, is_ldd=is_ldd)
 
     reader.close()
     writer.close()
+    return outfilenames

@@ -21,7 +21,8 @@ import numpy as np
 from netCDF4 import Dataset
 
 from lisfloodutilities import IS_PYTHON2
-from lisfloodutilities.cutmaps.cutlib import get_filelist, get_cuts, cutmap
+from lisfloodutilities.cutmaps.cutlib import get_filelist, get_cuts, cutmap, mask_from_ldd
+from lisfloodutilities.nc2pcr import convert
 
 if IS_PYTHON2:
     from pathlib2 import Path
@@ -113,5 +114,26 @@ class TestCutlib:
         assert res_x == 58.75
         assert res_y == 0.65
 
-    def test_createmask_ldd(self):
-        pass
+    def test_get_cuts_ldd(self):
+        ldd = 'tests/data/cutmaps/ldd_eu.nc'
+        clonemap = 'tests/data/cutmaps/area_eu.map'
+        stations = 'tests/data/cutmaps/stations.txt'
+
+        ldd_pcr = convert(ldd, clonemap, 'tests/data/cutmaps/ldd_eu_test.map', is_ldd=True)[0]
+        mask = mask_from_ldd(ldd_pcr, stations)
+        x_min, x_max, y_min, y_max = get_cuts(mask=mask)
+        # 4067500.0 4397500.0 1282500.0 1577500.0
+        assert (x_min, x_max, y_min, y_max) == (4067500, 4397500, 1282500, 1577500)
+
+        fin = 'tests/data/cutmaps/ldd_eu.nc'
+        fout = 'tests/data/area_cut.nc'
+        cutmap(fin, fout, x_min, x_max, y_min, y_max)
+        with Dataset(fout) as nc:
+            lons = nc.variables['x'][:]
+            lats = nc.variables['y'][:]
+            res_x = np.min(lons)
+            res_y = np.min(lats)
+        os.unlink(fout)
+        os.unlink(ldd_pcr)
+        assert res_x == 4067500
+        assert res_y == 1282500
