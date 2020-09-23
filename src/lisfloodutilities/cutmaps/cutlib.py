@@ -37,7 +37,7 @@ def cutmap(f, fileout, x_min, x_max, y_min, y_max):
     logger.info('Variable: %s', var)
 
     if isinstance(x_min, float):
-        # bounding box input from user  #FIXME weak isistance test
+        # bounding box input from user  # FIXME weak isistance test
         sliced_var = cut_from_coords(nc, var, x_min, x_max, y_min, y_max)
     else:
         # user provides with indices directly (not coordinates)
@@ -179,18 +179,15 @@ def mask_from_ldd(ldd_map, stations):
 
     # accuflux_map = os.path.join(path, 'accuflux.map')
     # pcraster_command(cmd="pcrcalc 'F0 = accuflux(F1,1)'", files=dict(F0=accuflux_map, F1=ldd_map))
+
     tmp_txt = os.path.join(path, 'tmp.txt')
     tmp_map = os.path.join(path, 'tmp.map')
     with open(stations) as f:
         for line in f.readlines():
             x, y, idx = line.split()
-            # make map of station location
-            content = "%s %s %s\n" % (x, y, 1)
-            f1 = open(tmp_txt, "w")
-            f1.write(content)
-            f1.close()
+            with open(tmp_txt, "w") as f1:
+                f1.write("%s %s %s\n" % (x, y, 1))
             catchment_map = os.path.join(path, 'catchmask%05d.map' % int(idx))
-
             pcraster_command(cmd='col2map F0 F1 -N --clone F2 --large', files=dict(F0=tmp_txt, F1=tmp_map, F2=ldd_map))
             pcraster_command(cmd="pcrcalc 'F0 = boolean(catchment(F1, F2))'", files=dict(F0=catchment_map, F1=ldd_map, F2=tmp_map))
             pcraster_command(cmd="pcrcalc 'F0 = if((scalar(F0) gt (scalar(F0) * 0)) then F0)'", files=dict(F0=catchment_map))

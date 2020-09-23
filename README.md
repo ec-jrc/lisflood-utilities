@@ -26,11 +26,16 @@ Here's a list of utilities you can find in lisflood-utilities package.
   - convert a time series of maps into a NetCDF4 mapstack
   - support for WGS84 and ETRS89 (LAEA) reference systems
   - fine tuning of output files (compression, significant digits, etc.)
+ 
+* __nc2pcr__ is a tool to convert a netCDF file into PCRaster maps.
+  - convert 2D variables in single PCRaster maps
+  - netCDF4 mapstacks are not supported yet
 
 * __cutmaps__ is a tool to cut netcdf files in order to reduce size, using either
   - a bounding box of coordinates
   - a bounding box of matrix indices
   - an existing boolean area mask
+  - a list of stations and a LDD (in netCDF or PCRaster format) **Note: PCRaster must be installed in the conda env**
  
 * __compare__ is a package containing a set of simple Python classes that helps to compare 
 netCDF, PCRaster and TSS files.
@@ -186,9 +191,25 @@ In this section you have to configure `units` and `calendar`.
     - `days since YYYY-MM-DD`
 - `calendar`: A recognized calendar identifier, like `proleptic_gregorian`, `gregorian` etc.
 
+## nc2pcr
+
+This tool converts single maps netCDF (time dimension is not supported yet) to PCRaster format.
+
+### Usage
+
+```bash
+nc2pcr -i /path/to/input/file.nc -o /path/to/output/out.map -c /path/to/clone.map
+```
+
+If input file is a LDD map, you must add the `-l` flag:
+
+```bash
+nc2pcr -i /path/to/input/ldd.nc -o /path/to/output/ldd.map -c /path/to/clone.map -l
+```
+
 ## Cutmaps: a NetCDF files cookie-cutter
 
-This tool accepts a template/cookie-cutter as input, along with a list of files to cut, and produces cut netcdf files.  
+This tool cut netcdf files, using a mask, a bounding box or a list of stations along with a LDD map.  
 
 ### Usage:
 The tool accepts as input:
@@ -196,6 +217,7 @@ The tool accepts as input:
 * a mask map (either PCRaster or netCDF format) or 
   - alternatively, matrix indices in the form xmini_xmaxi:ymini_ymaxi or
   - alternatively, coordinates bounding box in the form xmin_xmax:ymin_ymax
+  - alternatively, list of stations with coordinates and a LDD map.
 * a textfile with a list of filepaths for files to cut or alternatively a path to a folder containing netCDF files to cut 
 * a path to a folder where to write cut files.
 
@@ -209,17 +231,39 @@ The mask can also be in PCRaster format.
 cutmaps -m /workarea/Madeira/maps/MaskMap/Bacia_madeira.nc -f /workarea/Madeira/lai/ -o ./
 ```
 
-Indices can also be passed as an argument (using -c argument instead of -m). Knowing your area of interest from your netCDF files, 
-you can determine indices of the array and you can pass in the form `imin_i_max:jmin_jmax`.
+**Indices can also be passed as an argument (using -c argument instead of -m). Knowing your area of interest from your netCDF files, 
+you can determine indices of the array and you can pass in the form `imin_i_max:jmin_jmax`.**
 
 ```bash
 cutmaps -c 150_350:80_180 -f /workarea/Madeira/lai/ -o ./
 ```
 
-Example with coordinates and path to EFAS/GloFAS static data (-S option), with -W to allow overwriting existing files in output directory:
+**Example with coordinates and path to EFAS/GloFAS static data (-S option), with -W to allow overwriting existing files in output directory:**
 
 ```bash
 cutmaps -S /home/projects/lisflood-eu -c 4078546.12_4463723.85:811206.57_1587655.50 -o /Work/Tunisia/cutmaps -W
+```
+
+**Example with stations.txt and LDD**
+
+Given a LDD map and a list of stations in a text file, each row having coordinates X/Y or lat/lon and an index, separated by tabs:
+
+```text
+4297500	1572500 1
+4292500	1557500 2
+4237500	1537500 3
+4312500	1482500 4
+4187500	1492500 5
+```
+
+```bash
+cutmaps -S /home/projects/lisflood-eu -l ldd.map -N stations.txt -o /Work/Tunisia/cutmaps
+```
+
+If ldd is in netCDF format, you must issue a PCRaster clonemap as LDD needs to be converted to that format, first.
+
+```bash
+cutmaps -S /home/projects/lisflood-eu -l ldd.nc -C area.map -N stations.txt -o /Work/Tunisia/cutmaps
 ```
 
 ## gfit
@@ -260,3 +304,34 @@ The Gfit2 tool performs the following steps:
 [L-Moments: Analysis and Estimation of Distributions Using Linear Combinations of Order Statistics](https://www.jstor.org/stable/2345653)
 
 Hosking, J.R.M., 1990. L-Moments: Analysis and Estimation of Distributions Using Linear Combinations of Order Statistics. J. R. Stat. Soc. Ser. B Methodol. 52, 105124.
+
+## Using lisfloodutilities programmatically TODO
+
+You can use lisflood utilities in your python programs.
+
+### lisfloodutilities.readers
+
+### lisfloodutilities.writers
+
+### lisfloodutilities.compare
+
+### lisfloodutilities.cutmaps
+
+```python
+from lisfloodutilities.cutmaps.cutlib import mask_from_ldd
+from lisfloodutilities.nc2pcr import convert
+from lisfloodutilities.readers import PCRasterMap
+
+ldd = 'tests/data/cutmaps/ldd_eu.nc'
+clonemap = 'tests/data/cutmaps/area_eu.map'
+stations = 'tests/data/cutmaps/stations.txt'
+
+ldd_pcr = convert(ldd, clonemap, 'tests/data/cutmaps/ldd_eu_test.map', is_ldd=True)[0]
+mask = mask_from_ldd(ldd_pcr, stations)
+mask_map = PCRasterMap(mask)
+print(mask_map.data)
+```
+
+### lisfloodutilities.nc2pcr
+
+### lisfloodutilities.pcr2nc
