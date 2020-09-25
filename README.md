@@ -265,6 +265,8 @@ If ldd is in netCDF format, you must issue a PCRaster clonemap as LDD needs to b
 ```bash
 cutmaps -S /home/projects/lisflood-eu -l ldd.nc -C area.map -N stations.txt -o /Work/Tunisia/cutmaps
 ```
+You will find the produced mask.map for your area in the same folder of ldd map; you will need it for lisflood/lisvap executions.
+
 
 ## gfit
 

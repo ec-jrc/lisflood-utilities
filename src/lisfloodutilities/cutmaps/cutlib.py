@@ -44,12 +44,11 @@ def cutmap(f, fileout, x_min, x_max, y_min, y_max):
         sliced_var = cut_from_indices(nc, var, x_min, x_max, y_min, y_max)
 
     if sliced_var is not None:
-        logger.info('Creating: %s', fileout)
         if 'missing_value' in sliced_var.encoding:
             sliced_var.encoding['_FillValue'] = sliced_var.encoding['missing_value']
+        logger.info('Creating: %s', fileout)
         sliced_var.to_netcdf(fileout)
     if 'laea' in nc.variables or 'lambert_azimuthal_equal_area' in nc.variables:
-
         var = nc.variables['laea'] if 'laea' in nc.variables else nc.variables['lambert_azimuthal_equal_area']
         logger.info('Found projection variable: %s', var)
         xr.DataArray(name='laea', data=var.data, dims=var.dims, attrs=var.attrs).to_netcdf(fileout, mode='a')
@@ -68,7 +67,8 @@ def cutmap(f, fileout, x_min, x_max, y_min, y_max):
         nc_out.to_netcdf(fileout, 'a')
     except ValueError:
         logger.warning('Cannot add global attributes to %s', fileout)
-    nc.close()
+    finally:
+        nc.close()
 
 
 def open_dataset(f):
@@ -77,7 +77,7 @@ def open_dataset(f):
         num_dims = 3
     except Exception:  # file has no time component
         num_dims = 2
-        nc = xr.open_dataset(f)
+        nc = xr.open_dataset(f, decode_cf=False)
     return nc, num_dims
 
 
@@ -117,12 +117,12 @@ def cut_from_coords(nc, var, x_min, x_max, y_min, y_max):
     return sliced_var
 
 
-def get_filelist(input_folder=None, glofas_folder=None):
+def get_filelist(input_folder=None, static_data_folder=None):
     list_to_cut = []
     if input_folder:
         list_to_cut = [f for f in Path(input_folder).glob('**/*.nc')]
-    elif glofas_folder:
-        list_to_cut = [f for f in Path(glofas_folder).glob('**/*') if '/.git/' not in f.as_posix()]
+    elif static_data_folder:
+        list_to_cut = [f for f in Path(static_data_folder).glob('**/*') if '/.git/' not in f.as_posix()]
     logger.info('==================> Going to cut %d files', len(list_to_cut))
     return list_to_cut
 

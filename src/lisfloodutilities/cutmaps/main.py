@@ -34,7 +34,7 @@ class ParserHelpOnError(argparse.ArgumentParser):
     def add_args(self):
         group_mask = self.add_mutually_exclusive_group()
         group_filelist = self.add_mutually_exclusive_group()
-        group_stations = self.add_mutually_exclusive_group()
+        group_stations = group_mask.add_argument_group()
 
         group_mask.add_argument("-m", "--mask", help='mask file cookie-cutter, .map if pcraster, .nc if netcdf')
         group_mask.add_argument("-c", "--cuts", help='Cut coordinates in the form lonmin_lonmax:latmin_latmax')
@@ -44,6 +44,7 @@ class ParserHelpOnError(argparse.ArgumentParser):
                                                              'Read documentation to know about the format')
         group_stations.add_argument("-C", "--clonemap",
                                     help='Path to PCRaster clonemap; used to convert ldd.nc to ldd.map')
+        group_mask.add_argument_group(group_stations)
 
         group_filelist.add_argument("-f", "--folder", help='Directory with netCDF files to be cut')
         group_filelist.add_argument("-S", "--static-data", help='Directory with EFAS/GloFAS static maps. '
@@ -70,6 +71,9 @@ def main(cliargs):
     static_data_folder = args.static_data
     overwrite = args.overwrite
     pathout = args.outpath
+    if not os.path.exists(pathout):
+        logger.warning('\nOutput folder %s not existing. Creating it...', pathout)
+        os.mkdir(pathout)
     if ldd and stations:
         logger.info('\nTry to produce a mask from LDD and stations points: %s %s', ldd, stations)
         if ldd.endswith('.nc'):
