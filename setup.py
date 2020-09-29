@@ -1,5 +1,5 @@
 """
-Copyright 2019 European Union
+Copyright 2019-2020 European Union
 
 Licensed under the EUPL, Version 1.2 or as soon they will be approved by the European Commission  subsequent versions of the EUPL (the "Licence");
 
@@ -38,7 +38,7 @@ from setuptools import setup, find_packages, Command
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 readme_file = os.path.join(current_dir, 'README.md')
-version_file = os.path.join(current_dir, 'VERSION')
+version_file = os.path.join(current_dir, 'src/lisfloodutilities/VERSION')
 
 with open(readme_file, 'r') as f:
     long_description = f.read()
@@ -122,9 +122,10 @@ class UploadCommandTest(UploadCommand):
 setup_args = dict(
     name='lisflood-utilities',
     package_dir={'': 'src/'},
+    package_data={'lisfloodutilities': ['VERSION']},
     version=version,
     packages=find_packages('src'),
-    description='A set of utilities for lisfloodutilities users. '
+    description='A set of utilities for lisflood users. '
                 'pcr2nc: Convert PCRaster files to netCDF Cf 1.6; '
                 'nc2pcr: Convert netCDF files ot PCRaster format; '
                 'cutmaps: cut netCDF files;'

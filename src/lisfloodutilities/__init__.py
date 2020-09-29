@@ -15,10 +15,14 @@ See the Licence for the specific language governing permissions and limitations 
 
 """
 
+import os
+import sysconfig
 import sys
 
 IS_PYTHON2 = sys.version_info[0] == 2
-version = open('VERSION').read().strip()
+package_dir = os.path.join(sysconfig.get_paths()['purelib'], 'lisfloodutilities')
+version = open(os.path.join(package_dir, 'VERSION')).read().strip()
+
 __version__ = []
 for numb in version.split('.'):
     try:
