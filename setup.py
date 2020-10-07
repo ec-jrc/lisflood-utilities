@@ -54,7 +54,8 @@ def _get_gdal_version():
         raise SystemError('gdal-config not found.'
                           'GDAL seems not installed. '
                           'Please, install GDAL binaries and libraries for your system '
-                          'and then install the relative pip package.')
+                          'and then install the relative pip package. '
+                          'If you are using a conda environment: conda install -c conda-forge gdal')
     else:
         return p.communicate()[0].splitlines()[0].decode()
 
@@ -126,7 +127,7 @@ setup_args = dict(
     version=version,
     packages=find_packages('src'),
     description='A set of utilities for lisflood users. '
-                'pcr2nc: Convert PCRaster files to netCDF Cf 1.6; '
+                'pcr2nc: Convert PCRaster files to netCDF CF 1.6; '
                 'nc2pcr: Convert netCDF files ot PCRaster format; '
                 'cutmaps: cut netCDF files;'
                 'compare: compare two set of netcdf files',
@@ -135,7 +136,10 @@ setup_args = dict(
     setup_requires=[
             'setuptools>=41.0', 'numpy=={}'.format(numpy_version),
     ],
-    install_requires=['numpy=={}'.format(numpy_version), 'pyyaml==5.3', 'GDAL=={}'.format(gdal_version),
+    install_requires=['numpy=={}'.format(numpy_version), 'pyyaml==5.3',
+                      # Can create corrupted environment if using conda,
+                      # Better to install GDAL manually before to install lisflood-utilities package
+                      # 'GDAL=={}'.format(gdal_version),
                       'netCDF4==1.5.3', 'toolz', 'xarray==0.15.1',
                       'dask=={}'.format(dask_version), 'pandas==0.25.1', 'pathlib2==2.3.5', 'nine'],
     author="Valerio Lorini, Domenico Nappo, Lorenzo Alfieri",

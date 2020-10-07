@@ -20,8 +20,9 @@ import sysconfig
 import sys
 
 IS_PYTHON2 = sys.version_info[0] == 2
-package_dir = os.path.join(sysconfig.get_paths()['purelib'], 'lisfloodutilities')
-version = open(os.path.join(package_dir, 'VERSION')).read().strip()
+pkg_dir = os.path.join(sysconfig.get_paths()['purelib'], 'lisfloodutilities')
+version_file = os.path.join(pkg_dir, 'VERSION') if os.path.exists(pkg_dir) else './src/lisfloodutilities/VERSION'
+version = open(version_file).read().strip()
 
 __version__ = []
 for numb in version.split('.'):
