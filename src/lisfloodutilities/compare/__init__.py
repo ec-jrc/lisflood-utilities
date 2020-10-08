@@ -18,6 +18,7 @@ See the Licence for the specific language governing permissions and limitations 
 import os
 import logging
 import itertools
+import datetime
 
 from nine import IS_PYTHON2
 if IS_PYTHON2:
@@ -26,7 +27,7 @@ else:
     from pathlib import Path
 
 import numpy as np
-from netCDF4 import Dataset
+from netCDF4 import Dataset, date2index
 
 from lisfloodutilities.readers import PCRasterMap
 
@@ -49,7 +50,7 @@ class Comparator(object):
         self.for_testing = for_testing
         self.errors = []
 
-    def compare_dirs(self, path_a, path_b, skip_missing=True):
+    def compare_dirs(self, path_a, path_b, skip_missing=True, timestep=None):
         logger.info('Comparing %s and %s [skip missing: %s]', path_a, path_b, str(skip_missing))
         path_a = Path(path_a)
         path_b = Path(path_b)
@@ -67,11 +68,11 @@ class Comparator(object):
                         self.errors.append(message)
                         continue
 
-            self.compare_files(fa.as_posix(), fb.as_posix())
+            self.compare_files(fa.as_posix(), fb.as_posix(), timestep)
         if not self.for_testing:
             return self.errors
 
-    def compare_files(self, fa, fb):
+    def compare_files(self, fa, fb, timestep=None):
         raise NotImplementedError()
 
 
@@ -79,7 +80,7 @@ class PCRComparator(Comparator):
     # TODO add comparison with tolerance
     glob_expr = ['**/*.[0-9][0-9][0-9]', '**/*.map']
 
-    def compare_files(self, file_a, file_b):
+    def compare_files(self, file_a, file_b, timestep=None):
         logger.info('Comparing %s and %s', file_a, file_b)
         map_a = PCRasterMap(file_a)
         map_b = PCRasterMap(file_b)
@@ -157,7 +158,7 @@ class TSSComparator(Comparator):
         assert True
         return self.errors
 
-    def compare_files(self, file_a, file_b):
+    def compare_files(self, file_a, file_b, timestep=None):
         logger.info('Comparing %s and %s', file_a, file_b)
         if self.array_equal:
             self.compare_lines_equal(file_a, file_b)
@@ -206,7 +207,7 @@ class NetCDFComparator(Comparator):
                 step = step if step is not None else '(no time)'
                 filepath = os.path.basename(filepath) if filepath else '<mem>'
                 varname = varname or '<unknown var>'
-                message = '{}/{}@{} - {:3.2f}% of different values - max diff: {:3.2f}'.format(filepath, varname, step, perc_wrong, max_diff)
+                message = '{}/{}@{} - {:3.2f}% of different values - max diff: {:3.6f}'.format(filepath, varname, step, perc_wrong, max_diff)
                 logger.error(message)
                 if self.for_testing:
                     assert False, message
@@ -215,8 +216,10 @@ class NetCDFComparator(Comparator):
                     return message
         assert True
 
-    def compare_files(self, file_a, file_b):
-        logger.info('Comparing %s and %s', file_a, file_b)
+    def compare_files(self, file_a, file_b, timestep=None):
+        logger.info('Comparing %s and %s %s', file_a, file_b, timestep or '')
+        if timestep and not isinstance(timestep, datetime.datetime):
+            raise ValueError('timestep must be of type datetime.datetime but type {} was found'.format(str(type(timestep))))
         with Dataset(file_a) as nca, Dataset(file_b) as ncb:
             num_dims = 3 if 'time' in nca.variables else 2
             var_name = [k for k in nca.variables if len(nca.variables[k].dimensions) == num_dims][0]
@@ -232,22 +235,35 @@ class NetCDFComparator(Comparator):
                     self.errors.append(message)
                     return message
             if 'time' in nca.variables:
-                stepsa = nca.variables['time'][:]
-                stepsb = ncb.variables['time'][:]
-                if len(stepsa) != len(stepsb):
-                    message = 'Files: {} vs {}: different number of steps A:{} B:{}'.format(file_a, file_b, len(stepsa), len(stepsb))
-                    if self.for_testing:
-                        assert False, message
-                    else:
-                        self.errors.append(message)
-                        return message
-                for step, _ in enumerate(stepsa):
-                    values_a = vara[step][:, :]
-                    values_b = varb[step][:, :]
+                if not timestep:
+                    stepsa = nca.variables['time'][:]
+                    stepsb = ncb.variables['time'][:]
+                    if len(stepsa) != len(stepsb):
+                        message = 'Files: {} vs {}: different number of steps A:{} B:{}'.format(file_a, file_b, len(stepsa), len(stepsb))
+                        if self.for_testing:
+                            assert False, message
+                        else:
+                            self.errors.append(message)
+                            return message
+                    for step, _ in enumerate(stepsa):
+                        values_a = vara[step][:, :]
+                        values_b = varb[step][:, :]
+                        if not self.array_equal:
+                            mess = self.compare_arrays(values_a, values_b, var_name, step, file_a)
+                        else:
+                            mess = self.compare_arrays_equal(values_a, values_b, var_name, step, file_a)
+                        if mess:
+                            self.errors.append(mess)
+                else:
+                    # check arrays at a given timestep
+                    ia = date2index(timestep, nca.variables['time'], nca.variables['time'].calendar)
+                    ib = date2index(timestep, ncb.variables['time'], ncb.variables['time'].calendar)
+                    values_a = vara[ia][:, :]
+                    values_b = varb[ib][:, :]
                     if not self.array_equal:
-                        mess = self.compare_arrays(values_a, values_b, var_name, step, file_a)
+                        mess = self.compare_arrays(values_a, values_b, var_name, ia, file_a)
                     else:
-                        mess = self.compare_arrays_equal(values_a, values_b, var_name, step, file_a)
+                        mess = self.compare_arrays_equal(values_a, values_b, var_name, ia, file_a)
                     if mess:
                         self.errors.append(mess)
             else:
