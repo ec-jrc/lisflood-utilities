@@ -31,7 +31,7 @@ class TestPCRasterWriter:
     clonemap_filename = 'tests/data/asia.map'
 
     def test_simple(self):
-        writer = PCRasterWriter(self.clonemap_filename)
+        writer = PCRasterWriter(clonemap=self.clonemap_filename)
         clonemap = PCRasterMap(self.clonemap_filename)
         values = np.random.random(clonemap.data.shape)
         writer.write(self.filename, values)

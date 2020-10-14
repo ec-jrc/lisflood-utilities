@@ -84,11 +84,11 @@ class TestNetCDFMap:
         assert len(variables) == 1
         assert variables['areaOrigin'].shape == (5, 12)
         assert np.alltrue(variables['areaOrigin'])
-        coordinates = {n: v for n, v in test_file.coordinates}
+        coordinates = test_file.coordinates
         assert len(coordinates) == 2
-        assert np.round(np.min(coordinates['lat']), 2) == 53.05
-        assert np.round(np.min(coordinates['lon']), 2) == -127.25
-        assert np.round(np.max(coordinates['lat']), 2) == 53.45
-        assert np.round(np.max(coordinates['lon']), 2) == -126.15
-        assert coordinates['lat'].shape == (5, )
-        assert coordinates['lon'].shape == (12, )
+        assert np.round(np.min(coordinates['y']), 2) == 53.05
+        assert np.round(np.min(coordinates['x']), 2) == -127.25
+        assert np.round(np.max(coordinates['y']), 2) == 53.45
+        assert np.round(np.max(coordinates['x']), 2) == -126.15
+        assert coordinates['y'].shape == (5, )
+        assert coordinates['x'].shape == (12, )

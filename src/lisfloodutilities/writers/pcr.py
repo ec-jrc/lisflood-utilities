@@ -18,6 +18,13 @@ class PCRasterWriter:
     }
 
     def __init__(self, *args, **kwargs):
+        """
+        Constructor accept only keywords arguments:
+        Must have either a clonemap or coordinates in input
+        clonemap: path to a clone PCRaster map
+        coordinates: dict of numpy 1D arrays representing coordinates, with 'x' and 'y' keys
+        mv: Missing value (optional)
+        """
         self._drv = gdal.GetDriverByName(self.FORMAT)
         self._drv.Register()
         self._clone_map = kwargs.get('clonemap')
