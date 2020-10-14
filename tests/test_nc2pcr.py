@@ -45,3 +45,24 @@ class TestNc2Pcr:
         os.unlink(out)
         mappcr_0.close()
         map_0.close()
+
+    def test_convert_noclonemap(self):
+        dataset = 'tests/data/cutmaps/ldd_eu.nc'
+        out = 'tests/data/nc2pcr_test.map'
+
+        convert(dataset, None, out, is_ldd=True)
+        assert os.path.exists(out)
+
+        mappcr_0 = PCRasterMap(out)
+        map_0 = NetCDFMap(dataset)
+
+        variable = {n: v for n, v in map_0.data}['ec_ldd_repaired']
+        # test non masked values
+        values = np.ma.masked_where(variable.values == map_0.mv, variable.values, copy=False)
+        mask = np.ma.getmask(values)
+        values_pcr = np.ma.masked_where(mask, mappcr_0.data, copy=False)
+        assert values.shape == values_pcr.shape
+        assert np.ma.allclose(values, values_pcr, masked_equal=True)
+        os.unlink(out)
+        mappcr_0.close()
+        map_0.close()

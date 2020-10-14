@@ -1,6 +1,8 @@
 import xarray as xr
 
-coordinates_names = ('lat', 'lon', 'x', 'y', 'longitude', 'latitude')
+x_coordinates_names = ('lon', 'x', 'longitude')
+y_coordinates_names = ('lat', 'y', 'latitude')
+coordinates_names = x_coordinates_names + y_coordinates_names
 
 
 class NetCDFMap:
@@ -28,10 +30,13 @@ class NetCDFMap:
 
     @property
     def coordinates(self):
+        res = {}
         for varname, variable in self.ds.variables.items():
             if varname.lower() not in coordinates_names:
                 continue
-            yield varname, variable.values
+            key = 'x' if varname.lower() in x_coordinates_names else 'y'
+            res[key] = variable.values
+        return res
 
     def close(self):
         self.ds.close()

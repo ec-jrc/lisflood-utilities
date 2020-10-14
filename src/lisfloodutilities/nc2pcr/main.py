@@ -35,7 +35,7 @@ class ParserHelpOnError(argparse.ArgumentParser):
                           metavar='input')
         self.add_argument('-o', '--output', help='Path to PCRaster output map.', default='./out.map',
                           metavar='output')
-        self.add_argument('-c', '--clonemap', help='Path to PCRaster clone map.', required=True,
+        self.add_argument('-c', '--clonemap', help='Path to PCRaster clone map.',
                           metavar='clonemap')
         self.add_argument("-l", "--is_ldd", help='Set flag if input file is a LDD map', default=False,
                           required=False, action='store_true')

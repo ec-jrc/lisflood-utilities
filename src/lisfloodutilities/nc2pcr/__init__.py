@@ -25,7 +25,11 @@ def convert(inf, clonemap, outf, is_ldd=False):
     """
 
     reader = NetCDFMap(inf)
-    writer = PCRasterWriter(clonemap, mv=reader.mv)
+    if clonemap:
+        writer = PCRasterWriter(clonemap=clonemap, mv=reader.mv)
+    else:
+        coords = reader.coordinates
+        writer = PCRasterWriter(coordinates=coords, mv=reader.mv)
     outfilenames = []
     variables = {varname: values for varname, values in reader.data}
     if len(variables) > 1:
