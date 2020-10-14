@@ -23,6 +23,8 @@ class PCRasterWriter:
         self._clone_map = kwargs.get('clonemap')
         self._coordinates = kwargs.get('coordinates')
         mv = kwargs.get('mv')
+        self.flipped_x = False
+        self.flipped_y = False
         if not (self._clone_map or self._coordinates):
             raise ValueError('Need either a PCRaster clonemap or coordinates={"x": [...], "y": [...]}')
 
@@ -50,6 +52,8 @@ class PCRasterWriter:
             self.rows = self._coordinates['y'].shape[0]
             self.src_geo_transform = self._get_geo_transform_from_coords()
             self.mv = np.nan if not mv else float(mv)
+            self.flipped_x = self._coordinates['x'][0] > self._coordinates['x'][1]
+            self.flipped_y = self._coordinates['y'][0] < self._coordinates['y'][1]
 
     def write(self, output_map_name, values, is_ldd=False):
         if is_ldd:
@@ -81,10 +85,14 @@ class PCRasterWriter:
         del dest_ds
         mem_ds.SetGeoTransform(self.src_geo_transform)
         rs = mem_ds.GetRasterBand(1)
-        if not self._clone_map:
+        if self.flipped_y:
             # when we do not use a clone map, we need to flip up down values
             # not clear..it should be done always since PCRaster y coordinates are upside down.
             filled_values = np.flipud(filled_values)
+        if self.flipped_x:
+            # when we do not use a clone map, we need to flip up down values
+            # not clear..it should be done always since PCRaster y coordinates are upside down.
+            filled_values = np.fliplr(filled_values)
         rs.WriteArray(filled_values)
         # FIXME this set missing value statement is ignored once file is written on disk
         rs.SetNoDataValue(self.mv)
@@ -123,9 +131,9 @@ class PCRasterWriter:
         # 4 - 0.0
         # 5 - n-s pixel resolution (negative value)
         #
-        top_left_x = np.round(self._coordinates['x'][-1], 2)
+        top_left_x = np.round(self._coordinates['x'][0], 2)
         w_e_resolution = self._coordinates['x'][1] - self._coordinates['x'][0]
 
-        top_left_y = np.round(self._coordinates['y'][-1], 2)
+        top_left_y = np.round(self._coordinates['y'][0], 2)
         n_s_resolution = - (self._coordinates['y'][1] - self._coordinates['y'][0])
         return top_left_x, w_e_resolution, 0.0, top_left_y, 0.0, n_s_resolution
