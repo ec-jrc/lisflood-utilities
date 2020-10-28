@@ -120,7 +120,7 @@ class TestCutlib:
         stations = 'tests/data/cutmaps/stations.txt'
 
         ldd_pcr = convert(ldd, clonemap, 'tests/data/cutmaps/ldd_eu_test.map', is_ldd=True)[0]
-        mask = mask_from_ldd(ldd_pcr, stations)
+        mask, outlets_points = mask_from_ldd(ldd_pcr, stations)
         x_min, x_max, y_min, y_max = get_cuts(mask=mask)
         # 4067500.0 4397500.0 1282500.0 1577500.0
         assert (x_min, x_max, y_min, y_max) == (4067500, 4397500, 1282500, 1577500)

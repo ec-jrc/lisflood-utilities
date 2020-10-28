@@ -33,7 +33,7 @@ class NetCDFWriter:
     This class manages all aspects concerning definition and writing of a NetCDF4 file.
     """
 
-    DATUM = {
+    WKT_STRINGS = {
         'ETRS89': 'PROJCS["JRC_LAEA_ETRS-DEF",GEOGCS["GCS_ETRS_1989",DATUM["D_ETRS_1989",SPHEROID["GRS_1980",6378137.0,298.257222101]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Lambert_Azimuthal_Equal_Area"],PARAMETER["False_Easting",4321000.0],PARAMETER["False_Northing",3210000.0],PARAMETER["Central_Meridian",10.0],PARAMETER["Latitude_Of_Origin",52.0],UNIT["Meter",1.0]]',
         'WGS84': 'GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137,298.257223563]],PRIMEM["Greenwich",0],UNIT["Degree",0.0174532925199433]]',
         'GISCO': 'PROJCS["PCS_Lambert_Azimuthal_Equal_Area",GEOGCS["GCS_User_Defined",DATUM["D_User_Defined",SPHEROID["User_Defined_Spheroid",6378388.0,0.0]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Lambert_Azimuthal_Equal_Area"],PARAMETER["False_Easting",0.0],PARAMETER["False_Northing",0.0],PARAMETER["Central_Meridian",9.0],PARAMETER["Latitude_Of_Origin",48.0],UNIT["Meter",1.0]]',
@@ -112,9 +112,12 @@ class NetCDFWriter:
         self.nf.createDimension('lon', self.metadata.get('cols') or self.metadata['lons'].size)
 
         # define coordinates variables by calling one of the define_* functions
-        datum_function = 'define_{}'.format(self.metadata['geographical']['datum'].lower())
+        datum = self.metadata.get('geographical', {}).get('datum', '').lower()
+        if not datum:
+            datum = self._guess_datum(self.metadata['lats'], self.metadata['lons'])
+        datum_function = 'define_{}'.format(datum)
         post_datum_function = '{}_post'.format(datum_function)
-        getattr(self, datum_function)()
+        getattr(self, datum_function)()  # call the function
 
         time_nc = None
         vardimensions = ('lat', 'lon')
@@ -228,14 +231,13 @@ class NetCDFWriter:
 
     def define_wgs84_post(self, values_var):
         values_var.coordinates = 'lon lat'
-        values_var.esri_pe_string = self.DATUM.get(self.metadata['geographical'].get('datum', 'WGS84').upper(), '')
+        values_var.esri_pe_string = self.WKT_STRINGS.get(self.metadata['geographical'].get('datum', 'WGS84').upper(), '')
 
     def define_etrs89(self):
         """
         Define a ETRS89 reference system
         """
         logger.info('Defining ETRS89 coordinates variables')
-        # Variables
         x = self.nf.createVariable('x', 'f8', ('lon',))
         y = self.nf.createVariable('y', 'f8', ('lat',))
         x.standard_name = 'projection_x_coordinate'
@@ -262,14 +264,13 @@ class NetCDFWriter:
     def define_etrs89_post(self, values_var):
         values_var.coordinates = 'x y'
         values_var.grid_mapping = 'lambert_azimuthal_equal_area'
-        values_var.esri_pe_string = self.DATUM.get(self.metadata['geographical'].get('datum', 'WGS84').upper(), '')
+        values_var.esri_pe_string = self.WKT_STRINGS.get(self.metadata['geographical'].get('datum', 'WGS84').upper(), '')
 
     def define_gisco(self):
         """
         It defines a custom LAEA ETRS89 GISCO reference system
         """
-        print('Defining GISCO coordinates variables')
-        # Variables
+        logger.info('Defining GISCO coordinates variables')
         x = self.nf.createVariable('x', 'f8', ('lon',))
         y = self.nf.createVariable('y', 'f8', ('lat',))
         x.standard_name = 'projection_x_coordinate'
@@ -296,4 +297,9 @@ class NetCDFWriter:
     def define_gisco_post(self, values_var):
         values_var.coordinates = 'x y'
         values_var.grid_mapping = 'lambert_azimuthal_equal_area'
-        values_var.esri_pe_string = self.DATUM.get(self.metadata['geographical'].get('datum', 'WGS84').upper(), '')
+        values_var.esri_pe_string = self.WKT_STRINGS.get(self.metadata['geographical'].get('datum', 'WGS84').upper(), '')
+
+    def _guess_datum(self, lats, lons):
+        # very naive version that works for etrs89 vs wgs84
+        int_coords = abs(int(lats[1] - lats[0])) == abs(float(lats[1] - lats[0]))
+        return 'etrs89' if int_coords else 'wgs84'

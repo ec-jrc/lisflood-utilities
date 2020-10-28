@@ -1,0 +1,11 @@
+# test for a single map (not a time series)
+variable:
+  shortname: outl
+  description: outlets point
+  longname: outlets
+  units: ''
+  mv: 0
+source: JRC E.1 Space, Security, Migration
+reference: JRC E.1 Space, Security, Migration
+geographical:
+  datum: ETRS89

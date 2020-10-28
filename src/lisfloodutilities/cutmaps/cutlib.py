@@ -169,16 +169,21 @@ def mask_from_ldd(ldd_map, stations):
         from pcraster import accuflux
     except ImportError as e:
         logger.error('PCRaster not installed. Try to install PCRaster >= 4.3.0 in a conda environment '
-                     'and then install lisfloodutilities with pip')
+                     'and then execute `pip install lisflood-utilities`')
         raise e
 
     path = os.path.dirname(stations)
 
-    station_map = os.path.join(path, 'outlet.map')
+    station_map = os.path.join(path, 'outlets.map')
     pcraster_command(cmd='col2map F0 F1 -N --clone F2 --large', files=dict(F0=stations, F1=station_map, F2=ldd_map))
-
-    # accuflux_map = os.path.join(path, 'accuflux.map')
-    # pcraster_command(cmd="pcrcalc 'F0 = accuflux(F1,1)'", files=dict(F0=accuflux_map, F1=ldd_map))
+    from lisfloodutilities.pcr2nc import convert
+    pcr2nc_metadata = {'variable': {'description': 'outlets points', 'longname': 'outlets', 'units': '',
+                                    'shortname': 'outlets', 'mv': '0'},
+                       'source': 'JRC E.1 Space, Security, Migration',
+                       'reference': 'JRC E.1 Space, Security, Migration',
+                       'geographical': {'datum': ''}}
+    outlets_nc = os.path.join(path, 'outlets.nc')
+    convert(station_map, outlets_nc, pcr2nc_metadata)
 
     tmp_txt = os.path.join(path, 'tmp.txt')
     tmp_map = os.path.join(path, 'tmp.map')
@@ -212,7 +217,6 @@ def mask_from_ldd(ldd_map, stations):
     pcraster_command(cmd="pcrcalc 'F0 = boolean(if(scalar(F1) != -1, scalar(1)))'",
                      files=dict(F0=tempmask_map, F1=regions_map))
     pcraster_command(cmd='resample -c 0 F0 F1', files=dict(F0=tempmask_map, F1=smallmask_map))
-    # os.unlink(accuflux_map)
     os.unlink(tempmask_map)
     os.unlink(regions_map)
-    return smallmask_map
+    return smallmask_map, outlets_nc

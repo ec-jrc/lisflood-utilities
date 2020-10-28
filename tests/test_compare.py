@@ -31,7 +31,7 @@ class TestComparators:
 
     def test_netcdfcomp_dirs(self):
         comp = NetCDFComparator('tests/data/area.nc', for_testing=True)
-        comp.compare_dirs('tests/data/folder_a/', 'tests/data/folder_b/')
+        comp.compare_dirs('tests/data/folder_a/', 'tests/data/folder_b/', skip_missing=True)
         with pytest.raises(AssertionError) as excinfo:
             comp.compare_dirs('tests/data/folder_a/', 'tests/data/folder_b/', skip_missing=False)
         assert 'is missing in tests/data/folder_b' in str(excinfo.value)
@@ -62,7 +62,7 @@ class TestComparators:
         comp.compare_files('tests/data/folder_a/qLakeIn.tss', 'tests/data/folder_b/qLakeIn.tss')
 
         with pytest.raises(AssertionError) as excinfo:
-            comp.compare_dirs('tests/data/folder_a/', 'tests/data/folder_b/')
+            comp.compare_dirs('tests/data/folder_a/', 'tests/data/folder_b/', skip_missing=True)
         assert 'tests/data/folder_a/qLakeOut.tss different from tests/data/folder_b/qLakeOut.tss' in str(excinfo.value)
 
     def test_tss_timestep(self):
@@ -99,9 +99,9 @@ class TestComparators:
         assert 'tests/data/folder_b/1.map different from tests/data/folder_c/1.map' in str(excinfo.value)
         comp.compare_files('tests/data/folder_a/1.map', 'tests/data/folder_c/1.map')
         with pytest.raises(AssertionError) as excinfo:
-            comp.compare_dirs('tests/data/folder_a/', 'tests/data/folder_b/')
+            comp.compare_dirs('tests/data/folder_a/', 'tests/data/folder_b/', skip_missing=True)
         assert 'tests/data/folder_a/1.map different from tests/data/folder_b/1.map' in str(excinfo.value)
-        comp.compare_dirs('tests/data/folder_a/', 'tests/data/folder_c/')
+        comp.compare_dirs('tests/data/folder_a/', 'tests/data/folder_c/', skip_missing=True)
         with pytest.raises(AssertionError) as excinfo:
             comp.compare_dirs('tests/data/folder_a/', 'tests/data/folder_c/', skip_missing=False)
         assert '.map is missing in tests/data/folder_c' in str(excinfo.value)

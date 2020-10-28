@@ -50,8 +50,14 @@ class Comparator(object):
         self.for_testing = for_testing
         self.errors = []
 
-    def compare_dirs(self, path_a, path_b, skip_missing=True, timestep=None):
-        logger.info('Comparing %s and %s [skip missing: %s]', path_a, path_b, str(skip_missing))
+    def compare_dirs(self, path_a, path_b, skip_missing=False, timestep=None):
+        """
+        :param path_a
+        :param path_b
+        :param skip_missing (bool, default False). If True, ignore files that are in path_a and not in path_b
+        :param timestep (default None). If passed, comparison happens only at the defined timestep
+        """
+        logger.info('Comparing %s and %s %s[skip missing: %s]', path_a, path_b, '(time: %s) ' % timestep if timestep else '', skip_missing)
         path_a = Path(path_a)
         path_b = Path(path_b)
         for fa in itertools.chain(*(path_a.glob(e) for e in self.glob_expr)):
@@ -263,7 +269,8 @@ class NetCDFComparator(Comparator):
             perc_wrong = different_values_size * 100 / vara_step.size
             result = np.ma.where(diff_values >= max_diff)
             rel_diff = max_diff * 100. / np.maximum(vara_step[result], varb_step[result])
-            if rel_diff.size > 0 and np.max(rel_diff) > 0.01 and (perc_wrong >= self.max_perc_diff or (perc_wrong >= self.max_perc_large_diff and max_diff > self.large_diff_th)):
+            # if rel_diff.size > 0 and np.max(rel_diff) > 0.01 and (perc_wrong >= self.max_perc_diff or (perc_wrong >= self.max_perc_large_diff and max_diff > self.large_diff_th)):
+            if rel_diff.size > 0 and (perc_wrong >= self.max_perc_diff or (perc_wrong >= self.max_perc_large_diff and max_diff > self.large_diff_th)):
                 step = step if step is not None else '(no time)'
                 filepath = os.path.basename(filepath) if filepath else '<mem>'
                 varname = varname or '<unknown var>'

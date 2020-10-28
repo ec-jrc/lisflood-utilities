@@ -77,10 +77,14 @@ def main(cliargs):
     if ldd and stations:
         logger.info('\nTry to produce a mask from LDD and stations points: %s %s', ldd, stations)
         if ldd.endswith('.nc'):
+            # convert ldd.nc to a pcraster map as we are going to use pcraster commands
             from lisfloodutilities.nc2pcr import convert
             clonemap = args.clonemap
             ldd = convert(ldd, clonemap, '.map')
-        mask = mask_from_ldd(ldd, stations)
+        mask, outlets_nc = mask_from_ldd(ldd, stations)
+        # copy outlets.nc (produced from stations txt file) and the new mask to output folder
+        shutil.copy(outlets_nc, os.path.join(pathout, 'my_outlets.nc'))
+        shutil.copy(mask, os.path.join(pathout, 'my_mask.map'))
 
     logger.info('\n\nCutting using: %s\n Files to cut from: %s\n Output: %s\n Overwrite existing: %s\n\n',
                 mask or cuts,
@@ -95,7 +99,7 @@ def main(cliargs):
 
         filename, ext = os.path.splitext(file_to_cut)
 
-        # localdir used only with lisflood_static_data_folder.
+        # localdir used only with static_data_folder.
         # It will track folder structures in a EFAS/GloFAS like setup and replicate it in output folder
         localdir = os.path.dirname(file_to_cut)\
             .replace(os.path.dirname(static_data_folder), '')\
