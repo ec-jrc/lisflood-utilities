@@ -268,9 +268,7 @@ class NetCDFComparator(Comparator):
             max_diff = np.ma.amax(diff_values)  # returns a scalar
             perc_wrong = different_values_size * 100 / vara_step.size
             result = np.ma.where(diff_values >= max_diff)
-            rel_diff = max_diff * 100. / np.maximum(vara_step[result], varb_step[result])
-            # if rel_diff.size > 0 and np.max(rel_diff) > 0.01 and (perc_wrong >= self.max_perc_diff or (perc_wrong >= self.max_perc_large_diff and max_diff > self.large_diff_th)):
-            if rel_diff.size > 0 and (perc_wrong >= self.max_perc_diff or (perc_wrong >= self.max_perc_large_diff and max_diff > self.large_diff_th)):
+            if perc_wrong >= self.max_perc_diff or (perc_wrong >= self.max_perc_large_diff and max_diff > self.large_diff_th):
                 step = step if step is not None else '(no time)'
                 filepath = os.path.basename(filepath) if filepath else '<mem>'
                 varname = varname or '<unknown var>'

@@ -1,5 +1,5 @@
 """
-Copyright 2019 European Union
+Copyright 2019-2020 European Union
 
 Licensed under the EUPL, Version 1.2 or as soon they will be approved by the European Commission  subsequent versions of the EUPL (the "Licence");
 
@@ -23,6 +23,20 @@ import sys
 
 from .. import version
 from .cutlib import mask_from_ldd, get_filelist, get_cuts, cutmap, logger
+from ..nc2pcr import convert
+
+
+def parse_and_check_args(parser, cliargs):
+    args = parser.parse_args(cliargs)
+    if args.mask and args.cuts:
+        parser.error('[--mask | --cuts] arguments are mutually exclusive')
+    if not (args.mask or args.cuts) and not (args.ldd and args.stations):
+        parser.error('(--mask | --cuts | [--ldd, --stations]) You need to pass mask path or cuts coordinates '
+                     'or a list of stations along with LDD path')
+    if (args.mask or args.cuts) and (args.ldd or args.stations):
+        parser.error('(--mask | --cuts | [--ldd, --stations]) '
+                     '--mask, --cuts and --ldd and --stations arguments are mutually exclusive')
+    return args
 
 
 class ParserHelpOnError(argparse.ArgumentParser):
@@ -32,35 +46,33 @@ class ParserHelpOnError(argparse.ArgumentParser):
         sys.exit(1)
 
     def add_args(self):
-        group_mask = self.add_mutually_exclusive_group()
-        group_filelist = self.add_mutually_exclusive_group()
-        group_stations = group_mask.add_argument_group()
-
+        group_mask = self.add_argument_group(title='Cut with a provided mask or a bounding box or '
+                                                   'create mask cookie-cutter on-fly from stations list and ldd map')
+        group_filelist = self.add_mutually_exclusive_group(required=True)
         group_mask.add_argument("-m", "--mask", help='mask file cookie-cutter, .map if pcraster, .nc if netcdf')
         group_mask.add_argument("-c", "--cuts", help='Cut coordinates in the form lonmin_lonmax:latmin_latmax')
-
-        group_stations.add_argument("-l", "--ldd", help='Path to LDD file')
-        group_stations.add_argument("-N", "--stations", help='Path to stations.txt file.'
-                                                             'Read documentation to know about the format')
-        group_stations.add_argument("-C", "--clonemap",
-                                    help='Path to PCRaster clonemap; used to convert ldd.nc to ldd.map')
-        group_mask.add_argument_group(group_stations)
+        group_mask.add_argument("-l", "--ldd", help='Path to LDD file')
+        group_mask.add_argument("-N", "--stations",
+                                help='Path to stations.txt file.'
+                                     'Read documentation to know about the format')
+        group_mask.add_argument("-C", "--clonemap",
+                                help='Path to PCRaster clonemap; used to convert ldd.nc to ldd.map')
 
         group_filelist.add_argument("-f", "--folder", help='Directory with netCDF files to be cut')
-        group_filelist.add_argument("-S", "--static-data", help='Directory with EFAS/GloFAS static maps. '
-                                                                'Output files will have same directories structure')
+        group_filelist.add_argument("-S", "--static-data",
+                                    help='Directory with EFAS/GloFAS static maps. '
+                                         'Output files will have same directories structure')
 
-        self.add_argument("-o", "--outpath", help='path where to save cut files', default='./cutmaps_out',
-                          required=True)
-        self.add_argument("-W", "--overwrite", help='Set flag to overwrite existing files', default=False,
-                          required=False, action='store_true')
+        self.add_argument("-o", "--outpath", help='path where to save cut files',
+                          default='./cutmaps_out', required=True)
+        self.add_argument("-W", "--overwrite", help='Set flag to overwrite existing files',
+                          default=False, required=False, action='store_true')
 
 
 def main(cliargs):
     parser = ParserHelpOnError(description='Cut netCDF file: {}'.format(version))
     parser.add_args()
-    args = parser.parse_args(cliargs)
-
+    args = parse_and_check_args(parser, cliargs)
     mask = args.mask
     cuts = args.cuts
 
@@ -78,7 +90,6 @@ def main(cliargs):
         logger.info('\nTry to produce a mask from LDD and stations points: %s %s', ldd, stations)
         if ldd.endswith('.nc'):
             # convert ldd.nc to a pcraster map as we are going to use pcraster commands
-            from lisfloodutilities.nc2pcr import convert
             clonemap = args.clonemap
             ldd = convert(ldd, clonemap, '.map')
         mask, outlets_nc = mask_from_ldd(ldd, stations)

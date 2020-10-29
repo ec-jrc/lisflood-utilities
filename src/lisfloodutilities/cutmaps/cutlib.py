@@ -25,6 +25,7 @@ import numpy as np
 
 from .helpers import pcraster_command
 from ..readers.pcr import PCRasterMap
+from ..pcr2nc import convert
 from .. import version
 
 logging.basicConfig(level=logging.INFO)
@@ -58,26 +59,26 @@ def cutmap(f, fileout, x_min, x_max, y_min, y_max):
     nc_out.attrs = nc.attrs
     nc_out.attrs['conventions'] = 'CF-1.6'
     nc_out.attrs['institution'] = 'JRC E1'
-    nc_out.attrs['Conventions'] = 'CF-1.6'
-    nc_out.attrs['Institution'] = 'JRC E1'
-    nc_out.attrs['Source_Software'] = 'lisfloodutilities cutmaps {}'.format(version)
     nc_out.attrs['source_software'] = 'lisfloodutilities cutmaps {}'.format(version)
+    nc_out.attrs.pop('Source_Software', None)
+    nc_out.attrs.pop('Institution', None)
+    nc_out.attrs.pop('Conventions', None)
     nc_out.close()
     try:
-        nc_out.to_netcdf(fileout, 'a')
-    except ValueError:
-        logger.warning('Cannot add global attributes to %s', fileout)
+        nc_out.to_netcdf(fileout, 'a', compute=False)
+    except ValueError as e:
+        logger.warning('Cannot add global attributes to %s - %s', fileout, e)
     finally:
         nc.close()
 
 
 def open_dataset(f):
     try:
-        nc = xr.open_dataset(f, chunks={'time': 100}, decode_cf=False)
+        nc = xr.open_dataset(f, chunks={'time': 100}, decode_cf=False, cache=False)
         num_dims = 3
     except Exception:  # file has no time component
         num_dims = 2
-        nc = xr.open_dataset(f, decode_cf=False)
+        nc = xr.open_dataset(f, decode_cf=False, cache=False)
     return nc, num_dims
 
 
@@ -176,7 +177,6 @@ def mask_from_ldd(ldd_map, stations):
 
     station_map = os.path.join(path, 'outlets.map')
     pcraster_command(cmd='col2map F0 F1 -N --clone F2 --large', files=dict(F0=stations, F1=station_map, F2=ldd_map))
-    from lisfloodutilities.pcr2nc import convert
     pcr2nc_metadata = {'variable': {'description': 'outlets points', 'longname': 'outlets', 'units': '',
                                     'shortname': 'outlets', 'mv': '0'},
                        'source': 'JRC E.1 Space, Security, Migration',
@@ -219,4 +219,12 @@ def mask_from_ldd(ldd_map, stations):
     pcraster_command(cmd='resample -c 0 F0 F1', files=dict(F0=tempmask_map, F1=smallmask_map))
     os.unlink(tempmask_map)
     os.unlink(regions_map)
+    # create mask map in netCDF
+    pcr2nc_metadata = {'variable': {'description': 'Mask Area', 'longname': 'mask', 'units': '',
+                                    'shortname': 'mask', 'mv': '0'},
+                       'source': 'JRC E.1 Space, Security, Migration',
+                       'reference': 'JRC E.1 Space, Security, Migration',
+                       'geographical': {'datum': ''}}
+    maskmap_nc = os.path.join(path, 'my_mask.nc')
+    convert(smallmask_map, maskmap_nc, pcr2nc_metadata)
     return smallmask_map, outlets_nc
