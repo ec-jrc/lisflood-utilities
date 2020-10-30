@@ -17,19 +17,18 @@ See the Licence for the specific language governing permissions and limitations 
 
 import os
 import sys
-import logging
+import datetime
 from pathlib import Path
 
 import xarray as xr
 import numpy as np
 
+from dask.diagnostics import ProgressBar
+
 from .helpers import pcraster_command
 from ..readers.pcr import PCRasterMap
 from ..pcr2nc import convert
-from .. import version
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger('CUTMAPS')
+from .. import version, logger
 
 
 def cutmap(f, fileout, x_min, x_max, y_min, y_max):
@@ -38,7 +37,7 @@ def cutmap(f, fileout, x_min, x_max, y_min, y_max):
     logger.info('Variable: %s', var)
 
     if isinstance(x_min, float):
-        # bounding box input from user  # FIXME weak isistance test
+        # bounding box input from user  # FIXME weak isinstance test
         sliced_var = cut_from_coords(nc, var, x_min, x_max, y_min, y_max)
     else:
         # user provides with indices directly (not coordinates)
@@ -48,15 +47,26 @@ def cutmap(f, fileout, x_min, x_max, y_min, y_max):
         if 'missing_value' in sliced_var.encoding:
             sliced_var.encoding['_FillValue'] = sliced_var.encoding['missing_value']
         logger.info('Creating: %s', fileout)
-        sliced_var.to_netcdf(fileout)
-    if 'laea' in nc.variables or 'lambert_azimuthal_equal_area' in nc.variables:
-        var = nc.variables['laea'] if 'laea' in nc.variables else nc.variables['lambert_azimuthal_equal_area']
-        logger.info('Found projection variable: %s', var)
-        xr.DataArray(name='laea', data=var.data, dims=var.dims, attrs=var.attrs).to_netcdf(fileout, mode='a')
+        delayed_obj = sliced_var.to_netcdf(fileout, compute=False)
+        with ProgressBar(dt=0.1):
+            _ = delayed_obj.compute()
+
+    grid_mapping = sliced_var.attrs.get('grid_mapping')
+    if grid_mapping in nc.variables:
+        varname = grid_mapping
+        logger.info('Found projection variable: %s', varname)
+        varproj = nc.variables[varname]
+        logger.info('Writing projection variable: %s - %s', varname, varproj.attrs)
+        del_res = xr.DataArray(name=varname, data=varproj.data, dims=varproj.dims, attrs=varproj.attrs).to_netcdf(fileout, mode='a', compute=False)
+        with ProgressBar(dt=0.1):
+            _ = del_res.compute()
 
     # adding global attributes
     nc_out, _ = open_dataset(fileout)
     nc_out.attrs = nc.attrs
+    nc_out.attrs['history'] = 'lisfloodutilities cutmaps {} {} {}'.format(
+        version, datetime.datetime.now().strftime('%Y-%m-%d %H:%M'), nc_out.attrs.get('history', '')
+    )
     nc_out.attrs['conventions'] = 'CF-1.6'
     nc_out.attrs['institution'] = 'JRC E1'
     nc_out.attrs['source_software'] = 'lisfloodutilities cutmaps {}'.format(version)
@@ -65,7 +75,10 @@ def cutmap(f, fileout, x_min, x_max, y_min, y_max):
     nc_out.attrs.pop('Conventions', None)
     nc_out.close()
     try:
-        nc_out.to_netcdf(fileout, 'a', compute=False)
+        logger.info('Writing additional attrs to: %s - %s', fileout, nc_out.attrs)
+        del_res = nc_out.to_netcdf(fileout, 'a', compute=False)
+        with ProgressBar(dt=0.1):
+            _ = del_res.compute()
     except ValueError as e:
         logger.warning('Cannot add global attributes to %s - %s', fileout, e)
     finally:
@@ -74,11 +87,11 @@ def cutmap(f, fileout, x_min, x_max, y_min, y_max):
 
 def open_dataset(f):
     try:
-        nc = xr.open_dataset(f, chunks={'time': 100}, decode_cf=False, cache=False)
+        nc = xr.open_dataset(f, chunks={'time': 250}, decode_cf=False)
         num_dims = 3
     except Exception:  # file has no time component
         num_dims = 2
-        nc = xr.open_dataset(f, decode_cf=False, cache=False)
+        nc = xr.open_dataset(f, decode_cf=False)
     return nc, num_dims
 
 

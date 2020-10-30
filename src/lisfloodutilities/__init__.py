@@ -18,11 +18,15 @@ See the Licence for the specific language governing permissions and limitations 
 import os
 import sysconfig
 import sys
+import logging
 
 IS_PYTHON2 = sys.version_info[0] == 2
 pkg_dir = os.path.join(sysconfig.get_paths()['purelib'], 'lisfloodutilities')
 version_file = os.path.join(pkg_dir, 'VERSION') if os.path.exists(pkg_dir) else './src/lisfloodutilities/VERSION'
 version = open(version_file).read().strip() if os.path.exists(version_file) else '0.0.0.dev'
+
+logging.basicConfig(format='[%(asctime)s] - %(message)s', datefmt='%H:%M:%S', level=logging.INFO)
+logger = logging.getLogger()
 
 __version__ = []
 for numb in version.split('.'):

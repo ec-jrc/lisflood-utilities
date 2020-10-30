@@ -17,15 +17,12 @@ Module containing the code for the NetCDFWriter class
 
 import datetime
 import time
-import logging
 
 import numpy as np
 from netCDF4 import Dataset
 
-from lisfloodutilities.readers import PCRasterMap
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger()
+from ..readers import PCRasterMap
+from .. import logger
 
 
 class NetCDFWriter:

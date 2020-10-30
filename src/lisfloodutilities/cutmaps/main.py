@@ -21,8 +21,8 @@ import os
 import shutil
 import sys
 
-from .. import version
-from .cutlib import mask_from_ldd, get_filelist, get_cuts, cutmap, logger
+from .. import version, logger
+from .cutlib import mask_from_ldd, get_filelist, get_cuts, cutmap
 from ..nc2pcr import convert
 
 

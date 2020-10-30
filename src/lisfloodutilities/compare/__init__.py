@@ -16,7 +16,6 @@ See the Licence for the specific language governing permissions and limitations 
 """
 
 import os
-import logging
 import itertools
 import datetime
 
@@ -29,11 +28,8 @@ else:
 import numpy as np
 from netCDF4 import Dataset, date2index
 
-from lisfloodutilities.readers import PCRasterMap
-
-
-logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
-logger = logging.getLogger()
+from ..readers import PCRasterMap
+from .. import logger
 
 
 class Comparator(object):

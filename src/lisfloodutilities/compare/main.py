@@ -20,8 +20,8 @@ import sys
 
 import numpy as np
 
-from . import NetCDFComparator, logger
-from .. import version
+from . import NetCDFComparator
+from .. import version, logger
 
 np.set_printoptions(precision=4, linewidth=300, suppress=True)
 
