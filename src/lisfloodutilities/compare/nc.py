@@ -205,12 +205,14 @@ class NetCDFComparator(Comparator):
 
     def cut_variables(self, lats_a, lats_b, lons_a, lons_b, vara_step, varb_step):
         # find indices
-        yas = np.where((lats_a >= self.y_min) & (lats_a <= self.y_max))[0][:, np.newaxis]
-        xas = np.where((lons_a >= self.x_min) & (lons_a <= self.x_max))[0][np.newaxis, :]
-        ybs = np.where((lats_b >= self.y_min) & (lats_b <= self.y_max))[0][:, np.newaxis]
-        xbs = np.where((lons_b >= self.x_min) & (lons_b <= self.x_max))[0][np.newaxis, :]
-        vara_step = vara_step[yas, xas]
-        varb_step = varb_step[ybs, xbs]
+        if lats_a is not None:
+            yas = np.where((lats_a >= self.y_min) & (lats_a <= self.y_max))[0][:, np.newaxis]
+            xas = np.where((lons_a >= self.x_min) & (lons_a <= self.x_max))[0][np.newaxis, :]
+            vara_step = vara_step[yas, xas]
+        if lats_b is not None:
+            ybs = np.where((lats_b >= self.y_min) & (lats_b <= self.y_max))[0][:, np.newaxis]
+            xbs = np.where((lons_b >= self.x_min) & (lons_b <= self.x_max))[0][np.newaxis, :]
+            varb_step = varb_step[ybs, xbs]
         vara_step = np.ma.masked_array(vara_step, self.maskarea).astype('float64')
         varb_step = np.ma.masked_array(varb_step, self.maskarea).astype('float64')
         return vara_step, varb_step
