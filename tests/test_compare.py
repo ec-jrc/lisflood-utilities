@@ -14,6 +14,11 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the Licence for the specific language governing permissions and limitations under the Licence.
 
 """
+from nine import IS_PYTHON2
+if IS_PYTHON2:
+    from pathlib2 import Path
+else:
+    from pathlib import Path
 
 import pytest
 
@@ -35,6 +40,20 @@ class TestComparators:
         with pytest.raises(AssertionError) as excinfo:
             comp.compare_dirs('tests/data/folder_a/', 'tests/data/folder_b/', skip_missing=False)
         assert 'is missing in tests/data/folder_b' in str(excinfo.value)
+
+    def test_netcdfcomp_diffdirs(self):
+        comp = NetCDFComparator('tests/data/folder_d/mask.nc', for_testing=False, save_diff_files=True, array_equal=True)
+        assert comp.diff_folder is not None
+        assert isinstance(comp.diff_folder, Path)
+        assert comp.diff_folder.exists()
+        comp.compare_files('tests/data/folder_d/a.nc', 'tests/data/folder_d/a.nc')
+        assert not comp.diff_folder.joinpath('a.nc').exists()
+        assert not comp.diff_folder.joinpath('b.nc').exists()
+        assert not comp.diff_folder.joinpath('diff.nc').exists()
+        comp.compare_files('tests/data/folder_d/a.nc', 'tests/data/folder_d/b.nc')
+        assert comp.diff_folder.joinpath('a_a.nc').exists(), 'Diff file A does not exist in %s' % comp.diff_folder
+        assert comp.diff_folder.joinpath('a_b.nc').exists(), 'Diff file B does not exist'
+        assert comp.diff_folder.joinpath('a_diff.nc').exists(), 'Diff file diff.nc does not exist'
 
     def test_netcdfcomp_tol(self):
         comp = NetCDFComparator('tests/data/folder_d/mask.nc', atol=0.05, rtol=0.1, for_testing=True)

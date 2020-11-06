@@ -18,8 +18,10 @@ See the Licence for the specific language governing permissions and limitations 
 import os
 import itertools
 import datetime
+import uuid
 
 from nine import IS_PYTHON2
+
 if IS_PYTHON2:
     from pathlib2 import Path
 else:
@@ -29,6 +31,7 @@ import numpy as np
 from netCDF4 import Dataset, date2index
 
 from ..readers import PCRasterMap
+from ..writers import NetCDFWriter
 from .. import logger
 
 
@@ -102,27 +105,27 @@ class PCRComparator(Comparator):
             assert True
 
 
-def find_timestep(tss_file, timestep):
-    found_timestep = False
-    current_line = tss_file.readline()
-    while not found_timestep:
-        if not current_line:
-            break
-        try:
-            current_timestep = current_line.strip().split()[0]
-        except IndexError:
-            current_line = tss_file.readline()
-        else:
-            if current_timestep.decode() == str(timestep):
-                found_timestep = True
-                break
-            else:
-                current_line = tss_file.readline()
-    return current_line, found_timestep
-
-
 class TSSComparator(Comparator):
     glob_expr = ['**/*.tss']
+
+    @staticmethod
+    def find_timestep(tss_file, timestep):
+        found_timestep = False
+        current_line = tss_file.readline()
+        while not found_timestep:
+            if not current_line:
+                break
+            try:
+                current_timestep = current_line.strip().split()[0]
+            except IndexError:
+                current_line = tss_file.readline()
+            else:
+                if current_timestep.decode() == str(timestep):
+                    found_timestep = True
+                    break
+                else:
+                    current_line = tss_file.readline()
+        return current_line, found_timestep
 
     def __init__(self, atol=0.0001, rtol=0.001,
                  array_equal=False, for_testing=True):
@@ -132,7 +135,7 @@ class TSSComparator(Comparator):
         self.rtol = rtol
 
     def _findline_at_timestep(self, tss_file, timestep):
-        b1, found_timestep = find_timestep(tss_file, timestep)
+        b1, found_timestep = self.find_timestep(tss_file, timestep)
         if not found_timestep:
             message = '{} not found in {}'.format(timestep, tss_file.name)
             if self.for_testing:
@@ -231,9 +234,37 @@ class TSSComparator(Comparator):
 class NetCDFComparator(Comparator):
     glob_expr = ['**/*.nc']
 
+    def write_diff_files(self, filepath, varname, step, vara_step, varb_step, diff_values, lats, lons, time):
+        self.diff_timesteps.append(time[step])
+        filename, _ = os.path.splitext(os.path.basename(filepath))
+        filepath_a = self.diff_folder.joinpath(filename + '_a.nc')
+        filepath_b = self.diff_folder.joinpath(filename + '_b.nc')
+        filepath_diff = self.diff_folder.joinpath(filename + '_diff.nc')
+        metadata = {'variable': {'shortname': varname, 'compression': 9, 'least_significant_digit': 5},
+                    'dtype': vara_step.dtype,
+                    'rows': lats.size, 'cols': lons.size,
+                    'lats': lats, 'lons': lons,
+                    }
+        if time:
+            units = time.units if hasattr(time, 'units') else ''
+            metadata.update({'time': {
+                'units': units,
+                }}
+            )
+        writer_a = NetCDFWriter(filepath_a.as_posix(), is_mapstack=step is not None, **metadata)
+        writer_a.add_to_stack(vara_step, time_step=step)
+        writer_a.finalize(timesteps=self.diff_timesteps)
+        writer_b = NetCDFWriter(filepath_b.as_posix(), is_mapstack=step is not None, **metadata)
+        writer_b.add_to_stack(varb_step, time_step=step)
+        writer_b.finalize(timesteps=self.diff_timesteps)
+        writer_diff = NetCDFWriter(filepath_diff.as_posix(), is_mapstack=step is not None, **metadata)
+        writer_diff.add_to_stack(diff_values, time_step=step)
+        writer_diff.finalize(timesteps=self.diff_timesteps)
+
     def __init__(self, mask, atol=0.0001, rtol=0.001,
                  max_perc_diff=0.2, max_perc_large_diff=0.1,
-                 array_equal=False, for_testing=True):
+                 array_equal=False, for_testing=True,
+                 save_diff_files=False):
 
         super(NetCDFComparator, self).__init__(array_equal=array_equal, for_testing=for_testing)
 
@@ -249,33 +280,12 @@ class NetCDFComparator(Comparator):
         self.max_perc_large_diff = max_perc_large_diff
         self.max_perc_diff = max_perc_diff
         self.large_diff_th = self.atol * 10
-
-    def compare_arrays(self, vara_step, varb_step, varname=None, step=None, filepath=None):
-
-        vara_step = np.ma.compressed(np.ma.masked_array(vara_step, self.maskarea)).astype('float64')
-        varb_step = np.ma.compressed(np.ma.masked_array(varb_step, self.maskarea)).astype('float64')
-        diff_values = np.ma.abs(vara_step - varb_step)
-        diff_values = diff_values[~np.isnan(diff_values)]
-        same_values = np.ma.allclose(diff_values, np.zeros(diff_values.shape), atol=self.atol, rtol=self.rtol)
-        all_ok = vara_step.size == varb_step.size and same_values
-        array_ok = np.isclose(diff_values, np.zeros(diff_values.shape), atol=self.atol, rtol=self.rtol, equal_nan=True)
-        different_values_size = array_ok[~array_ok].size
-        if (not all_ok) and (different_values_size > 0):
-            max_diff = np.ma.amax(diff_values)  # returns a scalar
-            perc_wrong = different_values_size * 100 / vara_step.size
-            result = np.ma.where(diff_values >= max_diff)
-            if perc_wrong >= self.max_perc_diff or (perc_wrong >= self.max_perc_large_diff and max_diff > self.large_diff_th):
-                step = step if step is not None else '(no time)'
-                filepath = os.path.basename(filepath) if filepath else '<mem>'
-                varname = varname or '<unknown var>'
-                message = '{}/{}@{} - {:3.2f}% of different values - max diff: {:3.6f}'.format(filepath, varname, step, perc_wrong, max_diff)
-                logger.error(message)
-                if self.for_testing:
-                    assert False, message
-                else:
-                    self.errors.append(message)
-                    return message
-        assert True
+        self.save_diff_files = save_diff_files
+        self.diff_folder = None
+        self.diff_timesteps = []
+        if save_diff_files:
+            self.diff_folder = self.create_diff_folder()
+            logger.info('Diff files will be saved. You can find it in %s', self.diff_folder)
 
     def compare_files(self, file_a, file_b, timestep=None):
         logger.info('Comparing %s and %s %s', file_a, file_b, timestep or '')
@@ -285,6 +295,8 @@ class NetCDFComparator(Comparator):
             num_dims = 3 if 'time' in nca.variables else 2
             var_name = [k for k in nca.variables if len(nca.variables[k].dimensions) == num_dims][0]
             vara = nca.variables[var_name]
+            lons = nca.variables['x'][:] if 'x' in nca.variables else nca.variables['lon'][:]
+            lats = nca.variables['y'][:] if 'y' in nca.variables else nca.variables['lat'][:]
             try:
                 varb = ncb.variables[var_name]
             except KeyError:
@@ -310,11 +322,9 @@ class NetCDFComparator(Comparator):
                         values_a = vara[step][:, :]
                         values_b = varb[step][:, :]
                         if not self.array_equal:
-                            mess = self.compare_arrays(values_a, values_b, var_name, step, file_a)
+                            self.compare_arrays(values_a, values_b, var_name, step, file_a, lats, lons, time=nca.variables['time'])
                         else:
-                            mess = self.compare_arrays_equal(values_a, values_b, var_name, step, file_a)
-                        if mess:
-                            self.errors.append(mess)
+                            self.compare_arrays_equal(values_a, values_b, var_name, step, file_a, lats, lons, time=nca.variables['time'])
                 else:
                     # check arrays at a given timestep
                     ia = date2index(timestep, nca.variables['time'], nca.variables['time'].calendar)
@@ -322,23 +332,49 @@ class NetCDFComparator(Comparator):
                     values_a = vara[ia][:, :]
                     values_b = varb[ib][:, :]
                     if not self.array_equal:
-                        mess = self.compare_arrays(values_a, values_b, var_name, ia, file_a)
+                        self.compare_arrays(values_a, values_b, var_name, ia, file_a, lats, lons, time=nca.variables['time'])
                     else:
-                        mess = self.compare_arrays_equal(values_a, values_b, var_name, ia, file_a)
-                    if mess:
-                        self.errors.append(mess)
+                        self.compare_arrays_equal(values_a, values_b, var_name, ia, file_a, lats, lons, time=nca.variables['time'])
             else:
                 values_a = vara[:, :]
                 values_b = varb[:, :]
                 if not self.array_equal:
-                    mess = self.compare_arrays(values_a, values_b, var_name, filepath=file_a)
+                    self.compare_arrays(values_a, values_b, var_name, filepath=file_a, lats=lats, lons=lons)
                 else:
-                    mess = self.compare_arrays_equal(values_a, values_b, var_name, filepath=file_a)
-                if mess:
-                    self.errors.append(mess)
+                    self.compare_arrays_equal(values_a, values_b, var_name, filepath=file_a, lats=lats, lons=lons)
             return self.errors
 
-    def compare_arrays_equal(self, values_a, values_b, varname=None, step=None, filepath=None):
+    def compare_arrays(self, vara_step, varb_step, varname=None, step=None, filepath=None, lats=None, lons=None, time=None):
+
+        vara_step = np.ma.compressed(np.ma.masked_array(vara_step, self.maskarea)).astype('float64')
+        varb_step = np.ma.compressed(np.ma.masked_array(varb_step, self.maskarea)).astype('float64')
+        diff_values = np.ma.abs(vara_step - varb_step)
+        diff_values_no_nan = diff_values[~np.isnan(diff_values)]
+        same_values = np.ma.allclose(diff_values_no_nan, np.zeros(diff_values_no_nan.shape), atol=self.atol, rtol=self.rtol)
+
+        all_ok = vara_step.size == varb_step.size and same_values
+        array_ok = np.isclose(diff_values_no_nan, np.zeros(diff_values_no_nan.shape), atol=self.atol, rtol=self.rtol, equal_nan=True)
+        different_values_size = array_ok[~array_ok].size
+
+        if (not all_ok) and (different_values_size > 0):
+            max_diff = np.ma.amax(diff_values_no_nan)  # returns a scalar
+            perc_wrong = different_values_size * 100 / vara_step.size
+            if perc_wrong >= self.max_perc_diff or (perc_wrong >= self.max_perc_large_diff and max_diff > self.large_diff_th):
+                step = step if step is not None else '(no time)'
+                filepath = os.path.basename(filepath) if filepath else '<mem>'
+                varname = varname or '<unknown var>'
+                message = '{}/{}@{} - {:3.2f}% of different values - max diff: {:3.6f}'.format(filepath, varname, step, perc_wrong, max_diff)
+                logger.error(message)
+                if self.for_testing:
+                    assert False, message
+                else:
+                    self.errors.append(message)
+                    if self.save_diff_files:
+                        self.write_diff_files(filepath, varname, step, vara_step, varb_step, diff_values, lats, lons, time)
+
+        assert True
+
+    def compare_arrays_equal(self, values_a, values_b, varname=None, step=None, filepath=None, lats=None, lons=None, time=None):
         filepath = os.path.basename(filepath) if filepath else '<mem>'
         message = '{}/{}@{} is different'.format(filepath, varname, step)
         if self.for_testing:
@@ -346,4 +382,21 @@ class NetCDFComparator(Comparator):
         else:
             if not np.array_equal(values_a, values_b):
                 self.errors.append(message)
+                if self.save_diff_files:
+                    vara_step = np.ma.compressed(np.ma.masked_array(values_a, self.maskarea)).astype('float64')
+                    varb_step = np.ma.compressed(np.ma.masked_array(values_b, self.maskarea)).astype('float64')
+                    diff_values = np.ma.abs(vara_step - varb_step)
+                    self.write_diff_files(filepath, varname, step, vara_step, varb_step, diff_values, lats, lons, time)
                 return message
+
+    @staticmethod
+    def create_diff_folder():
+        """
+        :return: path of diff files
+        :rtype: Path
+        """
+        diff_folder = Path(os.getcwd()).joinpath('./diffs/')
+        diff_folder = diff_folder.joinpath(str(uuid.uuid4()).split('-')[-1])
+        if not diff_folder.exists():
+            diff_folder.mkdir(parents=True)
+        return diff_folder

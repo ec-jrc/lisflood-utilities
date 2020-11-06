@@ -18,11 +18,20 @@ Module containing the code for the NetCDFWriter class
 import datetime
 import time
 
+from nine import IS_PYTHON2
+if IS_PYTHON2:
+    from pathlib2 import Path
+else:
+    from pathlib import Path
+
 import numpy as np
 from netCDF4 import Dataset
 
 from ..readers import PCRasterMap
 from .. import logger
+
+wgs84_lons = np.arange(-180, 180, 0.1)
+wgs84_lats = np.arange(-60, 90, 0.1)
 
 
 class NetCDFWriter:
@@ -38,7 +47,7 @@ class NetCDFWriter:
 
     def __init__(self, filename, is_mapstack=True, **metadata):
         """
-        :param filename: output filename
+        :param filename: Path to netCDF file to create. If file exists, open it in append mode
         :param is_mapstack: True if output file is a mapstack
         :param metadata: metadata dict
             format: NETCDF4 or NETCDF_CLASSIC
@@ -68,9 +77,11 @@ class NetCDFWriter:
             lons: 1D longitude array
         """
         self.name = '{}.nc'.format(filename) if not filename.endswith('.nc') else filename
+        self.path = Path(self.name)
+        self.append = self.path.exists()
         self.metadata = metadata
         self.is_mapstack = is_mapstack
-        self.hour = float(self.metadata.get('time', {}).get('hour', 0))
+        self.hour = float(self.metadata.get('time', {}).get('hour') or 0)
 
         # you can pass the MV to set in netcdf files directly in yaml configuration, otherwuse np.nan is used
         self.mv = self.metadata['variable'].get('mv')
@@ -78,15 +89,14 @@ class NetCDFWriter:
             self.mv = int(self.mv) if np.issubdtype(self.metadata['dtype'], np.integer) else float(self.mv)
         else:
             self.mv = np.nan
-
+        self.current_idx1 = 0
+        self.current_idx2 = 0
         self.time, self.variable = self._init_dataset()
 
         self.hour_timestep = self.hour / 24.
         self.values = []
         self.timesteps = []
         self.current_count = 0
-        self.current_idx1 = 0
-        self.current_idx2 = 0
 
     def _init_dataset(self):
         """
@@ -95,66 +105,75 @@ class NetCDFWriter:
         :return: (time, values) netCDF4 variables in a tuple
         """
         self.frmt = self.metadata.get('format', 'NETCDF4')
-        self.nf = Dataset(self.name, 'w', format=self.frmt)
-        self.nf.history = 'Created {}'.format(time.ctime(time.time()))
-        self.nf.Conventions = 'CF-1.7'
-        self.nf.Source_Software = 'JRC.E1 lisfloodutilities - pcr2nc'
-        self.nf.source = self.metadata.get('source')
-        self.nf.reference = self.metadata.get('reference')
-
-        # Dimensions
-        if self.is_mapstack:
-            self.nf.createDimension('time', None)
-        self.nf.createDimension('lat', self.metadata.get('rows') or self.metadata['lats'].size)
-        self.nf.createDimension('lon', self.metadata.get('cols') or self.metadata['lons'].size)
-
-        # define coordinates variables by calling one of the define_* functions
-        datum = self.metadata.get('geographical', {}).get('datum', '').lower()
-        if not datum:
-            datum = self._guess_datum(self.metadata['lats'], self.metadata['lons'])
-        datum_function = 'define_{}'.format(datum)
-        post_datum_function = '{}_post'.format(datum_function)
-        getattr(self, datum_function)()  # call the function
-
         time_nc = None
-        vardimensions = ('lat', 'lon')
-        if self.is_mapstack:
-            # time variable
-            time_units = self.metadata['time'].get('units', '')
-            time_nc = self.nf.createVariable('time', 'f8', ('time',))
-            time_nc.standard_name = 'time'
-            if str(self.hour) != '24':
-                time_nc.units = '{} {}:00'.format(time_units, str(self.hour).zfill(2))
-            else:
-                # observation is at 24h...need to rotate one day more
-                start_date = datetime.datetime.strptime(time_units[-10:], '%Y-%m-%d')  # 'days since 1996-01-01'
-                start_date = start_date + datetime.timedelta(days=1)
-                time_nc.units = 'days since {} 00:00'.format(start_date.strftime('%Y-%m-%d'))
-            time_nc.calendar = self.metadata['time'].get('calendar', 'proleptic_gregorian')
-            vardimensions = ('time', 'lat', 'lon')
+        if not self.append:
+            self.nf = Dataset(self.name, 'w', format=self.frmt)
+            self.nf.history = 'Created {}'.format(time.ctime(time.time()))
+            self.nf.Conventions = 'CF-1.7'
+            self.nf.Source_Software = 'JRC.E1 lisfloodutilities - pcr2nc'
+            self.nf.source = self.metadata.get('source', '')
+            self.nf.reference = self.metadata.get('reference', '')
 
-        # data variable
-        complevel = self.metadata['variable'].get('compression')
-        additional_args = {'zlib': bool(complevel)}
-        if complevel:
-            logger.info('Applying compression level %s', str(complevel))
-            additional_args['complevel'] = complevel
-            if np.issubdtype(self.metadata['dtype'], np.floating):
-                additional_args['least_significant_digit'] = self.metadata.get('least_significant_digit')
+            # Dimensions
+            if self.is_mapstack:
+                self.nf.createDimension('time', None)
+            self.nf.createDimension('lat', self.metadata.get('rows') or self.metadata['lats'].size)
+            self.nf.createDimension('lon', self.metadata.get('cols') or self.metadata['lons'].size)
 
-        values_nc = self.nf.createVariable(self.metadata['variable'].get('shortname', ''),
-                                           self.metadata['dtype'], vardimensions,
-                                           fill_value=self.mv, **additional_args)
-        getattr(self, post_datum_function)(values_nc)
+            # define coordinates variables by calling one of the define_* functions
+            datum = self.metadata.get('geographical', {}).get('datum', '').lower()
+            if not datum:
+                datum = self._guess_datum(self.metadata['lats'], self.metadata['lons']) if 'lats' in self.metadata else 'wgs84'
+            datum_function = 'define_{}'.format(datum)
+            post_datum_function = '{}_post'.format(datum_function)
+            getattr(self, datum_function)()  # call the function
 
-        values_nc.standard_name = self.metadata['variable'].get('shortname', '')
-        values_nc.long_name = self.metadata['variable'].get('longname', '')
-        values_nc.units = self.metadata['variable'].get('units', '')
+            vardimensions = ('lat', 'lon')
+            if self.is_mapstack:
+                # time variable
+                time_units = self.metadata['time'].get('units', '')
+                time_nc = self.nf.createVariable('time', 'f8', ('time',))
+                time_nc.standard_name = 'time'
+                if time_units:
+                    if str(self.hour) != '24':
+                        time_nc.units = '{} {}:00'.format(time_units, str(self.hour).zfill(2))
+                    else:
+                        # observation is at 24h...need to rotate one day more
+                        start_date = datetime.datetime.strptime(time_units[-10:], '%Y-%m-%d')  # 'days since 1996-01-01'
+                        start_date = start_date + datetime.timedelta(days=1)
+                        time_nc.units = 'days since {} 00:00'.format(start_date.strftime('%Y-%m-%d'))
+                    time_nc.calendar = self.metadata['time'].get('calendar', 'proleptic_gregorian') if 'time' in self.metadata else 'proleptic_gregorian'
+                vardimensions = ('time', 'lat', 'lon')
+
+            # data variable
+            complevel = self.metadata['variable'].get('compression')
+            additional_args = {'zlib': bool(complevel)}
+            if complevel:
+                logger.info('Applying compression level %s', str(complevel))
+                additional_args['complevel'] = complevel
+                if np.issubdtype(self.metadata['dtype'], np.floating):
+                    additional_args['least_significant_digit'] = self.metadata.get('least_significant_digit')
+
+            values_nc = self.nf.createVariable(self.metadata['variable'].get('shortname', ''),
+                                               self.metadata['dtype'], vardimensions,
+                                               fill_value=self.mv, **additional_args)
+            getattr(self, post_datum_function)(values_nc)
+
+            values_nc.standard_name = self.metadata['variable'].get('shortname', '')
+            values_nc.long_name = self.metadata['variable'].get('longname', '')
+            values_nc.units = self.metadata['variable'].get('units', '')
+        else:
+            # open in append mode
+            self.nf = Dataset(self.name, 'a', format=self.frmt)
+            values_nc = self.nf.variables[self.metadata['variable'].get('shortname', '')]
+            if self.is_mapstack:
+                time_nc = self.nf.variables['time']
+                self.current_idx1 = self.current_idx2 = time_nc.size
         return time_nc, values_nc
 
     def add_to_stack(self, amap, time_step=None):
         """
-        Add a PCRaster map to the NetCDF4 file.
+        Add a PCRaster map or numpy 2D array to the NetCDF4 file.
         :param time_step: int, it's basically the extension of pcraster map file
             For single files (ie not time series) time_step is None
         :param amap: numpy.ndarray or PCRasterMap object
@@ -190,14 +209,15 @@ class NetCDFWriter:
             self.values = []
             self.current_count = 0
 
-    def finalize(self):
+    def finalize(self, timesteps=None):
         """
         Write last maps to the stack and close the NetCDF4 dataset.
         """
         logger.info('Writing %s', self.name)
         if self.is_mapstack:
-            logger.info('Writing time dimension... %s ... %s', self.timesteps[:4], self.timesteps[-4:])
-            self.time[:] = np.array(self.timesteps, dtype=np.float64)
+            if timesteps is None:
+                timesteps = self.timesteps
+            self.time[:] = np.array(timesteps, dtype=np.float64) if not isinstance(timesteps, np.ndarray) else timesteps
 
         if self.values:
             dtype = self.values[0].dtype
@@ -223,12 +243,16 @@ class NetCDFWriter:
         latitude.standard_name = 'latitude'
         latitude.long_name = 'latitude coordinate'
         latitude.units = 'degrees_north'
-        longitude[:] = self.metadata['lons']
-        latitude[:] = self.metadata['lats']
+        if 'lons' in self.metadata:
+            longitude[:] = self.metadata['lons']
+            latitude[:] = self.metadata['lats']
+        else:
+            latitude[:] = wgs84_lons
+            latitude[:] = wgs84_lats
 
     def define_wgs84_post(self, values_var):
         values_var.coordinates = 'lon lat'
-        values_var.esri_pe_string = self.WKT_STRINGS.get(self.metadata['geographical'].get('datum', 'WGS84').upper(), '')
+        values_var.esri_pe_string = self.WKT_STRINGS.get(self.metadata.get('geographical', {}).get('datum', 'WGS84').upper(), '')
 
     def define_etrs89(self):
         """
