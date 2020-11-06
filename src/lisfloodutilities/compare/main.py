@@ -25,7 +25,7 @@ else:
 
 import numpy as np
 
-from . import NetCDFComparator
+from lisfloodutilities.compare.nc import NetCDFComparator
 from .. import version, logger
 
 np.set_printoptions(precision=4, linewidth=300, suppress=True)
@@ -39,6 +39,7 @@ def main(cliargs):
     dataset_a = args.dataset_a.as_posix()
     dataset_b = args.dataset_b.as_posix()
     maskfile = args.maskarea.as_posix()
+
     array_equal = args.array_equal
     skip_missing = args.skip_missing
     atol = args.atol

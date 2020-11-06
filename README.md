@@ -44,6 +44,7 @@ The package contains convenient classes for reading/writing:
 
 * PCRasterMap
 * PCRasterReader
+* NetCDFMap
 * NetCDFWriter
 
 ### Installation
@@ -63,7 +64,7 @@ If you use conda, create a new env (or use an existing one) and install gdal and
 ```bash
 conda create --name myenv python=3.7 -c conda-forge
 conda activate myenv
-conda install -c conda-forge gdal
+conda install -c conda-forge pcraster gdal
 pip install lisflood-utilities
 ```
 
@@ -267,6 +268,40 @@ cutmaps -S /home/projects/lisflood-eu -l ldd.nc -C area.map -N stations.txt -o /
 ```
 You will find the produced mask.map for your area in the same folder of ldd map; you will need it for lisflood/lisvap executions.
 
+## compare utility
+
+This tool let you compare two netcdf datasets. You can configure it with tolerances (atol, rtol, thresholds for percentage of tolerated different values).
+You can also set the option to write diff files, so that you can inspect maps.
+
+```text
+usage: compare [-h] -a DATASET_A -b DATASET_B -m MASKAREA [-M SUBMASKAREA]
+               [-e] [-s] [-D] [-r RTOL] [-t ATOL] [-p MAX_DIFF_PERCENTAGE]
+               [-l MAX_LARGEDIFF_PERCENTAGE]
+
+Compare netCDF outputs: 0.12.12
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -a DATASET_A, --dataset_a DATASET_A
+                        path to dataset version A
+  -b DATASET_B, --dataset_b DATASET_B
+                        path to dataset version B
+  -m MASKAREA, --maskarea MASKAREA
+                        path to mask
+  -e, --array-equal     flag to compare files to be identical
+  -s, --skip-missing    flag to skip missing files in comparison
+  -D, --save-diffs      flag to save diffs in netcdf files for visual
+                        comparisons. Files are saved in ./diffs folder of
+                        current directory.For each file presenting
+                        differences, you will find files diffs, original A and
+                        B (only for timesteps where differences are found).
+  -r RTOL, --rtol RTOL  rtol
+  -t ATOL, --atol ATOL  atol
+  -p MAX_DIFF_PERCENTAGE, --max-diff-percentage MAX_DIFF_PERCENTAGE
+                        threshold for diffs percentage
+  -l MAX_LARGEDIFF_PERCENTAGE, --max-largediff-percentage MAX_LARGEDIFF_PERCENTAGE
+                        threshold for large diffs percentage
+```
 
 ## gfit
 

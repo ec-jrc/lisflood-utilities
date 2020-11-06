@@ -22,7 +22,8 @@ else:
 
 import pytest
 
-from lisfloodutilities.compare import TSSComparator, NetCDFComparator, PCRComparator
+from lisfloodutilities.compare.pcr import PCRComparator, TSSComparator
+from lisfloodutilities.compare.nc import NetCDFComparator
 
 
 class TestComparators:
@@ -55,6 +56,10 @@ class TestComparators:
         assert comp.diff_folder.joinpath('a_b.nc').exists(), 'Diff file B does not exist'
         assert comp.diff_folder.joinpath('a_diff.nc').exists(), 'Diff file diff.nc does not exist'
 
+    def test_netcdfcomp_submask(self):
+        comp = NetCDFComparator('tests/data/submask/subcatchment_mask.map')
+        comp.compare_files('tests/data/submask/dis_subdomain.nc', 'tests/data/submask/dis.nc')
+
     def test_netcdfcomp_tol(self):
         comp = NetCDFComparator('tests/data/folder_d/mask.nc', atol=0.05, rtol=0.1, for_testing=True)
         comp.compare_files('tests/data/folder_d/a.nc', 'tests/data/folder_d/b.nc')
@@ -67,7 +72,7 @@ class TestComparators:
 
     def test_netcdfcomp_identical(self):
         comp = NetCDFComparator('tests/data/folder_d/mask.nc', array_equal=True, for_testing=True)
-        comp.compare_files('tests/data/folder_a/ta.nc', 'tests/data/folder_b/ta.nc')
+        comp.compare_files('tests/data/folder_d/a.nc', 'tests/data/folder_d/a.nc')
         with pytest.raises(AssertionError) as excinfo:
             comp.compare_files('tests/data/folder_d/a.nc', 'tests/data/folder_d/b.nc')
         assert 'Arrays are not equal' in str(excinfo.value)
@@ -127,8 +132,8 @@ class TestComparators:
 
     def test_comp_no_asserts(self):
         comp = NetCDFComparator('tests/data/folder_d/mask.nc', array_equal=True, for_testing=False)
-        errors = comp.compare_files('tests/data/folder_a/ta.nc', 'tests/data/folder_b/ta.nc')
-        assert not errors
-        errors = comp.compare_files('tests/data/folder_d/a.nc', 'tests/data/folder_d/b.nc')
-        assert errors
-        assert 'a.nc/field@0 is different' in errors
+        comp.compare_files('tests/data/folder_d/a.nc', 'tests/data/folder_d/a.nc')
+        assert not comp.errors
+        comp.compare_files('tests/data/folder_d/a.nc', 'tests/data/folder_d/b.nc')
+        assert comp.errors
+        assert 'a.nc/field@0 is different' in comp.errors
