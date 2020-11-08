@@ -77,6 +77,25 @@ class TestComparators:
             comp.compare_files('tests/data/folder_d/a.nc', 'tests/data/folder_d/b.nc')
         assert 'Arrays are not equal' in str(excinfo.value)
 
+    def test_netcdfcomp_no_asserts(self):
+        comp = NetCDFComparator('tests/data/folder_d/mask.nc', array_equal=True, for_testing=False)
+        comp.compare_files('tests/data/folder_d/a.nc', 'tests/data/folder_d/a.nc')
+        assert not comp.errors
+        comp.compare_files('tests/data/folder_d/a.nc', 'tests/data/folder_d/b.nc')
+        assert comp.errors
+        assert 'a.nc/field@0 is different' in comp.errors
+
+    def test_netcdfcomp_no_mask(self):
+        comp = NetCDFComparator(array_equal=True)
+        comp.compare_files('tests/data/folder_a/ta.nc', 'tests/data/folder_b/ta.nc')
+        comp.compare_files('tests/data/folder_d/a.nc', 'tests/data/folder_d/a.nc')
+        comp = NetCDFComparator()
+        comp.compare_files('tests/data/folder_a/ta.nc', 'tests/data/folder_b/ta.nc')
+        comp.compare_files('tests/data/folder_d/a.nc', 'tests/data/folder_d/a.nc')
+        with pytest.raises(ValueError) as excinfo:
+            comp.compare_files('tests/data/submask/dis_subdomain.nc', 'tests/data/submask/dis.nc')
+        assert 'operands could not be broadcast together with shapes (43,37) (57,80)' in str(excinfo.value)
+
     def test_tss(self):
         with pytest.raises(AssertionError) as excinfo:
             comp = TSSComparator(array_equal=True)
@@ -129,11 +148,3 @@ class TestComparators:
         with pytest.raises(AssertionError) as excinfo:
             comp.compare_dirs('tests/data/folder_a/', 'tests/data/folder_c/', skip_missing=False)
         assert '.map is missing in tests/data/folder_c' in str(excinfo.value)
-
-    def test_comp_no_asserts(self):
-        comp = NetCDFComparator('tests/data/folder_d/mask.nc', array_equal=True, for_testing=False)
-        comp.compare_files('tests/data/folder_d/a.nc', 'tests/data/folder_d/a.nc')
-        assert not comp.errors
-        comp.compare_files('tests/data/folder_d/a.nc', 'tests/data/folder_d/b.nc')
-        assert comp.errors
-        assert 'a.nc/field@0 is different' in comp.errors

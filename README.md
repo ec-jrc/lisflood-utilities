@@ -219,7 +219,7 @@ The tool accepts as input:
   - alternatively, matrix indices in the form xmini_xmaxi:ymini_ymaxi or
   - alternatively, coordinates bounding box in the form xmin_xmax:ymin_ymax
   - alternatively, list of stations with coordinates and a LDD map.
-* a textfile with a list of filepaths for files to cut or alternatively a path to a folder containing netCDF files to cut 
+* a path to a folder containing netCDF files to cut or a static dataset path like LISFLOOD static files. 
 * a path to a folder where to write cut files.
 
 The following command will cut all netcdf files inside _/workarea/Madeira/lai/_ folder 
@@ -261,17 +261,23 @@ Given a LDD map and a list of stations in a text file, each row having coordinat
 cutmaps -S /home/projects/lisflood-eu -l ldd.map -N stations.txt -o /Work/Tunisia/cutmaps
 ```
 
-If ldd is in netCDF format, you must issue a PCRaster clonemap as LDD needs to be converted to that format, first.
+If ldd is in netCDF format, LDD will be converted to PCRaster format, first.
+
+```bash
+cutmaps -S /home/projects/lisflood-eu -l ldd.nc -N stations.txt -o /Work/Tunisia/cutmaps
+``` 
+
+If you experience problems, you can try to pass a path to a PCRaster clone map.
 
 ```bash
 cutmaps -S /home/projects/lisflood-eu -l ldd.nc -C area.map -N stations.txt -o /Work/Tunisia/cutmaps
 ```
-You will find the produced mask.map for your area in the same folder of ldd map; you will need it for lisflood/lisvap executions.
+You will find the produced mask.map and mask.nc for your area in the same folder of ldd map; you will need it for lisflood/lisvap executions.
 
 ## compare utility
 
 This tool let you compare two netcdf datasets. You can configure it with tolerances (atol, rtol, thresholds for percentage of tolerated different values).
-You can also set the option to write diff files, so that you can inspect maps.
+You can also set the option to write diff files, so that you can inspect maps and differences with a tool like Panoply
 
 ```text
 usage: compare [-h] -a DATASET_A -b DATASET_B -m MASKAREA [-M SUBMASKAREA]
