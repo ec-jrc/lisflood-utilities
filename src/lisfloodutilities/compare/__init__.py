@@ -15,7 +15,9 @@ See the Licence for the specific language governing permissions and limitations 
 
 """
 
+import datetime
 import itertools
+from typing import Iterable
 
 from nine import IS_PYTHON2
 
@@ -46,9 +48,17 @@ class Comparator(object):
         :param path_a
         :param path_b
         :param skip_missing (bool, default False). If True, ignore files that are in path_a and not in path_b
-        :param timestep (default None). If passed, comparison happens only at the defined timestep
+        :param timestep (default None). If passed, comparison happens only at the defined timestep(s)
+        :type timestep int, datetime.datetime, list[datetime.datetime]
         """
-        logger.info('Comparing %s and %s %s[skip missing: %s]', path_a, path_b, '(time: %s) ' % timestep if timestep else '', skip_missing)
+        if timestep and isinstance(timestep, datetime.datetime):
+            timestep = [timestep]
+        if timestep and not isinstance(timestep, (datetime.datetime, Iterable)):
+            raise ValueError('timestep must be of type datetime.datetime or a range of dates, but type {} was found'.format(str(type(timestep))))
+        logger.info('Comparing %s and %s %s [skip missing: %s]',
+                    path_a, path_b,
+                    '(from %s to %s)' % (min(timestep), max(timestep)) if timestep else '',
+                    skip_missing)
         path_a = Path(path_a)
         path_b = Path(path_b)
         for fa in itertools.chain(*(path_a.glob(e) for e in self.glob_expr)):

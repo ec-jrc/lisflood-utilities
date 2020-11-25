@@ -273,6 +273,7 @@ If you experience problems, you can try to pass a path to a PCRaster clone map.
 cutmaps -S /home/projects/lisflood-eu -l ldd.nc -C area.map -N stations.txt -o /Work/Tunisia/cutmaps
 ```
 You will find the produced mask.map and mask.nc for your area in the same folder of ldd map; you will need it for lisflood/lisvap executions.
+You will also have outlets.map/outlets.nc based on stations.txt, which let you produce gauges TSS if configured in LISFLOOD.
 
 ## compare utility
 

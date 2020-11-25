@@ -1,6 +1,7 @@
 import datetime
 import os
 import uuid
+from typing import Iterable
 
 import numpy as np
 from netCDF4 import Dataset, date2index
@@ -52,6 +53,9 @@ class NetCDFComparator(Comparator):
                  max_perc_diff=0.2, max_perc_large_diff=0.1,
                  array_equal=False, for_testing=True,
                  save_diff_files=False):
+        """
+
+        """
 
         super(NetCDFComparator, self).__init__(array_equal=array_equal, for_testing=for_testing)
         self.maskarea = None
@@ -88,14 +92,21 @@ class NetCDFComparator(Comparator):
         # diff files option
         self.diff_folder = None
         self.diff_timesteps = []
-        if save_diff_files:
+        if save_diff_files and not self.for_testing:
             self.diff_folder = self.create_diff_folder()
             logger.info('Diff files will be saved. You can find it in %s', self.diff_folder)
+        elif save_diff_files and self.for_testing:
+            logger.warning('You set both for_testing=True and save_diff_files=True. '
+                           'These options are not compatible and diff files will not be saved')
 
     def compare_files(self, file_a, file_b, timestep=None):
-        logger.info('Comparing %s and %s %s', file_a, file_b, timestep or '')
-        if timestep and not isinstance(timestep, datetime.datetime):
-            raise ValueError('timestep must be of type datetime.datetime but type {} was found'.format(str(type(timestep))))
+        if timestep and isinstance(timestep, datetime.datetime):
+            timestep = [timestep]
+        if timestep and not isinstance(timestep, (datetime.datetime, Iterable)):
+            raise ValueError('timestep must be of type datetime.datetime or a range of dates, but type {} was found'.format(str(type(timestep))))
+
+        logger.info('Comparing %s and %s %s', file_a, file_b, '(from %s to %s)' % (min(timestep), max(timestep)) if timestep else '')
+
         with Dataset(file_a) as nca, Dataset(file_b) as ncb:
             num_dims = 3 if 'time' in nca.variables else 2
             var_name = [k for k in nca.variables if len(nca.variables[k].dimensions) == num_dims][0]
@@ -134,14 +145,18 @@ class NetCDFComparator(Comparator):
                             self.compare_arrays_equal(values_a, values_b, var_name, step, file_a, lats_a, lons_a, lats_b, lons_b, time=nca.variables['time'])
                 else:
                     # check arrays at a given timestep
-                    ia = date2index(timestep, nca.variables['time'], nca.variables['time'].calendar)
-                    ib = date2index(timestep, ncb.variables['time'], ncb.variables['time'].calendar)
-                    values_a = vara[ia][:, :]
-                    values_b = varb[ib][:, :]
-                    if not self.array_equal:
-                        self.compare_arrays(values_a, values_b, var_name, ia, file_a, lats_a, lons_a, lats_b, lons_b, time=nca.variables['time'])
-                    else:
-                        self.compare_arrays_equal(values_a, values_b, var_name, ia, file_a, lats_a, lons_a, lats_b, lons_b, time=nca.variables['time'])
+                    if not isinstance(timestep, Iterable):
+                        timestep = [timestep]
+                    for ts in timestep:
+                        logger.info('Checking at timestep %s', ts)
+                        ia = date2index(ts, nca.variables['time'], nca.variables['time'].calendar)
+                        ib = date2index(ts, ncb.variables['time'], ncb.variables['time'].calendar)
+                        values_a = vara[ia][:, :]
+                        values_b = varb[ib][:, :]
+                        if not self.array_equal:
+                            self.compare_arrays(values_a, values_b, var_name, ia, file_a, lats_a, lons_a, lats_b, lons_b, time=nca.variables['time'])
+                        else:
+                            self.compare_arrays_equal(values_a, values_b, var_name, ia, file_a, lats_a, lons_a, lats_b, lons_b, time=nca.variables['time'])
             else:
                 values_a = vara[:, :]
                 values_b = varb[:, :]

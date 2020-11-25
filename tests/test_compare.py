@@ -96,6 +96,14 @@ class TestComparators:
             comp.compare_files('tests/data/submask/dis_subdomain.nc', 'tests/data/submask/dis.nc')
         assert 'operands could not be broadcast together with shapes (43,37) (57,80)' in str(excinfo.value)
 
+    def test_netcdfcomp_timestep(self):
+        # TODO
+        pass
+
+    def test_netcdfcomp_timestep_range(self):
+        # TODO
+        pass
+
     def test_tss(self):
         with pytest.raises(AssertionError) as excinfo:
             comp = TSSComparator(array_equal=True)

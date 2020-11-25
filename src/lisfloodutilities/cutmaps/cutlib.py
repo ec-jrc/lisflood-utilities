@@ -30,6 +30,8 @@ from ..readers.pcr import PCRasterMap
 from ..pcr2nc import convert
 from .. import version, logger
 
+encoding_netcdf_vars = {'zlib': False}
+
 
 def cutmap(f, fileout, x_min, x_max, y_min, y_max):
     nc, num_dims = open_dataset(f)
@@ -47,14 +49,13 @@ def cutmap(f, fileout, x_min, x_max, y_min, y_max):
         if 'missing_value' in sliced_var.encoding:
             sliced_var.encoding['_FillValue'] = sliced_var.encoding['missing_value']
         logger.info('Creating: %s', fileout)
-        delayed_obj = sliced_var.to_netcdf(fileout, compute=False)
+        delayed_obj = sliced_var.to_netcdf(fileout, compute=False, encoding={var: encoding_netcdf_vars})
         with ProgressBar(dt=0.1):
             _ = delayed_obj.compute()
 
     grid_mapping = sliced_var.attrs.get('grid_mapping')
     if grid_mapping in nc.variables:
         varname = grid_mapping
-        logger.info('Found projection variable: %s', varname)
         varproj = nc.variables[varname]
         logger.info('Writing projection variable: %s - %s', varname, varproj.attrs)
         del_res = xr.DataArray(name=varname, data=varproj.data, dims=varproj.dims, attrs=varproj.attrs).to_netcdf(fileout, mode='a', compute=False)
@@ -64,7 +65,7 @@ def cutmap(f, fileout, x_min, x_max, y_min, y_max):
     # adding global attributes
     nc_out, _ = open_dataset(fileout)
     nc_out.attrs = nc.attrs
-    nc_out.attrs['history'] = 'lisfloodutilities cutmaps {} {} {}'.format(
+    nc_out.attrs['history'] = 'lisfloodutilities cutmaps {} {} \n {}'.format(
         version, datetime.datetime.now().strftime('%Y-%m-%d %H:%M'), nc_out.attrs.get('history', '')
     )
     nc_out.attrs['conventions'] = 'CF-1.6'
