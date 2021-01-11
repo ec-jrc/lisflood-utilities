@@ -285,7 +285,7 @@ class NetCDFWriter:
     def define_etrs89_post(self, values_var):
         values_var.coordinates = 'x y'
         values_var.grid_mapping = 'lambert_azimuthal_equal_area'
-        values_var.esri_pe_string = self.WKT_STRINGS.get(self.metadata['geographical'].get('datum', 'WGS84').upper(), '')
+        values_var.esri_pe_string = self.WKT_STRINGS.get(self.metadata.get('geographical', {}).get('datum', 'ETRS89').upper(), '')
 
     def define_gisco(self):
         """
