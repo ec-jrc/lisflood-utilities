@@ -53,11 +53,11 @@ class Comparator(object):
         """
         if timestep and isinstance(timestep, datetime.datetime):
             timestep = [timestep]
-        if timestep and not isinstance(timestep, (datetime.datetime, Iterable)):
-            raise ValueError('timestep must be of type datetime.datetime or a range of dates, but type {} was found'.format(str(type(timestep))))
+        if timestep and not isinstance(timestep, (int, datetime.datetime, Iterable)):
+            raise ValueError('timestep must be of type int for TSS, datetime.datetime or a range of dates for netCDF, but type {} was found'.format(str(type(timestep))))
         logger.info('Comparing %s and %s %s [skip missing: %s]',
                     path_a, path_b,
-                    '(from %s to %s)' % (min(timestep), max(timestep)) if timestep else '',
+                    '(from %s to %s)' % (min(timestep), max(timestep)) if timestep and isinstance(timestep, Iterable) else timestep or '',
                     skip_missing)
         path_a = Path(path_a)
         path_b = Path(path_b)
