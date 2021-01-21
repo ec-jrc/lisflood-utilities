@@ -60,9 +60,6 @@ def _get_gdal_version():
         return p.communicate()[0].splitlines()[0].decode()
 
 
-IS_PYTHON2 = sys.version_info.major == 2
-numpy_version = '1.18.3' if not IS_PYTHON2 else '1.15.4'
-dask_version = '2.7.0' if not IS_PYTHON2 else '1.2.2'
 gdal_version = _get_gdal_version()
 
 
@@ -134,14 +131,14 @@ setup_args = dict(
     long_description=long_description,
     long_description_content_type='text/markdown',
     setup_requires=[
-            'setuptools>=41.0', 'numpy=={}'.format(numpy_version),
+            'setuptools>=41.0', 'numpy',
     ],
-    install_requires=['numpy=={}'.format(numpy_version), 'pyyaml==5.3',
+    install_requires=['numpy', 'pyyaml==5.3',
                       # Can create corrupted environment if using conda,
                       # Better to install GDAL manually before to install lisflood-utilities package
                       # 'GDAL=={}'.format(gdal_version),
                       'netCDF4==1.5.3', 'toolz', 'xarray==0.15.1',
-                      'dask=={}'.format(dask_version), 'pandas==0.25.1', 'pathlib2==2.3.5', 'nine'],
+                      'dask', 'pandas==0.25.1', 'nine'],
     author="Valerio Lorini, Domenico Nappo, Lorenzo Alfieri",
     author_email="valerio.lorini@ec.europa.eu,domenico.nappo@gmail.com,lorenzo.alfieri@ec.europa.eu",
     keywords=['netCDF4', 'PCRaster', 'mapstack', 'lisflood', 'efas', 'glofas', 'ecmwf', 'copernicus'],
