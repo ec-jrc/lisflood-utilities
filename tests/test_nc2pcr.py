@@ -21,6 +21,7 @@ import numpy as np
 
 from lisfloodutilities.readers import NetCDFMap, PCRasterMap
 from lisfloodutilities.nc2pcr import convert
+from lisfloodutilities.compare.pcr import PCRComparator
 
 
 class TestNc2Pcr:
@@ -29,7 +30,7 @@ class TestNc2Pcr:
         out = 'tests/data/nc2pcr_test.map'
         clonemap = 'tests/data/cutmaps/area_eu.map'
 
-        convert(dataset, clonemap, out, is_ldd=True)
+        convert(dataset, out, clonemap=clonemap, is_ldd=True)
         assert os.path.exists(out)
 
         mappcr_0 = PCRasterMap(out)
@@ -50,7 +51,7 @@ class TestNc2Pcr:
         dataset = 'tests/data/cutmaps/ldd_eu.nc'
         out = 'tests/data/nc2pcr_test.map'
 
-        convert(dataset, None, out, is_ldd=True)
+        convert(dataset, out, is_ldd=True)
         assert os.path.exists(out)
 
         mappcr_0 = PCRasterMap(out)
@@ -66,3 +67,21 @@ class TestNc2Pcr:
         os.unlink(out)
         mappcr_0.close()
         map_0.close()
+
+    def test_convert_noclone_same_values(self):
+
+        dataset = 'tests/data/cutmaps/ldd_eu.nc'
+        out1 = 'tests/data/nc2pcr_test1.map'  # produced without clonemap
+        out2 = 'tests/data/nc2pcr_test2.map'  # produced with clonemap
+        clonemap = 'tests/data/cutmaps/area_eu.map'
+
+        convert(dataset, out1, is_ldd=True)
+        convert(dataset, out2, clonemap=clonemap, is_ldd=True)
+
+        assert os.path.exists(out1)
+        assert os.path.exists(out2)
+        # os.unlink(out1)
+        # os.unlink(out2)
+
+        compare = PCRComparator(array_equal=True, for_testing=True)
+        compare.compare_files(out1, out2)

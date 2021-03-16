@@ -16,10 +16,12 @@ See the Licence for the specific language governing permissions and limitations 
 """
 
 import os
-
+import multiprocessing
 import numpy as np
 from netCDF4 import Dataset
+import logging
 
+logging.basicConfig(format="%(threadName)s:%(message)s")
 from lisfloodutilities import IS_PYTHON2
 from lisfloodutilities.cutmaps.cutlib import get_filelist, get_cuts, cutmap, mask_from_ldd
 from lisfloodutilities.nc2pcr import convert
@@ -32,6 +34,15 @@ else:
 
 
 class TestCutlib:
+
+    cleanups = []
+
+    def setup_method(self):
+        self.cleanups = []
+
+    def teardown_method(self):
+        for cleanup_func, args in self.cleanups:
+            cleanup_func(*args)
 
     def test_getfiles_to_cut_folder(self):
         res = sorted(get_filelist(input_folder='tests/data/folder_a'))
@@ -54,98 +65,105 @@ class TestCutlib:
         assert (x_min, x_max, y_min, y_max) == (-127.0, -126.5, 53.2, 53.4)
         fin = 'tests/data/folder_a/ta.nc'
         fout = 'tests/data/folder_a/ta_cut.nc'
+        self.cleanups.append((os.unlink, (fout,)))
         cutmap(fin, fout, x_min, x_max, y_min, y_max)
         with Dataset(fout) as nc:
             lons = nc.variables['lon'][:]
             lats = nc.variables['lat'][:]
-            res_x = np.round(np.min(lons), 2)
-            res_y = np.round(np.min(lats), 2)
-        os.unlink(fout)
-        assert res_x == -126.95
-        assert res_y == 53.25
+            res_x_min = round(np.min(lons), 2)
+            res_y_min = round(np.min(lats), 2)
+            res_x_max = round(np.max(lons), 2)
+            res_y_max = round(np.max(lats), 2)
+        # ta.nc input file has not exact coordinates (e.g. there is no -127.0 in lons)
+        assert (-126.95, -126.55, 53.25, 53.35) == (res_x_min, res_x_max, res_y_min, res_y_max)
 
     def test_get_cuts_indices(self):
         # minxi_maxxi:minyi_maxyi
-        cuts = '2_5:0_2'
-        x_min, x_max, y_min, y_max = get_cuts(cuts=cuts)
-        assert (x_min, x_max, y_min, y_max) == (2, 5, 0, 2)
+        cuts = '3_7:1_2'
+        ix_min, ix_max, iy_min, iy_max = get_cuts(cuts=cuts)
+        assert (ix_min, ix_max, iy_min, iy_max) == (3, 7, 1, 2)
         fin = 'tests/data/folder_a/ta.nc'
         fout = 'tests/data/folder_a/ta_cut.nc'
-        cutmap(fin, fout, x_min, x_max, y_min, y_max)
+        self.cleanups.append((os.unlink, (fout,)))
+        cutmap(fin, fout, ix_min, ix_max, iy_min, iy_max)
         with Dataset(fout) as nc:
             lons = nc.variables['lon'][:]
             lats = nc.variables['lat'][:]
-            res_x = np.round(np.min(lons), 2)
-            res_y = np.round(np.min(lats), 2)
-        os.unlink(fout)
-        assert res_x == -127.05
-        assert res_y == 53.25
+            res_x_min = round(np.min(lons), 2)
+            res_y_min = round(np.min(lats), 2)
+            res_x_max = round(np.max(lons), 2)
+            res_y_max = round(np.max(lats), 2)
+
+        assert (-126.95, -126.55, 53.25, 53.35) == (res_x_min, res_x_max, res_y_min, res_y_max)
 
     def test_get_cuts_withmaskfile(self):
-        maskfile = 'tests/data/area.nc'
+        maskfile = 'tests/data/masks/area.nc'
         x_min, x_max, y_min, y_max = get_cuts(mask=maskfile)
         x_minr, x_maxr, y_minr, y_maxr = np.round(x_min, 2), np.round(x_max, 2), np.round(y_min, 2), np.round(y_max, 2)
         assert (x_minr, x_maxr, y_minr, y_maxr) == (-127.25, -126.15, 53.05, 53.45)
-        fin = 'tests/data/area_global.nc'
+        fin = 'tests/data/masks/world.nc'
         fout = 'tests/data/area_cut.nc'
+        self.cleanups.append((os.unlink, (fout,)))
         cutmap(fin, fout, x_min, x_max, y_min, y_max)
         with Dataset(fout) as nc:
             lons = nc.variables['lon'][:]
             lats = nc.variables['lat'][:]
-            res_x = np.round(np.min(lons), 2)
-            res_y = np.round(np.min(lats), 2)
-        os.unlink(fout)
-        assert res_x == -127.25
-        assert res_y == 53.05
+            res_x_min = np.min(lons)
+            res_y_min = np.min(lats)
+            res_x_max = np.max(lons)
+            res_y_max = np.max(lats)
+
+        assert (x_min, x_max, y_min, y_max) == (res_x_min, res_x_max, res_y_min, res_y_max)
 
     def test_get_cuts_withmaskfile_compare(self):
         maskfile = 'tests/data/submask/subcatchment_mask.map'
         x_min, x_max, y_min, y_max = get_cuts(mask=maskfile)
-        x_minr, x_maxr, y_minr, y_maxr = np.round(x_min, 2), np.round(x_max, 2), np.round(y_min, 2), np.round(y_max, 2)
-        assert (x_minr, x_maxr, y_minr, y_maxr) == (4052500.0, 4232500.0, 2332500.0, 2542500.0)
+        assert (x_min, x_max, y_min, y_max) == (4052500.0, 4232500.0, 2332500.0, 2542500.0)
         fin = 'tests/data/submask/dis.nc'
         fout = 'tests/data/submask/dis_cut.nc'
+        self.cleanups.append((os.unlink, (fout,)))
         cutmap(fin, fout, x_min, x_max, y_min, y_max)
         with Dataset(fout) as nc:
             lons = nc.variables['x'][:]
             lats = nc.variables['y'][:]
-            res_x = np.round(np.min(lons), 2)
-            res_y = np.round(np.min(lats), 2)
-        assert res_x == 4052500.0
-        assert res_y == 2332500.0
-        comparator = NetCDFComparator(mask=maskfile, array_equal=True)
-        comparator.compare_files(fin, fout)
+            res_x_min = np.min(lons)
+            res_y_min = np.min(lats)
+            res_x_max = np.max(lons)
+            res_y_max = np.max(lats)
+        assert (x_min, x_max, y_min, y_max) == (res_x_min, res_x_max, res_y_min, res_y_max)
         comparator = NetCDFComparator(array_equal=True)
         comparator.compare_files(fout, 'tests/data/submask/dis_subdomain.nc')
-        os.unlink(fout)
+        comparator = NetCDFComparator(mask=maskfile, array_equal=True)
+        comparator.compare_files(fin, fout)
+
 
     def test_get_cuts_withmaskpcr(self):
-        maskfile = 'tests/data/asia.map'
+        maskfile = 'tests/data/masks/asia.map'
         x_min, x_max, y_min, y_max = get_cuts(mask=maskfile)
-        x_minr, x_maxr, y_minr, y_maxr = np.round(x_min, 2), np.round(x_max, 2), np.round(y_min, 2), np.round(y_max, 2)
+        x_minr, x_maxr, y_minr, y_maxr = np.round(x_min, 3), np.round(x_max, 3), np.round(y_min, 3), np.round(y_max, 3)
         assert (x_minr, x_maxr, y_minr, y_maxr) == (58.65, 179.95, 0.65, 81.25)
-        fin = 'tests/data/area_global.nc'
+        fin = 'tests/data/masks/world.nc'
         fout = 'tests/data/area_cut.nc'
+        self.cleanups.append((os.unlink, (fout,)))
         cutmap(fin, fout, x_min, x_max, y_min, y_max)
         with Dataset(fout) as nc:
             lons = nc.variables['lon'][:]
             lats = nc.variables['lat'][:]
-            res_x = np.round(np.min(lons), 2)
-            res_y = np.round(np.min(lats), 2)
-        os.unlink(fout)
-        assert res_x == 58.75
-        assert res_y == 0.65
+            res_x_min = np.round(np.min(lons), 3)
+            res_y_min = np.round(np.min(lats), 3)
+            res_x_max = np.round(np.max(lons), 3)
+            res_y_max = np.round(np.max(lats), 3)
+        assert (x_minr, x_maxr, y_minr, y_maxr) == (res_x_min, res_x_max, res_y_min, res_y_max)
 
     def test_get_cuts_ldd(self):
-        ldd = 'tests/data/cutmaps/ldd_eu.nc'
-        clonemap = 'tests/data/cutmaps/area_eu.map'
+        ldd_pcr = 'tests/data/cutmaps/ldd_europe.map'
         stations = 'tests/data/cutmaps/stations.txt'
 
-        ldd_pcr = convert(ldd, clonemap, 'tests/data/cutmaps/ldd_eu_test.map', is_ldd=True)[0]
-        mask, outlets_points = mask_from_ldd(ldd_pcr, stations)
+        # ldd_pcr = convert(ldd, 'tests/data/cutmaps/ldd_eu_test.map', is_ldd=True)[0]
+        mask, outlets_points, mask_nc = mask_from_ldd(ldd_pcr, stations)
         x_min, x_max, y_min, y_max = get_cuts(mask=mask)
         # 4067500.0 4397500.0 1282500.0 1577500.0
-        assert (x_min, x_max, y_min, y_max) == (4067500, 4397500, 1282500, 1577500)
+        # assert (x_min, x_max, y_min, y_max) == (4067500, 4397500, 1282500, 1577500)
 
         fin = 'tests/data/cutmaps/ldd_eu.nc'
         fout = 'tests/data/area_cut.nc'
@@ -153,9 +171,37 @@ class TestCutlib:
         with Dataset(fout) as nc:
             lons = nc.variables['x'][:]
             lats = nc.variables['y'][:]
-            res_x = np.min(lons)
-            res_y = np.min(lats)
-        os.unlink(fout)
-        os.unlink(ldd_pcr)
-        assert res_x == 4067500
-        assert res_y == 1282500
+            res_x_min = np.min(lons)
+            res_y_min = np.min(lats)
+            res_x_max = np.max(lons)
+            res_y_max = np.max(lats)
+        self.cleanups.append((os.unlink, (fout,)))
+        assert (x_min, x_max, y_min, y_max) == (res_x_min, res_x_max, res_y_min, res_y_max)
+
+    def test_get_cuts_ldd_onestation(self):
+        ldd = 'tests/data/cutmaps/ldd_eu.nc'
+        clonemap = 'tests/data/masks/europe.map'
+        stations = 'tests/data/cutmaps/stations2.txt'
+        ldd_pcr_path = 'tests/data/cutmaps/ldd_eu_test.map'
+        ldd_pcr = convert(ldd, ldd_pcr_path, clonemap=clonemap, is_ldd=True)[0]
+
+        self.cleanups.append((os.unlink, (ldd_pcr,)))
+        self.cleanups.append((os.unlink, (ldd_pcr_path,)))
+        self.cleanups.append((os.unlink, ('tests/data/cutmaps/my_mask.nc',)))  # produced by mask_from_ldd
+        mask, outlets_points, mask_nc = mask_from_ldd(ldd_pcr, stations)
+        x_min, x_max, y_min, y_max = get_cuts(mask=mask)
+        assert (x_min, x_max, y_min, y_max) == (4067500, 4397500, 1282500, 1577500)
+
+        fin = 'tests/data/cutmaps/ldd_eu.nc'
+        fout = 'tests/data/area_cut.nc'
+        self.cleanups.append((os.unlink, (fout,)))
+        cutmap(fin, fout, x_min, x_max, y_min, y_max)
+        with Dataset(fout) as nc:
+            lons = nc.variables['x'][:]
+            lats = nc.variables['y'][:]
+            res_x_min = np.min(lons)
+            res_y_min = np.min(lats)
+            res_x_max = np.max(lons)
+            res_y_max = np.max(lats)
+
+        assert (x_min, x_max, y_min, y_max) == (res_x_min, res_x_max, res_y_min, res_y_max)

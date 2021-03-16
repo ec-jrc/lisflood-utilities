@@ -60,8 +60,7 @@ class PCRasterMap:
                and self.geo_transform == other.geo_transform)
         if not res:
             return False
-        diff = np.abs(self.data - other.data)
-        return np.allclose(diff, np.zeros(diff.shape), rtol=1.e-2, atol=1.e-3, equal_nan=True)
+        return np.array_equal(self.data, other.data)
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -94,6 +93,23 @@ class PCRasterMap:
         :return: top left x
         """
         return self.geo_transform[0]
+
+    @property
+    def x_min(self):
+        return self.xul
+
+    @property
+    def x_max(self):
+        return self.xul + self.cell_length * self.cols
+
+    @property
+    def y_max(self):
+        return self.yul if self.cell_height < 0 else self.yul + self.cell_height * self.rows
+
+    @property
+    def y_min(self):
+        return self.yul + self.cell_height * self.rows if self.cell_height < 0 else self.yul
+
 
     @property
     def yul(self):
@@ -135,19 +151,24 @@ class PCRasterMap:
         """
         :return: numpy 1D array representing lats
         """
-        step = abs(self.cell_height)
-        start = self.yul - step / 2
-        end = self.yul - step * self.rows
-        return np.arange(start, end, -step)
+        # Coordinates are considered at center of the cell
+        # in PCRASTER format, Y is decreasing from end to start so cell_height is negative
+        step = self.cell_height
+        start = self.yul + step / 2  # start in the middle of the cell
+        end = self.yul + step * self.rows
+        # return range [start, end)
+        return np.arange(start, end, step)
 
     @property
     def lons(self):
         """
         :return: numpy 1D array representing lons
         """
+        # Coordinates are considered at center of the cell
         step = self.cell_length
         start = self.xul + step / 2
         end = self.xul + step * self.cols
+        # return range [start, end)
         return np.arange(start, end, step)
 
     @classmethod

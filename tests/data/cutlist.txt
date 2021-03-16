@@ -1,5 +1,0 @@
-tests/data/folder_a/ta.nc
-tests/data/folder_a/tp.nc
-tests/data/folder_b/ta.nc
-tests/data/folder_d/a.nc
-tests/data/folder_d/b.nc
