@@ -16,7 +16,6 @@ See the Licence for the specific language governing permissions and limitations 
 """
 
 import os
-import multiprocessing
 import numpy as np
 from netCDF4 import Dataset
 import logging
@@ -24,7 +23,7 @@ import logging
 logging.basicConfig(format="%(threadName)s:%(message)s")
 from lisfloodutilities import IS_PYTHON2
 from lisfloodutilities.cutmaps.cutlib import get_filelist, get_cuts, cutmap, mask_from_ldd
-from lisfloodutilities.nc2pcr import convert
+from lisfloodutilities.nc2pcr import convert as nc2pcr_convert
 from lisfloodutilities.compare.nc import NetCDFComparator
 
 if IS_PYTHON2:
@@ -180,20 +179,19 @@ class TestCutlib:
 
     def test_get_cuts_ldd_onestation(self):
         ldd = 'tests/data/cutmaps/ldd_eu.nc'
-        clonemap = 'tests/data/masks/europe.map'
         stations = 'tests/data/cutmaps/stations2.txt'
         ldd_pcr_path = 'tests/data/cutmaps/ldd_eu_test.map'
-        ldd_pcr = convert(ldd, ldd_pcr_path, clonemap=clonemap, is_ldd=True)[0]
+        nc2pcr_convert(ldd, ldd_pcr_path, is_ldd=True)
 
-        self.cleanups.append((os.unlink, (ldd_pcr,)))
         self.cleanups.append((os.unlink, (ldd_pcr_path,)))
         self.cleanups.append((os.unlink, ('tests/data/cutmaps/my_mask.nc',)))  # produced by mask_from_ldd
-        mask, outlets_points, mask_nc = mask_from_ldd(ldd_pcr, stations)
+
+        mask, outlets_points, mask_nc = mask_from_ldd(ldd_pcr_path, stations)
         x_min, x_max, y_min, y_max = get_cuts(mask=mask)
-        assert (x_min, x_max, y_min, y_max) == (4067500, 4397500, 1282500, 1577500)
+        assert (x_min, x_max, y_min, y_max) == (4347500.0, 4372500.0, 1282500.0, 1307500.0)
 
         fin = 'tests/data/cutmaps/ldd_eu.nc'
-        fout = 'tests/data/area_cut.nc'
+        fout = 'tests/data/cutmaps/ldd_eu_cut.nc'
         self.cleanups.append((os.unlink, (fout,)))
         cutmap(fin, fout, x_min, x_max, y_min, y_max)
         with Dataset(fout) as nc:
