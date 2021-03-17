@@ -23,11 +23,15 @@ from netCDF4 import Dataset
 from lisfloodutilities.readers import PCRasterMap
 from lisfloodutilities.pcr2nc import convert
 
+from . import TestWithCleaner
 
-class TestPcr2nc:
+
+class TestPcr2nc(TestWithCleaner):
     def test_convert(self):
         dataset = 'tests/data/folder_d'
         out = 'tests/data/pcr2nc_test.nc'
+        self.cleanups.append((os.unlink, (out,)))
+
         metadata = {
             'variable': {
                 'shortname': 'x',
@@ -68,4 +72,3 @@ class TestPcr2nc:
         map_1.close()
         map_2.close()
         map_3.close()
-        os.unlink(out)

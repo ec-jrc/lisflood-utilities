@@ -23,12 +23,16 @@ from lisfloodutilities.readers import NetCDFMap, PCRasterMap
 from lisfloodutilities.nc2pcr import convert
 from lisfloodutilities.compare.pcr import PCRComparator
 
+from . import TestWithCleaner
 
-class TestNc2Pcr:
+
+class TestNc2Pcr(TestWithCleaner):
+
     def test_convert(self):
         dataset = 'tests/data/cutmaps/ldd_eu.nc'
         out = 'tests/data/nc2pcr_test.map'
-        clonemap = 'tests/data/cutmaps/area_eu.map'
+        clonemap = 'tests/data/masks/europe.map'
+        self.cleanups.append((os.unlink, (out,)))
 
         convert(dataset, out, clonemap=clonemap, is_ldd=True)
         assert os.path.exists(out)
@@ -43,13 +47,14 @@ class TestNc2Pcr:
         values_pcr = np.ma.masked_where(mask, mappcr_0.data, copy=False)
         assert values.shape == values_pcr.shape
         assert np.ma.allclose(values, values_pcr, masked_equal=True)
-        os.unlink(out)
+
         mappcr_0.close()
         map_0.close()
 
     def test_convert_noclonemap(self):
         dataset = 'tests/data/cutmaps/ldd_eu.nc'
         out = 'tests/data/nc2pcr_test.map'
+        self.cleanups.append((os.unlink, (out,)))
 
         convert(dataset, out, is_ldd=True)
         assert os.path.exists(out)
@@ -64,7 +69,7 @@ class TestNc2Pcr:
         values_pcr = np.ma.masked_where(mask, mappcr_0.data, copy=False)
         assert values.shape == values_pcr.shape
         assert np.ma.allclose(values, values_pcr, masked_equal=True)
-        os.unlink(out)
+
         mappcr_0.close()
         map_0.close()
 
@@ -73,15 +78,15 @@ class TestNc2Pcr:
         dataset = 'tests/data/cutmaps/ldd_eu.nc'
         out1 = 'tests/data/nc2pcr_test1.map'  # produced without clonemap
         out2 = 'tests/data/nc2pcr_test2.map'  # produced with clonemap
-        clonemap = 'tests/data/cutmaps/area_eu.map'
+        clonemap = 'tests/data/masks/europe.map'
 
         convert(dataset, out1, is_ldd=True)
         convert(dataset, out2, clonemap=clonemap, is_ldd=True)
 
         assert os.path.exists(out1)
         assert os.path.exists(out2)
-        # os.unlink(out1)
-        # os.unlink(out2)
+        self.cleanups.append((os.unlink, (out1,)))
+        self.cleanups.append((os.unlink, (out2,)))
 
         compare = PCRComparator(array_equal=True, for_testing=True)
         compare.compare_files(out1, out2)
