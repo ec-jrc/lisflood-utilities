@@ -252,7 +252,7 @@ class NetCDFWriter:
 
     def define_wgs84_post(self, values_var):
         values_var.coordinates = 'lon lat'
-        values_var.esri_pe_string = self.WKT_STRINGS.get(self.metadata.get('geographical', {}).get('datum', 'WGS84').upper(), '')
+        values_var.esri_pe_string = self.WKT_STRINGS.get(self.metadata.get('geographical', {}).get('datum').upper() or 'WGS84')
 
     def define_etrs89(self):
         """
@@ -271,7 +271,7 @@ class NetCDFWriter:
         x[:] = self.metadata['lons']
         y[:] = self.metadata['lats']
 
-        proj = self.nf.createVariable('laea', 'i4')
+        proj = self.nf.createVariable('lambert_azimuthal_equal_area', 'i4')
         proj.grid_mapping_name = 'lambert_azimuthal_equal_area'
         proj.false_easting = 4321000.0
         proj.false_northing = 3210000.0
@@ -285,7 +285,7 @@ class NetCDFWriter:
     def define_etrs89_post(self, values_var):
         values_var.coordinates = 'x y'
         values_var.grid_mapping = 'lambert_azimuthal_equal_area'
-        values_var.esri_pe_string = self.WKT_STRINGS.get(self.metadata.get('geographical', {}).get('datum', 'ETRS89').upper(), '')
+        values_var.esri_pe_string = self.WKT_STRINGS.get(self.metadata.get('geographical', {}).get('datum').upper() or 'ETRS89')
 
     def define_gisco(self):
         """
@@ -318,7 +318,7 @@ class NetCDFWriter:
     def define_gisco_post(self, values_var):
         values_var.coordinates = 'x y'
         values_var.grid_mapping = 'lambert_azimuthal_equal_area'
-        values_var.esri_pe_string = self.WKT_STRINGS.get(self.metadata['geographical'].get('datum', 'WGS84').upper(), '')
+        values_var.esri_pe_string = self.WKT_STRINGS.get(self.metadata.get('geographical', {}).get('datum').upper() or 'WGS84')
 
     def _guess_datum(self, lats, lons):
         # very naive version that works for etrs89 vs wgs84
