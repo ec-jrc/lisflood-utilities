@@ -28,7 +28,7 @@ def main(cliargs):
     args = parser.parse_args(cliargs)
     calib_catchments = args.calib_catchments 
     waterregions = args.waterregions 
-    output_message=verify_waterregions(calib_catchments, waterregions)
+    output_message = verify_waterregions(calib_catchments, waterregions)
     logger.info('\n Verify the consistency between %s and %s ', calib_catchments, waterregions)
     logger.info(output_message)
 

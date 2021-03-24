@@ -49,9 +49,9 @@ def main(cliargs):
     output_message = []
   
     for a in wr_id:
-           extract_wr=np.where(wr == a,cal_catch,-9999)
-           num_cal_catch=np.unique(extract_wr)
-           num_cal_catch_check=np.extract(num_cal_catch != -9999,num_cal_catch)
+           extract_wr = np.where(wr == a,cal_catch,-9999)
+           num_cal_catch = np.unique(extract_wr)
+           num_cal_catch_check = np.extract(num_cal_catch != -9999,num_cal_catch)
            if len(num_cal_catch_check) > 1:
              a = int(a)
              id_error_wr.append(a)
@@ -95,7 +95,6 @@ def define_waterregions(calib_points=None, countries_id=None, ldd=None, waterreg
     #1. The calibration points are converted into a map
     command_string = 'col2map -N ' + calib_points + ' points.map --large --clone ' + countries_id
     os.system(command_string)
-    time.sleep(20)
 
     #2. Cacthment map1 derived from calibration points
     ldd1 = pcr.readmap(ldd)
