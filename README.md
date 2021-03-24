@@ -357,7 +357,7 @@ Hosking, J.R.M., 1990. L-Moments: Analysis and Estimation of Distributions Using
 The modelling of water abstraction for domestic, industrial, energetic, agricoltural and livestock use   can require a map of the water regions. The concept of water regions and information for their definition are explained [here](htpst://ec-jrc.github.io/lisflood-model/2_18_stdLISFLOOD_water-use/). 
 Since groundwater and surface water resources demand and abstraction are spatially distributed inside each water region, each model set-up must include all the pixels of the water region. This requirement is crucial for the succes of the calibration of the model. This utility allows the user to meet this requirement.
 More specifically, this utility can be used to:
-1. create a water region map which is consistent with a set of calibration points: this purpose is achieved by using the script define_waterregions
+1. create a water region map which is consistent with a set of calibration points: this purpose is achieved by using the script define_waterregions.
 2. verify the consistency between an existing water region map and an exixting map of calibration catchments: this purpose is achieved by using the script verify_waterregions
 It is here reminded that when calibrating a catchment which is a subset of a larger computational domain, and the option wateruse is switched on, then the option groudwatersmooth must be switched off (the explanation of this requirement is provided [here](htpst://ec-jrc.github.io/lisflood-model/2_18_stdLISFLOOD_water-use/). 
 
@@ -374,7 +374,7 @@ This utility allows to create a  water region map which is consistent with a set
 - Map of the initial definition of the water regions in pcraster format. *PCRASTER_VALUESCALE=VS_NOMINAL*. This map is used to attribute a water region to areas not included in the calibration catchments. In order to create this map, the user can follow the guidelines provided [here](https://ec-jrc.github.io/lisflood-model/2_18_stdLISFLOOD_water-use/).
 
 ##### Input data provided by this utility:
-This utility provides three maps of [Countries IDs](/lisflood-utilities/tests/data): 1arcmin map of Europe (EFAS computational domain), 0.1 degree and 3arcmin maps of the Globe . ACKNOWLEDGEMENTS: both the rasters were retrieved by upsampling the original of the World Borders Datase provided by  http://thematicmapping.org/ (the dataset is available under a Creative Commons Attribution-Share Alike License).
+This utility provides three maps of [Countries IDs](https://github.com/ec-jrc/lisflood-utilities/tree/master/tests/data): 1arcmin map of Europe (EFAS computational domain), 0.1 degree and 3arcmin maps of the Globe . ACKNOWLEDGEMENTS: both the rasters were retrieved by upsampling the original of the World Borders Datase provided by  http://thematicmapping.org/ (the dataset is available under a Creative Commons Attribution-Share Alike License).
 
 #### Output
 Map of the water regions which is consistent with the calibration catchments. In other words, each water region is entirely included in one calibration catchment.  The test to check the consistency between the newly created water regions map and the calibration catchments is implemented internally by the code and the outcome of the test is printed on the screen. 
@@ -382,6 +382,7 @@ In the output map, each water region is identified by a unique ID.
 
 #### Usage
 The following command line allows to produce a water region map which is consistent with the calibration points:
+
 *python define_waterregions.py -p calib_points_test.txt -l ldd_test.map -C countries_id_test.map -w waterregions_initial_test.map -o my_new_waterregions.map* 
 
 The code internally verifies that the each one of the newly created water regions is entirely included  within one calibration catchments. If this condition is satisfied, the follwing message in printed out: *“OK! Each water region is completely included inside one calibration catchment”*. If the condition is not satisfied, the error message is *“ERROR: The  water regions WR are included in more than one calibration catchment”*. Moreover, the code provides the list of the water regions WR and the calibration catchments that do not meet the requirment. This error highlight a problem in the input data: the user is recommended to check (and correct) the list of calibration points and the input maps.
@@ -428,6 +429,7 @@ In case of error message, the user can implement the function **define_waterregi
 
 #### Usage
 The following command line allows to produce a water region map which is consistent with the calibration points:
+
 *python verify_waterregions.py -cc calib_catchments_test.nc -wr waterregions_test.nc*
 
 The input and output arguments are listed below. All the inputs are required. 
@@ -448,6 +450,7 @@ optional arguments:
 
 NOTE:
 The utility **pcr2nc** can be used to convert a map in pcraster format into netcdf format.
+
 
 
 
