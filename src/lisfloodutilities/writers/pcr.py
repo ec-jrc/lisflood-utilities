@@ -55,8 +55,8 @@ class PCRasterWriter:
             rs = None
             self.mv = no_data_value if not mv else float(mv)
         else:
-            self.cols = self._coordinates['x'].shape[0]
-            self.rows = self._coordinates['y'].shape[0]
+            self.cols = self._coordinates['x'].size
+            self.rows = self._coordinates['y'].size
             self.src_geo_transform = self._get_geo_transform_from_coords()
             self.mv = np.nan if not mv else float(mv)
             self.flipped_x = self._coordinates['x'][0] > self._coordinates['x'][1]
@@ -138,9 +138,9 @@ class PCRasterWriter:
         # 4 - 0.0
         # 5 - n-s pixel resolution (negative value)
         #
-        top_left_x = np.round(self._coordinates['x'][0], 2)
-        w_e_resolution = self._coordinates['x'][1] - self._coordinates['x'][0]
-
-        top_left_y = np.round(self._coordinates['y'][0], 2)
-        n_s_resolution = - (self._coordinates['y'][1] - self._coordinates['y'][0])
+        w_e_resolution = np.round(self._coordinates['x'][1] - self._coordinates['x'][0], 3)
+        n_s_resolution = np.round(self._coordinates['y'][1] - self._coordinates['y'][0], 3)
+        # considering coordinates at center of the cell, we must subtract half step for top left points
+        top_left_x = np.round(self._coordinates['x'][0], 2) - w_e_resolution / 2
+        top_left_y = np.round(self._coordinates['y'][0], 2) - n_s_resolution / 2
         return top_left_x, w_e_resolution, 0.0, top_left_y, 0.0, n_s_resolution

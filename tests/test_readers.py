@@ -79,7 +79,7 @@ class TestPCRasterReader:
 
 class TestNetCDFMap:
     def test_input_singlefile(self):
-        test_file = NetCDFMap('tests/data/area.nc')
+        test_file = NetCDFMap('tests/data/masks/area.nc')
         variables = {n: v for n, v in test_file.data}
         assert len(variables) == 1
         assert variables['areaOrigin'].shape == (5, 12)

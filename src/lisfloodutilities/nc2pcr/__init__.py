@@ -19,9 +19,10 @@ from lisfloodutilities.readers import NetCDFMap
 from lisfloodutilities.writers import PCRasterWriter
 
 
-def convert(inf, clonemap, outf, is_ldd=False):
+def convert(inf, outf, is_ldd=False, clonemap=None):
     """
-
+    inf: input netCDF file
+    outf: output PCRaster file
     """
 
     reader = NetCDFMap(inf)

@@ -29,14 +29,14 @@ from lisfloodutilities.compare.nc import NetCDFComparator
 class TestComparators:
 
     def test_netcdfcomp_files(self):
-        comp = NetCDFComparator('tests/data/area.nc', for_testing=True)
+        comp = NetCDFComparator('tests/data/masks/area.nc', for_testing=True)
         comp.compare_files('tests/data/folder_a/ta.nc', 'tests/data/folder_b/ta.nc')
         with pytest.raises(AssertionError) as excinfo:
             comp.compare_files('tests/data/folder_a/ta.nc', 'tests/data/folder_a/tp.nc')
         assert 'have different variables names' in str(excinfo.value)
 
     def test_netcdfcomp_dirs(self):
-        comp = NetCDFComparator('tests/data/area.nc', for_testing=True)
+        comp = NetCDFComparator('tests/data/masks/area.nc', for_testing=True)
         comp.compare_dirs('tests/data/folder_a/', 'tests/data/folder_b/', skip_missing=True)
         with pytest.raises(AssertionError) as excinfo:
             comp.compare_dirs('tests/data/folder_a/', 'tests/data/folder_b/', skip_missing=False)
@@ -57,7 +57,7 @@ class TestComparators:
         assert comp.diff_folder.joinpath('a_diff.nc').exists(), 'Diff file diff.nc does not exist'
 
     def test_netcdfcomp_submask(self):
-        comp = NetCDFComparator('tests/data/submask/subcatchment_mask.map')
+        comp = NetCDFComparator(mask='tests/data/submask/subcatchment_mask.map')
         comp.compare_files('tests/data/submask/dis_subdomain.nc', 'tests/data/submask/dis.nc')
 
     def test_netcdfcomp_tol(self):

@@ -19,7 +19,7 @@ from lisfloodutilities.readers import PCRasterReader
 from lisfloodutilities.writers.nc import NetCDFWriter
 
 
-def convert(dataset=None, output=None, metadata=None):
+def convert(dataset, output, metadata):
 
     reader = PCRasterReader(dataset)
     pcr_metadata = reader.get_metadata_from_set()

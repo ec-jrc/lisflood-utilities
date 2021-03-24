@@ -476,7 +476,7 @@ clonemap = 'tests/data/cutmaps/area_eu.map'
 stations = 'tests/data/cutmaps/stations.txt'
 
 ldd_pcr = convert(ldd, clonemap, 'tests/data/cutmaps/ldd_eu_test.map', is_ldd=True)[0]
-mask = mask_from_ldd(ldd_pcr, stations)
+mask, outlets_nc, maskmap_nc = mask_from_ldd(ldd_pcr, stations)
 mask_map = PCRasterMap(mask)
 print(mask_map.data)
 ```

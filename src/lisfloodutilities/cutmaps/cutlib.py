@@ -88,7 +88,7 @@ def cutmap(f, fileout, x_min, x_max, y_min, y_max):
 
 def open_dataset(f):
     try:
-        nc = xr.open_dataset(f, chunks={'time': 250}, decode_cf=False)
+        nc = xr.open_dataset(f, chunks={'time': 'auto'}, decode_cf=False)
         num_dims = 3
     except Exception:  # file has no time component
         num_dims = 2
@@ -109,6 +109,7 @@ def cut_from_indices(nc, var, x_min, x_max, y_min, y_max):
 
 def cut_from_coords(nc, var, x_min, x_max, y_min, y_max):
     # we have coordinates bounds and not indices yet
+
     if 'lat' in nc.variables:
         lats = nc.variables['lat'][:]
         lons = nc.variables['lon'][:]
@@ -116,8 +117,12 @@ def cut_from_coords(nc, var, x_min, x_max, y_min, y_max):
         lats = nc.variables['y'][:]
         lons = nc.variables['x'][:]
     # find indices
-    ys = np.where((lats >= y_min) & (lats <= y_max))[0]
-    xs = np.where((lons >= x_min) & (lons <= x_max))[0]
+    # np float values comparisons are very sensitive to machine representation
+    # so we add some "space" around bounding box when coordinates matches exactly
+    buffer_y = abs(lats[0] - lats[1]) / 1000
+    buffer_x = abs(lons[0] - lons[1]) / 1000
+    ys = np.where((lats > y_min - buffer_y) & (lats < y_max + buffer_y))[0]
+    xs = np.where((lons > x_min - buffer_x) & (lons < x_max + buffer_x))[0]
     if 'time' in nc.variables:
         sliced_var = nc[var][:, ys, xs]
     else:
@@ -188,57 +193,65 @@ def mask_from_ldd(ldd_map, stations):
         raise e
 
     path = os.path.dirname(stations)
+    masknc_path = os.path.join(path, 'my_mask.nc')
+    regions_map = os.path.join(path, 'area_mask_regions.map')
+    smallmask_map = os.path.join(path, 'mask.map')
+    tempmask_map = os.path.join(path, 'tempmask.map')
+    outlets_nc = os.path.join(path, 'outlets.nc')
+    outlets_map = os.path.join(path, 'outlets.map')
+    # clean existing files from previuos executions
+    for out_file in (masknc_path, regions_map, smallmask_map, tempmask_map, outlets_map, outlets_nc):
+        if os.path.exists(out_file):
+            os.unlink(out_file)
 
-    station_map = os.path.join(path, 'outlets.map')
-    pcraster_command(cmd='col2map F0 F1 -N --clone F2 --large', files=dict(F0=stations, F1=station_map, F2=ldd_map))
-    pcr2nc_metadata = {'variable': {'description': 'outlets points', 'longname': 'outlets', 'units': '',
+    pcraster_command(cmd='col2map F0 F1 -N --clone F2 --large', files=dict(F0=stations, F1=outlets_map, F2=ldd_map))
+
+    # Default format for output netcdf file is NETCDF3_CLASSIC
+    pcr2nc_metadata = {'variable': {'description': 'stations id', 'longname': 'platform_id', 'units': '',
                                     'shortname': 'outlets', 'mv': '0'},
                        'source': 'JRC E.1 Space, Security, Migration',
                        'reference': 'JRC E.1 Space, Security, Migration',
                        'geographical': {'datum': ''}}
-    outlets_nc = os.path.join(path, 'outlets.nc')
-    convert(station_map, outlets_nc, pcr2nc_metadata)
+
+    convert(outlets_map, outlets_nc, pcr2nc_metadata)
 
     tmp_txt = os.path.join(path, 'tmp.txt')
     tmp_map = os.path.join(path, 'tmp.map')
     with open(stations) as f:
-        for line in f.readlines():
-            x, y, idx = line.split()
-            with open(tmp_txt, "w") as f1:
-                f1.write("%s %s %s\n" % (x, y, 1))
-            catchment_map = os.path.join(path, 'catchmask%05d.map' % int(idx))
-            pcraster_command(cmd='col2map F0 F1 -N --clone F2 --large', files=dict(F0=tmp_txt, F1=tmp_map, F2=ldd_map))
-            pcraster_command(cmd="pcrcalc 'F0 = boolean(catchment(F1, F2))'", files=dict(F0=catchment_map, F1=ldd_map, F2=tmp_map))
-            pcraster_command(cmd="pcrcalc 'F0 = if((scalar(F0) gt (scalar(F0) * 0)) then F0)'", files=dict(F0=catchment_map))
+        stations_data = [line.split() for line in f.readlines()]
+    for x, y, idx in stations_data:
+        with open(tmp_txt, "w") as f1:
+            f1.write("%s %s %s\n" % (x, y, 1))
+        catchment_map = os.path.join(path, 'catchmask%05d.map' % int(idx))
+        pcraster_command(cmd='col2map F0 F1 -N --clone F2 --large', files=dict(F0=tmp_txt, F1=tmp_map, F2=ldd_map))
+        pcraster_command(cmd="pcrcalc 'F0 = boolean(catchment(F1, F2))'",
+                         files=dict(F0=catchment_map, F1=ldd_map, F2=tmp_map))
+        pcraster_command(cmd="pcrcalc 'F0 = if((scalar(F0) gt (scalar(F0) * 0)) then F0)'",
+                         files=dict(F0=catchment_map))
     os.unlink(tmp_txt)
     os.unlink(tmp_map)
 
-    regions_map = os.path.join(path, 'area_mask_regions.map')
-    smallmask_map = os.path.join(path, 'mask.map')
-    tempmask_map = os.path.join(path, 'tempmask.map')
     # init area map
     pcraster_command(cmd="pcrcalc 'F0 = scalar(F1) * 0 - 1'", files=dict(F0=regions_map, F1=ldd_map))
-    with open(stations) as f:
-        for line in f.readlines():
-            x, y, idx = line.split()
-            catchment_map = os.path.join(path, "catchmask%05d.map" % int(idx))
+    for x, y, idx in stations_data:
+        catchment_map = os.path.join(path, "catchmask%05d.map" % int(idx))
 
-            pcraster_command(cmd="pcrcalc 'F0 = F0 * (1-scalar(cover(F1,0)))'",
-                             files=dict(F0=regions_map, F1=catchment_map))
-            pcraster_command(cmd="pcrcalc 'F0 = F0 + scalar(cover(F1, 0)) * %d'" % int(idx),
-                             files=dict(F0=regions_map, F1=catchment_map))
-            os.unlink(catchment_map)
+        pcraster_command(cmd="pcrcalc 'F0 = F0 * (1-scalar(cover(F1,0)))'",
+                         files=dict(F0=regions_map, F1=catchment_map))
+        pcraster_command(cmd="pcrcalc 'F0 = F0 + scalar(cover(F1, 0)) * %d'" % int(idx),
+                         files=dict(F0=regions_map, F1=catchment_map))
+        os.unlink(catchment_map)
     pcraster_command(cmd="pcrcalc 'F0 = boolean(if(scalar(F1) != -1, scalar(1)))'",
                      files=dict(F0=tempmask_map, F1=regions_map))
     pcraster_command(cmd='resample -c 0 F0 F1', files=dict(F0=tempmask_map, F1=smallmask_map))
     os.unlink(tempmask_map)
     os.unlink(regions_map)
-    # create mask map in netCDF
-    pcr2nc_metadata = {'variable': {'description': 'Mask Area', 'longname': 'mask', 'units': '',
-                                    'shortname': 'mask', 'mv': '0'},
+
+    # convert pcraster mask map into netCDF format (default format for pcr2nc is NETCDF3_CLASSIC)
+    pcr2nc_metadata = {'variable': {'description': 'Mask Area', 'longname': 'area', 'units': '',
+                                    'shortname': 'area', 'mv': '0'},
                        'source': 'JRC E.1 Space, Security, Migration',
                        'reference': 'JRC E.1 Space, Security, Migration',
                        'geographical': {'datum': ''}}
-    maskmap_nc = os.path.join(path, 'my_mask.nc')
-    convert(smallmask_map, maskmap_nc, pcr2nc_metadata)
-    return smallmask_map, outlets_nc
+    convert(smallmask_map, masknc_path, pcr2nc_metadata)
+    return smallmask_map, outlets_nc, masknc_path

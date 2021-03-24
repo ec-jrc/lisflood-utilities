@@ -73,13 +73,19 @@ class NetCDFComparator(Comparator):
                 self.maskarea = np.logical_not(mask.variables[maskvar][:, :])
                 self.masklons = mask.variables['x'][:] if 'x' in mask.variables else mask.variables['lon'][:]
                 self.masklats = mask.variables['y'][:] if 'y' in mask.variables else mask.variables['lat'][:]
+                self.y_min, self.y_max = float(np.min(self.masklats)), float(np.max(self.masklats))
+                self.x_min, self.x_max = float(np.min(self.masklons)), float(np.max(self.masklons))
             elif mask.endswith('.map'):
                 maskmap = PCRasterMap(mask)
                 self.maskarea = np.logical_not(maskmap.data)
                 self.masklats = maskmap.lats
                 self.masklons = maskmap.lons
-            self.y_min, self.y_max = float(np.min(self.masklats)), float(np.max(self.masklats))
-            self.x_min, self.x_max = float(np.min(self.masklons)), float(np.max(self.masklons))
+                self.y_min = maskmap.y_min
+                self.y_max = maskmap.y_max
+                self.x_min = maskmap.x_min
+                self.x_max = maskmap.x_max
+                # self.y_min, self.y_max = float(np.min(self.masklats)), float(np.max(self.masklats))
+                # self.x_min, self.x_max = float(np.min(self.masklons)), float(np.max(self.masklons))
 
         # tolerance thresholds
         self.atol = atol
@@ -221,12 +227,16 @@ class NetCDFComparator(Comparator):
     def cut_variables(self, lats_a, lats_b, lons_a, lons_b, vara_step, varb_step):
         # find indices
         if lats_a is not None:
-            yas = np.where((lats_a >= self.y_min) & (lats_a <= self.y_max))[0][:, np.newaxis]
-            xas = np.where((lons_a >= self.x_min) & (lons_a <= self.x_max))[0][np.newaxis, :]
+            buffer_y = abs(lats_a[0] - lats_a[1]) / 1000
+            buffer_x = abs(lons_a[0] - lons_a[1]) / 1000
+            yas = np.where((lats_a > self.y_min - buffer_y) & (lats_a < self.y_max + buffer_y))[0][:, np.newaxis]
+            xas = np.where((lons_a > self.x_min - buffer_x) & (lons_a < self.x_max + buffer_x))[0][np.newaxis, :]
             vara_step = vara_step[yas, xas]
         if lats_b is not None:
-            ybs = np.where((lats_b >= self.y_min) & (lats_b <= self.y_max))[0][:, np.newaxis]
-            xbs = np.where((lons_b >= self.x_min) & (lons_b <= self.x_max))[0][np.newaxis, :]
+            buffer_y = abs(lats_b[0] - lats_b[1]) / 1000
+            buffer_x = abs(lons_b[0] - lons_b[1]) / 1000
+            ybs = np.where((lats_b > self.y_min - buffer_y) & (lats_b < self.y_max + buffer_y))[0][:, np.newaxis]
+            xbs = np.where((lons_b > self.x_min - buffer_x) & (lons_b < self.x_max + buffer_x))[0][np.newaxis, :]
             varb_step = varb_step[ybs, xbs]
         vara_step = np.ma.masked_array(vara_step, self.maskarea).astype('float64')
         varb_step = np.ma.masked_array(varb_step, self.maskarea).astype('float64')

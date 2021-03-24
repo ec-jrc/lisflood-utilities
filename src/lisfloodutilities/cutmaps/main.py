@@ -91,11 +91,12 @@ def main(cliargs):
         if ldd.endswith('.nc'):
             # convert ldd.nc to a pcraster map as we are going to use pcraster commands
             clonemap = args.clonemap
-            ldd = convert(ldd, clonemap, '.map')
-        mask, outlets_nc = mask_from_ldd(ldd, stations)
+            ldd = convert(ldd, '.map', clonemap=clonemap)
+        mask, outlets_nc, mask_nc = mask_from_ldd(ldd, stations)
         # copy outlets.nc (produced from stations txt file) and the new mask to output folder
         shutil.copy(outlets_nc, os.path.join(pathout, 'my_outlets.nc'))
         shutil.copy(mask, os.path.join(pathout, 'my_mask.map'))
+        shutil.copy(mask_nc, os.path.join(pathout, 'my_mask.nc'))
 
     logger.info('\n\nCutting using: %s\n Files to cut from: %s\n Output: %s\n Overwrite existing: %s\n\n',
                 mask or cuts,
