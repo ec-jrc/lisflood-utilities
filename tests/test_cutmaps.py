@@ -171,32 +171,32 @@ class TestCutlib(TestWithCleaner):
             res_y_max = np.max(lats)
         assert (x_min, x_max, y_min, y_max) == (res_x_min, res_x_max, res_y_min, res_y_max)
 
-    # def test_get_cuts_ldd_onestation(self):
-    #     ldd = 'tests/data/cutmaps/ldd_eu.nc'
-    #     stations = 'tests/data/cutmaps/stations2.txt'
-    #
-    #     ldd_pcr_path = 'tests/data/cutmaps/ldd_eu_test.map'
-    #     nc2pcr_convert(ldd, ldd_pcr_path, is_ldd=True)
-    #
-    #     self.cleanups.append((os.unlink, (ldd_pcr_path,)))
-    #
-    #     mask, outlets_points, mask_nc = mask_from_ldd(ldd_pcr_path, stations)
-    #     self.cleanups.append((os.unlink, (mask,)))  # produced by mask_from_ldd
-    #     self.cleanups.append((os.unlink, (outlets_points,)))  # produced by mask_from_ldd
-    #     self.cleanups.append((os.unlink, (mask_nc,)))  # produced by mask_from_ldd
-    #     x_min, x_max, y_min, y_max = get_cuts(mask=mask)
-    #     assert (x_min, x_max, y_min, y_max) == (4347500.0, 4372500.0, 1282500.0, 1307500.0)
-    #
-    #     fout = 'tests/data/cutmaps/ldd_eu_cut.nc'
-    #     self.cleanups.append((os.unlink, (fout,)))
-    #     cutmap(ldd, fout, x_min, x_max, y_min, y_max)
-    #
-    #     with Dataset(fout) as nc:
-    #         lons = nc.variables['x'][:]
-    #         lats = nc.variables['y'][:]
-    #         res_x_min = np.min(lons)
-    #         res_y_min = np.min(lats)
-    #         res_x_max = np.max(lons)
-    #         res_y_max = np.max(lats)
-    #
-    #     assert (x_min, x_max, y_min, y_max) == (res_x_min, res_x_max, res_y_min, res_y_max)
+    def test_get_cuts_ldd_onestation(self):
+        ldd = 'tests/data/cutmaps/ldd_eu.nc'
+        stations = 'tests/data/cutmaps/stations2.txt'
+
+        ldd_pcr_path = 'tests/data/cutmaps/ldd_eu_test.map'
+        nc2pcr_convert(ldd, ldd_pcr_path, is_ldd=True)
+
+        self.cleanups.append((os.unlink, (ldd_pcr_path,)))
+
+        mask, outlets_points, mask_nc = mask_from_ldd(ldd_pcr_path, stations)
+        self.cleanups.append((os.unlink, (mask,)))  # produced by mask_from_ldd
+        self.cleanups.append((os.unlink, (outlets_points,)))  # produced by mask_from_ldd
+        self.cleanups.append((os.unlink, (mask_nc,)))  # produced by mask_from_ldd
+        x_min, x_max, y_min, y_max = get_cuts(mask=mask)
+        assert (x_min, x_max, y_min, y_max) == (4347500.0, 4372500.0, 1282500.0, 1307500.0)
+
+        fout = 'tests/data/cutmaps/ldd_eu_cut.nc'
+        self.cleanups.append((os.unlink, (fout,)))
+        cutmap(ldd, fout, x_min, x_max, y_min, y_max)
+
+        with Dataset(fout) as nc:
+            lons = nc.variables['x'][:]
+            lats = nc.variables['y'][:]
+            res_x_min = np.min(lons)
+            res_y_min = np.min(lats)
+            res_x_max = np.max(lons)
+            res_y_max = np.max(lats)
+
+        assert (x_min, x_max, y_min, y_max) == (res_x_min, res_x_max, res_y_min, res_y_max)

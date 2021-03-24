@@ -27,17 +27,20 @@ from . import TestWithCleaner
 
 
 class TestPcr2nc(TestWithCleaner):
+
     def test_convert(self):
         dataset = 'tests/data/folder_d'
         out = 'tests/data/pcr2nc_test.nc'
         self.cleanups.append((os.unlink, (out,)))
 
         metadata = {
+            'format': 'NETCDF4',
             'variable': {
-                'shortname': 'x',
+                'shortname': 'map',
                 'units': 'm',
                 'least_significant_digit': 2,
-                'compression': 9
+                'compression': 9,
+
             },
             'geographical': {
                 'datum': 'WGS84'
@@ -56,14 +59,14 @@ class TestPcr2nc(TestWithCleaner):
         convert(dataset, out, metadata)
         with Dataset(out) as nc:
             time_arr = nc.variables['time'][:]
-            lat_arr = nc.variables['lat'][:]
-            lon_arr = nc.variables['lon'][:]
+            lat_arr = nc.variables['y'][:]
+            lon_arr = nc.variables['x'][:]
             assert time_arr.size == 4
             assert (lat_arr.size, lon_arr.size) == (35, 35)
-            var_0 = nc.variables['x'][0, :, :]
-            var_1 = nc.variables['x'][1, :, :]
-            var_2 = nc.variables['x'][2, :, :]
-            var_3 = nc.variables['x'][3, :, :]
+            var_0 = nc.variables['map'][0, :, :]
+            var_1 = nc.variables['map'][1, :, :]
+            var_2 = nc.variables['map'][2, :, :]
+            var_3 = nc.variables['map'][3, :, :]
             assert np.allclose(map_0.data, var_0)
             assert np.allclose(map_1.data, var_1)
             assert np.allclose(map_2.data, var_2)

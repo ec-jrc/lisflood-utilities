@@ -65,10 +65,12 @@ class TestNetcdfWriter(TestWithCleaner):
     cols, rows = lats.size, lons.size
 
     def test_simple(self):
+        self.cleanups.append((os.unlink, (self.filename,)))
 
         metadata = {
+            'format': 'NETCDF4',
             'variable': {
-                'shortname': 'x',
+                'shortname': 'out',
                 'units': 'm'
             },
             'geographical': {
@@ -86,14 +88,15 @@ class TestNetcdfWriter(TestWithCleaner):
         w.add_to_stack(a, None)
         w.finalize()
         with Dataset(self.filename) as f:
-            assert np.allclose(f.variables['x'][:, :], a)
-            assert f.variables['x'].units == metadata['variable']['units']
-        self.cleanups.append((os.unlink, (self.filename,)))
+            assert np.allclose(f.variables['out'][:, :], a)
+            assert f.variables['out'].units == metadata['variable']['units']
 
     def test_mapstack(self):
+        self.cleanups.append((os.unlink, (self.filename,)))
         metadata = {
+            'format': 'NETCDF4',
             'variable': {
-                'shortname': 'x',
+                'shortname': 'out',
                 'units': 'm',
                 'least_significant_digit': 2,
                 'compression': 9
@@ -121,7 +124,6 @@ class TestNetcdfWriter(TestWithCleaner):
 
         with Dataset(self.filename) as f:
             for i, values in enumerate(values_to_compare):
-                nc_values = f.variables['x'][i, :, :]
+                nc_values = f.variables['out'][i, :, :]
                 assert nc_values.shape == values.shape
                 assert np.allclose(nc_values, values)
-        self.cleanups.append((os.unlink, (self.filename,)))

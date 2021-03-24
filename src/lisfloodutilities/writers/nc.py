@@ -160,10 +160,10 @@ class NetCDFWriter:
                 # NETCDF3 doesn't support unsigned dtypes
                 dtype = np.dtype(str(dtype).lstrip('u'))
             fill_value = self.mv
-            logger.info('Creating main variable %s: type %s fill value %s (%s)', var_name, dtype, fill_value, type(fill_value))
+            logger.info('Creating %s main variable %s: type %s fill value %s (%s)', self.frmt, var_name, dtype, fill_value, type(fill_value))
             values_nc = self.nf.createVariable(var_name,
                                                dtype, vardimensions,
-                                               fill_value=int(self.mv),
+                                               fill_value=self.mv,
                                                **additional_args)
             getattr(self, post_datum_function)(values_nc)
 
