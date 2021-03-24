@@ -193,16 +193,27 @@ def mask_from_ldd(ldd_map, stations):
         raise e
 
     path = os.path.dirname(stations)
+    masknc_path = os.path.join(path, 'my_mask.nc')
+    regions_map = os.path.join(path, 'area_mask_regions.map')
+    smallmask_map = os.path.join(path, 'mask.map')
+    tempmask_map = os.path.join(path, 'tempmask.map')
+    outlets_nc = os.path.join(path, 'outlets.nc')
+    outlets_map = os.path.join(path, 'outlets.map')
+    # clean existing files from previuos executions
+    for out_file in (masknc_path, regions_map, smallmask_map, tempmask_map, outlets_map, outlets_nc):
+        if os.path.exists(out_file):
+            os.unlink(out_file)
 
-    station_map = os.path.join(path, 'outlets.map')
-    pcraster_command(cmd='col2map F0 F1 -N --clone F2 --large', files=dict(F0=stations, F1=station_map, F2=ldd_map))
-    pcr2nc_metadata = {'variable': {'description': 'outlets points', 'longname': 'outlets', 'units': '',
+    pcraster_command(cmd='col2map F0 F1 -N --clone F2 --large', files=dict(F0=stations, F1=outlets_map, F2=ldd_map))
+
+    # Default format for output netcdf file is NETCDF3_CLASSIC
+    pcr2nc_metadata = {'variable': {'description': 'stations id', 'longname': 'platform_id', 'units': '',
                                     'shortname': 'outlets', 'mv': '0'},
                        'source': 'JRC E.1 Space, Security, Migration',
                        'reference': 'JRC E.1 Space, Security, Migration',
                        'geographical': {'datum': ''}}
-    outlets_nc = os.path.join(path, 'outlets.nc')
-    convert(station_map, outlets_nc, pcr2nc_metadata)
+
+    convert(outlets_map, outlets_nc, pcr2nc_metadata)
 
     tmp_txt = os.path.join(path, 'tmp.txt')
     tmp_map = os.path.join(path, 'tmp.map')
@@ -220,10 +231,6 @@ def mask_from_ldd(ldd_map, stations):
     os.unlink(tmp_txt)
     os.unlink(tmp_map)
 
-    regions_map = os.path.join(path, 'area_mask_regions.map')
-    smallmask_map = os.path.join(path, 'mask.map')
-    tempmask_map = os.path.join(path, 'tempmask.map')
-
     # init area map
     pcraster_command(cmd="pcrcalc 'F0 = scalar(F1) * 0 - 1'", files=dict(F0=regions_map, F1=ldd_map))
     for x, y, idx in stations_data:
@@ -240,12 +247,11 @@ def mask_from_ldd(ldd_map, stations):
     os.unlink(tempmask_map)
     os.unlink(regions_map)
 
-    # convert pcraster mask map into netCDF format
-    pcr2nc_metadata = {'variable': {'description': 'Mask Area', 'longname': 'mask', 'units': '',
-                                    'shortname': 'mask', 'mv': '0'},
+    # convert pcraster mask map into netCDF format (default format for pcr2nc is NETCDF3_CLASSIC)
+    pcr2nc_metadata = {'variable': {'description': 'Mask Area', 'longname': 'area', 'units': '',
+                                    'shortname': 'area', 'mv': '0'},
                        'source': 'JRC E.1 Space, Security, Migration',
                        'reference': 'JRC E.1 Space, Security, Migration',
                        'geographical': {'datum': ''}}
-    maskmap_nc = os.path.join(path, 'my_mask.nc')
-    convert(smallmask_map, maskmap_nc, pcr2nc_metadata)
-    return smallmask_map, outlets_nc, maskmap_nc
+    convert(smallmask_map, masknc_path, pcr2nc_metadata)
+    return smallmask_map, outlets_nc, masknc_path

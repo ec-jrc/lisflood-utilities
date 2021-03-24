@@ -40,7 +40,7 @@ class NetCDFWriter:
     """
 
     WKT_STRINGS = {
-        'ETRS89': 'PROJCS["JRC_LAEA_ETRS-DEF",GEOGCS["GCS_ETRS_1989",DATUM["D_ETRS_1989",SPHEROID["GRS_1980",6378137.0,298.257222101]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Lambert_Azimuthal_Equal_Area"],PARAMETER["False_Easting",4321000.0],PARAMETER["False_Northing",3210000.0],PARAMETER["Central_Meridian",10.0],PARAMETER["Latitude_Of_Origin",52.0],UNIT["Meter",1.0]]',
+        'ETRS89' : 'PROJCS["ETRS89 / LAEA Europe",GEOGCS["ETRS89",DATUM["European_Terrestrial_Reference_System_1989",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6258"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4258"]],PROJECTION["Lambert_Azimuthal_Equal_Area"],PARAMETER["latitude_of_center",52],PARAMETER["longitude_of_center",10],PARAMETER["false_easting",4321000],PARAMETER["false_northing",3210000],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AUTHORITY["EPSG","3035"]]',
         'WGS84': 'GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137,298.257223563]],PRIMEM["Greenwich",0],UNIT["Degree",0.0174532925199433]]',
         'GISCO': 'PROJCS["PCS_Lambert_Azimuthal_Equal_Area",GEOGCS["GCS_User_Defined",DATUM["D_User_Defined",SPHEROID["User_Defined_Spheroid",6378388.0,0.0]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Lambert_Azimuthal_Equal_Area"],PARAMETER["False_Easting",0.0],PARAMETER["False_Northing",0.0],PARAMETER["Central_Meridian",9.0],PARAMETER["Latitude_Of_Origin",48.0],UNIT["Meter",1.0]]',
     }
@@ -104,21 +104,22 @@ class NetCDFWriter:
 
         :return: (time, values) netCDF4 variables in a tuple
         """
-        self.frmt = self.metadata.get('format', 'NETCDF4')
+        self.frmt = self.metadata.get('format', 'NETCDF3_CLASSIC')
         time_nc = None
         if not self.append:
             self.nf = Dataset(self.name, 'w', format=self.frmt)
             self.nf.history = 'Created {}'.format(time.ctime(time.time()))
             self.nf.Conventions = 'CF-1.7'
-            self.nf.Source_Software = 'JRC.E1 lisfloodutilities - pcr2nc'
+            self.nf.Source_Software = 'JRC.E1 lisfloodutilities'
             self.nf.source = self.metadata.get('source', '')
             self.nf.reference = self.metadata.get('reference', '')
 
             # Dimensions
             if self.is_mapstack:
                 self.nf.createDimension('time', None)
-            self.nf.createDimension('lat', self.metadata.get('rows') or self.metadata['lats'].size)
-            self.nf.createDimension('lon', self.metadata.get('cols') or self.metadata['lons'].size)
+            # create spatial dimensions (variable name must be same of dimension)
+            self.nf.createDimension('y', self.metadata.get('rows') or self.metadata['lats'].size)
+            self.nf.createDimension('x', self.metadata.get('cols') or self.metadata['lons'].size)
 
             # define coordinates variables by calling one of the define_* functions
             datum = self.metadata.get('geographical', {}).get('datum', '').lower()
@@ -128,7 +129,7 @@ class NetCDFWriter:
             post_datum_function = '{}_post'.format(datum_function)
             getattr(self, datum_function)()  # call the function
 
-            vardimensions = ('lat', 'lon')
+            vardimensions = ('y', 'x')
             if self.is_mapstack:
                 # time variable
                 time_units = self.metadata['time'].get('units', '')
@@ -143,7 +144,7 @@ class NetCDFWriter:
                         start_date = start_date + datetime.timedelta(days=1)
                         time_nc.units = 'days since {} 00:00'.format(start_date.strftime('%Y-%m-%d'))
                     time_nc.calendar = self.metadata['time'].get('calendar', 'proleptic_gregorian') if 'time' in self.metadata else 'proleptic_gregorian'
-                vardimensions = ('time', 'lat', 'lon')
+                vardimensions = ('time', 'y', 'x')
 
             # data variable
             complevel = self.metadata['variable'].get('compression')
@@ -153,10 +154,17 @@ class NetCDFWriter:
                 additional_args['complevel'] = complevel
                 if np.issubdtype(self.metadata['dtype'], np.floating):
                     additional_args['least_significant_digit'] = self.metadata.get('least_significant_digit')
-
-            values_nc = self.nf.createVariable(self.metadata['variable'].get('shortname', ''),
-                                               self.metadata['dtype'], vardimensions,
-                                               fill_value=self.mv, **additional_args)
+            var_name = self.metadata['variable'].get('shortname', 'mainvar')
+            dtype = self.metadata['dtype']
+            if 'NETCDF3' in self.frmt and str(dtype).startswith('u'):
+                # NETCDF3 doesn't support unsigned dtypes
+                dtype = np.dtype(str(dtype).lstrip('u'))
+            fill_value = self.mv
+            logger.info('Creating main variable %s: type %s fill value %s (%s)', var_name, dtype, fill_value, type(fill_value))
+            values_nc = self.nf.createVariable(var_name,
+                                               dtype, vardimensions,
+                                               fill_value=int(self.mv),
+                                               **additional_args)
             getattr(self, post_datum_function)(values_nc)
 
             values_nc.standard_name = self.metadata['variable'].get('shortname', '')
@@ -234,12 +242,12 @@ class NetCDFWriter:
         """
         # coordinates variables
         logger.info('Defining WGS84 coordinates variables')
-        longitude = self.nf.createVariable('lon', 'f8', ('lon',))
+        longitude = self.nf.createVariable('x', 'f8', ('x',))
         longitude.standard_name = 'longitude'
         longitude.long_name = 'longitude coordinate'
         longitude.units = 'degrees_east'
 
-        latitude = self.nf.createVariable('lat', 'f8', ('lat',))
+        latitude = self.nf.createVariable('y', 'f8', ('y',))
         latitude.standard_name = 'latitude'
         latitude.long_name = 'latitude coordinate'
         latitude.units = 'degrees_north'
@@ -251,74 +259,82 @@ class NetCDFWriter:
             latitude[:] = wgs84_lats
 
     def define_wgs84_post(self, values_var):
-        values_var.coordinates = 'lon lat'
-        values_var.esri_pe_string = self.WKT_STRINGS.get(self.metadata.get('geographical', {}).get('datum').upper() or 'WGS84')
+        values_var.coordinates = 'x y'
+        values_var.esri_pe_string = self.WKT_STRINGS['WGS84']
 
     def define_etrs89(self):
         """
         Define a ETRS89 reference system
         """
         logger.info('Defining ETRS89 coordinates variables')
-        x = self.nf.createVariable('x', 'f8', ('lon',))
-        y = self.nf.createVariable('y', 'f8', ('lat',))
+        # create coordinates variables (having the same name of the associated dimension)
+        x = self.nf.createVariable('x', 'f8', ('x',))
+        y = self.nf.createVariable('y', 'f8', ('y',))
         x.standard_name = 'projection_x_coordinate'
         x.long_name = 'x coordinate of projection'
-        x.units = 'Meter'
+        x.units = 'm'
 
         y.standard_name = 'projection_y_coordinate'
         y.long_name = 'y coordinate of projection'
-        y.units = 'Meter'
+        y.units = 'm'
         x[:] = self.metadata['lons']
         y[:] = self.metadata['lats']
 
-        proj = self.nf.createVariable('lambert_azimuthal_equal_area', 'i4')
-        proj.grid_mapping_name = 'lambert_azimuthal_equal_area'
-        proj.false_easting = 4321000.0
-        proj.false_northing = 3210000.0
-        proj.longitude_of_projection_origin = 10.0
-        proj.latitude_of_projection_origin = 52.0
-        proj.semi_major_axis = 6378137.0
-        proj.inverse_flattening = 298.257223563
-        proj.proj4_params = "+proj=laea +lat_0=52 +lon_0=10 +x_0=4321000 +y_0=3210000 +ellps=GRS80 +units=m +no_defs"
-        proj.EPSG_code = "EPSG:3035"
+        # create mapping variable for projected coordinates
+        crs = self.nf.createVariable('lambert_azimuthal_equal_area', 'i4')
+        crs.grid_mapping_name = 'lambert_azimuthal_equal_area'
+        crs.false_easting = 4321000.0
+        crs.false_northing = 3210000.0
+        crs.longitude_of_projection_origin = 10.0
+        crs.latitude_of_projection_origin = 52.0
+        crs.semi_major_axis = 6378137.0
+        crs.inverse_flattening = 298.257222101
+        crs.proj4_params = '+proj=laea +lat_0=52 +lon_0=10 +x_0=4321000 +y_0=3210000 +ellps=GRS80 +units=m +no_defs'
+        crs.spatial_ref = self.WKT_STRINGS['ETRS89']
+        crs.longitude_of_prime_meridian = 0.0
+        crs.long_name = 'CRS definition'
+        crs.GeoTransform = '2500000 5000 0 5500000 0 -5000'
+
 
     def define_etrs89_post(self, values_var):
         values_var.coordinates = 'x y'
         values_var.grid_mapping = 'lambert_azimuthal_equal_area'
-        values_var.esri_pe_string = self.WKT_STRINGS.get(self.metadata.get('geographical', {}).get('datum').upper() or 'ETRS89')
+        values_var.esri_pe_string = self.WKT_STRINGS['ETRS89']
+        values_var.spatial_ref = self.WKT_STRINGS['ETRS89']
+        values_var.GeoTransform = '2500000 5000 0 5500000 0 -5000'
 
     def define_gisco(self):
         """
         It defines a custom LAEA ETRS89 GISCO reference system
         """
         logger.info('Defining GISCO coordinates variables')
-        x = self.nf.createVariable('x', 'f8', ('lon',))
-        y = self.nf.createVariable('y', 'f8', ('lat',))
+        x = self.nf.createVariable('x', 'f8', ('x',))
+        y = self.nf.createVariable('y', 'f8', ('y',))
         x.standard_name = 'projection_x_coordinate'
         x.long_name = 'x coordinate of projection'
-        x.units = 'Meter'
+        x.units = 'm'
 
         y.standard_name = 'projection_y_coordinate'
         y.long_name = 'y coordinate of projection'
-        y.units = 'Meter'
+        y.units = 'm'
         x[:] = self.metadata['lons']
         y[:] = self.metadata['lats']
 
-        proj = self.nf.createVariable('laea', 'i4')
-        proj.grid_mapping_name = 'lambert_azimuthal_equal_area'
-        proj.false_easting = 0.0
-        proj.false_northing = 0.0
-        proj.longitude_of_projection_origin = 9.0
-        proj.latitude_of_projection_origin = 48.0
-        proj.semi_major_axis = 6378388.0
-        proj.inverse_flattening = 0.0
-        proj.proj4_params = "+proj=laea +lat_0=48 +lon_0=9 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs"
-        proj.EPSG_code = "EPSG:3035"
+        crs = self.nf.createVariable('crs', 'i4')
+        crs.grid_mapping_name = 'lambert_azimuthal_equal_area'
+        crs.false_easting = 0.0
+        crs.false_northing = 0.0
+        crs.longitude_of_projection_origin = 9.0
+        crs.latitude_of_projection_origin = 48.0
+        crs.semi_major_axis = 6378388.0
+        crs.inverse_flattening = 0.0
+        crs.proj4_params = "+proj=laea +lat_0=48 +lon_0=9 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs"
+        crs.spatial_ref = self.WKT_STRINGS['GISCO']
 
     def define_gisco_post(self, values_var):
         values_var.coordinates = 'x y'
-        values_var.grid_mapping = 'lambert_azimuthal_equal_area'
-        values_var.esri_pe_string = self.WKT_STRINGS.get(self.metadata.get('geographical', {}).get('datum').upper() or 'WGS84')
+        values_var.grid_mapping = 'crs'
+        values_var.esri_pe_string = self.WKT_STRINGS['GISCO']
 
     def _guess_datum(self, lats, lons):
         # very naive version that works for etrs89 vs wgs84

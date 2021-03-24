@@ -152,7 +152,7 @@ class TestCutlib(TestWithCleaner):
         stations = 'tests/data/cutmaps/stations.txt'
 
         mask, outlets_points, mask_nc = mask_from_ldd(ldd_pcr, stations)
-        self.cleanups.append((os.unlink, (mask,)))
+        # self.cleanups.append((os.unlink, (mask,)))
         # self.cleanups.append((os.unlink, (outlets_points,)))
         # self.cleanups.append((os.unlink, (mask_nc,)))
 
