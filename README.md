@@ -359,7 +359,7 @@ Since groundwater and surface water resources demand and abstraction are spatial
 More specifically, this utility can be used to:
 1. create a water region map which is consistent with a set of calibration points: this purpose is achieved by using the script define_waterregions.
 2. verify the consistency between an existing water region map and an exixting map of calibration catchments: this purpose is achieved by using the script verify_waterregions
-It is here reminded that when calibrating a catchment which is a subset of a larger computational domain, and the option wateruse is switched on, then the option groudwatersmooth must be switched off (the explanation of this requirement is provided [here](htpst://ec-jrc.github.io/lisflood-model/2_18_stdLISFLOOD_water-use/). 
+It is here reminded that when calibrating a catchment which is a subset of a larger computational domain, and the option wateruse is switched on, then the option groudwatersmooth must be switched off. The explanation of this requirement is provided [here](htpst://ec-jrc.github.io/lisflood-model/2_18_stdLISFLOOD_water-use/). 
 
 #### Requirements
 python3, pcraster 4.3. The protocol was tested on Linux.
