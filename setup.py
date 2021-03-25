@@ -133,7 +133,7 @@ setup_args = dict(
     setup_requires=[
             'setuptools>=41.0', 'numpy',
     ],
-    install_requires=['numpy', 'pyyaml==5.3',
+    install_requires=['numpy', 'pyyaml==5.4',
                       # Can create corrupted environment if using conda,
                       # Better to install GDAL manually before to install lisflood-utilities package
                       # 'GDAL=={}'.format(gdal_version),
