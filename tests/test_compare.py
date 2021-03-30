@@ -149,7 +149,7 @@ class TestComparators:
             comp.compare_files('tests/data/folder_b/1.map', 'tests/data/folder_c/1.map')
         assert 'tests/data/folder_b/1.map different from tests/data/folder_c/1.map' in str(excinfo.value)
         comp.compare_files('tests/data/folder_a/1.map', 'tests/data/folder_c/1.map')
-        with pytest.raises(AssertionError, match=r"tests/data/folder_a/[1-4].map different from tests/data/folder_b/[1-4].map") as excinfo:
+        with pytest.raises(AssertionError, match=r"tests/data/folder_a/[1-4].map different from tests/data/folder_b/[1-4].map"):
             comp.compare_dirs('tests/data/folder_a/', 'tests/data/folder_b/', skip_missing=True)
         comp.compare_dirs('tests/data/folder_a/', 'tests/data/folder_c/', skip_missing=True)
         with pytest.raises(AssertionError) as excinfo:
