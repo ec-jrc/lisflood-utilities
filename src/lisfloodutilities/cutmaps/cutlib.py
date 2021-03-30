@@ -113,6 +113,9 @@ def cut_from_coords(nc, var, x_min, x_max, y_min, y_max):
     if 'lat' in nc.variables:
         lats = nc.variables['lat'][:]
         lons = nc.variables['lon'][:]
+    elif 'latitude' in nc.variables:
+        lats = nc.variables['latitude'][:]
+        lons = nc.variables['longitude'][:]
     else:
         lats = nc.variables['y'][:]
         lons = nc.variables['x'][:]
