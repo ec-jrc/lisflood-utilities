@@ -148,13 +148,13 @@ class TestCutlib(TestWithCleaner):
         assert (x_minr, x_maxr, y_minr, y_maxr) == (res_x_min, res_x_max, res_y_min, res_y_max)
 
     def test_get_cuts_ldd(self):
-        ldd_pcr = 'tests/data/cutmaps/ldd_europe.map'
+        ldd_pcr = 'tests/data/cutmaps/ldd_eu.map'
         stations = 'tests/data/cutmaps/stations.txt'
 
         mask, outlets_points, mask_nc = mask_from_ldd(ldd_pcr, stations)
-        # self.cleanups.append((os.unlink, (mask,)))
-        # self.cleanups.append((os.unlink, (outlets_points,)))
-        # self.cleanups.append((os.unlink, (mask_nc,)))
+        self.cleanups.append((os.unlink, (mask,)))
+        self.cleanups.append((os.unlink, (outlets_points,)))
+        self.cleanups.append((os.unlink, (mask_nc,)))
 
         x_min, x_max, y_min, y_max = get_cuts(mask=mask)
 
@@ -172,6 +172,7 @@ class TestCutlib(TestWithCleaner):
         assert (x_min, x_max, y_min, y_max) == (res_x_min, res_x_max, res_y_min, res_y_max)
 
     def test_get_cuts_ldd_onestation(self):
+        # this tests the case when LDD is in netCDF format as well
         ldd = 'tests/data/cutmaps/ldd_eu.nc'
         stations = 'tests/data/cutmaps/stations2.txt'
 
