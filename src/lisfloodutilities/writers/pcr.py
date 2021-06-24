@@ -12,7 +12,8 @@ class PCRasterWriter:
     dtype_to_valuescale = {
         'uint8': (gdal.GDT_Byte, 'VS_BOOLEAN', np.int8),
         'int8': (gdal.GDT_Int32, 'VS_NOMINAL', np.int32),
-        'int16': (gdal.GDT_Int32, 'VS_ORDINAL', np.int32),
+        'int16': (gdal.GDT_Int32, 'VS_NOMINAL', np.int32), #################### https://gdal.org/drivers/raster/pcraster.html
+        'int32': (gdal.GDT_Int32, 'VS_NOMINAL', np.int32), #################### https://gdal.org/drivers/raster/pcraster.html
         'float32': (gdal.GDT_Float32, 'VS_SCALAR', np.float32),
         'float64': (gdal.GDT_Float32, 'VS_SCALAR', np.float32),
     }
@@ -141,6 +142,12 @@ class PCRasterWriter:
         w_e_resolution = np.round(self._coordinates['x'][1] - self._coordinates['x'][0], 3)
         n_s_resolution = np.round(self._coordinates['y'][1] - self._coordinates['y'][0], 3)
         # considering coordinates at center of the cell, we must subtract half step for top left points
+        if (self._coordinates['y'][0]<self._coordinates['y'][-1]):
+           top=self._coordinates['y'][-1]
+           ns=-1
+        else:
+           top=self._coordinates['y'][0]
+           ns=1        
         top_left_x = np.round(self._coordinates['x'][0], 2) - w_e_resolution / 2
-        top_left_y = np.round(self._coordinates['y'][0], 2) - n_s_resolution / 2
+        top_left_y = np.round(top, 2) - ns*n_s_resolution / 2
         return top_left_x, w_e_resolution, 0.0, top_left_y, 0.0, n_s_resolution

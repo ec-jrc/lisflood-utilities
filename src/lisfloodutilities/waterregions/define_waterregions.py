@@ -17,6 +17,8 @@ import pcraster as pcr
 import os
 import time
 import logging
+from lisfloodutilities.nc2pcr import convert as convnc2pcr
+from lisfloodutilities.pcr2nc import convert as convpcr2nc
 
 logging.basicConfig(format='[%(asctime)s] - %(message)s', datefmt='%H:%M:%S', level=logging.INFO)
 logger = logging.getLogger()
@@ -33,7 +35,7 @@ def main(cliargs):
     waterregions_initial = args.waterregions_initial
     output_wr = args.output_wr
 
-    [waterregion, subcat1] = define_waterregions(calib_points, countries_id, ldd, waterregions_initial,output_wr)
+    [waterregion_nc, waterregion_pcr, subcat1] = define_waterregions(calib_points, countries_id, ldd, waterregions_initial,output_wr)
     logger.info('\nUsing %s and %s to define the water regions\n ', calib_points, ldd)
     
     # check the consistency between the water regions and the calibration catchments
@@ -41,7 +43,7 @@ def main(cliargs):
     cal_catch[cal_catch < 1] = -9999
     cal_catch[np.isnan(cal_catch) == 1] = -9999
     
-    wr = pcr.pcr_as_numpy(waterregion)
+    wr = pcr.pcr_as_numpy(waterregion_pcr)
     wr_id = np.unique(wr)
        
     id_error_wr = []
@@ -88,16 +90,34 @@ class ParserHelpOnError(argparse.ArgumentParser):
         self.add_argument("-o", "--output_wr",
                           help='output map of water regions pcraster format',
                           required=True)
+                          
 
 def define_waterregions(calib_points=None, countries_id=None, ldd=None, waterregions_initial=None, output_wr=None):
-
     
+    #0. Check whether the input maps are in pcraster format, use nc2pcr if the condition is not satisfied
+    if ldd[-3:]=='.nc':
+       ldd_pcr='ldd_pcr.map' 
+       convnc2pcr(ldd,ldd_pcr,is_ldd=True) 
+    else:
+       ldd_pcr=ldd   
+    if countries_id[-3:]=='.nc':
+       countries_id_pcr='countries_id_pcr.map' 
+       convnc2pcr(countries_id,countries_id_pcr,is_ldd=False) 
+    else:
+       countries_id_pcr=countries_id       
+    if waterregions_initial[-3:]=='.nc':
+       waterregions_initial_pcr='waterregions_initial_pcr.map' 
+       convnc2pcr(waterregions_initial,waterregions_initial_pcr,is_ldd=False) 
+    else:
+       waterregions_initial_pcr=waterregions_initial  
+     
+          
     #1. The calibration points are converted into a map
-    command_string = 'col2map -N ' + calib_points + ' points.map --large --clone ' + countries_id
+    command_string = 'col2map -N ' + calib_points + ' points.map --large --clone ' + countries_id_pcr
     os.system(command_string)
 
     #2. Cacthment map1 derived from calibration points
-    ldd1 = pcr.readmap(ldd)
+    ldd1 = pcr.readmap(ldd_pcr)
     points = pcr.readmap('points.map')
     subcat1 = pcr.subcatchment(ldd1,points)
    
@@ -110,24 +130,44 @@ def define_waterregions(calib_points=None, countries_id=None, ldd=None, waterreg
 
     #5. Splitting riverbasins if part of different countries, so if cross-border catchments
     scalar_a = pcr.scalar(subcat2)
-    scalar_b = pcr.scalar(countries_id)
+    scalar_b = pcr.scalar(countries_id_pcr)
     subcat3 = pcr.nominal(scalar_a*scalar_b)
 
     #6. Covering the missing areas with the old waterregions
-    subcat4 = pcr.cover(subcat3,waterregions_initial)
+    subcat4 = pcr.cover(subcat3,waterregions_initial_pcr)
 
     #7. Make sure that all land cells are filled
     subcat5 = pcr.cover(subcat4,land)
     
     #8. Each water region is given a unique ID number
     waterregion0 = pcr.nominal(subcat5)
-    waterregion = pcr.clump(waterregion0)
+    waterregion_pcr = pcr.clump(waterregion0)
 
 
     #9. Save the water region map
-    pcr.report(waterregion,output_wr)
+    pcr.report(waterregion_pcr,output_wr)
     
-    return waterregion, subcat1
+    print(waterregion_pcr)
+    metadata = {
+            'format': 'NETCDF4',
+            'variable': {
+                'shortname': 'waterregion',
+                'units': '-',
+                'compression': 4,
+                'mv':-9999,
+
+            },
+            'geographical': {
+                'datum': 'ETRS89'
+            },
+            'source': 'JRC E1',
+            'reference': 'JRC E1 ',
+    } 
+    
+    waterregion_nc='wr_nc.nc'
+    convpcr2nc(output_wr,waterregion_nc,metadata)
+    
+    return waterregion_nc, waterregion_pcr, subcat1
                           
 def main_script():
     sys.exit(main(sys.argv[1:]))
