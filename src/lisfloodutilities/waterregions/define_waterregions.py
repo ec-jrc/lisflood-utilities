@@ -19,6 +19,7 @@ import time
 import logging
 from lisfloodutilities.nc2pcr import convert as convnc2pcr
 from lisfloodutilities.pcr2nc import convert as convpcr2nc
+import tempfile
 
 logging.basicConfig(format='[%(asctime)s] - %(message)s', datefmt='%H:%M:%S', level=logging.INFO)
 logger = logging.getLogger()
@@ -64,7 +65,7 @@ def main(cliargs):
              output_message = 'OK! Each water region is completely included inside one calibration catchment.'
     
     print(output_message)
-    os.unlink('./points.map')
+    os.unlink(tempfile.gettempdir() + '/points.map')
 
 
 class ParserHelpOnError(argparse.ArgumentParser):
@@ -96,29 +97,46 @@ def define_waterregions(calib_points=None, countries_id=None, ldd=None, waterreg
     
     #0. Check whether the input maps are in pcraster format, use nc2pcr if the condition is not satisfied
     if ldd[-3:]=='.nc':
-       ldd_pcr='ldd_pcr.map' 
+       ldd_pcr=tempfile.gettempdir() + '/ldd_pcr.map' 
+       try:
+          os.remove(ldd_pcr)
+       except:
+          pass
        convnc2pcr(ldd,ldd_pcr,is_ldd=True) 
     else:
        ldd_pcr=ldd   
     if countries_id[-3:]=='.nc':
-       countries_id_pcr='countries_id_pcr.map' 
+       countries_id_pcr=tempfile.gettempdir() + '/countries_id_pcr.map' 
+       try:
+          os.remove(countries_id_pcr)
+       except:
+          pass
        convnc2pcr(countries_id,countries_id_pcr,is_ldd=False) 
     else:
        countries_id_pcr=countries_id       
     if waterregions_initial[-3:]=='.nc':
-       waterregions_initial_pcr='waterregions_initial_pcr.map' 
+       waterregions_initial_pcr=tempfile.gettempdir() + '/waterregions_initial_pcr.map' 
+       try:
+          os.remove(waterregions_initial_pcr)
+       except:
+          pass
        convnc2pcr(waterregions_initial,waterregions_initial_pcr,is_ldd=False) 
     else:
        waterregions_initial_pcr=waterregions_initial  
      
           
     #1. The calibration points are converted into a map
-    command_string = 'col2map -N ' + calib_points + ' points.map --large --clone ' + countries_id_pcr
+    pointmap_file=tempfile.gettempdir() + '/points.map'
+    try:
+       os.remove(pointmap_file)
+    except:
+       pass    
+    command_string = 'col2map -N ' + calib_points + ' ' + pointmap_file + ' --large --clone ' + countries_id_pcr
     os.system(command_string)
 
     #2. Cacthment map1 derived from calibration points
     ldd1 = pcr.readmap(ldd_pcr)
-    points = pcr.readmap('points.map')
+    points = pcr.readmap(pointmap_file)
     subcat1 = pcr.subcatchment(ldd1,points)
    
     #3. Making map with all valid ldd cells
@@ -145,6 +163,19 @@ def define_waterregions(calib_points=None, countries_id=None, ldd=None, waterreg
 
 
     #9. Save the water region map
+    if output_wr[-3:]==".nc":
+        waterregion_nc=output_wr
+        output_wr=tempfile.gettempdir() + '/' + output_wr[:-3] + ".map"
+    else:
+        if output_wr[-4:]==".map":
+            waterregion_nc=tempfile.gettempdir() + '/' + output_wr[:-4] + ".nc"
+        else:
+            waterregion_nc=tempfile.gettempdir() + '/' + output_wr + ".nc"
+        
+    try:
+       os.remove(output_wr)
+    except:
+       pass 
     pcr.report(waterregion_pcr,output_wr)
     
     print(waterregion_pcr)
@@ -163,8 +194,10 @@ def define_waterregions(calib_points=None, countries_id=None, ldd=None, waterreg
             'source': 'JRC E1',
             'reference': 'JRC E1 ',
     } 
-    
-    waterregion_nc='wr_nc.nc'
+    try:
+       os.remove(waterregion_nc)
+    except:
+       pass  
     convpcr2nc(output_wr,waterregion_nc,metadata)
     
     return waterregion_nc, waterregion_pcr, subcat1
