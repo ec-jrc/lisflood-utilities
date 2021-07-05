@@ -165,12 +165,9 @@ def define_waterregions(calib_points=None, countries_id=None, ldd=None, waterreg
     #9. Save the water region map
     if output_wr[-3:]==".nc":
         waterregion_nc=output_wr
-        output_wr=tempfile.gettempdir() + '/' + output_wr[:-3] + ".map"
+        output_wr=tempfile.gettempdir() + '/wr_pcr.map'
     else:
-        if output_wr[-4:]==".map":
-            waterregion_nc=tempfile.gettempdir() + '/' + output_wr[:-4] + ".nc"
-        else:
-            waterregion_nc=tempfile.gettempdir() + '/' + output_wr + ".nc"
+        waterregion_nc=tempfile.gettempdir() + '/wr_nc.nc'
         
     try:
        os.remove(output_wr)
