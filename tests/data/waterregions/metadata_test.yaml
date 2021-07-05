@@ -1,0 +1,12 @@
+variable:
+  shortname: wregion
+  description: waterregion
+  longname: waterregion
+  units: none
+  compression: 4
+  mv: -9999
+source: EC Joint Research Centre, Unit E1
+reference: https://ec-jrc.github.io/lisflood-model/
+geographical:
+  datum: WGS84
+

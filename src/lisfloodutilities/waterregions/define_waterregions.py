@@ -21,6 +21,12 @@ from lisfloodutilities.nc2pcr import convert as convnc2pcr
 from lisfloodutilities.pcr2nc import convert as convpcr2nc
 import tempfile
 
+import yaml
+try:
+    from yaml import CLoader as Loader, CDumper as Dumper
+except ImportError:
+    from yaml import Loader, Dumper
+
 logging.basicConfig(format='[%(asctime)s] - %(message)s', datefmt='%H:%M:%S', level=logging.INFO)
 logger = logging.getLogger()
 
@@ -35,8 +41,14 @@ def main(cliargs):
     ldd = args.ldd
     waterregions_initial = args.waterregions_initial
     output_wr = args.output_wr
+    metadata_file = args.metadata_file
+    
+    if output_wr.endswith('.nc'):
+       metadata_parsed = parse_metadata(metadata_file)
+    else:
+       metadata_parsed = []
 
-    [waterregion_nc, waterregion_pcr, subcat1] = define_waterregions(calib_points, countries_id, ldd, waterregions_initial,output_wr)
+    [waterregion_nc, waterregion_pcr, subcat1] = define_waterregions(calib_points, countries_id, ldd, waterregions_initial, output_wr, metadata_parsed)
     logger.info('\nUsing %s and %s to define the water regions\n ', calib_points, ldd)
     
     # check the consistency between the water regions and the calibration catchments
@@ -91,9 +103,18 @@ class ParserHelpOnError(argparse.ArgumentParser):
         self.add_argument("-o", "--output_wr",
                           help='output map of water regions pcraster format',
                           required=True)
-                          
+        self.add_argument("-m","--metadata_file",                        
+                          help='Path to yaml metadata file for NetCDF',
+                          required=False)
 
-def define_waterregions(calib_points=None, countries_id=None, ldd=None, waterregions_initial=None, output_wr=None):
+
+def parse_metadata(metadata_file):
+    with open(metadata_file) as f:
+            metadata = yaml.load(f, Loader=Loader)
+    return metadata
+                            
+
+def define_waterregions(calib_points=None, countries_id=None, ldd=None, waterregions_initial=None, output_wr=None, metadata_parsed=None):
     
     #0. Check whether the input maps are in pcraster format, use nc2pcr if the condition is not satisfied
     if ldd[-3:]=='.nc':
@@ -176,26 +197,13 @@ def define_waterregions(calib_points=None, countries_id=None, ldd=None, waterreg
     pcr.report(waterregion_pcr,output_wr)
     
     print(waterregion_pcr)
-    metadata = {
-            'format': 'NETCDF4',
-            'variable': {
-                'shortname': 'waterregion',
-                'units': '-',
-                'compression': 4,
-                'mv':-9999,
 
-            },
-            'geographical': {
-                'datum': 'ETRS89'
-            },
-            'source': 'JRC E1',
-            'reference': 'JRC E1 ',
-    } 
     try:
        os.remove(waterregion_nc)
     except:
        pass  
-    convpcr2nc(output_wr,waterregion_nc,metadata)
+    if output_wr[-3:]==".nc":
+       convpcr2nc(output_wr,waterregion_nc,metadata_parsed)
     
     return waterregion_nc, waterregion_pcr, subcat1
                           
