@@ -1,0 +1,14 @@
+{
+  "format": "NETCDF4",
+  "variable": {
+    "shortname": "waterregion",
+    "units": "-",
+    "compression": 4,
+    "mv": -9999
+  },
+  "geographical": {
+    "datum": "WGS84"
+  },
+  "source": "JRC E1",
+  "reference": "JRC E1 "
+} 

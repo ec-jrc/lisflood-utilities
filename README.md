@@ -372,7 +372,7 @@ This utility allows to create a  water region map which is consistent with a set
 - LDD map can be in netcdf format or pcraster format. When using pcraster format, the following condition must be satisfied: *PCRASTER_VALUESCALE=VS_LDD*. 
 - Countries map in netcdf format or pcraster format. When using pcraster format, the following condition must be satisfied: *PCRASTER_VALUESCALE=VS_NOMINAL*. This map shows the political boundaries of the Countries, each Coutry is identified by using a unique ID. This map is used to ensure that the water regions are not split accross different Countries.
 - Map of the initial definition of the water regions in netcdf format or pcraster format. When using pcraster format, the following condition must be satisfied: *PCRASTER_VALUESCALE=VS_NOMINAL*. This map is used to attribute a water region to areas not included in the calibration catchments. In order to create this map, the user can follow the guidelines provided [here](https://ec-jrc.github.io/lisflood-model/2_18_stdLISFLOOD_water-use/).
-- file .yaml to define the metadata of the output water regions map in netcdf format. An example of the structure of this file is provided [here](https://github.com/ec-jrc/lisflood-utilities/tree/master/tests/data/waterregions)
+- file *.yaml* or *.json* to define the metadata of the output water regions map in netcdf format. An example of the structure of these files is provided [here](https://github.com/ec-jrc/lisflood-utilities/tree/master/tests/data/waterregions)
 
 ##### Input data provided by this utility:
 This utility provides three maps of [Countries IDs](https://github.com/ec-jrc/lisflood-utilities/tree/master/tests/data): 1arcmin map of Europe (EFAS computational domain), 0.1 degree and 3arcmin maps of the Globe . ACKNOWLEDGEMENTS: both the rasters were retrieved by upsampling the original of the World Borders Datase provided by  http://thematicmapping.org/ (the dataset is available under a Creative Commons Attribution-Share Alike License).
@@ -385,7 +385,7 @@ In the output map, each water region is identified by a unique ID. The format of
 The following command line allows to produce a water region map which is consistent with the calibration points:
 
 *python define_waterregions.py -p calib_points_test.txt -l ldd_test.map -C countries_id_test.map -w waterregions_initial_test.map -o my_new_waterregions.map* 
-*python define_waterregions.py -p calib_points_test.txt -l ldd_test.nc -C countries_id_test.nc -w waterregions_initial_test.nc -o my_new_waterregions.nc -m metadata.test.yaml* 
+*python define_waterregions.py -p calib_points_test.txt -l ldd_test.nc -C countries_id_test.nc -w waterregions_initial_test.nc -o my_new_waterregions.nc -m metadata.test.json* 
 *python define_waterregions.py -p calib_points_test.txt -l ldd_test.map -C countries_id_test.nc -w waterregions_initial_test.map -o my_new_waterregions.nc -m metadata.test.yaml* 
 
 The input maps can be in nectdf format or pcraster format (the same command line can accept a mix of pcraster and netcdf formats).It is imperative to write the file name in full, that is including the extension (which can be either ".nc" or ".map").<br>
@@ -415,7 +415,7 @@ optional arguments:
   -o OUTPUT_WR, --output_wr OUTPUT_WR
                         output map of water regions, file extension: .nc or .map 
   -m METADATA, --metadata_file METADATA
-                        Path to yaml metadata file for NetCDF                     
+                        Path to metadata file for NetCDF, .yaml or .json format                     
 ```
 
 

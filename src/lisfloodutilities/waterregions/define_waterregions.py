@@ -22,6 +22,8 @@ from lisfloodutilities.pcr2nc import convert as convpcr2nc
 import tempfile
 
 import yaml
+import json
+
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
 except ImportError:
@@ -104,15 +106,19 @@ class ParserHelpOnError(argparse.ArgumentParser):
                           help='output map of water regions pcraster format',
                           required=True)
         self.add_argument("-m","--metadata_file",                        
-                          help='Path to yaml metadata file for NetCDF',
+                          help='Path to metadata file for NetCDF, .yaml or .json format',
                           required=False)
 
 
 def parse_metadata(metadata_file):
-    with open(metadata_file) as f:
+    if metadata_file.endswith('.yaml') or metadata_file.endswith('.yml'):
+        with open(metadata_file) as f:
             metadata = yaml.load(f, Loader=Loader)
-    return metadata
-                            
+    else:
+        # suppose json format
+        with open(metadata_file) as f:
+            metadata = json.load(f)
+    return metadata                            
 
 def define_waterregions(calib_points=None, countries_id=None, ldd=None, waterregions_initial=None, output_wr=None, metadata_parsed=None):
     
@@ -202,8 +208,12 @@ def define_waterregions(calib_points=None, countries_id=None, ldd=None, waterreg
        os.remove(waterregion_nc)
     except:
        pass  
-    if output_wr[-3:]==".nc":
+    
+    if (len(metadata_parsed)>0):
        convpcr2nc(output_wr,waterregion_nc,metadata_parsed)
+       print('Wrting the output map in netcdf format')
+    else:
+       print('Wrting the output map in pcraster format')
     
     return waterregion_nc, waterregion_pcr, subcat1
                           
