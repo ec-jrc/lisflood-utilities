@@ -392,9 +392,9 @@ In the output map, each water region is identified by a unique ID. The format of
 #### Usage
 The following command line allows to produce a water region map which is consistent with the calibration points:
 
-*python define_waterregions.py -p calib_points_test.txt -l ldd_test.map -C countries_id_test.map -w waterregions_initial_test.map -o my_new_waterregions.map* 
-*python define_waterregions.py -p calib_points_test.txt -l ldd_test.nc -C countries_id_test.nc -w waterregions_initial_test.nc -o my_new_waterregions.nc -m metadata.test.json* 
-*python define_waterregions.py -p calib_points_test.txt -l ldd_test.map -C countries_id_test.nc -w waterregions_initial_test.map -o my_new_waterregions.nc -m metadata.test.yaml* 
+*python define_waterregions.py -p calib_points_test.txt -l ldd_test.map -C countries_id_test.map -w waterregions_initial_test.map -o my_new_waterregions.map* <br>
+*python define_waterregions.py -p calib_points_test.txt -l ldd_test.nc -C countries_id_test.nc -w waterregions_initial_test.nc -o my_new_waterregions.nc -m metadata.test.json* <br>
+*python define_waterregions.py -p calib_points_test.txt -l ldd_test.map -C countries_id_test.nc -w waterregions_initial_test.map -o my_new_waterregions.nc -m metadata.test.yaml* <br>
 
 The input maps can be in nectdf format or pcraster format (the same command line can accept a mix of pcraster and netcdf formats).It is imperative to write the file name in full, that is including the extension (which can be either ".nc" or ".map").<br>
 The utility can return either a pcraster file or a netcdf file. The users select their preferred format by specifying the extension of the file in the output option (i.e. either ".nc" or ".map"). <br>
