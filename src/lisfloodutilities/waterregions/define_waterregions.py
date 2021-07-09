@@ -195,6 +195,7 @@ def define_waterregions(calib_points=None, countries_id=None, ldd=None, waterreg
         output_wr=tempfile.gettempdir() + '/wr_pcr.map'
     else:
         waterregion_nc=tempfile.gettempdir() + '/wr_nc.nc'
+        metadata_parsed=[]
         
     try:
        os.remove(output_wr)
