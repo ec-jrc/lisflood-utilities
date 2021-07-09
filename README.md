@@ -390,7 +390,7 @@ Map of the water regions which is consistent with the calibration catchments. In
 In the output map, each water region is identified by a unique ID. The format of the output map can be netcdf or pcraster.
 
 #### Usage
-The following command lines allow to produce a water region map which is consistent with the calibration points (only one commad line is required: each one of the command lines below show a different combination of input files format):
+The following command lines allow to produce a water region map which is consistent with the calibration points (only one commad line is required: each one of the command lines below shows a different combination of input files format):
 
 *python define_waterregions.py -p calib_points_test.txt -l ldd_test.map -C countries_id_test.map -w waterregions_initial_test.map -o my_new_waterregions.map* <br>
 
