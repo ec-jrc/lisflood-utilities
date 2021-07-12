@@ -18,17 +18,25 @@ See the Licence for the specific language governing permissions and limitations 
 from lisfloodutilities.readers import PCRasterReader
 from lisfloodutilities.writers.nc import NetCDFWriter
 
+from nine import IS_PYTHON2
+if IS_PYTHON2:
+    from pathlib2 import Path
+else:
+    from pathlib import Path
 
 def convert(dataset, output, metadata):
 
     reader = PCRasterReader(dataset)
     pcr_metadata = reader.get_metadata_from_set()
     metadata.update(pcr_metadata)
+    output_wr=output or metadata['variable'].get('shortname', 'pcr2nc_output')
+    if Path(output_wr).exists():
+        raise FileExistsError('Output file ' + output_wr + ' already exists')
+
     writer = NetCDFWriter(
-        output or metadata['variable'].get('shortname', 'pcr2nc_output'),
+        output_wr,
         is_mapstack=not reader.input_is_single_file(),
         **metadata,
-
     )
     for pcr_map, time_step in reader.fileset:
         writer.add_to_stack(pcr_map, time_step)
