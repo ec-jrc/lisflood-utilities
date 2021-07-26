@@ -139,8 +139,8 @@ class PCRasterWriter:
         # 4 - 0.0
         # 5 - n-s pixel resolution (negative value)
         #
-        w_e_resolution = np.round(self._coordinates['x'][1] - self._coordinates['x'][0], 3)
-        n_s_resolution = np.round(self._coordinates['y'][1] - self._coordinates['y'][0], 3)
+        n_s_resolution =(self._coordinates['y'][-1] - self._coordinates['y'][0])/(len(self._coordinates['y'][:])-1.0)
+        w_e_resolution =(self._coordinates['x'][-1] - self._coordinates['x'][0])/(len(self._coordinates['x'][:])-1.0)
         # considering coordinates at center of the cell, we must subtract half step for top left points
         if (self._coordinates['y'][0]<self._coordinates['y'][-1]):
            top=self._coordinates['y'][-1]
@@ -148,6 +148,8 @@ class PCRasterWriter:
         else:
            top=self._coordinates['y'][0]
            ns=1        
-        top_left_x = np.round(self._coordinates['x'][0], 2) - w_e_resolution / 2
-        top_left_y = np.round(top, 2) - ns*n_s_resolution / 2
-        return top_left_x, w_e_resolution, 0.0, top_left_y, 0.0, n_s_resolution
+        top_left_x = self._coordinates['x'][0] - w_e_resolution / 2 
+        top_left_y = top - ns*n_s_resolution / 2 
+        return top_left_x, w_e_resolution, 0.0, top_left_y, 0.0, n_s_resolution        
+        
+        

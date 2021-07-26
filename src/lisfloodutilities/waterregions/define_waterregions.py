@@ -129,7 +129,7 @@ def define_waterregions(calib_points=None, countries_id=None, ldd=None, waterreg
           os.remove(ldd_pcr)
        except:
           pass
-       convnc2pcr(ldd,ldd_pcr,is_ldd=True) 
+       convnc2pcr(ldd,ldd_pcr,is_ldd=True)  
     else:
        ldd_pcr=ldd   
     if countries_id[-3:]=='.nc':
