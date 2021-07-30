@@ -1,10 +1,10 @@
 load_config('config.cfg') 
 
-daily_discharge = readtable([rawdir filesep 'ADHI_raw_data' filesep 'daily_discharge.txt']);
-coord = readtable([rawdir filesep 'ADHI_raw_data' filesep 'coord.txt']);
-dates = readtable([rawdir filesep 'ADHI_raw_data' filesep 'dates.txt']);
-ADHI_code = readtable([rawdir filesep 'ADHI_raw_data' filesep 'ADHI_code.txt'],'ReadVariableNames',0,'Delimiter',',');
-ADHI_stations = readtable([rawdir filesep 'ADHI_raw_data' filesep 'ADHI_stations.csv'],'Delimiter',',');
+daily_discharge = readtable([rawdir filesep 'ADHI_restricted_raw_data' filesep 'daily_discharge.txt']);
+coord = readtable([rawdir filesep 'ADHI_restricted_raw_data' filesep 'coord.txt']);
+dates = readtable([rawdir filesep 'ADHI_restricted_raw_data' filesep 'dates.txt']);
+ADHI_code = readtable([rawdir filesep 'ADHI_restricted_raw_data' filesep 'ADHI_code.txt'],'ReadVariableNames',0,'Delimiter',',');
+ADHI_stations = readtable([rawdir filesep 'ADHI_restricted_raw_data' filesep 'ADHI_stations.csv'],'Delimiter',',');
 
 for ii = 1:size(ADHI_stations,1)
 	tic
@@ -32,7 +32,7 @@ for ii = 1:size(ADHI_stations,1)
 	end
 
 	clear BOUNDARIES	
-	shp_filepath = [rawdir filesep 'ADHI_raw_data' filesep 'CatchmentBoundaries' filesep 'ADHIcatch_' ADHI_co '.shp'];
+	shp_filepath = [rawdir filesep 'ADHI_restricted_raw_data' filesep 'CatchmentBoundaries' filesep 'ADHIcatch_' ADHI_co '.shp'];
 	if ~exist(shp_filepath), continue; end
 	shp = shaperead(shp_filepath);
 	BOUNDARIES.CatchBounds.Lat = single(shp.Y);
