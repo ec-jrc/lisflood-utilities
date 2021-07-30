@@ -173,10 +173,7 @@ def get_cuts(cuts=None, mask=None):
             sys.exit(1)
     elif cuts:
         # user provided coordinates bounds
-        x, y = cuts.split(':')
-        apply = float if '.' in x or '.' in y else int  # user can provide coords (float) or matrix indices bbox (int)
-        x_min, x_max = list(map(apply, x.split('_')))
-        y_min, y_max = list(map(apply, y.split('_')))
+        x_min, x_max, y_min, y_max = cuts
     else:
         logger.error('You must provide either cuts (in the format minlon_maxlon:minlat_maxlat) or a mask map')
         sys.exit(1)
