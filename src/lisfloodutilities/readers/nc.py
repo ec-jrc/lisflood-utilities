@@ -19,7 +19,7 @@ class NetCDFMap:
         for variable in self.ds.variables.values():
             if len(variable.dims) < 2:
                 continue
-            return variable.attrs['_FillValue'] if '_FillValue' in variable.attrs else variable.attrs['missing_value']
+            return variable.attrs['_FillValue'] if '_FillValue' in variable.attrs else -9999
 
     @property
     def data(self):

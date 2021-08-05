@@ -52,19 +52,44 @@ def verify_waterregions(calib_catchments=None, waterregions=None):
        waterregions_map = Dataset(waterregions,'r','format=NETCDF4_classic')
        
        for v in waterregions_map.variables:
+           if (v == 'y' or v == 'lat'):
+              ywr = waterregions_map.variables[v][:]
+              wr_yresolution = np.abs((ywr[-1] - ywr[0])/(len(ywr[:])-1.0))
+           if (v == 'x' or v == 'lon'):
+              xwr = waterregions_map.variables[v][:]
+              wr_xresolution = np.abs((xwr[-1] - xwr[0])/(len(xwr[:])-1.0))
            if len(waterregions_map.variables[v].dimensions) == 2:
-              wr = waterregions_map.variables[v][:]             
+              wr = waterregions_map.variables[v][:]          
       
+       flipud = 0
        calibration_catchments_map = Dataset(calib_catchments,'r','format=NETCDF4_classic')
        for v in calibration_catchments_map.variables:
+           if (v == 'y' or v == 'lat'):
+              ycc = calibration_catchments_map.variables[v][:]
+              cc_resolution =np.abs((ycc[-1] - ywr[0])/(len(ycc[:])-1.0))
+              if round(ycc[0],1) != round(ywr[0],1):
+                 flipud = 1
+                 check_grid_y = np.amax(np.abs(np.flip(ycc)-ywr))
+                 if (check_grid_y > wr_yresolution):
+                      print('Error: the two maps do not have the same coordinates. Please, check the input maps.')
+                      exit()
+           if (v == 'x' or v == 'lon'):
+              xcc = calibration_catchments_map.variables[v][:]
+              check_grid_x = np.amax(np.abs(xcc-xwr))
+              if (check_grid_x > wr_xresolution):
+                      print('Error: the two maps do not have the same coordinates. Please, check the input maps.')
+                      exit()                     
            if len(calibration_catchments_map.variables[v].dimensions) == 2:
               cal_catch = calibration_catchments_map.variables[v][:]
+              if flipud == 1:
+                 print('Warning: one of the maps has inverted y-axis, is this an intended feature?')
+                 cal_catch = np.flipud(cal_catch)
+                 
        
-       
-       cal_catch[cal_catch<1] = -9999
+       cal_catch[cal_catch < 1] = -9999
        cal_catch[np.isnan(cal_catch) == 1] = -9999
        wr_id = np.unique(wr)
-       
+      
        id_error_wr = []
        cal_catch_error_wr = []
        output_message = []
