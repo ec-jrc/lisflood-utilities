@@ -81,9 +81,6 @@ ldd_pcr = pcr.numpy2pcr(pcr.Ldd,ldd_np,mv=-9999)
 upstreamarea_pcr = pcr.accuflux(ldd_pcr,area_pcr)
 upstreamarea_np = pcr.pcr2numpy(upstreamarea_pcr,mv=999999999)
 
-# Initialize qgis csv
-#df = pd.DataFrame(columns = ["ObsID","StationName","Provider ID","Country code","StataaaaLat","StataaaaLon","Height","Height Units","DrainingArea.km2.Provider","Catchment Area Units","Added Date","River","Catchment","EC_Catchments","Calibration ID","DrainingArea.km2.LDD","LisfloodX","LisfloodY","RealTime","PostProcess","FixedRepPoint","HasWL","HasD","Alive D","StartDate_hist_24","EndDate_hist_24","StartDate_nrt_24","EndDate_nrt_24","StartDate_hist_6","EndDate_hist_6","StartDate_nrt_6","EndDate_nrt_6","DiffDays_hist_24","DiffDays_nrt_24","DiffDays_hist_6","DiffDays_nrt_6","cal_hist_24h","cal_nrt_24h","cal_hist_6h","cal_nrt_6h","CAL_TYPE","Notes","EC_calib","Dam/Lake","EnoughQdata","Val_Start","Val_End","Cal_Start","Cal_End","CatchmentArea","SamplingFrequency"])
-
 # Create folder with corrected station locations
 if os.path.isdir(corrected_locations_dir)==False:
     os.mkdir(corrected_locations_dir)
