@@ -71,7 +71,7 @@ lon_left = lon[0]-res/2
 # Set pcraster clone map
 pcr.setclone(ldd_np.shape[0],ldd_np.shape[1],res,lon[0]-res/2,lat[0]-res/2)
 
-# Create gridcell area map
+# Create grid-cell area map
 xi, yi = np.meshgrid(lon, lat)
 area_np = (40075*res/360)**2*np.cos(np.deg2rad(yi))
 area_pcr = pcr.numpy2pcr(pcr.Scalar,area_np,mv=-9999)
@@ -151,7 +151,7 @@ for ii in np.arange(len(catchment_dirs)):
     
     if ('Area' in globals()) & ('CatchCentroidLat' in globals()) & ('CatchCentroidLat' in globals()):
     
-        if Area<100000:             
+        if Area<10000:             
             print("Catchment too small")
             continue
 
@@ -226,7 +226,7 @@ for ii in np.arange(len(catchment_dirs)):
         
         fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)
         
-        fig.suptitle(str(ii)+' '+ID+' '+Station+', mean discharge '+str(np.nanmean(Discharge))+' m3/s')
+        fig.suptitle(str(ii)+' '+ID+' '+Station+'\nMean discharge '+str(np.nanmean(Discharge))+' m3/s')
         
         ax1.imshow(np.log10(upstreamarea_np), extent=extent)
         ax1.scatter(StatLon,StatLat,c='r')

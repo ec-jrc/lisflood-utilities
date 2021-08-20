@@ -36,7 +36,7 @@ lon_left = lon[0]-res/2
 # Set pcraster clone map
 pcr.setclone(ldd_np.shape[0],ldd_np.shape[1],res,lon[0]-res/2,lat[0]-res/2)
 
-# Create gridcell area map
+# Create grid-cell area map
 xi, yi = np.meshgrid(lon, lat)
 area_np = (40075*res/360)**2*np.cos(np.deg2rad(yi))
 area_pcr = pcr.numpy2pcr(pcr.Scalar,area_np,mv=-9999)
