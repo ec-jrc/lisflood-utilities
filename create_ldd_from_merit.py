@@ -103,6 +103,7 @@ for lat in lats:
         subprocess.call(command,shell=True)
         command = 'tar -xvf '+os.path.join(merit_folder,filename)+' -C '+merit_folder
         subprocess.call(command,shell=True)
+        os.remove(os.path.join(merit_folder,filename))
         
 
 ############################################################################
