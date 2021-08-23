@@ -5,7 +5,7 @@ __author__ = "Hylke E. Beck"
 __email__ = "hylke.beck@gmail.com"
 __date__ = "August 2021"
 
-import os, sys, glob, time, h5py, scipy.io, pdb
+import os, sys, glob, time, pdb
 import pandas as pd
 import numpy as np
 import pcraster as pcr
@@ -103,7 +103,8 @@ for lat in lats:
         subprocess.call(command,shell=True)
         command = 'tar -xvf '+os.path.join(merit_folder,filename)+' -C '+merit_folder
         subprocess.call(command,shell=True)
-        os.remove(os.path.join(merit_folder,filename))
+        if os.path.isfile(os.path.join(merit_folder,filename)):
+            os.remove(os.path.join(merit_folder,filename))
         
 
 ############################################################################
@@ -112,8 +113,8 @@ for lat in lats:
 ############################################################################
 
 global_shape = (int(180/res),int(360/res))
-upsteam_area_global = np.zeros(global_shape,dtype=np.single)*np.NaN
-
+upstream_area_global = np.zeros(global_shape,dtype=np.single)*np.NaN
+'''
 for subdir, dirs, files in os.walk(merit_folder):
     for file in files:        
         
@@ -132,30 +133,38 @@ for subdir, dirs, files in os.walk(merit_folder):
         newarray = imresize_max(oldarray,newshape)
         
         # Insert into global map
-        tile_lat_up = float(file[:3].replace("n","").replace("s","-"))
+        tile_lat_bottom = float(file[:3].replace("n","").replace("s","-"))
         tile_lon_left = float(file[3:7].replace("e","").replace("w","-"))
-        tile_row_up, tile_col_left = latlon2rowcol(tile_lat_up,tile_lon_left,res,90,-180)
-        upsteam_area_global[tile_row_up:tile_row_up+newshape[0],tile_col_left:tile_col_left+newshape[1]] = newarray
+        tile_row_bottom, tile_col_left = latlon2rowcol(tile_lat_bottom+res/2,tile_lon_left+res/2,res,90,-180)
+        upstream_area_global[tile_row_bottom-newshape[0]+1:tile_row_bottom+1,tile_col_left:tile_col_left+newshape[1]] = newarray
         
         print('Time elapsed is ' + str(time.time() - t1) + ' sec')
-
+'''
 
 ############################################################################
 #   Create ldd based on global upstream area map
 ############################################################################
 
 # Use upstream area as elevation to derive ldd
-ldd_global = pcr.lddcreate(-upsteam_area_global,9999999,9999999,9999999,9999999)
-
-# Subset global ldd to region defined by clonemap
 dset = Dataset(clonemap)
 clone_lat = dset.variables['lat'][:]
 clone_lon = dset.variables['lon'][:]
 clone_res = clone_lon[1]-clone_lon[0]
-if np.round(clone_res*1000000000)!=res:
+varname = list(dset.variables.keys())[-1]
+clone_np = np.array(dset.variables[varname][:])
+pcr.setclone(clone_np.shape[0],clone_np.shape[1],clone_res,clone_lon[0]-clone_res/2,clone_lat[0]-clone_res/2)
+
+# Subset global ldd to region defined by clonemap
+if np.round(clone_res*1000000)!=np.round(res*1000000):
     raise ValueError('Clone resolution of '+str(clone_res)+' does not match target resolution of '+str(res))
 row_upper,col_left = latlon2rowcol(clone_lat[0],clone_lon[0],res,90,-180)
-ldd = ldd_global[row_upper:row_upper+len(clone_lat),col_left:col_left+len(clone_lon)]
+upstream_area = upstream_area_global[row_upper:row_upper+len(clone_lat),col_left:col_left+len(clone_lon)]
+
+upstream_area_pcr = pcr.numpy2pcr(pcr.Scalar,upstream_area,mv=-999999999)
+pdb.set_trace()
+ldd_global = pcr.lddcreate(-upstream_area_pcr,9999999,9999999,9999999,9999999)
+
+
 
 # Produce netcdf
 if os.path.isdir()==False:
@@ -166,7 +175,7 @@ ldd_subset
 pdb.set_trace()
 
 plt.figure(0)
-plt.imshow(upsteam_area_global)
+plt.imshow(upstream_area_global)
 plt.colorbar()
 plt.show()
         
