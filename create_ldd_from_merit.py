@@ -177,36 +177,25 @@ fake_elev_np[np.isnan(fake_elev_np)] = 0
 fake_elev_pcr = pcr.numpy2pcr(pcr.Scalar,fake_elev_np,mv=9999999)
 ldd_pcr = pcr.lddcreate(fake_elev_pcr,0,0,0,0)
 ldd_np = pcr.pcr2numpy(ldd_pcr,mv=-9999)
-#ldd_np[np.isnan(upstream_area)] = 0
 upstreamarea_pcr = pcr.accuflux(ldd_pcr,1)
 upstreamarea_np = pcr.pcr2numpy(upstreamarea_pcr,mv=9999999)
 
-#----------------------------------------------------------------------------
-# Plot some maps
+# Save ldd
+save_netcdf(os.path.join(output_folder,'ldd.nc'), 'ldd', ldd_np, clone_lat, clone_lon)
+
+
+############################################################################
+#   Plot some maps
+############################################################################
+
 plt.figure(1)
 plt.imshow(np.log10(upstreamarea_np),vmin=0,vmax=6)
 plt.title('upstreamarea_np')
 
 plt.figure(2)
-plt.imshow(fake_elev_np)
-plt.title('fake_elev_np')
-
-plt.figure(3)
 plt.imshow(np.log10(upstream_area_global),vmin=0,vmax=6)
 plt.title('upstream_area_global')
 
-dset = Dataset(r'C:\Users\hylke\Downloads\oud_ad\ups.nc')
-ups_old = np.array(dset.variables['ups'][:])
-plt.figure(4)
-plt.imshow(np.log10(ups_old),vmin=0,vmax=6)
-plt.title('ups_old')
-
 plt.show(block=False)
-#----------------------------------------------------------------------------
-
-# Save ldd
-save_netcdf(os.path.join(output_folder,'ldd.nc'), 'ldd', ldd_np, clone_lat, clone_lon)
-
-pdb.set_trace()
 
 pdb.set_trace()
