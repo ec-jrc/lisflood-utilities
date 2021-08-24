@@ -42,7 +42,7 @@ def imresize_max(oldarray,newshape):
     
     return newarray
 
-def save_netcdf_2d(file, varname, data, lat, lon, varunits, least_sig_dig):
+def save_netcdf(file, varname, data, lat, lon):
 
     if os.path.isfile(file)==True: os.remove(file)
     
@@ -63,10 +63,9 @@ def save_netcdf_2d(file, varname, data, lat, lon, varunits, least_sig_dig):
     ncfile.variables['lat'].units = 'degrees_north'
     ncfile.variables['lat'].long_name = 'latitude'
     
-    ncfile.createVariable(varname, data.dtype, ('lat', 'lon'), zlib=True, chunksizes=(32,32,), fill_value=-9999, least_significant_digit=least_sig_dig)
+    ncfile.createVariable(varname, data.dtype, ('lat', 'lon'), zlib=True, chunksizes=(32,32,), fill_value=-9999)
 
     ncfile.variables[varname][:,:] = data
-    ncfile.variables[varname].units = varunits
     
     ncfile.close()
     
@@ -158,7 +157,7 @@ with open(os.path.join(output_folder,'upstream_area_global.npy'), 'rb') as f:
 ############################################################################
 
 # Load clonemap
-dset = Dataset(clonemap)
+dset = Dataset(clonemap_path)
 clone_lat = dset.variables['lat'][:]
 clone_lon = dset.variables['lon'][:]
 clone_res = clone_lon[1]-clone_lon[0]
@@ -178,6 +177,7 @@ fake_elev_np = 9999999-upstream_area
 fake_elev_np[np.isnan(fake_elev_np)] = 0
 fake_elev_pcr = pcr.numpy2pcr(pcr.Scalar,fake_elev_np,mv=9999999)
 ldd_pcr = pcr.lddcreate(fake_elev_pcr,0,0,0,0)
+ldd_np = pcr.pcr2numpy(ldd_pcr,mv=-9999)
 upstreamarea_pcr = pcr.accuflux(ldd_pcr,1)
 upstreamarea_np = pcr.pcr2numpy(upstreamarea_pcr,mv=9999999)
 
@@ -201,15 +201,12 @@ plt.figure(4)
 plt.imshow(np.log10(ups_old),vmin=0,vmax=6)
 plt.title('ups_old')
 
-
 plt.show(block=False)
 #----------------------------------------------------------------------------
 
+# Save ldd
+save_netcdf(os.path.join('ldd.nc'), 'ldd', ldd_np, clone_lat, clone_lon)
 
-
-# Save 
 pdb.set_trace()
-
-# Produce netcdf
 
 pdb.set_trace()
