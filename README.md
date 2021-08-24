@@ -1,6 +1,6 @@
 # Overview
 
-This script produces a local drain direction (LDD) map based on 90-m [MERIT Hydro](http://hydro.iis.u-tokyo.ac.jp/~yamadai/MERIT_Hydro/) upstream area data for a particular region at a particular resolution. The script is entirely self-containing and only requires one to specify the path of the clone map and several output folders.
+This script produces a local drain direction (LDD) map (in netCDF-4 format) based on 90-m [MERIT Hydro](http://hydro.iis.u-tokyo.ac.jp/~yamadai/MERIT_Hydro/) upstream area data for a particular region at a particular resolution. The script is entirely self-containing and only requires one to specify the path of the clone map and several output folders.
 
 The script:
 1. downloads and extracts the MERIT Hydro upstream area data;
