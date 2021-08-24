@@ -91,8 +91,6 @@ if os.path.isdir(output_folder)==False:
 ############################################################################
 
 url_pre = 'http://hydro.iis.u-tokyo.ac.jp/~yamadai/MERIT_Hydro/distribute/v1.0/'
-username = 'hydrography'
-password = 'rivernetwork'
 
 lats = ['n60','n30','n00','s30','s60']
 lons = ['w180','w150','w120','w090','w060','w030','e000','e030','e060','e090','e120','e150']
@@ -100,7 +98,7 @@ for lat in lats:
     for lon in lons:
         if os.path.isdir(os.path.join(merit_folder,'upa_'+lat+lon)): continue
         filename = 'upa_'+lat+lon+'.tar'
-        command = 'wget '+url_pre+filename+' --no-clobber --user='+username+' --password='+password+' --directory-prefix='+merit_folder
+        command = 'wget '+url_pre+filename+' --no-clobber --user=hydrography --password=rivernetwork --directory-prefix='+merit_folder
         subprocess.call(command,shell=True)
         command = 'tar -xvf '+os.path.join(merit_folder,filename)+' -C '+merit_folder
         subprocess.call(command,shell=True)
