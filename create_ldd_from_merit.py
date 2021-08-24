@@ -83,7 +83,10 @@ for ii in np.arange(len(config)):
 
 if os.path.isdir(merit_folder)==False:
     os.mkdir(merit_folder)
-    
+
+if os.path.isdir(output_folder)==False:
+    os.mkdir(output_folder)
+   
 
 ############################################################################
 #   Download and untar all MERIT Hydro upstream data
@@ -105,47 +108,56 @@ for lat in lats:
         subprocess.call(command,shell=True)
         if os.path.isfile(os.path.join(merit_folder,filename)):
             os.remove(os.path.join(merit_folder,filename))
-        
+
 
 ############################################################################
 #   Make global upstream map at specified resolution 
 #   based on MERIT Hydro data
 ############################################################################
 
-global_shape = (int(180/res),int(360/res))
-upstream_area_global = np.zeros(global_shape,dtype=np.single)*np.NaN
-'''
-for subdir, dirs, files in os.walk(merit_folder):
-    for file in files:        
-        
-        print('--------------------------------------------------------------------------------')
-        print('Processing '+file)
-        t1 = time.time()
-        
-        # Resize using maximum filter
-        oldarray = rasterio.open(os.path.join(subdir, file)).read(1)
-        factor = res/(5/6000)
-        factor = np.round(factor*1000000000000)/1000000000000
-        if factor!=np.round(factor): 
-            raise ValueError('Resize factor of '+str(factor)+' not integer, needs to be integer')
-        factor = factor.astype(int)
-        newshape = (oldarray.shape[0]//factor,oldarray.shape[1]//factor)
-        newarray = imresize_max(oldarray,newshape)
-        
-        # Insert into global map
-        tile_lat_bottom = float(file[:3].replace("n","").replace("s","-"))
-        tile_lon_left = float(file[3:7].replace("e","").replace("w","-"))
-        tile_row_bottom, tile_col_left = latlon2rowcol(tile_lat_bottom+res/2,tile_lon_left+res/2,res,90,-180)
-        upstream_area_global[tile_row_bottom-newshape[0]+1:tile_row_bottom+1,tile_col_left:tile_col_left+newshape[1]] = newarray
-        
-        print('Time elapsed is ' + str(time.time() - t1) + ' sec')
-'''
+if os.path.isfile(os.path.join(output_folder,'upstream_area_global.npy'))==False:
 
+    global_shape = (int(180/res),int(360/res))
+    upstream_area_global = np.zeros(global_shape)*np.NaN
+    
+    for subdir, dirs, files in os.walk(merit_folder):
+        for file in files:        
+            
+            print('--------------------------------------------------------------------------------')
+            print('Processing '+file)
+            t1 = time.time()
+            
+            # Resize using maximum filter
+            oldarray = rasterio.open(os.path.join(subdir, file)).read(1)
+            factor = res/(5/6000)
+            factor = np.round(factor*1000000000000)/1000000000000
+            if factor!=np.round(factor): 
+                raise ValueError('Resize factor of '+str(factor)+' not integer, needs to be integer')
+            factor = factor.astype(int)
+            newshape = (oldarray.shape[0]//factor,oldarray.shape[1]//factor)
+            newarray = imresize_max(oldarray,newshape)
+            
+            # Insert into global map
+            tile_lat_bottom = float(file[:3].replace("n","").replace("s","-"))
+            tile_lon_left = float(file[3:7].replace("e","").replace("w","-"))
+            tile_row_bottom, tile_col_left = latlon2rowcol(tile_lat_bottom+res/2,tile_lon_left+res/2,res,90,-180)
+            upstream_area_global[tile_row_bottom-newshape[0]+1:tile_row_bottom+1,tile_col_left:tile_col_left+newshape[1]] = newarray
+            
+            print('Time elapsed is ' + str(time.time() - t1) + ' sec')
+
+    with open(os.path.join(output_folder,'upstream_area_global.npy'), 'wb') as f:
+        np.save(f, upstream_area_global)
+
+# Load resampled global upstream area map from disk
+with open(os.path.join(output_folder,'upstream_area_global.npy'), 'rb') as f:
+    upstream_area_global = np.load(f)
+
+    
 ############################################################################
 #   Create ldd based on global upstream area map
 ############################################################################
 
-# Use upstream area as elevation to derive ldd
+# Load clonemap
 dset = Dataset(clonemap)
 clone_lat = dset.variables['lat'][:]
 clone_lon = dset.variables['lon'][:]
@@ -154,30 +166,50 @@ varname = list(dset.variables.keys())[-1]
 clone_np = np.array(dset.variables[varname][:])
 pcr.setclone(clone_np.shape[0],clone_np.shape[1],clone_res,clone_lon[0]-clone_res/2,clone_lat[0]-clone_res/2)
 
-# Subset global ldd to region defined by clonemap
+# Subset global upstream map
 if np.round(clone_res*1000000)!=np.round(res*1000000):
     raise ValueError('Clone resolution of '+str(clone_res)+' does not match target resolution of '+str(res))
 row_upper,col_left = latlon2rowcol(clone_lat[0],clone_lon[0],res,90,-180)
 upstream_area = upstream_area_global[row_upper:row_upper+len(clone_lat),col_left:col_left+len(clone_lon)]
 
-upstream_area_pcr = pcr.numpy2pcr(pcr.Scalar,upstream_area,mv=-999999999)
+# Produce ldd from upstream map
+upstream_area[upstream_area<0] = np.NaN
+fake_elev_np = 9999999-upstream_area
+fake_elev_np[np.isnan(fake_elev_np)] = 0
+fake_elev_pcr = pcr.numpy2pcr(pcr.Scalar,fake_elev_np,mv=9999999)
+ldd_pcr = pcr.lddcreate(fake_elev_pcr,0,0,0,0)
+upstreamarea_pcr = pcr.accuflux(ldd_pcr,1)
+upstreamarea_np = pcr.pcr2numpy(upstreamarea_pcr,mv=9999999)
+
+#----------------------------------------------------------------------------
+# Plot some maps
+plt.figure(1)
+plt.imshow(np.log10(upstreamarea_np),vmin=0,vmax=6)
+plt.title('upstreamarea_np')
+
+plt.figure(2)
+plt.imshow(fake_elev_np)
+plt.title('fake_elev_np')
+
+plt.figure(3)
+plt.imshow(np.log10(upstream_area_global),vmin=0,vmax=6)
+plt.title('upstream_area_global')
+
+dset = Dataset(r'C:\Users\hylke\Downloads\oud_ad\ups.nc')
+ups_old = np.array(dset.variables['ups'][:])
+plt.figure(4)
+plt.imshow(np.log10(ups_old),vmin=0,vmax=6)
+plt.title('ups_old')
+
+
+plt.show(block=False)
+#----------------------------------------------------------------------------
+
+
+
+# Save 
 pdb.set_trace()
-ldd_global = pcr.lddcreate(-upstream_area_pcr,9999999,9999999,9999999,9999999)
-
-
 
 # Produce netcdf
-if os.path.isdir()==False:
-    mkdir(output_folder)
-    
-ldd_subset
-
-pdb.set_trace()
-
-plt.figure(0)
-plt.imshow(upstream_area_global)
-plt.colorbar()
-plt.show()
-        
 
 pdb.set_trace()
