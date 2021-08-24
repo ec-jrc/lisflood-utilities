@@ -10,12 +10,12 @@ The script:
 
 # Instructions
 
-1. Install the cross-platform wget and tar utilities to download and extract the MERIT Hydro data.
-1. Clone the repository:
+Install the cross-platform wget and [tar](http://gnuwin32.sourceforge.net/packages/gtar.htm) utilities to download and extract the MERIT Hydro data. 
+Clone the repository:
 ```
 git clone https://github.com/hylken/create_ldd_from_merit
 ```
-1. Modify`config.cfg` with the correct paths and folders. Create and activate a conda environment and run the script as follows:
+Modify `config.cfg` with the correct paths and folders. Create and activate a conda environment and run the script as follows:
 ```
 cd create_ldd_from_merit
 conda create --name <env> --file requirements.txt
