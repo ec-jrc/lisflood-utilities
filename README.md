@@ -10,7 +10,7 @@ The script:
 
 # Instructions
 
-Install the cross-platform wget and [tar](http://gnuwin32.sourceforge.net/packages/gtar.htm) utilities to download and extract the MERIT Hydro data. 
+Install the cross-platform [wget](http://gnuwin32.sourceforge.net/packages/wget.htm) and [tar](http://gnuwin32.sourceforge.net/packages/gtar.htm) utilities to download and extract the MERIT Hydro data. 
 Clone the repository:
 ```
 git clone https://github.com/hylken/create_ldd_from_merit
