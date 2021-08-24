@@ -109,8 +109,8 @@ for lat in lats:
 
 
 ############################################################################
-#   Make global upstream map at specified resolution 
-#   based on MERIT Hydro data
+#   Make global upstream map at specified resolution based on MERIT Hydro 
+#   upstream data
 ############################################################################
 
 if os.path.isfile(os.path.join(output_folder,'upstream_area_global.npy'))==False:
@@ -155,7 +155,7 @@ with open(os.path.join(output_folder,'upstream_area_global.npy'), 'rb') as f:
 #   Create ldd based on global upstream area map
 ############################################################################
 
-# Load clonemap
+# Load clone map
 dset = Dataset(clonemap_path)
 clone_lat = dset.variables['lat'][:]
 clone_lon = dset.variables['lon'][:]
@@ -164,13 +164,13 @@ varname = list(dset.variables.keys())[-1]
 clone_np = np.array(dset.variables[varname][:])
 pcr.setclone(clone_np.shape[0],clone_np.shape[1],clone_res,clone_lon[0]-clone_res/2,clone_lat[0]-clone_res/2)
 
-# Subset global upstream map
+# Subset global upstream map to clone map region
 if np.round(clone_res*1000000)!=np.round(res*1000000):
     raise ValueError('Clone resolution of '+str(clone_res)+' does not match target resolution of '+str(res))
 row_upper,col_left = latlon2rowcol(clone_lat[0],clone_lon[0],res,90,-180)
 upstream_area = upstream_area_global[row_upper:row_upper+len(clone_lat),col_left:col_left+len(clone_lon)]
 
-# Produce ldd from upstream map
+# Produce ldd by inverting upstream map
 upstream_area[upstream_area<0] = np.NaN
 fake_elev_np = 9999999-upstream_area
 fake_elev_np[np.isnan(fake_elev_np)] = 0
@@ -180,7 +180,7 @@ ldd_np = pcr.pcr2numpy(ldd_pcr,mv=-9999)
 upstreamarea_pcr = pcr.accuflux(ldd_pcr,1)
 upstreamarea_np = pcr.pcr2numpy(upstreamarea_pcr,mv=9999999)
 
-# Save ldd
+# Save resulting ldd
 save_netcdf(os.path.join(output_folder,'ldd.nc'), 'ldd', ldd_np, clone_lat, clone_lon)
 
 
