@@ -44,10 +44,9 @@ def imresize_max(oldarray,newshape):
 
 def save_netcdf(file, varname, data, lat, lon):
 
-    if os.path.isfile(file)==True: os.remove(file)
-    
-    mkdir(os.path.dirname(file))
-    
+    if os.path.isfile(file)==True: 
+        os.remove(file)
+
     ncfile = Dataset(file, 'w', format='NETCDF4')
 
     ncfile.createDimension('lon', len(lon))
@@ -178,6 +177,7 @@ fake_elev_np[np.isnan(fake_elev_np)] = 0
 fake_elev_pcr = pcr.numpy2pcr(pcr.Scalar,fake_elev_np,mv=9999999)
 ldd_pcr = pcr.lddcreate(fake_elev_pcr,0,0,0,0)
 ldd_np = pcr.pcr2numpy(ldd_pcr,mv=-9999)
+#ldd_np[np.isnan(upstream_area)] = 0
 upstreamarea_pcr = pcr.accuflux(ldd_pcr,1)
 upstreamarea_np = pcr.pcr2numpy(upstreamarea_pcr,mv=9999999)
 
@@ -205,7 +205,7 @@ plt.show(block=False)
 #----------------------------------------------------------------------------
 
 # Save ldd
-save_netcdf(os.path.join('ldd.nc'), 'ldd', ldd_np, clone_lat, clone_lon)
+save_netcdf(os.path.join(output_folder,'ldd.nc'), 'ldd', ldd_np, clone_lat, clone_lon)
 
 pdb.set_trace()
 
