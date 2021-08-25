@@ -162,6 +162,11 @@ varname = list(dset.variables.keys())[-1]
 clone_np = np.array(dset.variables[varname][:])
 pcr.setclone(clone_np.shape[0],clone_np.shape[1],clone_res,clone_lon[0]-clone_res/2,clone_lat[0]-clone_res/2)
 
+# Create grid-cell area map
+xi, yi = np.meshgrid(clone_lon, clone_lat)
+area_np = (40075*res/360)**2*np.cos(np.deg2rad(yi))
+area_pcr = pcr.numpy2pcr(pcr.Scalar,area_np,mv=-9999)
+
 # Subset global upstream map to clone map region
 if np.round(clone_res*1000000)!=np.round(res*1000000):
     raise ValueError('Clone resolution of '+str(clone_res)+' does not match target resolution of '+str(res))
@@ -175,11 +180,12 @@ fake_elev_np[np.isnan(fake_elev_np)] = 0
 fake_elev_pcr = pcr.numpy2pcr(pcr.Scalar,fake_elev_np,mv=9999999)
 ldd_pcr = pcr.lddcreate(fake_elev_pcr,0,0,0,0)
 ldd_np = pcr.pcr2numpy(ldd_pcr,mv=-9999)
-upstreamarea_pcr = pcr.accuflux(ldd_pcr,1)
+upstreamarea_pcr = pcr.accuflux(ldd_pcr,area_pcr)
 upstreamarea_np = pcr.pcr2numpy(upstreamarea_pcr,mv=9999999)
 
-# Save resulting ldd
+# Save results
 save_netcdf(os.path.join(output_folder,'ldd.nc'), 'ldd', ldd_np, clone_lat, clone_lon)
+save_netcdf(os.path.join(output_folder,'ups.nc'), 'ups', upstreamarea_np, clone_lat, clone_lon)
 
 
 ############################################################################

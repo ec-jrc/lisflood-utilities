@@ -8,6 +8,8 @@ The script:
 1. uses the resampled upstream area (inverted) as elevation; and
 1. computes the LDD.
 
+The script can be run on a normal desktop PC (Windows and Linux). The download of the MERIT data requires ~45 GB of free disk space. The download will be performed only once.
+
 # Instructions
 
 Register at the [MERIT Hydro](http://hydro.iis.u-tokyo.ac.jp/~yamadai/MERIT_Hydro/) website using the Google form.
