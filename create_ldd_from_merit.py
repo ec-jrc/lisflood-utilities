@@ -194,11 +194,11 @@ save_netcdf(os.path.join(output_folder,'ups.nc'), 'ups', upstreamarea_np, clone_
 
 plt.figure(1)
 plt.imshow(np.log10(upstreamarea_np),vmin=0,vmax=6)
-plt.title('upstreamarea_np')
+plt.title('New upstream area (upstreamarea_np)')
 
 plt.figure(2)
 plt.imshow(np.log10(upstream_area_global),vmin=0,vmax=6)
-plt.title('upstream_area_global')
+plt.title('MERIT Hydro upstream area (upstream_area_global)')
 
 plt.show(block=False)
 
