@@ -23,7 +23,7 @@ Clone the repository:
 git clone https://github.com/hylken/create_ldd_from_merit
 cd create_ldd_from_merit
 ```
-Modify `config.cfg` with the correct paths and folders. The resolution (`res`) has to match the resolution of the clone map. The clone map should contain `lat` and `lon` variables and a data variable (any name).
+Modify `config.cfg` with the correct paths and folders. `res` should match the resolution of the clone map. The clone map should contain `lat` and `lon` variables and a data variable (any name).
 
 Create and activate a Conda environment and run the script as follows:
 ```
