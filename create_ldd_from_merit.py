@@ -125,6 +125,7 @@ if os.path.isfile(os.path.join(output_folder,'upstream_area_global.npy'))==False
             
             # Resize using maximum filter
             oldarray = rasterio.open(os.path.join(subdir, file)).read(1)
+            oldarray[oldarray<0] = 9999999 # Necessary to ensure that all rivers flow into the ocean
             factor = res/(5/6000)
             factor = np.round(factor*1000000000000)/1000000000000
             if factor!=np.round(factor): 
@@ -174,7 +175,6 @@ row_upper,col_left = latlon2rowcol(clone_lat[0],clone_lon[0],res,90,-180)
 upstream_area = upstream_area_global[row_upper:row_upper+len(clone_lat),col_left:col_left+len(clone_lon)]
 
 # Produce ldd by inverting upstream map
-upstream_area[upstream_area<0] = np.NaN
 fake_elev_np = 9999999-upstream_area
 fake_elev_np[np.isnan(fake_elev_np)] = 0
 fake_elev_pcr = pcr.numpy2pcr(pcr.Scalar,fake_elev_np,mv=9999999)
