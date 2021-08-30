@@ -53,12 +53,8 @@ for ii in np.arange(len(config)):
     string = string.replace("=","=r")
     exec(string)
 
-# Large rivers shapefile
-# http://ihp-wins.unesco.org/layers/geonode:world_rivers
-rivers_shp = gpd.read_file(r'\\zeus\hylkeb\RESEARCH\Data\world_rivers\world_rivers.shp')
-
-# Load LDD file
-dset = Dataset(lddpath)
+# Load LDD map
+dset = Dataset(ldd_path)
 ldd_np = np.array(dset.variables['ldd'][:])
 ldd_np[np.isnan(ldd_np)] = -9999 
 ldd_np = ldd_np.astype(np.int16)
@@ -68,18 +64,16 @@ res = np.diff(lon)[0]
 lat_upper = lat[0]+res/2
 lon_left = lon[0]-res/2
 
+# Load upstream map
+dset = Dataset(ups_path)
+upstreamarea_np = np.array(dset.variables['ups'][:])
+
 # Set pcraster clone map
 pcr.setclone(ldd_np.shape[0],ldd_np.shape[1],res,lon[0]-res/2,lat[0]-res/2)
 
-# Create grid-cell area map
-xi, yi = np.meshgrid(lon, lat)
-area_np = (40075*res/360)**2*np.cos(np.deg2rad(yi))
-area_pcr = pcr.numpy2pcr(pcr.Scalar,area_np,mv=-9999)
-
-# Create upstream area map
-ldd_pcr = pcr.numpy2pcr(pcr.Ldd,ldd_np,mv=-9999)
-upstreamarea_pcr = pcr.accuflux(ldd_pcr,area_pcr)
-upstreamarea_np = pcr.pcr2numpy(upstreamarea_pcr,mv=999999999)
+# Large rivers shapefile
+# http://ihp-wins.unesco.org/layers/geonode:world_rivers
+rivers_shp = gpd.read_file(r'e:\Temp\world_rivers\world_rivers.shp')
 
 # Create folder with corrected station locations
 if os.path.isdir(corrected_locations_dir)==False:
@@ -92,10 +86,13 @@ if os.path.isdir(corrected_locations_dir)==False:
 #   manually select the correct location
 ############################################################################
 
-catchment_dirs = glob.glob(os.path.join(databasedir,'*',""))
+catchment_dirs = glob.glob(os.path.join(database_dir,'Sudan_*',""))
 catchment_dirs = sorted(catchment_dirs)
+failcounter = 0
+toosmallcounter = 0
+successcounter = 0
 for ii in np.arange(len(catchment_dirs)):
-
+    
     catchment_dir = catchment_dirs[ii]  
     ID = os.path.split(os.path.dirname(catchment_dir))[-1]
     print("===============================================================================")
@@ -114,6 +111,7 @@ for ii in np.arange(len(catchment_dirs)):
     if 'CatchCentroidLon' in globals(): del CatchCentroidLon
     if 'coords' in globals(): del coords
 
+    print('Bla')
     
     ############################################################################
     #   Load discharge and catchment boundary data
@@ -153,6 +151,7 @@ for ii in np.arange(len(catchment_dirs)):
     
         if Area<10000:             
             print("Catchment too small")
+            toosmallcounter = toosmallcounter+1
             continue
 
         # Snap settings
@@ -221,10 +220,13 @@ for ii in np.arange(len(catchment_dirs)):
     plt.close('all')
     
     if snap_success==False:
+        failcounter = failcounter+1
+        
+        if 'Area' in globals(): print('Provider catchment area is '+str(np.round(Area))+' km2 (10^'+str(np.log10(Area))+' km2)')
         
         extent = [lon_left,lon_left+len(lon)*res,lat_upper-len(lat)*res,lat_upper] # (left, right, bottom, top)
         
-        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)
+        fig, ((ax1, ax2, ax3), (ax4, ax5, ax6)) = plt.subplots(2, 3)
         
         fig.suptitle(str(ii)+' '+ID+' '+Station+'\nMean discharge '+str(np.nanmean(Discharge))+' m3/s')
         
@@ -247,12 +249,22 @@ for ii in np.arange(len(catchment_dirs)):
         rivers_shp.plot(ax=ax3,column=None,cmap=None,facecolor="none",edgecolor='r',linewidth=0.35) 
         
         margin = 6        
-        ax4.imshow(np.log10(upstreamarea_np))
+        im4 = ax4.imshow(np.log10(upstreamarea_np))
         ax4.scatter(StatCol,StatRow,c='r')
         ax4.set_xlim(StatCol-margin,StatCol+margin)
         ax4.set_ylim(StatRow-margin,StatRow+margin)
-        plt.gca().invert_yaxis()
-        plt.title('Click, then close')        
+        ax4.invert_yaxis()
+        ax4.set_title('Click here...')
+        fig.colorbar(im4,ax=ax4)
+
+        margin = 36        
+        im5 = ax5.imshow(np.log10(upstreamarea_np))
+        ax5.scatter(StatCol,StatRow,c='r')
+        ax5.set_xlim(StatCol-margin,StatCol+margin)
+        ax5.set_ylim(StatRow-margin,StatRow+margin)
+        ax5.invert_yaxis()
+        ax5.set_title('... or here')
+        fig.colorbar(im5,ax=ax5)
         
         # Select correct grid cell manually
         print('Click on correct grid cell, then close plot')
@@ -263,7 +275,7 @@ for ii in np.arange(len(catchment_dirs)):
             continue
         StatColCorr,StatRowCorr = coords[0],coords[1]
         StatLatCorr,StatLonCorr = rowcol2latlon(StatRowCorr,StatColCorr,res,lat_upper,lon_left)
-        
+
     
     ############################################################################
     #   Show catchment of corrected location
@@ -291,5 +303,8 @@ for ii in np.arange(len(catchment_dirs)):
     ############################################################################
     
     np.savetxt(os.path.join(corrected_locations_dir,ID+'.txt'), np.array([StatColCorr,StatRowCorr]), delimiter=',',fmt='%1.3f')
+    successcounter = successcounter+1
     
     print('Time elapsed is ' + str(time.time() - t1) + ' sec')
+    
+pdb.set_trace()

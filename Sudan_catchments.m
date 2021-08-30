@@ -1,9 +1,9 @@
 load_config('config.cfg') 
 
-Streamflow_Guages = shaperead([rawdir filesep 'Sudan_restricted_raw_data' filesep 'GIS Layers' filesep 'Streamflow Guages.shp']);
-Metadata = readtable([rawdir filesep 'Sudan_restricted_raw_data' filesep 'Sudan Row Streamflow Data' filesep 'Sudan_Streamflow_Data_(1965-2020).xlsx'],...
+Streamflow_Guages = shaperead([raw_dir filesep 'Sudan_restricted_raw_data' filesep 'GIS Layers' filesep 'Streamflow Guages.shp']);
+Metadata = readtable([raw_dir filesep 'Sudan_restricted_raw_data' filesep 'Sudan Row Streamflow Data' filesep 'Sudan_Streamflow_Data_(1965-2020).xlsx'],...
 	'Sheet','Metadata');
-Observed_Daily_Streamflow_MCM = readtable([rawdir filesep 'Sudan_restricted_raw_data' filesep 'Sudan Row Streamflow Data' filesep 'Sudan_Streamflow_Data_(1965-2020).xlsx'],...
+Observed_Daily_Streamflow_MCM = readtable([raw_dir filesep 'Sudan_restricted_raw_data' filesep 'Sudan Row Streamflow Data' filesep 'Sudan_Streamflow_Data_(1965-2020).xlsx'],...
 	'Sheet','Observed_Daily_Streamflow_MCM');
 	
 for ii = 1:size(Metadata,1)
@@ -21,7 +21,7 @@ for ii = 1:size(Metadata,1)
 	clear DISCHARGE
 	DISCHARGE.StationCoords.Lat = Metadata.N(ii);
 	DISCHARGE.StationCoords.Lon = Metadata.E(ii);
-	DISCHARGE.Station = Metadata.Station{ii};
+	DISCHARGE.Station = [Metadata.River{ii} ' at ' Metadata.Station{ii}];
 	refdates = datenum(1900,1,1):datenum(2039,12,31);
 	DISCHARGE.Discharge = nan(length(refdates),1,'single');
 	Sudan_dates = datenum(Observed_Daily_Streamflow_MCM.Date(:));
@@ -45,7 +45,7 @@ for ii = 1:size(Metadata,1)
 	end
 	
 	%clear BOUNDARIES	
-	%shp_filepath = [rawdir filesep 'Sudan_restricted_raw_data' filesep 'CatchmentBoundaries' filesep 'Sudancatch_' Sudan_co '.shp'];
+	%shp_filepath = [raw_dir filesep 'Sudan_restricted_raw_data' filesep 'CatchmentBoundaries' filesep 'Sudancatch_' Sudan_co '.shp'];
 	%if ~exist(shp_filepath), continue; end
 	%shp = shaperead(shp_filepath);
 	%BOUNDARIES.CatchBounds.Lat = single(shp.Y);
@@ -54,9 +54,9 @@ for ii = 1:size(Metadata,1)
 	
 	
 	
-	mkdir([databasedir filesep 'Sudan_restricted_' ID])
-	save([databasedir filesep 'Sudan_restricted_' ID filesep 'DISCHARGE.mat'],'DISCHARGE','-v7.3')
-	%save([databasedir filesep 'Sudan_restricted_' ID filesep 'BOUNDARIES.mat'],'BOUNDARIES','-v7.3')
+	mkdir([database_dir filesep 'Sudan_restricted_' ID])
+	save([database_dir filesep 'Sudan_restricted_' ID filesep 'DISCHARGE.mat'],'DISCHARGE','-v7.3')
+	%save([database_dir filesep 'Sudan_restricted_' ID filesep 'BOUNDARIES.mat'],'BOUNDARIES','-v7.3')
 		
 	toc
 end
