@@ -5,7 +5,7 @@ __author__ = "Hylke E. Beck"
 __email__ = "hylke.beck@gmail.com"
 __date__ = "July 2021"
 
-import os, sys, glob, time, h5py, scipy.io, pdb
+import os, sys, glob, time, h5py, scipy.io, pdb, csv
 import pandas as pd
 import numpy as np
 from netCDF4 import Dataset
@@ -37,6 +37,8 @@ def readmatfile(filepath,var):
             pass    
     return data
 
+t1 = time.time()
+    
 # Load configuration file
 config = pd.read_csv('config.cfg',header=None,index_col=False)
 for ii in np.arange(len(config)): 
@@ -48,6 +50,10 @@ for ii in np.arange(len(config)):
 date_start = dateutil.parser.parse(date_start)
 date_end = dateutil.parser.parse(date_end)
 min_record_length = float(min_record_length)
+
+# Date stuff
+dates_ref = pd.date_range(start=datetime(1900,1,1), end=datetime(2049,12,31), freq='D').round('D')
+ind = np.where((dates_ref>=date_start) & (dates_ref<=date_end))
 
 # Load LDD map
 dset = Dataset(ldd_path)
@@ -65,8 +71,9 @@ dset = Dataset(ups_path)
 upstreamarea_np = np.array(dset.variables['ups'][:])
 
 # Initialize empty stations and Qtss csvs
+# If you add/remove/shift fields, be sure to change the "stations.loc[count] = [ ...]" line as well
 stations = pd.DataFrame(columns = ["ObsID","StationName","Provider ID","Country code","StationLat","StationLon","DrainingArea.km2.Provider","River","DrainingArea.km2.LDD"])
-#Qtss = pd.DataFrame(columns = column_names)
+Qtss = pd.DataFrame(index=dates_ref[ind])
 
 # Create csv output folder
 if os.path.isdir(csv_dir)==False:
@@ -88,7 +95,6 @@ for ii in np.arange(len(catchment_dirs)):
     ID = os.path.split(os.path.dirname(catchment_dir))[-1]
     print("===============================================================================")
     print(str(ii)+" "+ID)
-    t1 = time.time()
 
     if 'Discharge' in globals(): del Discharge
     if 'StatLat' in globals(): del StatLat
@@ -102,14 +108,14 @@ for ii in np.arange(len(catchment_dirs)):
     #   Load data
     ############################################################################
     
-    
     # Load corrected station location
     if os.path.isfile(os.path.join(corrected_locations_dir,ID+'.txt'))==False:
         print('Corrected station location not found, skipping')
         continue
     corr_loc = pd.read_csv(os.path.join(corrected_locations_dir,ID+'.txt'),header=None,index_col=False)
-    StatLatCorr,StatLonCorr = rowcol2latlon(corr_loc.iloc[0],corr_loc.iloc[1],res,lat_upper,lon_left)
-    Area_LDD = upstreamarea_np[corr_loc.iloc[0],corr_loc.iloc[1]]
+    StatRowCorr,StatColCorr = int(corr_loc.iloc[1]),int(corr_loc.iloc[0])
+    StatLatCorr,StatLonCorr = rowcol2latlon(StatRowCorr,StatColCorr,res,lat_upper,lon_left)
+    Area_LDD = upstreamarea_np[StatRowCorr,StatColCorr]
     
     # Load discharge data
     try:
@@ -121,8 +127,6 @@ for ii in np.arange(len(catchment_dirs)):
     except:
         print("Unable to load DISCHARGE.mat, skipping")
         continue
-    dates_ref = pd.date_range(start=datetime(1900,1,1), end=datetime(2049,12,31), freq='D').round('D')
-    ind = np.where((dates_ref>=date_start) & (dates_ref<=date_end))
     Q_ts = Discharge[ind]
     if np.sum(np.isnan(Q_ts)==False)/365.25 < min_record_length:
         print("Discharge record too short, skipping")
@@ -132,20 +136,28 @@ for ii in np.arange(len(catchment_dirs)):
     try:
         Area = float(readmatfile(os.path.join(catchment_dir,"BOUNDARIES.mat"),'BOUNDARIES/Area'))        
     except:
+        Area = np.NaN
         print("Unable to load BOUNDARIES.mat")
         
     
     ############################################################################
     #   Insert data into dataframes
     ############################################################################
-    
-    #stations.append(ignore_index=True)
-    station.loc[count] = [count,Station,ID,"",StatLatCorr,StatLonCorr,Area,"",Area_LDD]
-    pdb.set_trace()
-    
-    
-    Q_ts
+
+    stations.loc[count] = [count,Station,ID,"",StatLatCorr,StatLonCorr,Area,"",Area_LDD]
+    Qtss[count] = Q_ts
     
     count = count+1
     
-    print('Time elapsed is ' + str(time.time() - t1) + ' sec')
+
+############################################################################
+#   Save dataframes to csv
+############################################################################
+
+print('Saving dataframes to csv')
+stations.to_csv(os.path.join(csv_dir,'stations.csv'),index=False,quoting=csv.QUOTE_NONNUMERIC)
+Qtss.to_csv(os.path.join(csv_dir,'Qtss.csv'))
+
+print('Total time elapsed is ' + str(time.time() - t1) + ' sec')
+
+pdb.set_trace()
