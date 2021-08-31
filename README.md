@@ -6,7 +6,7 @@ The first script (`step_1_snap_locations.py`) snaps the stations to the 'correct
 
 The second script (`step_2_create_csv.py`) loads the corrected station location and discharge data and computes the record length for each station, and generates the csv files for the calibration tool (`Qtss.csv` and `stations.csv`). The minimum record length can be set using `config.cfg`. 
 
-A local drainage direction (LDD) map can be produced using https://github.com/hylken/create_ldd_from_merit.
+Local drainage direction (LDD) and upstream area maps can be produced using https://github.com/hylken/create_ldd_from_merit.
 
 # Instructions
 
