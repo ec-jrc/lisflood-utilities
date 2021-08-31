@@ -1,34 +1,26 @@
 # Overview
 
-These scripts produce csv files to be used as input to the LISFLOOD calibration tool (https://github.com/ec-jrc/lisflood-calibration). The first script (`step_1_snap_locations.py`) aligns the stations with the river network of the LDD () using an automatic proximity-search procedure and a manual point-and-click procedure as fallback. scripts requireThe script is entirely self-containing and only requires one to specify the path of the clone map and several output folders.
+These scripts produce csv files to be used as input to the LISFLOOD calibration tool (https://github.com/ec-jrc/lisflood-calibration). 
+The first script (`step_1_snap_locations.py`) snaps the stations to the 'correct' grid-cell using an automatic proximity search procedure based on catchment area and catchment centroid location. If the procedure fails, a window will open to manually select the most appropriate grid-cell. If the window is closed without making a selection, the station will be skipped. This script generates, for each station, a file with the correct grid-cell row and column in the folder `corrected_locations_dir` (set using `config.ini`).
 
-The script:
-1. downloads and extracts the MERIT Hydro upstream area data;
-1. resamples the data using a maximum filter (to retain the river network);
-1. uses the resampled upstream area (inverted) as elevation; and
-1. computes the LDD.
+The second script (`step_2_create_csv.py`) selects stations with a sufficiently long record and produces the csv files (`Qss.tss` and `stations.csv`). The minimum record length can be set using `config.cfg`.
 
-# System requirements
-
-The script can be run on a normal desktop PC (Windows and Linux). The download of the MERIT data requires ~45 GB of free disk space. The download will be performed only once.
+A local drainage direction map for the study area can be produced using https://github.com/hylken/create_ldd_from_merit.
 
 # Instructions
 
-Register at the [MERIT Hydro](http://hydro.iis.u-tokyo.ac.jp/~yamadai/MERIT_Hydro/) website using the Google form (important).
-
-If you're using Windows, install the cross-platform [wget](http://gnuwin32.sourceforge.net/packages/wget.htm) and [tar](http://gnuwin32.sourceforge.net/packages/gtar.htm) utilities to download and extract the MERIT Hydro data. Add the location of the utilities to the environment variables, so they can be executed from any location.
-
 Clone the repository:
 ```
-git clone https://github.com/hylken/create_ldd_from_merit
-cd create_ldd_from_merit
+git clone https://github.com/hylken/lisflood-create-obs-discharge-csv
+cd lisflood-create-obs-discharge-csv
 ```
-Modify `config.cfg` with the correct paths and folders. `res` should match the resolution of the clone map. The clone map should contain `lat` and `lon` variables and a data variable (any name).
+Modify `config.cfg` and enter the correct paths and folders.
 
 Create and activate a Conda environment and run the script as follows:
 ```
 conda create --name <env> --file requirements.txt
 conda activate <env>
-python create_ldd_from_merit.py
+python step_1_snap_locations.py
+python step_2_create_csv.py
 ```
 

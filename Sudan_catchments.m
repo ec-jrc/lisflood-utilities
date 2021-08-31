@@ -43,20 +43,9 @@ for ii = 1:size(Metadata,1)
 	elseif strcmp(Metadata.Station{ii},'Malakal')
 		DISCHARGE.Discharge(DISCHARGE.Discharge>150) = NaN;
 	end
-	
-	%clear BOUNDARIES	
-	%shp_filepath = [raw_dir filesep 'Sudan_restricted_raw_data' filesep 'CatchmentBoundaries' filesep 'Sudancatch_' Sudan_co '.shp'];
-	%if ~exist(shp_filepath), continue; end
-	%shp = shaperead(shp_filepath);
-	%BOUNDARIES.CatchBounds.Lat = single(shp.Y);
-	%BOUNDARIES.CatchBounds.Lon = single(shp.X);
-	%BOUNDARIES.Area = shp.Area;
-	
-	
-	
+
 	mkdir([database_dir filesep 'Sudan_restricted_' ID])
 	save([database_dir filesep 'Sudan_restricted_' ID filesep 'DISCHARGE.mat'],'DISCHARGE','-v7.3')
-	%save([database_dir filesep 'Sudan_restricted_' ID filesep 'BOUNDARIES.mat'],'BOUNDARIES','-v7.3')
 		
 	toc
 end
