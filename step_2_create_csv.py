@@ -65,7 +65,7 @@ dset = Dataset(ups_path)
 upstreamarea_np = np.array(dset.variables['ups'][:])
 
 # Initialize empty stations and Qtss csvs
-stations = pd.DataFrame(columns = ["ObsID","StationName","Provider ID","Country code","StationLat","StationLon","DrainingArea.km2.Provider","River","Calibration ID","DrainingArea.km2.LDD"])
+stations = pd.DataFrame(columns = ["ObsID","StationName","Provider ID","Country code","StationLat","StationLon","DrainingArea.km2.Provider","River","DrainingArea.km2.LDD"])
 #Qtss = pd.DataFrame(columns = column_names)
 
 # Create csv output folder
@@ -109,7 +109,8 @@ for ii in np.arange(len(catchment_dirs)):
         continue
     corr_loc = pd.read_csv(os.path.join(corrected_locations_dir,ID+'.txt'),header=None,index_col=False)
     StatLatCorr,StatLonCorr = rowcol2latlon(corr_loc.iloc[0],corr_loc.iloc[1],res,lat_upper,lon_left)
- 
+    Area_LDD = upstreamarea_np[corr_loc.iloc[0],corr_loc.iloc[1]]
+    
     # Load discharge data
     try:
         Discharge = readmatfile(os.path.join(catchment_dir,"DISCHARGE.mat"),'DISCHARGE/Discharge')
@@ -138,13 +139,9 @@ for ii in np.arange(len(catchment_dirs)):
     #   Insert data into dataframes
     ############################################################################
     
-    Area
-    StatLat
-    StatLon
-    StatLatCorr
-    StatLonCorr
-    Station
-    
+    #stations.append(ignore_index=True)
+    station.loc[count] = [count,Station,ID,"",StatLatCorr,StatLonCorr,Area,"",Area_LDD]
+    pdb.set_trace()
     
     
     Q_ts
