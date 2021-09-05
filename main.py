@@ -13,6 +13,7 @@ from netCDF4 import Dataset
 import matplotlib.pyplot as plt
 import subprocess
 import rasterio
+from skimage.transform import resize
 
 def latlon2rowcol(lat,lon,res,lat_upper,lon_left):
     row = np.round((lat_upper-lat)/res-0.5).astype(int)
@@ -79,31 +80,65 @@ for ii in np.arange(len(config)):
         string = string.replace("=","=r")
         exec(string) 
 
-if os.path.isdir(merit_folder)==False:
-    os.mkdir(merit_folder)
+if os.path.isdir(temp_folder)==False:
+    os.mkdir(temp_folder)
 
 if os.path.isdir(output_folder)==False:
     os.mkdir(output_folder)
    
+# Load clone map
+dset = Dataset(clonemap_path)
+clone_lat = dset.variables['lat'][:]
+clone_lon = dset.variables['lon'][:]
+clone_res = clone_lon[1]-clone_lon[0]
+varname = list(dset.variables.keys())[-1]
+clone_np = np.array(dset.variables[varname][:])
+#pcr.setclone(clone_np.shape[0],clone_np.shape[1],clone_res,clone_lon[0]-clone_res/2,clone_lat[0]-clone_res/2)
+
+mapsize_global = (np.round(180/clone_res).astype(int),np.round(360/clone_res).astype(int))
+mapsize_area = clone_np.shape
+
 
 ############################################################################
-#   Download and untar all MERIT Hydro upstream data
+#   Load data
 ############################################################################
 
-url_pre = 'http://hydro.iis.u-tokyo.ac.jp/~yamadai/MERIT_Hydro/distribute/v1.0/'
+dset = Dataset(os.path.join(hildaplus_folder,'hildaplus_vGLOB-1.0-f_states.nc'))
+latitude = np.array(dset.variables['latitude'][:])
+longitude = np.array(dset.variables['longitude'][:])
+for year in np.arange(year_start,year_end+1):
+    print(year)
+    t0 = time.time()
+    
+    # Read raw data (global)
+    ind = year-1899
+    raw = np.array(dset.variables['LULC_states'][ind,:,:])
+    
+    # Resample raw data (nearest neighbour)
+    data = np.round(resize(raw,mapsize_global,order=0,mode='constant',anti_aliasing=False)*255).astype(int)
+    
+    # HILDA+ legend
+    # 11 Urban 
+    # 22 Cropland 
+    # 33 Pasture 
+    # 40: Forest (Unknown/Other) 
+    # 41: Forest (Evergreen, needle leaf) 
+    # 42: Forest ( Evergreen, broad leaf) 
+    # 43: Forest (Deciduous, needle leaf) 
+    # 44: Forest (Deciduous, broad leaf) 
+    # 45: Forest (Mixed) 
+    # 55 Grass/shrubland 
+    # 66 Other land 
+    # 77 Water 
+    fracwater = data==77
+    print("Time elapsed is "+str(time.time()-t0)+" sec")
+    
+    plt.imshow(data)
+    plt.colorbar()
+    plt.show()
+    pdb.set_trace()
 
-lats = ['n60','n30','n00','s30','s60']
-lons = ['w180','w150','w120','w090','w060','w030','e000','e030','e060','e090','e120','e150']
-for lat in lats:
-    for lon in lons:
-        if os.path.isdir(os.path.join(merit_folder,'upa_'+lat+lon)): continue
-        filename = 'upa_'+lat+lon+'.tar'
-        command = 'wget '+url_pre+filename+' --no-clobber --user=hydrography --password=rivernetwork --directory-prefix='+merit_folder
-        subprocess.call(command,shell=True)
-        command = 'tar -xvf '+os.path.join(merit_folder,filename)+' -C '+merit_folder
-        subprocess.call(command,shell=True)
-        if os.path.isfile(os.path.join(merit_folder,filename)):
-            os.remove(os.path.join(merit_folder,filename))
+pdb.set_trace()
 
 
 ############################################################################
