@@ -3,7 +3,7 @@
 
 __author__ = "Hylke E. Beck"
 __email__ = "hylke.beck@gmail.com"
-__date__ = "August 2021"
+__date__ = "September 2021"
 
 import os, sys, glob, time, pdb
 import pandas as pd
@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import subprocess
 import rasterio
 from skimage.transform import resize
+from scipy import ndimage as nd
 
 def latlon2rowcol(lat,lon,res,lat_upper,lon_left):
     row = np.round((lat_upper-lat)/res-0.5).astype(int)
@@ -25,24 +26,22 @@ def rowcol2latlon(row,col,res,lat_upper,lon_left):
     lon = lon_left+col*res+res/2
     return lat.squeeze(),lon.squeeze()
     
-def imresize_max(oldarray,newshape):
-    # Resize array using max filter. Inefficient, but works.
+def imresize_majority(oldarray,newshape):
+    # Resize array using majority filter
     
-    # Determine resize factor
-    oldshape = oldarray.shape
-    factor = oldshape[0]/newshape[0]    
-    if factor!=np.round(factor): 
-        raise ValueError('Resize factor of '+str(factor)+' not integer, needs to be integer')    
-    factor = factor.astype(int)
+    cls = np.unique(oldarray)
     
-    # Loop over new grid and compute max
-    newarray = np.zeros(newshape,dtype=np.single)*np.NaN
-    for ii in np.arange(newshape[0]):
-        for jj in np.arange(newshape[1]):
-            newarray[ii,jj] = np.nanmax(oldarray[ii*factor:(ii+1)*factor,jj*factor:(jj+1)*factor])
+    if len(cls)>100:
+        raise ValueError('More than 100 classes, are you sure this is a thematic map?')    
     
-    return newarray
+    threshold = 1/len(cls)
+    newarray = np.zeros(newshape,dtype=type(oldarray))
+    for cl in cls:        
+        temp = resize((oldarray==cl).astype(np.single),newshape,order=1,mode='constant',anti_aliasing=False)
+        newarray[temp>=threshold] = cl
 
+    return newarray
+    
 def save_netcdf(file, varname, data, lat, lon):
 
     if os.path.isfile(file)==True: 
@@ -69,16 +68,22 @@ def save_netcdf(file, varname, data, lat, lon):
     
     ncfile.close()
     
+def fill(data, invalid=None):
+    # Nearest neighbor interpolation gap fill by Juh_
+    
+    if invalid is None: invalid = np.isnan(data)
+    ind = nd.distance_transform_edt(invalid, return_distances=False, return_indices=True)
+    return data[tuple(ind)]    
+        
 # Load configuration file
 config = pd.read_csv('config.cfg',header=None,index_col=False)
 for ii in np.arange(len(config)): 
     string = config.iloc[ii,0]
     string = string.replace(" ","")    
     try:
-        exec(string) 
+        exec(string.replace("=","=r"))     
     except:
-        string = string.replace("=","=r")
-        exec(string) 
+        exec(string)         
 
 if os.path.isdir(temp_folder)==False:
     os.mkdir(temp_folder)
@@ -93,7 +98,6 @@ clone_lon = dset.variables['lon'][:]
 clone_res = clone_lon[1]-clone_lon[0]
 varname = list(dset.variables.keys())[-1]
 clone_np = np.array(dset.variables[varname][:])
-#pcr.setclone(clone_np.shape[0],clone_np.shape[1],clone_res,clone_lon[0]-clone_res/2,clone_lat[0]-clone_res/2)
 
 mapsize_global = (np.round(180/clone_res).astype(int),np.round(360/clone_res).astype(int))
 mapsize_area = clone_np.shape
@@ -107,36 +111,133 @@ dset = Dataset(os.path.join(hildaplus_folder,'hildaplus_vGLOB-1.0-f_states.nc'))
 latitude = np.array(dset.variables['latitude'][:])
 longitude = np.array(dset.variables['longitude'][:])
 for year in np.arange(year_start,year_end+1):
-    print(year)
+    print('===============================================================================')
+    print('Year: '+str(year))
     t0 = time.time()
     
-    # Read raw data (global)
+    print('Loading HILDA+ data')
     ind = year-1899
-    raw = np.array(dset.variables['LULC_states'][ind,:,:])
+    hilda_raw = np.array(dset.variables['LULC_states'][ind,:,:])
     
-    # Resample raw data (nearest neighbour)
-    data = np.round(resize(raw,mapsize_global,order=0,mode='constant',anti_aliasing=False)*255).astype(int)
+    print('Resampling HILDA+ data')
+    fracwater_hilda = resize(np.single((hilda_raw==0) | (hilda_raw==77)),mapsize_global,order=1,mode='constant',anti_aliasing=False)
+    fracforest_hilda = resize(np.single((hilda_raw>=40) & (hilda_raw<=45)),mapsize_global,order=1,mode='constant',anti_aliasing=False)    
+    fracsealed_hilda = 0.75*resize(np.single(hilda_raw==11),mapsize_global,order=1,mode='constant',anti_aliasing=False)
+    fraccrop_hilda = resize(np.single(hilda_raw==22),mapsize_global,order=1,mode='constant',anti_aliasing=False)
+    del hilda_raw
     
-    # HILDA+ legend
-    # 11 Urban 
-    # 22 Cropland 
-    # 33 Pasture 
-    # 40: Forest (Unknown/Other) 
-    # 41: Forest (Evergreen, needle leaf) 
-    # 42: Forest ( Evergreen, broad leaf) 
-    # 43: Forest (Deciduous, needle leaf) 
-    # 44: Forest (Deciduous, broad leaf) 
-    # 45: Forest (Mixed) 
-    # 55 Grass/shrubland 
-    # 66 Other land 
-    # 77 Water 
-    fracwater = data==77
+    # The HILDA+ water fraction will be replaced with the GSWE data and the other 
+    # fractions (forest, sealed, crop) will be adjusted accordingly. However,
+    # if the GILDA+ water fraction is 1, the other fraction cannot be adjusted,
+    # as they are all 0. As a workaround, we reduce the HILDA+ water fraction
+    # by a tiny amount while increasing the other fractions by a tiny amount 
+    # using interpolated non-zero values.
+    print('Fixing fully water covered HILDA+ grid-cells')
+    mask = fracwater_hilda==1
+    fracwater_hilda[mask] = 1-0.000001
+    fracforest_hilda = fracforest_hilda+0.000001*fill(fracforest_hilda,invalid=mask)
+    fracsealed_hilda = fracsealed_hilda+0.000001*fill(fracsealed_hilda,invalid=mask)
+    fraccrop_hilda = fraccrop_hilda+0.000001*fill(fraccrop_hilda,invalid=mask)
+    
     print("Time elapsed is "+str(time.time()-t0)+" sec")
     
-    plt.imshow(data)
-    plt.colorbar()
-    plt.show()
-    pdb.set_trace()
+    for month in np.arange(1,13):
+        print('-------------------------------------------------------------------------------')
+        print('Month: '+str(month))
+        t0 = time.time()
+
+        print('Loading GSWE data')
+        # LOAD CLOSEST YEAR!!!
+        dset = Dataset(os.path.join(gswe_folder,str(year)+'_'+str(month).zfill(2)+'_B.nc'))
+        gswe_lats = np.array(dset.variables['lat'][:])
+        gswe_lons = np.array(dset.variables['lon'][:])
+        gswe_res = gswe_lats[0]-gswe_lats[1]
+        add_top = int(np.round((90-gswe_lats[0])/gswe_res))
+        add_bottom = int(np.round((90+gswe_lats[-1])/gswe_res))
+        gswe_shape = (int(len(gswe_lons)/2),len(gswe_lons))
+        gswe_raw = np.zeros(gswe_shape,dtype=np.single)*np.NaN
+        gswe_raw[add_top+1:gswe_shape[0]-add_bottom,:] = dset.variables['GSWD_'+str(year)+' B'][:]
+        
+        print('Resampling GSWE data')
+        gswe_resized = resize(gswe_raw,mapsize_global,order=1,mode='constant',anti_aliasing=False)
+        del gswe_raw
+            
+        print('Inserting GSWE data')
+        fracwater = fracwater_hilda.copy()
+        fracwater[np.isnan(gswe_resized)==False] = gswe_resized[np.isnan(gswe_resized)==False]
+        
+        print('Adjusting other fractions (forest, sealed, crop) according to GSWE')
+        corr_factor = (1-fracwater)/(1-fracwater_hilda)
+        fracforest = fracforest_hilda*corr_factor
+        fracsealed = fracsealed_hilda*corr_factor
+        fraccrop = fraccrop_hilda*corr_factor
+        
+        pdb.set_trace()
+        
+        print('Load HYDE data')
+        hyde_cropland = np.array(pd.read_csv(os.path.join(hyde_folder,'cropland'+str(year)+'AD.asc'), header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.single)/100 # total cropland area, in km2
+        
+        plt.figure(0)
+        plt.imshow(hyde_cropland)
+                
+        plt.figure(1)
+        plt.imshow(fraccrop)
+        plt.show()
+        
+        hyde_ir_norice # irrigated other crops area (no rice) area, in km2
+        hyde_ir_rice #irrigated rice area (no rice), in km2 per grid cell).
+        hyde_rf_rice # rainfed rice area (no rice), in km2 per grid cell
+        # LOAD CLOSEST YEAR!!!
+        
+        print('Disaggregate crop using HYDE')
+        
+        
+        
+        pdb.set_trace()
+        #fracwater[]
+        plt.figure(0)
+        plt.imshow(fracforest)
+        plt.figure(1)
+        plt.imshow(fracwater)
+        plt.figure(2)
+        plt.imshow(fracsealed)
+        plt.figure(3)
+        plt.imshow(fraccrop)
+
+        plt.show()
+
+        pdb.set_trace()
+
+    
+    
+        plt.imshow(np.single(gswe_resized))
+        plt.colorbar()
+        plt.show()
+        pdb.set_trace()
+    
+        pdb.set_trace()
+        # HILDA+ legend
+        # 11 Urban 
+        # 22 Cropland 
+        # 33 Pasture 
+        # 40: Forest (Unknown/Other) 
+        # 41: Forest (Evergreen, needle leaf) 
+        # 42: Forest ( Evergreen, broad leaf) 
+        # 43: Forest (Deciduous, needle leaf) 
+        # 44: Forest (Deciduous, broad leaf) 
+        # 45: Forest (Mixed) 
+        # 55 Grass/shrubland 
+        # 66 Other land 
+        # 77 Water 
+        #fracwater = data==77
+        
+        
+        plt.imshow(np.single(raw_resized))
+        plt.colorbar()
+        plt.show()
+        pdb.set_trace()
+        
+        print("Time elapsed is "+str(time.time()-t0)+" sec")
 
 pdb.set_trace()
 
