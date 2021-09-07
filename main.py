@@ -132,12 +132,47 @@ for year in np.arange(year_start,year_end+1):
     # as they are all 0. As a workaround, we reduce the HILDA+ water fraction
     # by a tiny amount while increasing the other fractions by a tiny amount 
     # using interpolated non-zero values.
-    print('Fixing fully water covered HILDA+ grid-cells')
+    print('Fixing fully water-covered HILDA+ grid-cells')
     mask = fracwater_hilda==1
     fracwater_hilda[mask] = 1-0.000001
     fracforest_hilda = fracforest_hilda+0.000001*fill(fracforest_hilda,invalid=mask)
     fracsealed_hilda = fracsealed_hilda+0.000001*fill(fracsealed_hilda,invalid=mask)
     fraccrop_hilda = fraccrop_hilda+0.000001*fill(fraccrop_hilda,invalid=mask)
+    
+    print('Fixing fully crop-covered HILDA+ grid-cells')
+    mask = fraccrop_hilda==1
+    fraccrop_hilda[mask] = 1-0.000001
+    fracforest_hilda = fracforest_hilda+0.000001*fill(fracforest_hilda,invalid=mask)
+    fracsealed_hilda = fracsealed_hilda+0.000001*fill(fracsealed_hilda,invalid=mask)
+    fracwater_hilda = fracwater_hilda+0.000001*fill(fracwater_hilda,invalid=mask)
+
+    print('Loading HYDE data')    
+    hyde_garea_cr = np.array(pd.read_csv(os.path.join(hyde_folder,'general_files','garea_cr.asc'), 
+        header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.single) # total gridcell area in km2
+    hyde_garea_cr = hyde_garea_cr[:,:-1] # Rogue last column due to spaces after last value in asc file
+    hyde_cropland = np.array(pd.read_csv(os.path.join(hyde_folder,'baseline','zip','cropland'+str(year)+'AD.asc'), 
+        header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.single)/hyde_garea_cr # total cropland area
+    hyde_cropland = resize(hyde_cropland,mapsize_global,order=0,mode='constant',anti_aliasing=False)
+    hyde_ir_norice = np.array(pd.read_csv(os.path.join(hyde_folder,'baseline','zip','ir_norice'+str(year)+'AD.asc'), 
+        header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.single)/hyde_garea_cr # irrigated other crops area (no rice) area
+    hyde_ir_norice = resize(hyde_ir_norice,mapsize_global,order=0,mode='constant',anti_aliasing=False)
+    hyde_ir_rice = np.array(pd.read_csv(os.path.join(hyde_folder,'baseline','zip','ir_rice'+str(year)+'AD.asc'), 
+        header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.single)/hyde_garea_cr # irrigated rice area (no rice)
+    hyde_ir_rice = resize(hyde_ir_rice,mapsize_global,order=0,mode='constant',anti_aliasing=False)
+    hyde_rf_rice = np.array(pd.read_csv(os.path.join(hyde_folder,'baseline','zip','rf_rice'+str(year)+'AD.asc'), 
+        header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.single)/hyde_garea_cr # rainfed rice area (no rice)
+    hyde_rf_rice = resize(hyde_rf_rice,mapsize_global,order=0,mode='constant',anti_aliasing=False)    
+   
+    print('Adjust HILDA+ fractions based on HYDE cropland')
+    fraccrop_init = hyde_cropland.copy()
+    fracirrigation_init = hyde_ir_norice.copy()
+    fracrice_init = hyde_ir_rice+hyde_rf_rice
+    corr_factor = (1-hyde_cropland)/(1-fraccrop_hilda)
+    fracforest_init = fracforest_hilda*corr_factor
+    fracsealed_init = fracsealed_hilda*corr_factor
+    fracwater_init = fracwater_hilda*corr_factor
+    
+    pdb.set_trace()
     
     print("Time elapsed is "+str(time.time()-t0)+" sec")
     
@@ -173,9 +208,6 @@ for year in np.arange(year_start,year_end+1):
         fraccrop = fraccrop_hilda*corr_factor
         
         pdb.set_trace()
-        
-        print('Load HYDE data')
-        hyde_cropland = np.array(pd.read_csv(os.path.join(hyde_folder,'cropland'+str(year)+'AD.asc'), header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.single)/100 # total cropland area, in km2
         
         plt.figure(0)
         plt.imshow(hyde_cropland)
