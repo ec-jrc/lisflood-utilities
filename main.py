@@ -15,97 +15,20 @@ import subprocess
 import rasterio
 from skimage.transform import resize
 from scipy import ndimage as nd
-
-def latlon2rowcol(lat,lon,res,lat_upper,lon_left):
-    row = np.round((lat_upper-lat)/res-0.5).astype(int)
-    col = np.round((lon-lon_left)/res-0.5).astype(int)    
-    return row.squeeze(),col.squeeze()
-
-def rowcol2latlon(row,col,res,lat_upper,lon_left):
-    lat = lat_upper-row*res-res/2
-    lon = lon_left+col*res+res/2
-    return lat.squeeze(),lon.squeeze()
-    
-def imresize_majority(oldarray,newshape):
-    # Resize array using majority filter
-    
-    cls = np.unique(oldarray)
-    
-    if len(cls)>100:
-        raise ValueError('More than 100 classes, are you sure this is a thematic map?')    
-    
-    threshold = 1/len(cls)
-    newarray = np.zeros(newshape,dtype=type(oldarray))
-    for cl in cls:        
-        temp = resize((oldarray==cl).astype(np.single),newshape,order=1,mode='constant',anti_aliasing=False)
-        newarray[temp>=threshold] = cl
-
-    return newarray
-    
-def save_netcdf_3d(file, varname, data, varunits, ts, least_sig_dig):
-
-    if os.path.isfile(file)==False:
-        
-        mapsize = data.shape
-        res = 360/float(mapsize[1])
-        lon = np.arange(mapsize[1], dtype=np.single)*res - 180.0 + res/2
-        lat = 90-np.arange(mapsize[0], dtype=np.single)*res - res/2
-                
-        mkdir(os.path.dirname(file))
-        
-        ncfile = Dataset(file, 'w', format='NETCDF4')
-        ncfile.history = 'Created on %s' % datetime.utcnow().strftime('%Y-%m-%d %H:%M')
-
-        ncfile.createDimension('lon', len(lon))
-        ncfile.createDimension('lat', len(lat))
-        ncfile.createDimension('time', None)
-
-        ncfile.createVariable('lon', 'f4', ('lon',))
-        ncfile.variables['lon'][:] = lon
-        ncfile.variables['lon'].units = 'degrees_east'
-        ncfile.variables['lon'].long_name = 'longitude'
-
-        ncfile.createVariable('lat', 'f4', ('lat',))
-        ncfile.variables['lat'][:] = lat
-        ncfile.variables['lat'].units = 'degrees_north'
-        ncfile.variables['lat'].long_name = 'latitude'
-
-        ncfile.createVariable('time', 'i4', 'time')
-        ncfile.variables['time'][:] = (pd.to_datetime(ts)-pd.to_datetime(datetime(1900, 1, 1))).total_seconds()/86400
-        ncfile.variables['time'].units = 'days since 1900-1-1 00:00:00'
-        ncfile.variables['time'].long_name = 'time'
-    
-    else:
-        ncfile = Dataset(file, 'r+', format='NETCDF4')   
-    
-    if varname not in ncfile.variables.keys():
-        ncfile.createVariable(varname, data.dtype, ('time', 'lat', 'lon'), zlib=True, chunksizes=(1,32,32,), fill_value=-9999, least_significant_digit=least_sig_dig) #'f4'
-
-    ncfile.variables[varname][0,:,:] = data
-    ncfile.variables[varname].units = varunits
-    
-    ncfile.close()
-    
-def fill(data, invalid=None):
-    # Nearest neighbor interpolation gap fill by Juh_
-    
-    if invalid is None: invalid = np.isnan(data)
-    ind = nd.distance_transform_edt(invalid, return_distances=False, return_indices=True)
-    return data[tuple(ind)]    
+from tools import *
         
 # Load configuration file
-config = pd.read_csv('config.cfg',header=None,index_col=False)
+config = pd.read_csv(sys.argv[1],header=None,index_col=False)
 for ii in np.arange(len(config)): 
     string = config.iloc[ii,0]
+    print(string)
     string = string.replace(" ","")    
     try:
         exec(string.replace("=","=r"))     
     except:
         exec(string)         
 
-if os.path.isdir(temp_folder)==False:
-    os.mkdir(temp_folder)
-
+# Create output folder
 if os.path.isdir(output_folder)==False:
     os.mkdir(output_folder)
    
@@ -133,7 +56,7 @@ gswe_years = np.unique(gswe_years)
 
 
 ############################################################################
-#   Load data
+#   Loop over years and months
 ############################################################################
 
 dset = Dataset(os.path.join(hildaplus_folder,'hildaplus_vGLOB-1.0-f_states.nc'))
@@ -162,14 +85,14 @@ for year in np.arange(year_start,year_end+1):
     # 66 Other land 
     # 77 Water 
     
-    print('Resampling HILDA+ data')
+    print('Resampling HILDA+ data to clone map resolution')
     fracwater_init = resize(np.single((hilda_raw==0) | (hilda_raw==77)),mapsize_global,order=1,mode='constant',anti_aliasing=False).astype(np.double)
     fracforest_init = resize(np.single((hilda_raw>=40) & (hilda_raw<=45)),mapsize_global,order=1,mode='constant',anti_aliasing=False).astype(np.double)    
     fracsealed_init = 0.75*resize(np.single(hilda_raw==11),mapsize_global,order=1,mode='constant',anti_aliasing=False).astype(np.double)
     fracother_hilda = 1-fracwater_init-fracforest_init-fracsealed_init    
     del hilda_raw
     
-    print('Loading HYDE data')
+    print('Loading and resampling HYDE data to clone map resolution')
     idx = (np.abs(np.array(hyde_years)-year)).argmin()
     hyde_year = hyde_years[idx]
     hyde_garea_cr = np.array(pd.read_csv(os.path.join(hyde_folder,'general_files','garea_cr.asc'), 
@@ -300,8 +223,14 @@ for year in np.arange(year_start,year_end+1):
 
         plt.show(block=False)
         
-        print('Subset maps to area')
+        print('Subsetting maps to clone map area')
         #fracforest = fracforest[row_upper:row_upper+len(clone_lat),col_left:col_left+len(clone_lon)]
+        fracwater = fracwater[row_upper:row_upper+len(clone_lat),col_left:col_left+len(clone_lon)]
+        fracforest = fracforest[row_upper:row_upper+len(clone_lat),col_left:col_left+len(clone_lon)]
+        fracsealed = fracsealed[row_upper:row_upper+len(clone_lat),col_left:col_left+len(clone_lon)]
+        fracrice = fracrice[row_upper:row_upper+len(clone_lat),col_left:col_left+len(clone_lon)]
+        fracirrigation = fracirrigation[row_upper:row_upper+len(clone_lat),col_left:col_left+len(clone_lon)]
+        fracother = fracother[row_upper:row_upper+len(clone_lat),col_left:col_left+len(clone_lon)]
         
         print("Time elapsed is "+str(time.time()-t0)+" sec")
 
