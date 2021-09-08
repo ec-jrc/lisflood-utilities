@@ -42,29 +42,47 @@ def imresize_majority(oldarray,newshape):
 
     return newarray
     
-def save_netcdf(file, varname, data, lat, lon):
+def save_netcdf_3d(file, varname, data, varunits, ts, least_sig_dig):
 
-    if os.path.isfile(file)==True: 
-        os.remove(file)
+    if os.path.isfile(file)==False:
+        
+        mapsize = data.shape
+        res = 360/float(mapsize[1])
+        lon = np.arange(mapsize[1], dtype=np.single)*res - 180.0 + res/2
+        lat = 90-np.arange(mapsize[0], dtype=np.single)*res - res/2
+                
+        mkdir(os.path.dirname(file))
+        
+        ncfile = Dataset(file, 'w', format='NETCDF4')
+        ncfile.history = 'Created on %s' % datetime.utcnow().strftime('%Y-%m-%d %H:%M')
 
-    ncfile = Dataset(file, 'w', format='NETCDF4')
+        ncfile.createDimension('lon', len(lon))
+        ncfile.createDimension('lat', len(lat))
+        ncfile.createDimension('time', None)
 
-    ncfile.createDimension('lon', len(lon))
-    ncfile.createDimension('lat', len(lat))
+        ncfile.createVariable('lon', 'f4', ('lon',))
+        ncfile.variables['lon'][:] = lon
+        ncfile.variables['lon'].units = 'degrees_east'
+        ncfile.variables['lon'].long_name = 'longitude'
 
-    ncfile.createVariable('lon', 'f8', ('lon',))
-    ncfile.variables['lon'][:] = lon
-    ncfile.variables['lon'].units = 'degrees_east'
-    ncfile.variables['lon'].long_name = 'longitude'
+        ncfile.createVariable('lat', 'f4', ('lat',))
+        ncfile.variables['lat'][:] = lat
+        ncfile.variables['lat'].units = 'degrees_north'
+        ncfile.variables['lat'].long_name = 'latitude'
 
-    ncfile.createVariable('lat', 'f8', ('lat',))
-    ncfile.variables['lat'][:] = lat
-    ncfile.variables['lat'].units = 'degrees_north'
-    ncfile.variables['lat'].long_name = 'latitude'
+        ncfile.createVariable('time', 'i4', 'time')
+        ncfile.variables['time'][:] = (pd.to_datetime(ts)-pd.to_datetime(datetime(1900, 1, 1))).total_seconds()/86400
+        ncfile.variables['time'].units = 'days since 1900-1-1 00:00:00'
+        ncfile.variables['time'].long_name = 'time'
     
-    ncfile.createVariable(varname, data.dtype, ('lat', 'lon'), zlib=True, chunksizes=(32,32,), fill_value=-9999)
+    else:
+        ncfile = Dataset(file, 'r+', format='NETCDF4')   
+    
+    if varname not in ncfile.variables.keys():
+        ncfile.createVariable(varname, data.dtype, ('time', 'lat', 'lon'), zlib=True, chunksizes=(1,32,32,), fill_value=-9999, least_significant_digit=least_sig_dig) #'f4'
 
-    ncfile.variables[varname][:,:] = data
+    ncfile.variables[varname][0,:,:] = data
+    ncfile.variables[varname].units = varunits
     
     ncfile.close()
     
@@ -99,8 +117,19 @@ clone_res = clone_lon[1]-clone_lon[0]
 varname = list(dset.variables.keys())[-1]
 clone_np = np.array(dset.variables[varname][:])
 
+# Determine map sizes
 mapsize_global = (np.round(180/clone_res).astype(int),np.round(360/clone_res).astype(int))
-mapsize_area = clone_np.shape
+mapsize_clone = clone_np.shape
+row_upper,col_left = latlon2rowcol(clone_lat[0],clone_lon[0],clone_res,90,-180)
+
+# List of years with HYDE data
+hyde_files = glob.glob(os.path.join(hyde_folder,'baseline','zip','cropland*'))
+hyde_years = [int(os.path.basename(hyde_file)[8:12]) for hyde_file in hyde_files]
+
+# List of years with GSWE data
+gswe_files = glob.glob(os.path.join(gswe_folder,'*'))
+gswe_years = [int(os.path.basename(gswe_file)[:4]) for gswe_file in gswe_files]
+gswe_years = np.unique(gswe_years)
 
 
 ############################################################################
@@ -119,61 +148,97 @@ for year in np.arange(year_start,year_end+1):
     ind = year-1899
     hilda_raw = np.array(dset.variables['LULC_states'][ind,:,:])
     
+    # HILDA+ legend
+    # 11 Urban 
+    # 22 Cropland 
+    # 33 Pasture 
+    # 40: Forest (Unknown/Other) 
+    # 41: Forest (Evergreen, needle leaf) 
+    # 42: Forest ( Evergreen, broad leaf) 
+    # 43: Forest (Deciduous, needle leaf) 
+    # 44: Forest (Deciduous, broad leaf) 
+    # 45: Forest (Mixed) 
+    # 55 Grass/shrubland 
+    # 66 Other land 
+    # 77 Water 
+    
     print('Resampling HILDA+ data')
-    fracwater_hilda = resize(np.single((hilda_raw==0) | (hilda_raw==77)),mapsize_global,order=1,mode='constant',anti_aliasing=False)
-    fracforest_hilda = resize(np.single((hilda_raw>=40) & (hilda_raw<=45)),mapsize_global,order=1,mode='constant',anti_aliasing=False)    
-    fracsealed_hilda = 0.75*resize(np.single(hilda_raw==11),mapsize_global,order=1,mode='constant',anti_aliasing=False)
-    fraccrop_hilda = resize(np.single(hilda_raw==22),mapsize_global,order=1,mode='constant',anti_aliasing=False)
+    fracwater_init = resize(np.single((hilda_raw==0) | (hilda_raw==77)),mapsize_global,order=1,mode='constant',anti_aliasing=False).astype(np.double)
+    fracforest_init = resize(np.single((hilda_raw>=40) & (hilda_raw<=45)),mapsize_global,order=1,mode='constant',anti_aliasing=False).astype(np.double)    
+    fracsealed_init = 0.75*resize(np.single(hilda_raw==11),mapsize_global,order=1,mode='constant',anti_aliasing=False).astype(np.double)
+    fracother_hilda = 1-fracwater_init-fracforest_init-fracsealed_init    
     del hilda_raw
     
-    # The HILDA+ water fraction will be replaced with the GSWE data and the other 
-    # fractions (forest, sealed, crop) will be adjusted accordingly. However,
-    # if the GILDA+ water fraction is 1, the other fraction cannot be adjusted,
-    # as they are all 0. As a workaround, we reduce the HILDA+ water fraction
-    # by a tiny amount while increasing the other fractions by a tiny amount 
-    # using interpolated non-zero values.
-    print('Fixing fully water-covered HILDA+ grid-cells')
-    mask = fracwater_hilda==1
-    fracwater_hilda[mask] = 1-0.000001
-    fracforest_hilda = fracforest_hilda+0.000001*fill(fracforest_hilda,invalid=mask)
-    fracsealed_hilda = fracsealed_hilda+0.000001*fill(fracsealed_hilda,invalid=mask)
-    fraccrop_hilda = fraccrop_hilda+0.000001*fill(fraccrop_hilda,invalid=mask)
-    
-    print('Fixing fully crop-covered HILDA+ grid-cells')
-    mask = fraccrop_hilda==1
-    fraccrop_hilda[mask] = 1-0.000001
-    fracforest_hilda = fracforest_hilda+0.000001*fill(fracforest_hilda,invalid=mask)
-    fracsealed_hilda = fracsealed_hilda+0.000001*fill(fracsealed_hilda,invalid=mask)
-    fracwater_hilda = fracwater_hilda+0.000001*fill(fracwater_hilda,invalid=mask)
-
-    print('Loading HYDE data')    
+    print('Loading HYDE data')
+    idx = (np.abs(np.array(hyde_years)-year)).argmin()
+    hyde_year = hyde_years[idx]
     hyde_garea_cr = np.array(pd.read_csv(os.path.join(hyde_folder,'general_files','garea_cr.asc'), 
-        header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.single) # total gridcell area in km2
+        header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.double) # total gridcell area in km2
     hyde_garea_cr = hyde_garea_cr[:,:-1] # Rogue last column due to spaces after last value in asc file
-    hyde_cropland = np.array(pd.read_csv(os.path.join(hyde_folder,'baseline','zip','cropland'+str(year)+'AD.asc'), 
-        header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.single)/hyde_garea_cr # total cropland area
-    hyde_cropland = resize(hyde_cropland,mapsize_global,order=0,mode='constant',anti_aliasing=False)
-    hyde_ir_norice = np.array(pd.read_csv(os.path.join(hyde_folder,'baseline','zip','ir_norice'+str(year)+'AD.asc'), 
-        header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.single)/hyde_garea_cr # irrigated other crops area (no rice) area
-    hyde_ir_norice = resize(hyde_ir_norice,mapsize_global,order=0,mode='constant',anti_aliasing=False)
-    hyde_ir_rice = np.array(pd.read_csv(os.path.join(hyde_folder,'baseline','zip','ir_rice'+str(year)+'AD.asc'), 
-        header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.single)/hyde_garea_cr # irrigated rice area (no rice)
-    hyde_ir_rice = resize(hyde_ir_rice,mapsize_global,order=0,mode='constant',anti_aliasing=False)
-    hyde_rf_rice = np.array(pd.read_csv(os.path.join(hyde_folder,'baseline','zip','rf_rice'+str(year)+'AD.asc'), 
-        header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.single)/hyde_garea_cr # rainfed rice area (no rice)
-    hyde_rf_rice = resize(hyde_rf_rice,mapsize_global,order=0,mode='constant',anti_aliasing=False)    
+    hyde_cropland = np.array(pd.read_csv(os.path.join(hyde_folder,'baseline','zip','cropland'+str(hyde_year)+'AD.asc'), 
+        header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.double)/hyde_garea_cr # total cropland area
+    hyde_cropland[np.isnan(hyde_cropland)] = 0
+    hyde_cropland = resize(hyde_cropland,mapsize_global,order=1,mode='constant',anti_aliasing=False)    
+    hyde_ir_norice = np.array(pd.read_csv(os.path.join(hyde_folder,'baseline','zip','ir_norice'+str(hyde_year)+'AD.asc'), 
+        header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.double)/hyde_garea_cr # irrigated other crops area (no rice) area
+    hyde_ir_norice[np.isnan(hyde_ir_norice)] = 0
+    hyde_ir_norice = resize(hyde_ir_norice,mapsize_global,order=1,mode='constant',anti_aliasing=False)    
+    hyde_ir_rice = np.array(pd.read_csv(os.path.join(hyde_folder,'baseline','zip','ir_rice'+str(hyde_year)+'AD.asc'), 
+        header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.double)/hyde_garea_cr # irrigated rice area (no rice)
+    hyde_ir_rice[np.isnan(hyde_ir_rice)] = 0
+    hyde_ir_rice = resize(hyde_ir_rice,mapsize_global,order=1,mode='constant',anti_aliasing=False)
+    hyde_rf_rice = np.array(pd.read_csv(os.path.join(hyde_folder,'baseline','zip','rf_rice'+str(hyde_year)+'AD.asc'), 
+        header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.double)/hyde_garea_cr # rainfed rice area (no rice)
+    hyde_rf_rice[np.isnan(hyde_rf_rice)] = 0
+    hyde_rf_rice = resize(hyde_rf_rice,mapsize_global,order=1,mode='constant',anti_aliasing=False)    
+  
+    print('Making sure HYDE cropland fraction does not exceed HILDA+ other fraction')
+    fracrice_hyde = hyde_ir_rice+hyde_rf_rice
+    fracirrigation_hyde = hyde_ir_norice.copy()
+    corr_factor = (fracother_hilda+0.000001)/(hyde_cropland+0.000001)
+    corr_factor[corr_factor>1] = 1
+    fracrice_init = fracrice_hyde*corr_factor
+    fracirrigation_init = fracirrigation_hyde*corr_factor
+    
+    print('Recalculating other fraction using HYDE rice and irrigation (no rice)')
+    fracother_init = 1-fracwater_init-fracforest_init-fracsealed_init-fracrice_init-fracirrigation_init
+
+    # The initial water fraction will be replaced with GSWE and the other
+    # five fractions will be rescaled accordingly. However, if the the initial
+    # water fraction is 1, the other fraction cannot be adjusted, as they will
+    # be 0. As a workaround, we reduce the initial water fraction by a tiny
+    # amount while increasing the other fractions by a tiny amount using 
+    # interpolated (non-zero) values.
+
+    total = fracwater_init+fracforest_init+fracsealed_init+fracrice_init+fracirrigation_init+fracother_init
+    plt.figure(0)
+    plt.imshow(total)
+    plt.colorbar()
+    plt.title('sum 0')
+    
+    print('Fixing fully water-covered grid-cells')
+    mask = fracwater_init==1
+    fracforest_init = fracforest_init+0.000001*fill(fracforest_init,invalid=mask)
+    fracsealed_init = fracsealed_init+0.000001*fill(fracsealed_init,invalid=mask)
+    fracrice_init = fracrice_init+0.000001*fill(fracrice_init,invalid=mask)
+    fracirrigation_init = fracirrigation_init+0.000001*fill(fracirrigation_init,invalid=mask)
+    fracother_init = fracother_init+0.000001*fill(fracother_init,invalid=mask)
    
-    print('Adjust HILDA+ fractions based on HYDE cropland')
-    fraccrop_init = hyde_cropland.copy()
-    fracirrigation_init = hyde_ir_norice.copy()
-    fracrice_init = hyde_ir_rice+hyde_rf_rice
-    corr_factor = (1-hyde_cropland)/(1-fraccrop_hilda)
-    fracforest_init = fracforest_hilda*corr_factor
-    fracsealed_init = fracsealed_hilda*corr_factor
-    fracwater_init = fracwater_hilda*corr_factor
+    print('Rescale fractions to sum to 1')
+    total = fracwater_init+fracforest_init+fracsealed_init+fracrice_init+fracirrigation_init+fracother_init
+    fracwater_init = fracwater_init/total
+    fracforest_init = fracforest_init/total
+    fracsealed_init = fracsealed_init/total
+    fracrice_init = fracrice_init/total
+    fracirrigation_init = fracirrigation_init/total
+    fracother_init = fracother_init/total
     
-    pdb.set_trace()
-    
+    total = fracwater_init+fracforest_init+fracsealed_init+fracrice_init+fracirrigation_init+fracother_init
+    plt.figure(1)
+    plt.imshow(total)
+    plt.colorbar()
+    plt.title('sum 1')
+
     print("Time elapsed is "+str(time.time()-t0)+" sec")
     
     for month in np.arange(1,13):
@@ -182,8 +247,9 @@ for year in np.arange(year_start,year_end+1):
         t0 = time.time()
 
         print('Loading GSWE data')
-        # LOAD CLOSEST YEAR!!!
-        dset = Dataset(os.path.join(gswe_folder,str(year)+'_'+str(month).zfill(2)+'_B.nc'))
+        idx = (np.abs(np.array(gswe_years)-year)).argmin()
+        gswe_year = gswe_years[idx]
+        dset = Dataset(os.path.join(gswe_folder,str(gswe_year)+'_'+str(month).zfill(2)+'_B.nc'))
         gswe_lats = np.array(dset.variables['lat'][:])
         gswe_lons = np.array(dset.variables['lon'][:])
         gswe_res = gswe_lats[0]-gswe_lats[1]
@@ -191,182 +257,58 @@ for year in np.arange(year_start,year_end+1):
         add_bottom = int(np.round((90+gswe_lats[-1])/gswe_res))
         gswe_shape = (int(len(gswe_lons)/2),len(gswe_lons))
         gswe_raw = np.zeros(gswe_shape,dtype=np.single)*np.NaN
-        gswe_raw[add_top+1:gswe_shape[0]-add_bottom,:] = dset.variables['GSWD_'+str(year)+' B'][:]
+        gswe_raw[add_top+1:gswe_shape[0]-add_bottom,:] = dset.variables['GSWD_'+str(gswe_year)+' B'][:]
         
         print('Resampling GSWE data')
-        gswe_resized = resize(gswe_raw,mapsize_global,order=1,mode='constant',anti_aliasing=False)
+        gswe_resized = resize(gswe_raw,mapsize_global,order=1,mode='constant',anti_aliasing=False).astype(np.double)
         del gswe_raw
             
         print('Inserting GSWE data')
-        fracwater = fracwater_hilda.copy()
+        fracwater = fracwater_init.copy()
         fracwater[np.isnan(gswe_resized)==False] = gswe_resized[np.isnan(gswe_resized)==False]
         
-        print('Adjusting other fractions (forest, sealed, crop) according to GSWE')
-        corr_factor = (1-fracwater)/(1-fracwater_hilda)
-        fracforest = fracforest_hilda*corr_factor
-        fracsealed = fracsealed_hilda*corr_factor
-        fraccrop = fraccrop_hilda*corr_factor
+        print('Adjusting other fractions according to GSWE')
+        corr_factor = (1-fracwater)/(1-fracwater_init)
+        fracforest = fracforest_init*corr_factor
+        fracsealed = fracsealed_init*corr_factor
+        fracrice = fracrice_init*corr_factor
+        fracirrigation = fracirrigation_init*corr_factor
+        fracother = fracother_init*corr_factor        
         
-        pdb.set_trace()
-        
-        plt.figure(0)
-        plt.imshow(hyde_cropland)
-                
-        plt.figure(1)
-        plt.imshow(fraccrop)
-        plt.show()
-        
-        hyde_ir_norice # irrigated other crops area (no rice) area, in km2
-        hyde_ir_rice #irrigated rice area (no rice), in km2 per grid cell).
-        hyde_rf_rice # rainfed rice area (no rice), in km2 per grid cell
-        # LOAD CLOSEST YEAR!!!
-        
-        print('Disaggregate crop using HYDE')
-        
-        
-        
-        pdb.set_trace()
-        #fracwater[]
-        plt.figure(0)
-        plt.imshow(fracforest)
-        plt.figure(1)
-        plt.imshow(fracwater)
+       
+        total = fracwater+fracforest+fracsealed+fracrice+fracirrigation+fracother
         plt.figure(2)
-        plt.imshow(fracsealed)
+        plt.imshow(total)
+        plt.colorbar()
+        plt.title('sum 2')
+        
+        print('Rescale fractions to sum to 1')
+        total = fracwater+fracforest+fracsealed+fracrice+fracirrigation+fracother
+        fracwater = fracwater/total
+        fracforest = fracforest/total
+        fracsealed = fracsealed/total
+        fracrice = fracrice/total
+        fracirrigation = fracirrigation/total
+        fracother = fracother/total
+       
+        total = fracwater+fracforest+fracsealed+fracrice+fracirrigation+fracother
         plt.figure(3)
-        plt.imshow(fraccrop)
-
-        plt.show()
-
-        pdb.set_trace()
-
-    
-    
-        plt.imshow(np.single(gswe_resized))
+        plt.imshow(total)
         plt.colorbar()
-        plt.show()
-        pdb.set_trace()
-    
-        pdb.set_trace()
-        # HILDA+ legend
-        # 11 Urban 
-        # 22 Cropland 
-        # 33 Pasture 
-        # 40: Forest (Unknown/Other) 
-        # 41: Forest (Evergreen, needle leaf) 
-        # 42: Forest ( Evergreen, broad leaf) 
-        # 43: Forest (Deciduous, needle leaf) 
-        # 44: Forest (Deciduous, broad leaf) 
-        # 45: Forest (Mixed) 
-        # 55 Grass/shrubland 
-        # 66 Other land 
-        # 77 Water 
-        #fracwater = data==77
+        plt.title('sum 3')
+
+
+        plt.show(block=False)
         
-        
-        plt.imshow(np.single(raw_resized))
-        plt.colorbar()
-        plt.show()
-        pdb.set_trace()
+        print('Subset maps to area')
+        #fracforest = fracforest[row_upper:row_upper+len(clone_lat),col_left:col_left+len(clone_lon)]
         
         print("Time elapsed is "+str(time.time()-t0)+" sec")
 
+
+        pdb.set_trace()
+        
 pdb.set_trace()
-
-
-############################################################################
-#   Make global upstream map at specified resolution based on MERIT Hydro 
-#   upstream data
-############################################################################
-
-if os.path.isfile(os.path.join(output_folder,'upstream_area_global.npy'))==False:
-
-    global_shape = (int(180/res),int(360/res))
-    upstream_area_global = np.zeros(global_shape)*np.NaN
-    
-    for subdir, dirs, files in os.walk(merit_folder):
-        for file in files:        
-            
-            print('--------------------------------------------------------------------------------')
-            print('Processing '+file)
-            t1 = time.time()
-            
-            # Resize using maximum filter
-            oldarray = rasterio.open(os.path.join(subdir, file)).read(1)
-            oldarray[oldarray<0] = 9999999 # Necessary to ensure that all rivers flow into the ocean
-            factor = res/(5/6000)
-            factor = np.round(factor*1000000000000)/1000000000000
-            if factor!=np.round(factor): 
-                raise ValueError('Resize factor of '+str(factor)+' not integer, needs to be integer')
-            factor = factor.astype(int)
-            newshape = (oldarray.shape[0]//factor,oldarray.shape[1]//factor)
-            newarray = imresize_max(oldarray,newshape)
-            
-            # Insert into global map
-            tile_lat_bottom = float(file[:3].replace("n","").replace("s","-"))
-            tile_lon_left = float(file[3:7].replace("e","").replace("w","-"))
-            tile_row_bottom, tile_col_left = latlon2rowcol(tile_lat_bottom+res/2,tile_lon_left+res/2,res,90,-180)
-            upstream_area_global[tile_row_bottom-newshape[0]+1:tile_row_bottom+1,tile_col_left:tile_col_left+newshape[1]] = newarray
-            
-            print('Time elapsed is ' + str(time.time() - t1) + ' sec')
-
-    with open(os.path.join(output_folder,'upstream_area_global.npy'), 'wb') as f:
-        np.save(f, upstream_area_global)
-
-# Load resampled global upstream area map from disk
-with open(os.path.join(output_folder,'upstream_area_global.npy'), 'rb') as f:
-    upstream_area_global = np.load(f)
-
-    
-############################################################################
-#   Create ldd based on global upstream area map
-############################################################################
-
-# Load clone map
-dset = Dataset(clonemap_path)
-clone_lat = dset.variables['lat'][:]
-clone_lon = dset.variables['lon'][:]
-clone_res = clone_lon[1]-clone_lon[0]
-varname = list(dset.variables.keys())[-1]
-clone_np = np.array(dset.variables[varname][:])
-pcr.setclone(clone_np.shape[0],clone_np.shape[1],clone_res,clone_lon[0]-clone_res/2,clone_lat[0]-clone_res/2)
-
-# Create grid-cell area map
-xi, yi = np.meshgrid(clone_lon, clone_lat)
-area_np = (40075*res/360)**2*np.cos(np.deg2rad(yi))
-area_pcr = pcr.numpy2pcr(pcr.Scalar,area_np,mv=-9999)
-
-# Subset global upstream map to clone map region
-if np.round(clone_res*1000000)!=np.round(res*1000000):
-    raise ValueError('Clone resolution of '+str(clone_res)+' does not match target resolution of '+str(res))
-row_upper,col_left = latlon2rowcol(clone_lat[0],clone_lon[0],res,90,-180)
-upstream_area = upstream_area_global[row_upper:row_upper+len(clone_lat),col_left:col_left+len(clone_lon)]
-
-# Produce ldd by inverting upstream map
-fake_elev_np = 9999999-upstream_area
-fake_elev_np[np.isnan(fake_elev_np)] = 0
-fake_elev_pcr = pcr.numpy2pcr(pcr.Scalar,fake_elev_np,mv=9999999)
-ldd_pcr = pcr.lddcreate(fake_elev_pcr,0,0,0,0)
-ldd_np = pcr.pcr2numpy(ldd_pcr,mv=-9999)
-upstreamarea_pcr = pcr.accuflux(ldd_pcr,area_pcr)
-upstreamarea_np = pcr.pcr2numpy(upstreamarea_pcr,mv=9999999)
-
-# Save results
-save_netcdf(os.path.join(output_folder,'ldd.nc'), 'ldd', ldd_np, clone_lat, clone_lon)
-save_netcdf(os.path.join(output_folder,'ups.nc'), 'ups', upstreamarea_np, clone_lat, clone_lon)
-
-
-############################################################################
-#   Plot some maps
-############################################################################
-
-plt.figure(1)
-plt.imshow(np.log10(upstreamarea_np),vmin=0,vmax=6)
-plt.title('New upstream area (upstreamarea_np)')
-
-plt.figure(2)
-plt.imshow(np.log10(upstream_area_global),vmin=0,vmax=6)
-plt.title('MERIT Hydro upstream area (upstream_area_global)')
 
 plt.show(block=False)
 
