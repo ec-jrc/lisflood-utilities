@@ -116,12 +116,11 @@ for year in np.arange(year_start,year_end+1):
     # hyde_ir_norice exceeds 1 for some grid-cells, which shouldn't be possible
     print('Fixing HYDE fractions')
     totals = hyde_ir_rice+hyde_rf_rice+hyde_ir_norice
-    corr_factor = hyde_cropland/totals
+    corr_factor = (hyde_cropland+0.000001)/(totals+0.000001)
+    corr_factor[corr_factor>1] = 1
     hyde_ir_rice = hyde_ir_rice*corr_factor
     hyde_rf_rice = hyde_rf_rice*corr_factor
     hyde_ir_norice = hyde_ir_norice*corr_factor
-    
-    print(np.nanmax(hyde_ir_norice))    
     
     print('Making sure HYDE cropland fraction does not exceed HILDA+ other fraction')
     fracrice_hyde = hyde_ir_rice+hyde_rf_rice
@@ -131,14 +130,17 @@ for year in np.arange(year_start,year_end+1):
     fracrice_init = fracrice_hyde*corr_factor
     fracirrigation_init = fracirrigation_hyde*corr_factor
     
-    print('Recalculating other fraction using HYDE rice and irrigation (no rice)')
+    print('Make sure sum of fractions (without other) is <1')
+    total = fracwater_init+fracforest_init+fracsealed_init+fracrice_init+fracirrigation_init
+    total[total<1] = 1
+    fracwater_init = (fracwater_init/total).clip(0,1)
+    fracforest_init = (fracforest_init/total).clip(0,1)
+    fracsealed_init = (fracsealed_init/total).clip(0,1)
+    fracrice_init = (fracrice_init/total).clip(0,1)
+    fracirrigation_init = (fracirrigation_init/total).clip(0,1)
+    
+    print('Calculating other fraction using HYDE rice and irrigation (no rice)')
     fracother_init = 1-fracwater_init-fracforest_init-fracsealed_init-fracrice_init-fracirrigation_init
-
-    total = fracwater_init+fracforest_init+fracsealed_init+fracrice_init+fracirrigation_init+fracother_init
-    plt.figure(0)
-    plt.imshow(total)
-    plt.colorbar()
-    plt.title('sum 0')
 
     # The initial water fraction will be replaced with GSWE and the other
     # five fractions will be rescaled accordingly. However, if the the initial
@@ -156,18 +158,12 @@ for year in np.arange(year_start,year_end+1):
    
     print('Rescale fractions to sum to 1')
     total = fracwater_init+fracforest_init+fracsealed_init+fracrice_init+fracirrigation_init+fracother_init
-    fracwater_init = fracwater_init/total
-    fracforest_init = fracforest_init/total
-    fracsealed_init = fracsealed_init/total
-    fracrice_init = fracrice_init/total
-    fracirrigation_init = fracirrigation_init/total
-    fracother_init = fracother_init/total
-    
-    total = fracwater_init+fracforest_init+fracsealed_init+fracrice_init+fracirrigation_init+fracother_init
-    plt.figure(1)
-    plt.imshow(total)
-    plt.colorbar()
-    plt.title('sum 1')
+    fracwater_init = (fracwater_init/total).clip(0,1)
+    fracforest_init = (fracforest_init/total).clip(0,1)
+    fracsealed_init = (fracsealed_init/total).clip(0,1)
+    fracrice_init = (fracrice_init/total).clip(0,1)
+    fracirrigation_init = (fracirrigation_init/total).clip(0,1)
+    fracother_init = (fracother_init/total).clip(0,1)
 
     print("Time elapsed is "+str(time.time()-t0)+" sec")
     
@@ -194,42 +190,28 @@ for year in np.arange(year_start,year_end+1):
         print('Resampling GSWE data')
         gswe_resized = resize(gswe_raw,mapsize_global,order=1,mode='constant',anti_aliasing=False).astype(np.double)
         del gswe_raw
-            
+        
         print('Inserting GSWE data')
         fracwater = fracwater_init.copy()
         fracwater[np.isnan(gswe_resized)==False] = gswe_resized[np.isnan(gswe_resized)==False]
         
         print('Adjusting other fractions according to GSWE')
-        corr_factor = (1-fracwater)/(1-fracwater_init)
+        corr_factor = (1-fracwater+0.000001)/(1-fracwater_init+0.000001)
         fracforest = fracforest_init*corr_factor
         fracsealed = fracsealed_init*corr_factor
         fracrice = fracrice_init*corr_factor
         fracirrigation = fracirrigation_init*corr_factor
         fracother = fracother_init*corr_factor        
-        
-        total = fracwater+fracforest+fracsealed+fracrice+fracirrigation+fracother
-        plt.figure(2)
-        plt.imshow(total)
-        plt.colorbar()
-        plt.title('sum 2')
-        
+         
         print('Rescale fractions to sum to 1')
         total = fracwater+fracforest+fracsealed+fracrice+fracirrigation+fracother
-        fracwater = fracwater/total
-        fracforest = fracforest/total
-        fracsealed = fracsealed/total
-        fracrice = fracrice/total
-        fracirrigation = fracirrigation/total
-        fracother = fracother/total
-       
-        total = fracwater+fracforest+fracsealed+fracrice+fracirrigation+fracother
-        plt.figure(3)
-        plt.imshow(total)
-        plt.colorbar()
-        plt.title('sum 3')
-
-        plt.show(block=False)
-        
+        fracwater = (fracwater/total).clip(0,1)
+        fracforest = (fracforest/total).clip(0,1)
+        fracsealed = (fracsealed/total).clip(0,1)
+        fracrice = (fracrice/total).clip(0,1)
+        fracirrigation = (fracirrigation/total).clip(0,1)
+        fracother = (fracother/total).clip(0,1)
+           
         print('Subsetting data to clone map area')
         fracwater = fracwater[row_upper:row_upper+len(clone_lat),col_left:col_left+len(clone_lon)]
         fracforest = fracforest[row_upper:row_upper+len(clone_lat),col_left:col_left+len(clone_lon)]
@@ -242,23 +224,17 @@ for year in np.arange(year_start,year_end+1):
         vars = ['fracwater','fracforest','fracsealed','fracrice','fracirrigation','fracother']
         for vv in np.arange(len(vars)):
             save_netcdf_3d(
-                file=os.path.join(output_folder,vars[vv]+'.nc'),
-                varname=vars[vv], 
-                index=(year-year_start)*12+month-1,
-                data=eval(vars[vv]),
-                varunits='fraction',
-                timeunits='days since 1979-01-02 00:00:00',
-                ts=(pd.to_datetime(datetime(year,month,1))-pd.to_datetime(datetime(1979, 1, 1))).total_seconds()/86400,
-                least_sig_dig=3,
-                lat=clone_lat,
-                lon=clone_lon)
+                file = os.path.join(output_folder,vars[vv]+'.nc'),
+                varname = vars[vv], 
+                index = (year-year_start)*12+month-1,
+                data = eval(vars[vv]).astype(np.single),
+                varunits = 'fraction',
+                timeunits = 'days since 1979-01-02 00:00:00',
+                ts = (pd.to_datetime(datetime(year,month,1))-pd.to_datetime(datetime(1979, 1, 1))).total_seconds()/86400,
+                least_sig_dig = 3,
+                lat = clone_lat,
+                lon = clone_lon)
         
         print("Time elapsed is "+str(time.time()-t0)+" sec")
-
-        pdb.set_trace()
         
-pdb.set_trace()
-
-plt.show(block=False)
-
 pdb.set_trace()
