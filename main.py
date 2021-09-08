@@ -8,14 +8,12 @@ __date__ = "September 2021"
 import os, sys, glob, time, pdb
 import pandas as pd
 import numpy as np
-import pcraster as pcr
 from netCDF4 import Dataset
 import matplotlib.pyplot as plt
-import subprocess
-import rasterio
 from skimage.transform import resize
-from scipy import ndimage as nd
 from tools import *
+
+print('===============================================================================')
         
 # Load configuration file
 config = pd.read_csv(sys.argv[1],header=None,index_col=False)
@@ -92,12 +90,12 @@ for year in np.arange(year_start,year_end+1):
     fracother_hilda = 1-fracwater_init-fracforest_init-fracsealed_init    
     del hilda_raw
     
-    print('Loading and resampling HYDE data to clone map resolution')
     idx = (np.abs(np.array(hyde_years)-year)).argmin()
     hyde_year = hyde_years[idx]
+    print('Loading HYDE data for '+str(hyde_year)+' and resampling to clone map resolution')
     hyde_garea_cr = np.array(pd.read_csv(os.path.join(hyde_folder,'general_files','garea_cr.asc'), 
         header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.double) # total gridcell area in km2
-    hyde_garea_cr = hyde_garea_cr[:,:-1] # Rogue last column due to spaces after last value in asc file
+    hyde_garea_cr = hyde_garea_cr[:,:-1] # Rogue last column due to spaces after last value in asc file...
     hyde_cropland = np.array(pd.read_csv(os.path.join(hyde_folder,'baseline','zip','cropland'+str(hyde_year)+'AD.asc'), 
         header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.double)/hyde_garea_cr # total cropland area
     hyde_cropland[np.isnan(hyde_cropland)] = 0
@@ -115,6 +113,16 @@ for year in np.arange(year_start,year_end+1):
     hyde_rf_rice[np.isnan(hyde_rf_rice)] = 0
     hyde_rf_rice = resize(hyde_rf_rice,mapsize_global,order=1,mode='constant',anti_aliasing=False)    
   
+    # hyde_ir_norice exceeds 1 for some grid-cells, which shouldn't be possible
+    print('Fixing HYDE fractions')
+    totals = hyde_ir_rice+hyde_rf_rice+hyde_ir_norice
+    corr_factor = hyde_cropland/totals
+    hyde_ir_rice = hyde_ir_rice*corr_factor
+    hyde_rf_rice = hyde_rf_rice*corr_factor
+    hyde_ir_norice = hyde_ir_norice*corr_factor
+    
+    print(np.nanmax(hyde_ir_norice))    
+    
     print('Making sure HYDE cropland fraction does not exceed HILDA+ other fraction')
     fracrice_hyde = hyde_ir_rice+hyde_rf_rice
     fracirrigation_hyde = hyde_ir_norice.copy()
@@ -126,19 +134,18 @@ for year in np.arange(year_start,year_end+1):
     print('Recalculating other fraction using HYDE rice and irrigation (no rice)')
     fracother_init = 1-fracwater_init-fracforest_init-fracsealed_init-fracrice_init-fracirrigation_init
 
-    # The initial water fraction will be replaced with GSWE and the other
-    # five fractions will be rescaled accordingly. However, if the the initial
-    # water fraction is 1, the other fraction cannot be adjusted, as they will
-    # be 0. As a workaround, we reduce the initial water fraction by a tiny
-    # amount while increasing the other fractions by a tiny amount using 
-    # interpolated (non-zero) values.
-
     total = fracwater_init+fracforest_init+fracsealed_init+fracrice_init+fracirrigation_init+fracother_init
     plt.figure(0)
     plt.imshow(total)
     plt.colorbar()
     plt.title('sum 0')
-    
+
+    # The initial water fraction will be replaced with GSWE and the other
+    # five fractions will be rescaled accordingly. However, if the the initial
+    # water fraction is 1, the other fraction cannot be adjusted, as they will
+    # be 0. As a workaround, we reduce the initial water fraction by a tiny
+    # amount while increasing the other fractions by a tiny amount using 
+    # interpolated (non-zero) values.    
     print('Fixing fully water-covered grid-cells')
     mask = fracwater_init==1
     fracforest_init = fracforest_init+0.000001*fill(fracforest_init,invalid=mask)
@@ -166,12 +173,13 @@ for year in np.arange(year_start,year_end+1):
     
     for month in np.arange(1,13):
         print('-------------------------------------------------------------------------------')
-        print('Month: '+str(month))
+        print()
+        print('Year: '+str(year)+' Month: '+str(month))
         t0 = time.time()
 
-        print('Loading GSWE data')
         idx = (np.abs(np.array(gswe_years)-year)).argmin()
         gswe_year = gswe_years[idx]
+        print('Loading GSWE data ('+os.path.join(gswe_folder,str(gswe_year)+'_'+str(month).zfill(2)+'_B.nc')+')')
         dset = Dataset(os.path.join(gswe_folder,str(gswe_year)+'_'+str(month).zfill(2)+'_B.nc'))
         gswe_lats = np.array(dset.variables['lat'][:])
         gswe_lons = np.array(dset.variables['lon'][:])
@@ -180,7 +188,8 @@ for year in np.arange(year_start,year_end+1):
         add_bottom = int(np.round((90+gswe_lats[-1])/gswe_res))
         gswe_shape = (int(len(gswe_lons)/2),len(gswe_lons))
         gswe_raw = np.zeros(gswe_shape,dtype=np.single)*np.NaN
-        gswe_raw[add_top+1:gswe_shape[0]-add_bottom,:] = dset.variables['GSWD_'+str(gswe_year)+' B'][:]
+        varname = list(dset.variables.keys())[-1] # Variable name differs for some years...
+        gswe_raw[add_top+1:gswe_shape[0]-add_bottom,:] = dset.variables[varname][:]
         
         print('Resampling GSWE data')
         gswe_resized = resize(gswe_raw,mapsize_global,order=1,mode='constant',anti_aliasing=False).astype(np.double)
@@ -198,7 +207,6 @@ for year in np.arange(year_start,year_end+1):
         fracirrigation = fracirrigation_init*corr_factor
         fracother = fracother_init*corr_factor        
         
-       
         total = fracwater+fracforest+fracsealed+fracrice+fracirrigation+fracother
         plt.figure(2)
         plt.imshow(total)
@@ -220,11 +228,9 @@ for year in np.arange(year_start,year_end+1):
         plt.colorbar()
         plt.title('sum 3')
 
-
         plt.show(block=False)
         
-        print('Subsetting maps to clone map area')
-        #fracforest = fracforest[row_upper:row_upper+len(clone_lat),col_left:col_left+len(clone_lon)]
+        print('Subsetting data to clone map area')
         fracwater = fracwater[row_upper:row_upper+len(clone_lat),col_left:col_left+len(clone_lon)]
         fracforest = fracforest[row_upper:row_upper+len(clone_lat),col_left:col_left+len(clone_lon)]
         fracsealed = fracsealed[row_upper:row_upper+len(clone_lat),col_left:col_left+len(clone_lon)]
@@ -232,8 +238,22 @@ for year in np.arange(year_start,year_end+1):
         fracirrigation = fracirrigation[row_upper:row_upper+len(clone_lat),col_left:col_left+len(clone_lon)]
         fracother = fracother[row_upper:row_upper+len(clone_lat),col_left:col_left+len(clone_lon)]
         
+        print('Saving data to netCDF')
+        vars = ['fracwater','fracforest','fracsealed','fracrice','fracirrigation','fracother']
+        for vv in np.arange(len(vars)):
+            save_netcdf_3d(
+                file=os.path.join(output_folder,vars[vv]+'.nc'),
+                varname=vars[vv], 
+                index=(year-year_start)*12+month-1,
+                data=eval(vars[vv]),
+                varunits='fraction',
+                timeunits='days since 1979-01-02 00:00:00',
+                ts=(pd.to_datetime(datetime(year,month,1))-pd.to_datetime(datetime(1979, 1, 1))).total_seconds()/86400,
+                least_sig_dig=3,
+                lat=clone_lat,
+                lon=clone_lon)
+        
         print("Time elapsed is "+str(time.time()-t0)+" sec")
-
 
         pdb.set_trace()
         

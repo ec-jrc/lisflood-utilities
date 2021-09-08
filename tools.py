@@ -8,13 +8,10 @@ __date__ = "September 2021"
 import os, sys, glob, time, pdb
 import pandas as pd
 import numpy as np
-import pcraster as pcr
 from netCDF4 import Dataset
-import matplotlib.pyplot as plt
-import subprocess
-import rasterio
 from skimage.transform import resize
 from scipy import ndimage as nd
+from datetime import datetime, timedelta
 
 def latlon2rowcol(lat,lon,res,lat_upper,lon_left):
     row = np.round((lat_upper-lat)/res-0.5).astype(int)
@@ -42,16 +39,12 @@ def imresize_majority(oldarray,newshape):
 
     return newarray
     
-def save_netcdf_3d(file, varname, data, varunits, ts, least_sig_dig):
+def save_netcdf_3d(file, varname, index, data, varunits, timeunits, ts, least_sig_dig, lat, lon):
 
     if os.path.isfile(file)==False:
-        
-        mapsize = data.shape
-        res = 360/float(mapsize[1])
-        lon = np.arange(mapsize[1], dtype=np.single)*res - 180.0 + res/2
-        lat = 90-np.arange(mapsize[0], dtype=np.single)*res - res/2
-                
-        mkdir(os.path.dirname(file))
+    
+        if os.path.isdir(os.path.dirname(file))==False:
+            os.mkdir(os.path.dirname(file))
         
         ncfile = Dataset(file, 'w', format='NETCDF4')
         ncfile.history = 'Created on %s' % datetime.utcnow().strftime('%Y-%m-%d %H:%M')
@@ -70,9 +63,8 @@ def save_netcdf_3d(file, varname, data, varunits, ts, least_sig_dig):
         ncfile.variables['lat'].units = 'degrees_north'
         ncfile.variables['lat'].long_name = 'latitude'
 
-        ncfile.createVariable('time', 'i4', 'time')
-        ncfile.variables['time'][:] = (pd.to_datetime(ts)-pd.to_datetime(datetime(1900, 1, 1))).total_seconds()/86400
-        ncfile.variables['time'].units = 'days since 1900-1-1 00:00:00'
+        ncfile.createVariable('time', 'f4', 'time')
+        ncfile.variables['time'].units = timeunits
         ncfile.variables['time'].long_name = 'time'
     
     else:
@@ -80,8 +72,9 @@ def save_netcdf_3d(file, varname, data, varunits, ts, least_sig_dig):
     
     if varname not in ncfile.variables.keys():
         ncfile.createVariable(varname, data.dtype, ('time', 'lat', 'lon'), zlib=True, chunksizes=(1,32,32,), fill_value=-9999, least_significant_digit=least_sig_dig) #'f4'
-
-    ncfile.variables[varname][0,:,:] = data
+    
+    ncfile.variables['time'][index] = ts
+    ncfile.variables[varname][index,:,:] = data
     ncfile.variables[varname].units = varunits
     
     ncfile.close()
