@@ -6,19 +6,19 @@ This script produces monthly dynamic land use/cover fraction maps to be used as 
 
 The script is based on three data sources (HILDA+, HYDE, and GSWE):
 
-1. The `fracforest` and `fracsealed` are based on HILDA+ V1.0 (1-km resolution; 1900–2019; [Winkler et al., 2021](https://doi.org/10.1038/s41467-021-22702-2)). Download the file `hildap_vGLOB-1.0-f_netcdf.zip` from [the PANGAEA data repository](https://doi.org/10.1594/PANGAEA.921846) and extract it to the `hildaplus_folder` specified in the configuration file.
-1. The `fracirrigation` and `fracrice` are based on HYDE V3.2 (0.083° resolution; 10,000 BC to 2015; [Klein Goldewijk et al., 2017](https://doi.org/10.5194/essd-9-927-2017)). Download the `baseline` and `general_files` folders from the [DANS data portal](https://doi.org/10.17026/dans-25g-gez3) and put them in the `hyde_folder` specified in the configuration file.
-1. The `fracwater` is based on GSWE V4 (30-m resolution; 1985–2019; [Pekel et al., 2016](https://doi.org/10.1038/nature20584)). We use a version of the GSWE resampled to 1-km resolution by Susann Guenther. This version is available via xxx.
+1. The forest and sealed fractions are based on HILDA+ V1.0 (1-km resolution; 1900–2019; [Winkler et al., 2021](https://doi.org/10.1038/s41467-021-22702-2)). Download the file `hildap_vGLOB-1.0-f_netcdf.zip` from [the PANGAEA data repository](https://doi.org/10.1594/PANGAEA.921846) and extract it to the `hildaplus_folder` specified in the configuration file.
+1. The irrigation (no rice) and rice fractions are based on HYDE V3.2 (0.083° resolution; 10,000 BC to 2015; [Klein Goldewijk et al., 2017](https://doi.org/10.5194/essd-9-927-2017)). Download the `baseline` and `general_files` folders from the [DANS data portal](https://doi.org/10.17026/dans-25g-gez3) and put them in the `hyde_folder` specified in the configuration file.
+1. The water fraction is based on GSWE V4 (30-m resolution; 1985–2019; [Pekel et al., 2016](https://doi.org/10.1038/nature20584)). We use a version of the GSWE resampled to 1-km resolution by Susann Guenther. This version is available via xxx.
 
 The script also requires a clone map which defines the output resolution and area. The clone map should be in netCDF-4 format and contain `lat` and `lon` variables and a data variable (any name). The location of the clone map is specified using `clonemap_path` in the configuration file.
 
 # Methods
 
-The script carries out the following steps to obtain the six fractions using HILDA+ and HYDE on a yearly basis:
-1. Loads and resamples the global 1-km HILDA+ data to the clone map resolution and calculates the water, forest, and sealed fractions.
+The script carries out the following steps to obtain the six fractions (forest, sealed, irrigation [no rice], rice, water, and other) using HILDA+ and HYDE on a yearly basis:
+1. Loads and resamples the global 1-km HILDA+ data to the clone map resolution and calculates the water, forest, sealed, and other fractions.
 1. Loads and resamples the global 0.083° HYDE data to the clone map resolution.
 1. Fixes HYDE fractions exceeding 1.
-1. Makes sure the HYDE cropland fraction does not exceed the HILDA+ 'other' fraction and calculates the rice and irrigation (no rice) fractions.
+1. Makes sure the HYDE cropland fraction does not exceed the HILDA+ other fraction and calculates the rice and irrigation (no rice) fractions.
 1. Makes sure the sum of the five non-other fractions is <1 and calculates the other fraction.
 1. The water fraction will be replaced with GSWE data and the other five fractions will be rescaled accordingly. However, if the the water fraction is 1, the other fractions cannot be adjusted, as they will all be 0. As a workaround, we reduce the initial water fraction by a tiny amount while increasing the other fractions by a tiny amount using interpolated (non-zero) values.
 1. Makes sure the sum of the fractions is 1.
