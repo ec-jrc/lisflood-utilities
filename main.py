@@ -140,12 +140,11 @@ for year in np.arange(year_start,year_end+1):
     print('Calculating other fraction using HYDE rice and irrigation (no rice)')
     fracother_init = 1-fracwater_init-fracforest_init-fracsealed_init-fracrice_init-fracirrigation_init
 
-    # The initial water fraction will be replaced with GSWE and the other
-    # five fractions will be rescaled accordingly. However, if the the initial
-    # water fraction is 1, the other fractions cannot be adjusted, as they will
-    # all be 0. As a workaround, we reduce the initial water fraction by a tiny
-    # amount while increasing the other fractions by a tiny amount using 
-    # interpolated (non-zero) values.    
+    # The water fraction will be replaced with GSWE data and the other five 
+    # fractions will be rescaled accordingly. However, if the the water 
+    # fraction is 1, the non-water fractions cannot be adjusted, as they will
+    # all be 0. Therefore, we increase the non-water fractions by a tiny amount
+    # using interpolated (non-zero) values.
     print('Fixing fully water-covered grid-cells')
     mask = fracwater_init==1
     fracforest_init = fracforest_init+0.000001*fill(fracforest_init,invalid=mask)

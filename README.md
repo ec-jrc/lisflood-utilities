@@ -14,16 +14,16 @@ The script also requires a clone map which defines the output resolution and are
 
 # Methods
 
-The script carries out the following steps to obtain the six fractions (forest, sealed, irrigation [no rice], rice, water, and other) using HILDA+ and HYDE on a yearly basis:
+The script carries out the following steps to obtain the six fractions (forest, sealed, irrigation [no rice], rice, water, and other) on a yearly basis using HILDA+ and HYDE:
 1. Loads and resamples the global 1-km HILDA+ data to the clone map resolution and calculates the water, forest, sealed, and other fractions.
 1. Loads and resamples the global 0.083° HYDE data to the clone map resolution.
 1. Fixes HYDE fractions exceeding 1.
 1. Makes sure the HYDE cropland fraction does not exceed the HILDA+ other fraction and calculates the rice and irrigation (no rice) fractions.
 1. Makes sure the sum of the five non-other fractions is <1 and calculates the other fraction.
-1. The water fraction will be replaced with GSWE data and the other five fractions will be rescaled accordingly. However, if the the water fraction is 1, the other fractions cannot be adjusted, as they will all be 0. As a workaround, we reduce the initial water fraction by a tiny amount while increasing the other fractions by a tiny amount using interpolated (non-zero) values.
+1. The water fraction will be replaced with GSWE data and the other five fractions will be rescaled accordingly. However, if the the water fraction is 1, the non-water fractions cannot be adjusted, as they will all be 0. Therefore, we increase the non-water fractions by a tiny amount using interpolated (non-zero) values.
 1. Makes sure the sum of the fractions is 1.
 
-The script carries out the following steps to adjust the six yearly fractions using GSWE on a monthly basis:
+The script carries out the following steps to adjust the six yearly fractions on a monthly basis using GSWE:
 1. Loads and resamples the global 1-km GSWE data to the clone map resolution.
 1. Updates the water fraction using the GSWE data.
 1. Adjusts the other five fractions according to the updated water fraction.
