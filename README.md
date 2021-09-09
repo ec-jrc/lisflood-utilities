@@ -4,9 +4,9 @@ This script produces monthly dynamic land use/cover fraction maps to be used as 
 
 # Data sources
 
-1. The `fracforest` and `fracsealed' are based on [HILDA+](https://doi.org/10.1038/s41467-021-22702-2) V1.0. Download the file `hildap_vGLOB-1.0-f_netcdf.zip` from [the PANGAEA data repository](https://doi.org/10.1594/PANGAEA.921846) and extract it to the `hildaplus_folder` specified in the configuration file.
-1. The `fracirrigation` and `fracrice` are based on [HYDE](https://doi.org/10.5194/essd-9-927-2017) V3.2. Download the `baseline' and `general_files' folders from the [DANS data portal](https://doi.org/10.17026/dans-25g-gez3) and put them in the `hyde_folder` specified in the configuration file.
-1. The `fracwater` is based on [GSWE](https://doi.org/10.1038/nature20584) V4.
+1. The `fracforest` and `fracsealed` are based on HILDA+ V1.0 ([Winkler et al., 2021](https://doi.org/10.1038/s41467-021-22702-2)). Download the file `hildap_vGLOB-1.0-f_netcdf.zip` from [the PANGAEA data repository](https://doi.org/10.1594/PANGAEA.921846) and extract it to the `hildaplus_folder` specified in the configuration file.
+1. The `fracirrigation` and `fracrice` are based on HYDE V3.2 ([Klein Goldewijk et al., 2017](https://doi.org/10.5194/essd-9-927-2017)). Download the `baseline' and `general_files' folders from the [DANS data portal](https://doi.org/10.17026/dans-25g-gez3) and put them in the `hyde_folder` specified in the configuration file.
+1. The `fracwater` is based on GSWE V4 ([Pekel et al., 2016](https://doi.org/10.1038/nature20584)).
 
 
 # Overview
