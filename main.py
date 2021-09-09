@@ -142,8 +142,8 @@ for year in np.arange(year_start,year_end+1):
 
     # The initial water fraction will be replaced with GSWE and the other
     # five fractions will be rescaled accordingly. However, if the the initial
-    # water fraction is 1, the other fraction cannot be adjusted, as they will
-    # be 0. As a workaround, we reduce the initial water fraction by a tiny
+    # water fraction is 1, the other fractions cannot be adjusted, as they will
+    # all be 0. As a workaround, we reduce the initial water fraction by a tiny
     # amount while increasing the other fractions by a tiny amount using 
     # interpolated (non-zero) values.    
     print('Fixing fully water-covered grid-cells')
