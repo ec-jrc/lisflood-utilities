@@ -8,7 +8,7 @@ The script is based on three data sources (HILDA+, HYDE, and GSWE):
 
 1. The forest and sealed fractions are based on HILDA+ V1.0 (1-km resolution; 1900–2019; [Winkler et al., 2021](https://doi.org/10.1038/s41467-021-22702-2)). Download the file `hildap_vGLOB-1.0-f_netcdf.zip` from [the PANGAEA data repository](https://doi.org/10.1594/PANGAEA.921846) and extract it to the `hildaplus_folder` specified in the configuration file.
 1. The irrigation (no rice) and rice fractions are based on HYDE V3.2 (0.083° resolution; 10,000 BC to 2015; [Klein Goldewijk et al., 2017](https://doi.org/10.5194/essd-9-927-2017)). Download the `baseline` and `general_files` folders from the [DANS data portal](https://doi.org/10.17026/dans-25g-gez3) and put them in the `hyde_folder` specified in the configuration file.
-1. The water fraction is based on GSWE V4 (30-m resolution; 1985–2019; [Pekel et al., 2016](https://doi.org/10.1038/nature20584)). We use a version of the GSWE resampled to 1-km resolution by Susann Guenther. This version is available via xxx.
+1. The water fraction is based on GSWE V4 (30-m resolution; 1985–2019; [Pekel et al., 2016](https://doi.org/10.1038/nature20584)). We use a version of the GSWE resampled to 1-km resolution by Susann Guenther. This version is available via xxx and the code is available xxx [waiting for a response from Susann).
 
 The script also requires a clone map which defines the output resolution and area. The clone map should be in netCDF-4 format and contain `lat` and `lon` variables and a data variable (any name). The location of the clone map is specified using `clonemap_path` in the configuration file.
 
@@ -31,8 +31,7 @@ The script carries out the following steps to adjust the six yearly fractions on
 1. Subsets the global maps to the clone map area.
 1. Saves the data to netCDF-4 files (one for each fraction).
 
-The maps are produced for the period spanning `year_start` to `year_end` (specified in the configuration file). For years without data, we use data from the closest year. For 1984, for example, we use HYDE data from 1980 (the closest year with HYDE data), and for March 1981, we use GSWE data from March 1985 (the first year with GSWE data).
-
+The maps are produced for the period spanning `year_start` to `year_end` and saved to `output_folder` (all specified in the configuration file). For years without data, we use data from the closest year. For 1984, for example, we use HYDE data from 1980 (the closest year with HYDE data), and for March 1981, we use GSWE data from March 1985 (the first year with GSWE data).
 
 # System requirements
 
@@ -45,7 +44,7 @@ Clone the repository:
 git clone https://github.com/hylken/lisflood-create-dynamic-land-use-cover
 cd lisflood-create-dynamic-land-use-cover
 ```
-Produce a `config.cfg` file with the correct paths and folders based on the provided template. 
+Produce a configuration file with the correct paths and folders based on the provided template. 
 
 Create and activate a Conda environment and run the script as follows:
 ```
@@ -53,4 +52,3 @@ conda create --name <env> --file requirements.txt
 conda activate <env>
 python main.py <your config file>
 ```
-
