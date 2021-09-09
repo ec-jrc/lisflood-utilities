@@ -19,9 +19,9 @@ The script carries out the following steps to obtain the six fractions (forest, 
 1. Loads and resamples the global 0.083° HYDE data to the clone map resolution.
 1. Fixes HYDE fractions exceeding 1.
 1. Makes sure the HYDE cropland fraction does not exceed the HILDA+ other fraction and calculates the rice and irrigation (no rice) fractions.
-1. Makes sure the sum of the five non-other fractions is <1 and calculates the other fraction.
+1. Makes sure the five non-other fractions sum to <1 and calculates the other fraction.
 1. The water fraction will be replaced with GSWE data and the other five fractions will be rescaled accordingly. However, if the the water fraction is 1, the non-water fractions cannot be adjusted, as they will all be 0. Therefore, we increase the non-water fractions by a tiny amount using interpolated (non-zero) values.
-1. Makes sure the sum of the fractions is 1.
+1. Makes sure the fractions sum to 1.
 
 The script carries out the following steps to adjust the six yearly fractions on a monthly basis using GSWE:
 1. Loads and resamples the global 1-km GSWE data to the clone map resolution.
@@ -31,7 +31,7 @@ The script carries out the following steps to adjust the six yearly fractions on
 1. Subsets the global maps to the clone map area.
 1. Saves the data to netCDF-4 files (one for each fraction).
 
-The maps are produced for the period spanning `year_start` to `year_end` and saved to `output_folder` (all specified in the configuration file). For years without data, we use data from the closest year. For 1984, for example, we use HYDE data from 1980 (the closest year with HYDE data), and for March 1981, we use GSWE data from March 1985 (the first year with GSWE data).
+The maps are produced for the period spanning `year_start` to `year_end` and saved to `output_folder` (all specified in the configuration file). For years without data, the script uses data from the closest year. For 1984, for example, HYDE data from 1980 (the closest year with HYDE data) are used, while for March 1981, GSWE data from March 1985 (the first year with GSWE data) are used.
 
 # System requirements
 

@@ -217,7 +217,7 @@ for year in np.arange(year_start,year_end+1):
         fracirrigation = fracirrigation[row_upper:row_upper+len(clone_lat),col_left:col_left+len(clone_lon)]
         fracother = fracother[row_upper:row_upper+len(clone_lat),col_left:col_left+len(clone_lon)]
         
-        print('Saving data to netCDF')
+        print('Saving data to '+output_folder+' in netCDF format')
         vars = ['fracwater','fracforest','fracsealed','fracrice','fracirrigation','fracother']
         for vv in np.arange(len(vars)):
             save_netcdf_3d(
