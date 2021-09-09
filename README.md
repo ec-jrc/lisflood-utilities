@@ -1,6 +1,16 @@
 # Overview
 
-This script produces a local drain direction (LDD) map (in netCDF-4 format) based on 90-m [MERIT Hydro](http://hydro.iis.u-tokyo.ac.jp/~yamadai/MERIT_Hydro/) upstream area data for a particular region at a particular resolution. The script is entirely self-containing and only requires one to specify the path of the clone map and several output folders.
+This script produces monthly dynamic land use/cover fraction maps to be used as input to the LISFLOOD model with the `Transient land use change option` option enabled. The maps are resampled and subsetted to match resolution and area of the clone map (the location of which is specified in the configuration file). 
+
+# Data sources
+
+1. The `fracforest` and `fracsealed' are based on [HILDA+](https://doi.org/10.1038/s41467-021-22702-2) V1.0. Download the file `hildap_vGLOB-1.0-f_netcdf.zip` from [the PANGAEA data repository](https://doi.org/10.1594/PANGAEA.921846) and extract it to the `hildaplus_folder` specified in the configuration file.
+1. The `fracirrigation` and `fracrice` are based on [HYDE](https://doi.org/10.5194/essd-9-927-2017) V3.2. Download the `baseline' and `general_files' folders from the [DANS data portal](https://doi.org/10.17026/dans-25g-gez3) and put them in the `hyde_folder` specified in the configuration file.
+1. The `fracwater` is based on [GSWE](https://doi.org/10.1038/nature20584) V4.
+
+
+# Overview
+
 
 The script:
 1. downloads and extracts the MERIT Hydro upstream area data;

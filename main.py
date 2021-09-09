@@ -57,9 +57,6 @@ gswe_years = np.unique(gswe_years)
 #   Loop over years and months
 ############################################################################
 
-dset = Dataset(os.path.join(hildaplus_folder,'hildaplus_vGLOB-1.0-f_states.nc'))
-latitude = np.array(dset.variables['latitude'][:])
-longitude = np.array(dset.variables['longitude'][:])
 for year in np.arange(year_start,year_end+1):
     print('===============================================================================')
     print('Year: '+str(year))
@@ -67,6 +64,7 @@ for year in np.arange(year_start,year_end+1):
     
     print('Loading HILDA+ data')
     ind = year-1899
+    dset = Dataset(os.path.join(hildaplus_folder,'hildaplus_vGLOB-1.0-f_states.nc'))
     hilda_raw = np.array(dset.variables['LULC_states'][ind,:,:])
     
     # HILDA+ legend
