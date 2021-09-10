@@ -58,12 +58,12 @@ def save_netcdf_3d(file, varname, index, data, varunits, timeunits, ts, least_si
         ncfile.variables['lon'].units = 'degrees_east'
         ncfile.variables['lon'].long_name = 'longitude'
 
-        ncfile.createVariable('lat', 'f4', ('lat',))
+        ncfile.createVariable('lat', 'f8', ('lat',))
         ncfile.variables['lat'][:] = lat
         ncfile.variables['lat'].units = 'degrees_north'
         ncfile.variables['lat'].long_name = 'latitude'
 
-        ncfile.createVariable('time', 'f4', 'time')
+        ncfile.createVariable('time', 'f8', 'time')
         ncfile.variables['time'].units = timeunits
         ncfile.variables['time'].long_name = 'time'
     
@@ -71,11 +71,37 @@ def save_netcdf_3d(file, varname, index, data, varunits, timeunits, ts, least_si
         ncfile = Dataset(file, 'r+', format='NETCDF4')   
     
     if varname not in ncfile.variables.keys():
-        ncfile.createVariable(varname, data.dtype, ('time', 'lat', 'lon'), zlib=True, chunksizes=(1,32,32,), fill_value=-9999, least_significant_digit=least_sig_dig) #'f4'
+        ncfile.createVariable(varname, data.dtype, ('time', 'lat', 'lon'), zlib=True, chunksizes=(1,32,32,), fill_value=-9999, least_significant_digit=least_sig_dig)
     
     ncfile.variables['time'][index] = ts
     ncfile.variables[varname][index,:,:] = data
     ncfile.variables[varname].units = varunits
+    
+    ncfile.close()
+
+def save_netcdf(file, varname, data, least_sig_dig, lat, lon):
+
+    if os.path.isfile(file)==True: 
+        os.remove(file)
+
+    ncfile = Dataset(file, 'w', format='NETCDF4')
+
+    ncfile.createDimension('lon', len(lon))
+    ncfile.createDimension('lat', len(lat))
+
+    ncfile.createVariable('lon', 'f8', ('lon',))
+    ncfile.variables['lon'][:] = lon
+    ncfile.variables['lon'].units = 'degrees_east'
+    ncfile.variables['lon'].long_name = 'longitude'
+
+    ncfile.createVariable('lat', 'f8', ('lat',))
+    ncfile.variables['lat'][:] = lat
+    ncfile.variables['lat'].units = 'degrees_north'
+    ncfile.variables['lat'].long_name = 'latitude'
+    
+    ncfile.createVariable(varname, data.dtype, ('lat', 'lon'), zlib=True, chunksizes=(32,32,), fill_value=-9999, least_significant_digit=least_sig_dig)
+
+    ncfile.variables[varname][:,:] = data
     
     ncfile.close()
     

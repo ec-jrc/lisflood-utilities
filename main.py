@@ -12,6 +12,7 @@ from netCDF4 import Dataset
 import matplotlib.pyplot as plt
 from skimage.transform import resize
 from tools import *
+import rasterio
 
 print('===============================================================================')
         
@@ -44,7 +45,7 @@ mapsize_clone = clone_np.shape
 row_upper,col_left = latlon2rowcol(clone_lat[0],clone_lon[0],clone_res,90,-180)
 
 # List of years with HYDE data
-hyde_files = glob.glob(os.path.join(hyde_folder,'baseline','zip','cropland*'))
+hyde_files = glob.glob(os.path.join(hyde_folder,'baseline','cropland*'))
 hyde_years = [int(os.path.basename(hyde_file)[8:12]) for hyde_file in hyde_files]
 
 # List of years with GSWE data
@@ -94,19 +95,19 @@ for year in np.arange(year_start,year_end+1):
     hyde_garea_cr = np.array(pd.read_csv(os.path.join(hyde_folder,'general_files','garea_cr.asc'), 
         header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.double) # total gridcell area in km2
     hyde_garea_cr = hyde_garea_cr[:,:-1] # Rogue last column due to spaces after last value in asc file...
-    hyde_cropland = np.array(pd.read_csv(os.path.join(hyde_folder,'baseline','zip','cropland'+str(hyde_year)+'AD.asc'), 
+    hyde_cropland = np.array(pd.read_csv(os.path.join(hyde_folder,'baseline','cropland'+str(hyde_year)+'AD.asc'), 
         header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.double)/hyde_garea_cr # total cropland area
     hyde_cropland[np.isnan(hyde_cropland)] = 0
     hyde_cropland = resize(hyde_cropland,mapsize_global,order=1,mode='constant',anti_aliasing=False)    
-    hyde_ir_norice = np.array(pd.read_csv(os.path.join(hyde_folder,'baseline','zip','ir_norice'+str(hyde_year)+'AD.asc'), 
+    hyde_ir_norice = np.array(pd.read_csv(os.path.join(hyde_folder,'baseline','ir_norice'+str(hyde_year)+'AD.asc'), 
         header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.double)/hyde_garea_cr # irrigated other crops area (no rice) area
     hyde_ir_norice[np.isnan(hyde_ir_norice)] = 0
     hyde_ir_norice = resize(hyde_ir_norice,mapsize_global,order=1,mode='constant',anti_aliasing=False)    
-    hyde_ir_rice = np.array(pd.read_csv(os.path.join(hyde_folder,'baseline','zip','ir_rice'+str(hyde_year)+'AD.asc'), 
+    hyde_ir_rice = np.array(pd.read_csv(os.path.join(hyde_folder,'baseline','ir_rice'+str(hyde_year)+'AD.asc'), 
         header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.double)/hyde_garea_cr # irrigated rice area (no rice)
     hyde_ir_rice[np.isnan(hyde_ir_rice)] = 0
     hyde_ir_rice = resize(hyde_ir_rice,mapsize_global,order=1,mode='constant',anti_aliasing=False)
-    hyde_rf_rice = np.array(pd.read_csv(os.path.join(hyde_folder,'baseline','zip','rf_rice'+str(hyde_year)+'AD.asc'), 
+    hyde_rf_rice = np.array(pd.read_csv(os.path.join(hyde_folder,'baseline','rf_rice'+str(hyde_year)+'AD.asc'), 
         header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.double)/hyde_garea_cr # rainfed rice area (no rice)
     hyde_rf_rice[np.isnan(hyde_rf_rice)] = 0
     hyde_rf_rice = resize(hyde_rf_rice,mapsize_global,order=1,mode='constant',anti_aliasing=False)    
@@ -230,7 +231,8 @@ for year in np.arange(year_start,year_end+1):
                 ts = (pd.to_datetime(datetime(year,month,1))-pd.to_datetime(datetime(1979, 1, 1))).total_seconds()/86400,
                 least_sig_dig = 3,
                 lat = clone_lat,
-                lon = clone_lon)
+                lon = clone_lon
+                )
         
         print("Time elapsed is "+str(time.time()-t0)+" sec")
         
