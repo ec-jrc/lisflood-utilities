@@ -6,7 +6,6 @@ from netCDF4 import Dataset
 import matplotlib.pyplot as plt
 import subprocess
 import rasterio
-from skimage.transform import downscale_local_mean
 from tools import *
     
 # Load configuration file
@@ -81,11 +80,9 @@ for jj in np.arange(len(years)):
     for ii in np.arange(len(geotiff_files)):
         
         # Load and resample tile
-        # Resample should be done using resize_local_mean but we don't have the
-        # latest version of scikit-image...
         raw = rasterio.open(geotiff_files[ii]).read(1)
         impervious = raw>=value
-        impervious = downscale_local_mean(np.single(impervious),(37,37))
+        impervious = imresize_mean(np.single(impervious),(np.int(1/output_res),np.int(1/output_res)))
            
         # Find top row and left column of tile
         filename = os.path.basename(geotiff_files[ii])
@@ -113,7 +110,6 @@ for jj in np.arange(len(years)):
         )
         
     print("Time elapsed is "+str(time.time()-t0)+" sec")
-    pdb.set_trace()
     
 pdb.set_trace()
         

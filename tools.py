@@ -10,6 +10,7 @@ import pandas as pd
 import numpy as np
 from netCDF4 import Dataset
 from skimage.transform import resize
+from skimage.transform import downscale_local_mean
 from scipy import ndimage as nd
 from datetime import datetime, timedelta
 
@@ -22,7 +23,40 @@ def rowcol2latlon(row,col,res,lat_upper,lon_left):
     lat = lat_upper-row*res-res/2
     lon = lon_left+col*res+res/2
     return lat.squeeze(),lon.squeeze()
+
+def get_row_compressor(old_dimension, new_dimension):
+    dim_compressor = np.zeros((new_dimension, old_dimension))
+    bin_size = float(old_dimension) / new_dimension
+    next_bin_break = bin_size
+    which_row = 0
+    which_column = 0
+    while which_row < dim_compressor.shape[0] and which_column < dim_compressor.shape[1]:
+        if round(next_bin_break - which_column, 10) >= 1:
+            dim_compressor[which_row, which_column] = 1
+            which_column += 1
+        elif next_bin_break == which_column:
+
+            which_row += 1
+            next_bin_break += bin_size
+        else:
+            partial_credit = next_bin_break - which_column
+            dim_compressor[which_row, which_column] = partial_credit
+            which_row += 1
+            dim_compressor[which_row, which_column] = 1 - partial_credit
+            which_column += 1
+            next_bin_break += bin_size
+    dim_compressor /= bin_size
+    return dim_compressor
+
+def get_column_compressor(old_dimension, new_dimension):
+    return get_row_compressor(old_dimension, new_dimension).transpose()
     
+def compress_and_average(array, new_shape):
+    # Note: new shape should be smaller in both dimensions than old shape
+    return np.mat(get_row_compressor(array.shape[0], new_shape[0])) * \
+           np.mat(array) * \
+           np.mat(get_column_compressor(array.shape[1], new_shape[1]))
+           
 def imresize_majority(oldarray,newshape):
     # Resize array using majority filter
     
@@ -36,6 +70,20 @@ def imresize_majority(oldarray,newshape):
     for cl in cls:        
         temp = resize((oldarray==cl).astype(np.single),newshape,order=1,mode='constant',anti_aliasing=False)
         newarray[temp>=threshold] = cl
+
+    return newarray
+    
+def imresize_mean(oldarray,newshape):
+    # Resize array using averaging
+    
+    oldshape = oldarray.shape
+    
+    factor = 1
+    while newshape[0]*factor<oldshape[0]:
+        factor = factor+1
+        
+    intarray = resize(oldarray,(int(newshape[0]*factor),int(newshape[1]*factor)),order=0,mode='constant',anti_aliasing=False)
+    newarray = downscale_local_mean(intarray,(factor,factor))
 
     return newarray
     

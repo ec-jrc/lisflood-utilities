@@ -10,7 +10,6 @@ import pandas as pd
 import numpy as np
 from netCDF4 import Dataset
 import matplotlib.pyplot as plt
-from skimage.transform import resize
 from tools import *
 import rasterio
 
@@ -83,9 +82,19 @@ for year in np.arange(year_start,year_end+1):
     # 77 Water 
     
     print('Resampling HILDA+ data to clone map resolution')
-    fracwater_init = resize(np.single((hilda_raw==0) | (hilda_raw==77)),mapsize_global,order=1,mode='constant',anti_aliasing=False).astype(np.double)
-    fracforest_init = resize(np.single((hilda_raw>=40) & (hilda_raw<=45)),mapsize_global,order=1,mode='constant',anti_aliasing=False).astype(np.double)    
-    fracsealed_init = 0.75*resize(np.single(hilda_raw==11),mapsize_global,order=1,mode='constant',anti_aliasing=False).astype(np.double)
+    fracwater_init = imresize_mean(np.single((hilda_raw==0) | (hilda_raw==77)),mapsize_global).astype(np.double)
+    fracforest_init = imresize_mean(np.single((hilda_raw>=40) & (hilda_raw<=45)),mapsize_global).astype(np.double)    
+    fracforest_init_ = imresize_mean(np.single((hilda_raw>=40) & (hilda_raw<=45)),mapsize_global).astype(np.double)
+    #factor = int(np.round(hilda_raw.shape[0]/mapsize_global[0]))
+    #fracforest_init_ = downscale_local_mean(np.single((hilda_raw>=40) & (hilda_raw<=45)),(factor,factor)).astype(np.double)    
+    #fracforest_init__ = compress_and_average(np.single((hilda_raw>=40) & (hilda_raw<=45)),mapsize_global).astype(np.double)
+    pdb.set_trace()
+    plt.figure(0)
+    plt.imshow(fracforest_init)
+    plt.figure(1)
+    plt.imshow(fracforest_init_)
+    plt.show()
+    fracsealed_init = 0.75*imresize_mean(np.single(hilda_raw==11),mapsize_global).astype(np.double)
     fracother_hilda = 1-fracwater_init-fracforest_init-fracsealed_init    
     del hilda_raw
     
@@ -98,19 +107,19 @@ for year in np.arange(year_start,year_end+1):
     hyde_cropland = np.array(pd.read_csv(os.path.join(hyde_folder,'baseline','cropland'+str(hyde_year)+'AD.asc'), 
         header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.double)/hyde_garea_cr # total cropland area
     hyde_cropland[np.isnan(hyde_cropland)] = 0
-    hyde_cropland = resize(hyde_cropland,mapsize_global,order=1,mode='constant',anti_aliasing=False)    
+    hyde_cropland = imresize_mean(hyde_cropland,mapsize_global)    
     hyde_ir_norice = np.array(pd.read_csv(os.path.join(hyde_folder,'baseline','ir_norice'+str(hyde_year)+'AD.asc'), 
         header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.double)/hyde_garea_cr # irrigated other crops area (no rice) area
     hyde_ir_norice[np.isnan(hyde_ir_norice)] = 0
-    hyde_ir_norice = resize(hyde_ir_norice,mapsize_global,order=1,mode='constant',anti_aliasing=False)    
+    hyde_ir_norice = imresize_mean(hyde_ir_norice,mapsize_global)    
     hyde_ir_rice = np.array(pd.read_csv(os.path.join(hyde_folder,'baseline','ir_rice'+str(hyde_year)+'AD.asc'), 
         header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.double)/hyde_garea_cr # irrigated rice area (no rice)
     hyde_ir_rice[np.isnan(hyde_ir_rice)] = 0
-    hyde_ir_rice = resize(hyde_ir_rice,mapsize_global,order=1,mode='constant',anti_aliasing=False)
+    hyde_ir_rice = imresize_mean(hyde_ir_rice,mapsize_global)
     hyde_rf_rice = np.array(pd.read_csv(os.path.join(hyde_folder,'baseline','rf_rice'+str(hyde_year)+'AD.asc'), 
         header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.double)/hyde_garea_cr # rainfed rice area (no rice)
     hyde_rf_rice[np.isnan(hyde_rf_rice)] = 0
-    hyde_rf_rice = resize(hyde_rf_rice,mapsize_global,order=1,mode='constant',anti_aliasing=False)    
+    hyde_rf_rice = imresize_mean(hyde_rf_rice,mapsize_global)    
   
     # hyde_ir_norice exceeds 1 for some grid-cells, which shouldn't be possible
     print('Fixing HYDE fractions')
@@ -186,7 +195,7 @@ for year in np.arange(year_start,year_end+1):
         gswe_raw[add_top+1:gswe_shape[0]-add_bottom,:] = dset.variables[varname][:]
         
         print('Resampling GSWE data')
-        gswe_resized = resize(gswe_raw,mapsize_global,order=1,mode='constant',anti_aliasing=False).astype(np.double)
+        gswe_resized = imresize_mean(gswe_raw,mapsize_global).astype(np.double)
         del gswe_raw
         
         print('Inserting GSWE data')
