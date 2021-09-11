@@ -82,7 +82,7 @@ for jj in np.arange(len(years)):
         # Load and resample tile
         raw = rasterio.open(geotiff_files[ii]).read(1)
         impervious = raw>=value
-        impervious = imresize_mean(np.single(impervious),(np.int(1/output_res),np.int(1/output_res)))
+        impervious = imresize_mean(np.single(impervious),(int(1/output_res),int(1/output_res)))
            
         # Find top row and left column of tile
         filename = os.path.basename(geotiff_files[ii])
@@ -112,52 +112,3 @@ for jj in np.arange(len(years)):
     print("Time elapsed is "+str(time.time()-t0)+" sec")
     
 pdb.set_trace()
-        
-        
-
-        
-        
-        
-        # Insert into global map
-
-        #save()
-'''
-    global_shape = (int(180/res),int(360/res))
-    upstream_area_global = np.zeros(global_shape)*np.NaN
-    
-    for subdir, dirs, files in os.walk(gaia_folder):
-        for file in files:        
-            
-            
-            print('--------------------------------------------------------------------------------')
-            print('Processing '+file)
-            t1 = time.time()
-            
-            # Resize using maximum filter
-            oldarray = rasterio.open(os.path.join(subdir, file)).read(1)
-            oldarray[oldarray<0] = 9999999 # Necessary to ensure that all rivers flow into the ocean
-            factor = res/(5/6000)
-            factor = np.round(factor*1000000000000)/1000000000000
-            if factor!=np.round(factor): 
-                raise ValueError('Resize factor of '+str(factor)+' not integer, needs to be integer')
-            factor = factor.astype(int)
-            newshape = (oldarray.shape[0]//factor,oldarray.shape[1]//factor)
-            newarray = imresize_max(oldarray,newshape)
-            
-            # Insert into global map
-            tile_lat_top = float(file[:3].replace("n","").replace("s","-"))
-            tile_lon_left = float(file[3:7].replace("e","").replace("w","-"))
-            tile_row_top, tile_col_left = latlon2rowcol(tile_lat_top+res/2,tile_lon_left+res/2,res,90,-180)
-            upstream_area_global[tile_row_top-newshape[0]+1:tile_row_top+1,tile_col_left:tile_col_left+newshape[1]] = newarray
-            
-            print('Time elapsed is ' + str(time.time() - t1) + ' sec')
-
-    with open(os.path.join(output_folder,'upstream_area_global.npy'), 'wb') as f:
-        np.save(f, upstream_area_global)
-
-# Load resampled global upstream area map from disk
-with open(os.path.join(output_folder,'upstream_area_global.npy'), 'rb') as f:
-    upstream_area_global = np.load(f)
-
-
-'''

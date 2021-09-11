@@ -78,12 +78,18 @@ def imresize_mean(oldarray,newshape):
     
     oldshape = oldarray.shape
     
-    factor = 1
-    while newshape[0]*factor<oldshape[0]:
-        factor = factor+1
+    factor = oldshape[0]/newshape[0]
+    
+    if factor==int(factor):
+        factor = int(factor)
+        newarray = downscale_local_mean(oldarray,(factor,factor))
         
-    intarray = resize(oldarray,(int(newshape[0]*factor),int(newshape[1]*factor)),order=0,mode='constant',anti_aliasing=False)
-    newarray = downscale_local_mean(intarray,(factor,factor))
+    else:
+        factor = 1
+        while newshape[0]*factor<oldshape[0]:
+            factor = factor+1        
+        intarray = resize(oldarray,(int(newshape[0]*factor),int(newshape[1]*factor)),order=0,mode='constant',anti_aliasing=False)
+        newarray = downscale_local_mean(intarray,(factor,factor))
 
     return newarray
     
