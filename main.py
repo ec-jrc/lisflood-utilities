@@ -132,10 +132,6 @@ for year in np.arange(year_start,year_end+1):
         hyde_garea_cr = np.array(pd.read_csv(os.path.join(hyde_folder,'general_files','garea_cr.asc'), 
             header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.double) # total gridcell area in km2
         hyde_garea_cr = hyde_garea_cr[:,:-1] # Rogue last column due to spaces after last value in asc file...
-        hyde_cropland = np.array(pd.read_csv(os.path.join(hyde_folder,'baseline','zip','cropland'+str(hyde_year)+'AD.asc'), 
-            header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.double)/hyde_garea_cr # total cropland area
-        hyde_cropland[np.isnan(hyde_cropland)] = 0
-        hyde_cropland = imresize_mean(hyde_cropland,mapsize_global)    
         hyde_ir_norice = np.array(pd.read_csv(os.path.join(hyde_folder,'baseline','zip','ir_norice'+str(hyde_year)+'AD.asc'), 
             header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.double)/hyde_garea_cr # irrigated other crops area (no rice) area
         hyde_ir_norice[np.isnan(hyde_ir_norice)] = 0
@@ -144,20 +140,7 @@ for year in np.arange(year_start,year_end+1):
             header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.double)/hyde_garea_cr # irrigated rice area (no rice)
         hyde_ir_rice[np.isnan(hyde_ir_rice)] = 0
         hyde_ir_rice = imresize_mean(hyde_ir_rice,mapsize_global)
-        hyde_rf_rice = np.array(pd.read_csv(os.path.join(hyde_folder,'baseline','zip','rf_rice'+str(hyde_year)+'AD.asc'), 
-            header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.double)/hyde_garea_cr # rainfed rice area (no rice)
-        hyde_rf_rice[np.isnan(hyde_rf_rice)] = 0
-        hyde_rf_rice = imresize_mean(hyde_rf_rice,mapsize_global)    
-      
-        # hyde_ir_norice exceeds 1 for some grid-cells, which shouldn't be possible
-        print('Fixing HYDE fractions')
-        totals = hyde_ir_rice+hyde_rf_rice+hyde_ir_norice
-        corr_factor = (hyde_cropland+0.000001)/(totals+0.000001)
-        corr_factor[corr_factor>1] = 1
-        hyde_ir_rice = hyde_ir_rice*corr_factor
-        hyde_rf_rice = hyde_rf_rice*corr_factor
-        hyde_ir_norice = hyde_ir_norice*corr_factor
-        fracrice = (hyde_ir_rice+hyde_rf_rice).clip(0,1)
+        fracrice = hyde_ir_rice.clip(0,1)
         fracirrigation = hyde_ir_norice.clip(0,1)
         
         print('Reducing fracforest, fracirrigation, and fracrice if sum exceeds fracother')
