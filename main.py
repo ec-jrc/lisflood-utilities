@@ -51,9 +51,11 @@ hyde_years = [int(os.path.basename(hyde_file)[8:12]) for hyde_file in hyde_files
 vcf_files = glob.glob(os.path.join(vcf_folder,'*'))
 vcf_years = [int(os.path.basename(vcf_file)[8:12]) for vcf_file in vcf_files]
 
+'''
 # List of years with GAIA data
 gaia_files = glob.glob(os.path.join(gaia_folder,'*.nc'))
 gaia_years = [int(os.path.basename(gaia_file)[0:4]) for gaia_file in gaia_files]
+'''
 
 # List of years with GSWE data
 gswe_files = glob.glob(os.path.join(gswe_folder,'*'))
@@ -103,12 +105,12 @@ for year in np.arange(year_start,year_end+1):
         fracwater = imresize_mean(gswe_raw,mapsize_global).astype(np.double)
         del gswe_raw
         
-        print('Filling gaps (high latitudes) in GSWE fracwater with HILDA+ fracwater')
+        print('Filling gaps in GSWE fracwater (at high latitudes) with HILDA+ fracwater')
         fracwater_hilda = imresize_mean(np.single((hilda_raw==0) | (hilda_raw==77)),mapsize_global).astype(np.double) 
         fracwater[np.isnan(fracwater)] = fracwater_hilda[np.isnan(fracwater)]
         del hilda_raw
         
-        print('Making sure sealed+water is <1')
+        print('Making sure fracsealed+fracwater is <1')
         totals = fracsealed+fracwater
         mask = totals>1
         fracsealed[mask] = fracsealed[mask]*1/totals[mask]
@@ -116,7 +118,7 @@ for year in np.arange(year_start,year_end+1):
         fracwater[mask] = fracwater[mask]*1/totals[mask]
         fracwater = fracwater.clip(0,1)
         
-        print('Computing fracother as residual of sealed and water')
+        print('Computing fracother as residual of fracsealed and fracwater')
         fracother_init = 1-fracsealed-fracwater
         fracother_init = fracother_init.clip(0,1)
         
@@ -131,7 +133,7 @@ for year in np.arange(year_start,year_end+1):
         
         idx = (np.abs(np.array(hyde_years)-year)).argmin()
         hyde_year = hyde_years[idx]
-        print('Loading and resampling HYDE data for '+str(hyde_year))
+        print('Loading and resampling HYDE data ('+str(hyde_year)+')')
         hyde_garea_cr = np.array(pd.read_csv(os.path.join(hyde_folder,'general_files','garea_cr.asc'), 
             header=None,sep=' ',skiprows=6,na_values=-9999).values,dtype=np.double) # total gridcell area in km2
         hyde_garea_cr = hyde_garea_cr[:,:-1] # Rogue last column due to spaces after last value in asc file...
@@ -162,7 +164,7 @@ for year in np.arange(year_start,year_end+1):
         fracrice[mask] = fracrice[mask]/total[mask]
         fracirrigation[mask] = fracirrigation[mask]/total[mask]
         
-        print('Computing fracother (=residual)')
+        print('Recalculating fracother as residual')
         fracother = 1-fracwater-fracsealed-fracforest-fracrice-fracirrigation
         
         print('Subsetting data to clone map area')
