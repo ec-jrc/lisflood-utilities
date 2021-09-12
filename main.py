@@ -112,10 +112,13 @@ for year in np.arange(year_start,year_end+1):
         totals = fracsealed+fracwater
         mask = totals>1
         fracsealed[mask] = fracsealed[mask]*1/totals[mask]
+        fracsealed = fracsealed.clip(0,1)
         fracwater[mask] = fracwater[mask]*1/totals[mask]
+        fracwater = fracwater.clip(0,1)
         
         print('Computing fracother as residual of sealed and water')
         fracother_init = 1-fracsealed-fracwater
+        fracother_init = fracother_init.clip(0,1)
         
         idx = (np.abs(np.array(vcf_years)-year)).argmin()
         vcf_year = vcf_years[idx]
