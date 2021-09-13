@@ -11,7 +11,7 @@ The script is based on five data sources (GAIA, GSWE, HILDA+, MEaSUREs VCF, and 
 1. The forest fraction was derived from the MEaSUREs VCF dataset (0.05° resolution; 1982–2016; [Song et al., 2018](https://doi.org/10.1038/s41586-018-0411-9)) available from the [NASA Earthdata website](https://doi.org/10.5067/MEaSUREs/VCF/VCF5KYR.001).
 1. The irrigation (no rice) and irrigated rice fractions were based on HYDE V3.2 (0.083° resolution; 10,000 BC to 2015; [Klein Goldewijk et al., 2017](https://doi.org/10.5194/essd-9-927-2017)). The `baseline` and `general_files` folders should be downloaded from the [DANS data portal](https://doi.org/10.17026/dans-25g-gez3).
 
-The script also requires a template map which defines the output resolution and area. The template map should be in netCDF-4 format and contain `lat` and `lon` variables and a data variable (any name). The location of the template map is specified using `templatemap_path` in the configuration file.
+The locations of the data are specified in the configuration file. The script also requires a template map which defines the output resolution and area. The template map should be in netCDF-4 format and contain `lat` and `lon` variables and a data variable (any name). The location of the template map is specified using `templatemap_path` in the configuration file.
 
 # Methods
 
@@ -24,7 +24,7 @@ The script carries out the following steps for each month:
 1. Resamples the global 0.05° MEaSUREs VCF data and calculates the forest fraction.
 1. Resamples the global 0.083° HYDE data and calculates the irrigation (no rice) and irrigated rice fractions.
 1. Reduces the forest, irrigation (no rice), and irrigated rice fractions if their sum >1.
-1. Makes sure the sum of all fractions (excluding other) is <1.
+1. Makes sure the sum of all fractions (excluding other) is <=1.
 1. Recalculates the other fraction as the residual.
 1. Subsets the global maps to the template map area.
 1. Saves the data to netCDF-4 files (one for each fraction).
@@ -52,5 +52,5 @@ python main.py <config file>
 ```
 If the environment creation step fails, we recommend creating the environment and installing the packages as follows:
 ```
-conda create -n <env> -c conda-forge geopandas h5py scipy pandas numpy netcdf4 matplotlib rasterio scikit-image
+conda create -n <env> -c conda-forge geopandas h5py pandas numpy netcdf4 matplotlib rasterio scikit-image
 ```

@@ -52,6 +52,7 @@ vcf_files = glob.glob(os.path.join(vcf_folder,'*'))
 vcf_years = np.array([int(os.path.basename(vcf_file)[8:12]) for vcf_file in vcf_files])
 
 # List of years with GAIA data
+# Do not use data prior to 1990
 gaia_files = glob.glob(os.path.join(gaia_folder,'*.nc'))
 gaia_years = np.array([int(os.path.basename(gaia_file)[0:4]) for gaia_file in gaia_files])
 gaia_years = gaia_years[gaia_years>=1990]

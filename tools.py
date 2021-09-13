@@ -11,7 +11,6 @@ import numpy as np
 from netCDF4 import Dataset
 from skimage.transform import resize
 from skimage.transform import downscale_local_mean
-from scipy import ndimage as nd
 from datetime import datetime, timedelta
 
 def latlon2rowcol(lat,lon,res,lat_upper,lon_left):
