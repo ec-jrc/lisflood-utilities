@@ -45,21 +45,20 @@ row_upper,col_left = latlon2rowcol(clone_lat[0],clone_lon[0],clone_res,90,-180)
 
 # List of years with HYDE data
 hyde_files = glob.glob(os.path.join(hyde_folder,'baseline','zip','cropland*'))
-hyde_years = [int(os.path.basename(hyde_file)[8:12]) for hyde_file in hyde_files]
+hyde_years = np.array([int(os.path.basename(hyde_file)[8:12]) for hyde_file in hyde_files])
 
 # List of years with VCF data
 vcf_files = glob.glob(os.path.join(vcf_folder,'*'))
-vcf_years = [int(os.path.basename(vcf_file)[8:12]) for vcf_file in vcf_files]
+vcf_years = np.array([int(os.path.basename(vcf_file)[8:12]) for vcf_file in vcf_files])
 
-'''
 # List of years with GAIA data
 gaia_files = glob.glob(os.path.join(gaia_folder,'*.nc'))
-gaia_years = [int(os.path.basename(gaia_file)[0:4]) for gaia_file in gaia_files]
-'''
+gaia_years = np.array([int(os.path.basename(gaia_file)[0:4]) for gaia_file in gaia_files])
+gaia_years = gaia_years[gaia_years>=1990]
 
 # List of years with GSWE data
 gswe_files = glob.glob(os.path.join(gswe_folder,'*'))
-gswe_years = [int(os.path.basename(gswe_file)[:4]) for gswe_file in gswe_files]
+gswe_years = np.array([int(os.path.basename(gswe_file)[:4]) for gswe_file in gswe_files])
 gswe_years = np.unique(gswe_years)
 
 
@@ -73,7 +72,6 @@ for year in np.arange(year_start,year_end+1):
         print('Year: '+str(year)+' Month: '+str(month))
         t0 = time.time()
     
-        '''
         idx = (np.abs(np.array(gaia_years)-year)).argmin()
         gaia_year = gaia_years[idx]
         print('Loading and resampling GAIA data ('+os.path.join(gaia_folder,str(gaia_year)+'.nc')+')')
@@ -81,14 +79,7 @@ for year in np.arange(year_start,year_end+1):
         gaia_raw = np.array(dset.variables['impervious_fraction'][:]).clip(0,1)
         fracsealed = 0.75*imresize_mean(gaia_raw,mapsize_global).astype(np.double)
         del gaia_raw
-        '''
         
-        print('Loading HILDA+ fracsealed data')
-        ind = year-1899
-        dset = Dataset(os.path.join(hildaplus_folder,'hildaplus_vGLOB-1.0-f_states.nc'))
-        hilda_raw = np.array(dset.variables['LULC_states'][ind,:,:])
-        fracsealed = 0.75*imresize_mean(np.single(hilda_raw==11),mapsize_global).astype(np.double)        
-            
         idx = (np.abs(np.array(gswe_years)-year)).argmin()
         gswe_year = gswe_years[idx]
         print('Loading and resampling GSWE fracwater data ('+os.path.join(gswe_folder,str(gswe_year)+'_'+str(month).zfill(2)+'_B.nc')+')')
@@ -106,9 +97,17 @@ for year in np.arange(year_start,year_end+1):
         del gswe_raw
         
         print('Filling gaps in GSWE fracwater (at high latitudes) with HILDA+ fracwater')
+        ind = year-1899
+        dset = Dataset(os.path.join(hildaplus_folder,'hildaplus_vGLOB-1.0-f_states.nc'))
+        hilda_raw = np.array(dset.variables['LULC_states'][ind,:,:])
         fracwater_hilda = imresize_mean(np.single((hilda_raw==0) | (hilda_raw==77)),mapsize_global).astype(np.double) 
         fracwater[np.isnan(fracwater)] = fracwater_hilda[np.isnan(fracwater)]
         del hilda_raw
+        
+        '''
+        print('Loading HILDA+ fracsealed data')
+        fracsealed = 0.75*imresize_mean(np.single(hilda_raw==11),mapsize_global).astype(np.double)        
+        '''
         
         print('Making sure fracsealed+fracwater is <1')
         totals = fracsealed+fracwater
