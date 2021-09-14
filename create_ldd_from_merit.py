@@ -13,6 +13,7 @@ from netCDF4 import Dataset
 import matplotlib.pyplot as plt
 import subprocess
 import rasterio
+from scipy.ndimage import gaussian_filter
 
 def latlon2rowcol(lat,lon,res,lat_upper,lon_left):
     row = np.round((lat_upper-lat)/res-0.5).astype(int)
@@ -173,10 +174,15 @@ if np.round(clone_res*1000000)!=np.round(res*1000000):
     raise ValueError('Clone resolution of '+str(clone_res)+' does not match target resolution of '+str(res))
 row_upper,col_left = latlon2rowcol(clone_lat[0],clone_lon[0],res,90,-180)
 upstream_area = upstream_area_global[row_upper:row_upper+len(clone_lat),col_left:col_left+len(clone_lon)]
+upstream_area[np.isnan(upstream_area)] = np.nanmax(upstream_area_global)
 
 # Produce ldd by inverting upstream map
+# To make sure rivers flow away from continents, we introduce a gradient near shores
 fake_elev_np = 9999999-upstream_area
-fake_elev_np[np.isnan(fake_elev_np)] = 0
+nearshore_gradient = gaussian_filter(np.single(fake_elev_np!=0)*100,sigma=25)
+nearshore_gradient[fake_elev_np!=0] = np.NaN
+nearshore_gradient = nearshore_gradient-np.nanmax(nearshore_gradient)
+fake_elev_np[fake_elev_np==0] = nearshore_gradient[fake_elev_np==0]
 fake_elev_pcr = pcr.numpy2pcr(pcr.Scalar,fake_elev_np,mv=9999999)
 ldd_pcr = pcr.lddcreate(fake_elev_pcr,0,0,0,0)
 ldd_np = pcr.pcr2numpy(ldd_pcr,mv=-9999)
