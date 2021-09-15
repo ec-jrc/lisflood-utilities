@@ -8,6 +8,7 @@ __date__ = "July 2021"
 import os, sys, glob, time, h5py, scipy.io, pdb, csv
 import pandas as pd
 import numpy as np
+import pcraster as pcr
 from netCDF4 import Dataset
 import matplotlib.pyplot as plt
 import dateutil.parser
@@ -37,6 +38,32 @@ def readmatfile(filepath,var):
             pass    
     return data
 
+def save_netcdf(file, varname, data, least_sig_dig, lat, lon):
+
+    if os.path.isfile(file)==True: 
+        os.remove(file)
+
+    ncfile = Dataset(file, 'w', format='NETCDF4')
+
+    ncfile.createDimension('lon', len(lon))
+    ncfile.createDimension('lat', len(lat))
+
+    ncfile.createVariable('lon', 'f8', ('lon',))
+    ncfile.variables['lon'][:] = lon
+    ncfile.variables['lon'].units = 'degrees_east'
+    ncfile.variables['lon'].long_name = 'longitude'
+
+    ncfile.createVariable('lat', 'f8', ('lat',))
+    ncfile.variables['lat'][:] = lat
+    ncfile.variables['lat'].units = 'degrees_north'
+    ncfile.variables['lat'].long_name = 'latitude'
+    
+    ncfile.createVariable(varname, data.dtype, ('lat', 'lon'), zlib=True, chunksizes=(32,32,), fill_value=-9999, least_significant_digit=least_sig_dig)
+
+    ncfile.variables[varname][:,:] = data
+    
+    ncfile.close()
+    
 t1 = time.time()
     
 # Load configuration file
@@ -66,6 +93,12 @@ res = np.diff(lon)[0]
 lat_upper = lat[0]+res/2
 lon_left = lon[0]-res/2
 
+# Set pcraster clone map
+pcr.setclone(ldd_np.shape[0],ldd_np.shape[1],res,lon[0]-res/2,lat[0]-res/2)
+
+# Convert LDD to pcraster format
+ldd_pcr = pcr.numpy2pcr(pcr.Ldd,ldd_np,mv=-9999)
+
 # Load upstream map
 dset = Dataset(ups_path)
 upstreamarea_np = np.array(dset.variables['ups'][:])
@@ -78,7 +111,9 @@ Qtss = pd.DataFrame(index=dates_ref[ind])
 # Create csv output folder
 if os.path.isdir(csv_dir)==False:
     os.mkdir(csv_dir)
-
+if os.path.isdir(os.path.join(csv_dir,'catch_masks'))==False:
+    os.mkdir(os.path.join(csv_dir,'catch_masks'))
+    
 
 ############################################################################
 #   Loop over catchments to automatically snap station locations to the 
@@ -146,6 +181,20 @@ for ii in np.arange(len(catchment_dirs)):
 
     stations.loc[count] = [count,Station,ID,"",StatLatCorr,StatLonCorr,Area,"",Area_LDD]
     Qtss[count] = Q_ts
+    
+        
+    ############################################################################
+    #   Save catchment mask
+    ############################################################################
+    
+    point_np = np.zeros(ldd_np.shape,dtype=bool)
+    point_np[StatRowCorr,StatColCorr] = True
+    point_pcr = pcr.numpy2pcr(pcr.Boolean,point_np,mv=-9999)
+    catch_pcr = pcr.catchment(ldd_pcr, point_pcr)        
+    catch_np = pcr.pcr2numpy(catch_pcr,mv=-9999)
+    catch_np = (catch_np==1).astype(np.uint8)
+    filename = str(count).zfill(5)+'_'+ID+'.nc'
+    save_netcdf(os.path.join(csv_dir,'catch_masks',filename), 'mask', catch_np, 3, lat, lon)
     
     count = count+1
     

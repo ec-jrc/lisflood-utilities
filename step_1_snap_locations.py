@@ -71,6 +71,9 @@ upstreamarea_np = np.array(dset.variables['ups'][:])
 # Set pcraster clone map
 pcr.setclone(ldd_np.shape[0],ldd_np.shape[1],res,lon[0]-res/2,lat[0]-res/2)
 
+# Convert LDD to pcraster format
+ldd_pcr = pcr.numpy2pcr(pcr.Ldd,ldd_np,mv=-9999)
+
 # Large rivers shapefile
 # http://ihp-wins.unesco.org/layers/geonode:world_rivers
 rivers_shp = gpd.read_file(r'e:\Temp\world_rivers\world_rivers.shp')
