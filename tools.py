@@ -22,39 +22,6 @@ def rowcol2latlon(row,col,res,lat_upper,lon_left):
     lat = lat_upper-row*res-res/2
     lon = lon_left+col*res+res/2
     return lat.squeeze(),lon.squeeze()
-
-def get_row_compressor(old_dimension, new_dimension):
-    dim_compressor = np.zeros((new_dimension, old_dimension))
-    bin_size = float(old_dimension) / new_dimension
-    next_bin_break = bin_size
-    which_row = 0
-    which_column = 0
-    while which_row < dim_compressor.shape[0] and which_column < dim_compressor.shape[1]:
-        if round(next_bin_break - which_column, 10) >= 1:
-            dim_compressor[which_row, which_column] = 1
-            which_column += 1
-        elif next_bin_break == which_column:
-
-            which_row += 1
-            next_bin_break += bin_size
-        else:
-            partial_credit = next_bin_break - which_column
-            dim_compressor[which_row, which_column] = partial_credit
-            which_row += 1
-            dim_compressor[which_row, which_column] = 1 - partial_credit
-            which_column += 1
-            next_bin_break += bin_size
-    dim_compressor /= bin_size
-    return dim_compressor
-
-def get_column_compressor(old_dimension, new_dimension):
-    return get_row_compressor(old_dimension, new_dimension).transpose()
-    
-def compress_and_average(array, new_shape):
-    # Note: new shape should be smaller in both dimensions than old shape
-    return np.mat(get_row_compressor(array.shape[0], new_shape[0])) * \
-           np.mat(array) * \
-           np.mat(get_column_compressor(array.shape[1], new_shape[1]))
            
 def imresize_majority(oldarray,newshape):
     # Resize array using majority filter
@@ -106,7 +73,7 @@ def save_netcdf_3d(file, varname, index, data, varunits, timeunits, ts, least_si
         ncfile.createDimension('lat', len(lat))
         ncfile.createDimension('time', None)
 
-        ncfile.createVariable('lon', 'f4', ('lon',))
+        ncfile.createVariable('lon', 'f8', ('lon',))
         ncfile.variables['lon'][:] = lon
         ncfile.variables['lon'].units = 'degrees_east'
         ncfile.variables['lon'].long_name = 'longitude'
@@ -125,10 +92,10 @@ def save_netcdf_3d(file, varname, index, data, varunits, timeunits, ts, least_si
     
     if varname not in ncfile.variables.keys():
         ncfile.createVariable(varname, data.dtype, ('time', 'lat', 'lon'), zlib=True, chunksizes=(1,32,32,), fill_value=-9999, least_significant_digit=least_sig_dig)
+        ncfile.variables[varname].units = varunits
     
     ncfile.variables['time'][index] = ts
-    ncfile.variables[varname][index,:,:] = data
-    ncfile.variables[varname].units = varunits
+    ncfile.variables[varname][index,:,:] = data    
     
     ncfile.close()
 

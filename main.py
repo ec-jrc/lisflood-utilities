@@ -30,18 +30,18 @@ for ii in np.arange(len(config)):
 if os.path.isdir(output_folder)==False:
     os.mkdir(output_folder)
    
-# Load clone map
-dset = Dataset(clonemap_path)
-clone_lat = dset.variables['lat'][:]
-clone_lon = dset.variables['lon'][:]
-clone_res = clone_lon[1]-clone_lon[0]
+# Load template map
+dset = Dataset(templatemap_path)
+template_lat = dset.variables['lat'][:]
+template_lon = dset.variables['lon'][:]
+template_res = template_lon[1]-template_lon[0]
 varname = list(dset.variables.keys())[-1]
-clone_np = np.array(dset.variables[varname][:])
+template_np = np.array(dset.variables[varname][:])
 
 # Determine map sizes
-mapsize_global = (np.round(180/clone_res).astype(int),np.round(360/clone_res).astype(int))
-mapsize_clone = clone_np.shape
-row_upper,col_left = latlon2rowcol(clone_lat[0],clone_lon[0],clone_res,90,-180)
+mapsize_global = (np.round(180/template_res).astype(int),np.round(360/template_res).astype(int))
+mapsize_template = template_np.shape
+row_upper,col_left = latlon2rowcol(template_lat[0],template_lon[0],template_res,90,-180)
 
 # List of years with HYDE data
 hyde_files = glob.glob(os.path.join(hyde_folder,'baseline','zip','cropland*'))
@@ -61,6 +61,10 @@ gaia_years = gaia_years[gaia_years>=1990]
 gswe_files = glob.glob(os.path.join(gswe_folder,'*'))
 gswe_years = np.array([int(os.path.basename(gswe_file)[:4]) for gswe_file in gswe_files])
 gswe_years = np.unique(gswe_years)
+
+# Time array for netCDF
+#ts = (pd.date_range(start=datetime(year_start,1,1), end=datetime(year_end,12,1), freq='MS')-pd.to_datetime(datetime(1979, 1, 1))).total_seconds()/86400
+#ts = np.round(ts)
 
 
 ############################################################################
@@ -167,13 +171,13 @@ for year in np.arange(year_start,year_end+1):
         print('Recalculating fracother as residual')
         fracother = 1-fracwater-fracsealed-fracforest-fracrice-fracirrigation
         
-        print('Subsetting data to clone map area')
-        fracwater = fracwater[row_upper:row_upper+len(clone_lat),col_left:col_left+len(clone_lon)]
-        fracforest = fracforest[row_upper:row_upper+len(clone_lat),col_left:col_left+len(clone_lon)]
-        fracsealed = fracsealed[row_upper:row_upper+len(clone_lat),col_left:col_left+len(clone_lon)]
-        fracrice = fracrice[row_upper:row_upper+len(clone_lat),col_left:col_left+len(clone_lon)]
-        fracirrigation = fracirrigation[row_upper:row_upper+len(clone_lat),col_left:col_left+len(clone_lon)]
-        fracother = fracother[row_upper:row_upper+len(clone_lat),col_left:col_left+len(clone_lon)]
+        print('Subsetting data to template map area')
+        fracwater = fracwater[row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)]
+        fracforest = fracforest[row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)]
+        fracsealed = fracsealed[row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)]
+        fracrice = fracrice[row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)]
+        fracirrigation = fracirrigation[row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)]
+        fracother = fracother[row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)]
         
         print('Saving data to '+output_folder+' in netCDF format')
         vars = ['fracwater','fracforest','fracsealed','fracrice','fracirrigation','fracother']
@@ -187,8 +191,8 @@ for year in np.arange(year_start,year_end+1):
                 timeunits = 'days since 1979-01-02 00:00:00',
                 ts = (pd.to_datetime(datetime(year,month,1))-pd.to_datetime(datetime(1979, 1, 1))).total_seconds()/86400,
                 least_sig_dig = 3,
-                lat = clone_lat,
-                lon = clone_lon
+                lat = template_lat,
+                lon = template_lon
                 )
         
         print("Time elapsed is "+str(time.time()-t0)+" sec")
