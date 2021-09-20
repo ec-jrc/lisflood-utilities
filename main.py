@@ -179,6 +179,9 @@ for year in np.arange(year_start,year_end+1):
         fracirrigation = fracirrigation[row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)]
         fracother = fracother[row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)]
         
+        print("Time elapsed is "+str(time.time()-t0)+" sec")
+        
+        t0 = time.time()
         print('Saving data to '+output_folder+' in netCDF format')
         vars = ['fracwater','fracforest','fracsealed','fracrice','fracirrigation','fracother']
         for vv in np.arange(len(vars)):
@@ -193,8 +196,7 @@ for year in np.arange(year_start,year_end+1):
                 least_sig_dig = 3,
                 lat = template_lat,
                 lon = template_lon
-                )
-        
+                )        
         print("Time elapsed is "+str(time.time()-t0)+" sec")
         
 pdb.set_trace()
