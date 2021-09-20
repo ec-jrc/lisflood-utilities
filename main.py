@@ -9,9 +9,11 @@ import os, sys, glob, time, pdb
 import pandas as pd
 import numpy as np
 from netCDF4 import Dataset
+import xarray as xr
 import matplotlib.pyplot as plt
 from tools import *
 import rasterio
+import gc
 
 print('===============================================================================')
         
@@ -72,19 +74,38 @@ gswe_years = np.unique(gswe_years)
 ############################################################################
 
 for year in np.arange(year_start,year_end+1):
+    print('-------------------------------------------------------------------------------')
+    print('Year: '+str(year))
+    
+    t0 = time.time()
+    idx = (np.abs(np.array(gaia_years)-year)).argmin()
+    gaia_year = gaia_years[idx]
+    print('Loading GAIA data ('+os.path.join(gaia_folder,str(gaia_year)+'.nc')+')')
+    dset = Dataset(os.path.join(gaia_folder,str(gaia_year)+'.nc'))
+    gaia_raw = np.array(dset.variables['impervious_fraction'][:]).clip(0,1)
+    dset.close()
+    print("Time elapsed is "+str(time.time()-t0)+" sec")
+
+    t0 = time.time()
+    print('Loading HILDA+ data ('+str(year)+')')
+    ind = year-1899
+    dset = Dataset(os.path.join(hildaplus_folder,'hildaplus_vGLOB-1.0-f_states.nc'))
+    hilda_raw = np.array(dset.variables['LULC_states'][ind,:,:])
+    dset.close()
+    fracwater_hilda = imresize_mean(np.single((hilda_raw==0) | (hilda_raw==77)),mapsize_global).astype(np.double) 
+    print("Time elapsed is "+str(time.time()-t0)+" sec")
+    
     for month in np.arange(1,13):
         print('-------------------------------------------------------------------------------')
         print('Year: '+str(year)+' Month: '+str(month))
         t0 = time.time()
-    
-        idx = (np.abs(np.array(gaia_years)-year)).argmin()
-        gaia_year = gaia_years[idx]
-        print('Loading and resampling GAIA data ('+os.path.join(gaia_folder,str(gaia_year)+'.nc')+')')
-        dset = Dataset(os.path.join(gaia_folder,str(gaia_year)+'.nc'))
-        gaia_raw = np.array(dset.variables['impervious_fraction'][:]).clip(0,1)
-        fracsealed = 0.75*imresize_mean(gaia_raw,mapsize_global).astype(np.double)
-        del gaia_raw
         
+        t0 = time.time()
+        print('Resampling GAIA data')
+        fracsealed = 0.75*imresize_mean(gaia_raw,mapsize_global).astype(np.double)
+        print("Time elapsed is "+str(time.time()-t0)+" sec")
+        
+        t0 = time.time()
         idx = (np.abs(np.array(gswe_years)-year)).argmin()
         gswe_year = gswe_years[idx]
         print('Loading and resampling GSWE fracwater data ('+os.path.join(gswe_folder,str(gswe_year)+'_'+str(month).zfill(2)+'_B.nc')+')')
@@ -100,19 +121,11 @@ for year in np.arange(year_start,year_end+1):
         gswe_raw[add_top+1:gswe_shape[0]-add_bottom,:] = dset.variables[varname][:].clip(0,1)
         fracwater = imresize_mean(gswe_raw,mapsize_global).astype(np.double)
         del gswe_raw
+        dset.close()
+        print("Time elapsed is "+str(time.time()-t0)+" sec")
         
         print('Filling gaps in GSWE fracwater (at high latitudes) with HILDA+ fracwater')
-        ind = year-1899
-        dset = Dataset(os.path.join(hildaplus_folder,'hildaplus_vGLOB-1.0-f_states.nc'))
-        hilda_raw = np.array(dset.variables['LULC_states'][ind,:,:])
-        fracwater_hilda = imresize_mean(np.single((hilda_raw==0) | (hilda_raw==77)),mapsize_global).astype(np.double) 
-        fracwater[np.isnan(fracwater)] = fracwater_hilda[np.isnan(fracwater)]
-        del hilda_raw
-        
-        '''
-        print('Loading HILDA+ fracsealed data')
-        fracsealed = 0.75*imresize_mean(np.single(hilda_raw==11),mapsize_global).astype(np.double)        
-        '''
+        fracwater[np.isnan(fracwater)] = fracwater_hilda[np.isnan(fracwater)]        
         
         print('Making sure fracsealed+fracwater is <1')
         totals = fracsealed+fracwater
@@ -126,6 +139,7 @@ for year in np.arange(year_start,year_end+1):
         fracother_init = 1-fracsealed-fracwater
         fracother_init = fracother_init.clip(0,1)
         
+        t0 = time.time()
         idx = (np.abs(np.array(vcf_years)-year)).argmin()
         vcf_year = vcf_years[idx]
         vcf_path = glob.glob(os.path.join(vcf_folder,'*'+str(vcf_year)+'001*.tif'))[0]
@@ -134,7 +148,9 @@ for year in np.arange(year_start,year_end+1):
         fracforest = src.read(1).astype(np.double)
         fracforest = (fracforest/100).clip(0,1)
         src.close()
+        print("Time elapsed is "+str(time.time()-t0)+" sec")
         
+        t0 = time.time()
         idx = (np.abs(np.array(hyde_years)-year)).argmin()
         hyde_year = hyde_years[idx]
         print('Loading and resampling HYDE data ('+str(hyde_year)+')')
@@ -151,6 +167,7 @@ for year in np.arange(year_start,year_end+1):
         hyde_ir_rice = imresize_mean(hyde_ir_rice,mapsize_global)
         fracrice = hyde_ir_rice.clip(0,1)
         fracirrigation = hyde_ir_norice.clip(0,1)
+        print("Time elapsed is "+str(time.time()-t0)+" sec")
         
         print('Reducing fracforest, fracirrigation, and fracrice if sum exceeds fracother')
         totals = fracforest+fracrice+fracirrigation
@@ -179,24 +196,68 @@ for year in np.arange(year_start,year_end+1):
         fracirrigation = fracirrigation[row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)]
         fracother = fracother[row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)]
         
-        print("Time elapsed is "+str(time.time()-t0)+" sec")
-        
+        print('Saving data to in Numpy format (folder '+output_folder+')')
         t0 = time.time()
-        print('Saving data to '+output_folder+' in netCDF format')
-        vars = ['fracwater','fracforest','fracsealed','fracrice','fracirrigation','fracother']
-        for vv in np.arange(len(vars)):
-            save_netcdf_3d(
-                file = os.path.join(output_folder,vars[vv]+'.nc'),
-                varname = vars[vv], 
-                index = (year-year_start)*12+month-1,
-                data = eval(vars[vv]).astype(np.single),
-                varunits = 'fraction',
-                timeunits = 'days since 1979-01-02 00:00:00',
-                ts = (pd.to_datetime(datetime(year,month,1))-pd.to_datetime(datetime(1979, 1, 1))).total_seconds()/86400,
-                least_sig_dig = 3,
-                lat = template_lat,
-                lon = template_lon
-                )        
+        vars = ['fracwater','fracforest','fracsealed','fracrice','fracirrigation','fracother']        
+        for vv in np.arange(len(vars)):            
+            data = eval(vars[vv]).astype(np.single)
+            data = np.round(data*100)/100
+            np.savez_compressed(os.path.join(output_folder,str(year)+str(month).zfill(2)+'_'+vars[vv]),data=data)
         print("Time elapsed is "+str(time.time()-t0)+" sec")
+
+        gc.collect()
         
-pdb.set_trace()
+
+############################################################################
+#   Loop over years and months
+############################################################################
+
+print('Saving data to '+output_folder+' in netCDF format')
+for vv in np.arange(len(vars)):
+
+    file = os.path.join(output_folder,vars[vv]+'.nc')
+    varname = vars[vv]
+    
+    if os.path.isfile(file):
+        os.remove(file)
+        
+    ncfile = Dataset(file, 'w', format='NETCDF4')
+    ncfile.history = 'Created on %s' % datetime.utcnow().strftime('%Y-%m-%d %H:%M')
+
+    ncfile.createDimension('lon', len(template_lon))
+    ncfile.createDimension('lat', len(template_lat))
+    ncfile.createDimension('time', None)
+
+    ncfile.createVariable('lon', 'f8', ('lon',))
+    ncfile.variables['lon'][:] = template_lon
+    ncfile.variables['lon'].units = 'degrees_east'
+    ncfile.variables['lon'].long_name = 'longitude'
+
+    ncfile.createVariable('lat', 'f8', ('lat',))
+    ncfile.variables['lat'][:] = template_lat
+    ncfile.variables['lat'].units = 'degrees_north'
+    ncfile.variables['lat'].long_name = 'latitude'
+
+    ncfile.createVariable('time', 'f8', 'time')
+    ncfile.variables['time'].units = 'days since 1979-01-02 00:00:00'
+    ncfile.variables['time'].long_name = 'time'
+
+    ncfile.createVariable(varname, np.single, ('time', 'lat', 'lon'), zlib=True, chunksizes=(1,32,32,), fill_value=-9999, least_significant_digit=3)
+    ncfile.variables[varname].units = 'fraction'
+
+    for year in np.arange(year_start,year_end+1):
+        for month in np.arange(1,13):
+            print('-------------------------------------------------------------------------------')
+            print('Year: '+str(year)+' Month: '+str(month))
+            t0 = time.time()
+            
+            data = np.load(os.path.join(output_folder,str(year)+str(month).zfill(2)+'_'+varname))
+            
+            index = (year-year_start)*12+month-1
+             
+            ncfile.variables['time'][index] = (pd.to_datetime(datetime(year,month,1))-pd.to_datetime(datetime(1979, 1, 1))).total_seconds()/86400    
+            ncfile.variables[varname][index,:,:] = data
+            
+            print("Time elapsed is "+str(time.time()-t0)+" sec")
+            
+    ncfile.close()

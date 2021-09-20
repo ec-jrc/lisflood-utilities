@@ -94,8 +94,9 @@ def save_netcdf_3d(file, varname, index, data, varunits, timeunits, ts, least_si
         ncfile.createVariable(varname, data.dtype, ('time', 'lat', 'lon'), zlib=True, chunksizes=(1,32,32,), fill_value=-9999, least_significant_digit=least_sig_dig)
         ncfile.variables[varname].units = varunits
     
-    ncfile.variables['time'][index] = ts
-    ncfile.variables[varname][index,:,:] = data    
+    ncfile.variables['time'][index] = ts    
+    ncvar = ncfile.variables[varname]
+    ncvar[index,:,:] = data
     
     ncfile.close()
 

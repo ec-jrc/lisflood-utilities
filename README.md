@@ -52,5 +52,5 @@ python main.py <config file>
 ```
 If the environment creation step fails, we recommend creating the environment and installing the packages as follows:
 ```
-conda create -n <env> -c conda-forge geopandas h5py pandas numpy netcdf4 matplotlib rasterio scikit-image
+conda create -n <env> -c conda-forge geopandas h5py pandas numpy netcdf4 matplotlib rasterio scikit-image xarray dask netCDF4 bottleneck
 ```
