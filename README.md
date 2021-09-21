@@ -27,9 +27,9 @@ The script carries out the following steps for each month:
 1. Makes sure the sum of all fractions (excluding other) is <=1.
 1. Recalculates the other fraction as the residual.
 1. Subsets the global maps to the template map area.
-1. Saves the data to netCDF-4 files (one for each fraction).
+1. Saves the data to compressed Numpy files (one for each fraction each month).
 
-The maps are produced for the period spanning `year_start` to `year_end` and saved to `output_folder` (all specified in the configuration file). For years without data, the script uses data from the closest year. For 1984, for example, HYDE data from 1980 (the closest year with HYDE data) are used, while for March 1981, GSWE data from March 1985 (the first year with GSWE data) are used.
+Finally, the fractions are converted to netCDF-4 format (one file for each fraction). The data are produced for the period spanning `year_start` to `year_end` and saved to `output_folder` (all specified in the configuration file). For years without data, the script uses data from the closest year. For 1984, for example, HYDE data from 1980 (the closest year with HYDE data) are used, while for March 1981, GSWE data from March 1985 (the first year with GSWE data) are used.
 
 # System requirements
 
@@ -52,5 +52,5 @@ python main.py <config file>
 ```
 If the environment creation step fails, we recommend creating the environment and installing the packages as follows:
 ```
-conda create -n <env> -c conda-forge geopandas h5py pandas numpy netcdf4 matplotlib rasterio scikit-image xarray dask netCDF4 bottleneck
+conda create -n <env> -c conda-forge geopandas h5py pandas numpy netcdf4 matplotlib rasterio scikit-image
 ```

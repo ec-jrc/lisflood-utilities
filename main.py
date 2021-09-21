@@ -64,13 +64,11 @@ gswe_files = glob.glob(os.path.join(gswe_folder,'*'))
 gswe_years = np.array([int(os.path.basename(gswe_file)[:4]) for gswe_file in gswe_files])
 gswe_years = np.unique(gswe_years)
 
-# Time array for netCDF
-#ts = (pd.date_range(start=datetime(year_start,1,1), end=datetime(year_end,12,1), freq='MS')-pd.to_datetime(datetime(1979, 1, 1))).total_seconds()/86400
-#ts = np.round(ts)
-
+vars = ['fracwater','fracforest','fracsealed','fracrice','fracirrigation','fracother']
+        
 
 ############################################################################
-#   Loop over years and months
+#   Loop over years and months to calculate fractions
 ############################################################################
 
 for year in np.arange(year_start,year_end+1):
@@ -198,7 +196,6 @@ for year in np.arange(year_start,year_end+1):
         
         print('Saving data to in Numpy format (folder '+output_folder+')')
         t0 = time.time()
-        vars = ['fracwater','fracforest','fracsealed','fracrice','fracirrigation','fracother']        
         for vv in np.arange(len(vars)):            
             data = eval(vars[vv]).astype(np.single)
             data = np.round(data*100)/100
@@ -206,13 +203,12 @@ for year in np.arange(year_start,year_end+1):
         print("Time elapsed is "+str(time.time()-t0)+" sec")
 
         gc.collect()
-        
+
 
 ############################################################################
-#   Loop over years and months
+#   Convert to netCDF
 ############################################################################
 
-print('Saving data to '+output_folder+' in netCDF format')
 for vv in np.arange(len(vars)):
 
     file = os.path.join(output_folder,vars[vv]+'.nc')
@@ -248,10 +244,10 @@ for vv in np.arange(len(vars)):
     for year in np.arange(year_start,year_end+1):
         for month in np.arange(1,13):
             print('-------------------------------------------------------------------------------')
-            print('Year: '+str(year)+' Month: '+str(month))
+            print('Saving to netCDF var: '+varname+' year: '+str(year)+' month: '+str(month))
             t0 = time.time()
             
-            data = np.load(os.path.join(output_folder,str(year)+str(month).zfill(2)+'_'+varname))
+            data = np.load(os.path.join(output_folder,str(year)+str(month).zfill(2)+'_'+varname+'.npz'))['data']
             
             index = (year-year_start)*12+month-1
              
