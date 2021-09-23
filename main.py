@@ -9,7 +9,6 @@ import os, sys, glob, time, pdb
 import pandas as pd
 import numpy as np
 from netCDF4 import Dataset
-import xarray as xr
 import matplotlib.pyplot as plt
 from tools import *
 import rasterio
