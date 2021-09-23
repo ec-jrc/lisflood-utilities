@@ -44,14 +44,14 @@ slope = imresize_mean((param_hi-param_avg)*(tree_hi-tree_avg),shape_lo)*no_of_pi
 intercept = param_small-slope*tree_small
 
 # Estimated param values at 0 % and 100 % forest cover
-param_tc0 = slope*0+intercept
-param_tc1 = slope*1+intercept
+param_tree0 = slope*0+intercept
+param_tree1 = slope*1+intercept
 
 print("Time elapsed is "+str(time.time()-t0)+" sec")
 
 # Verification for single grid-cell
-print(param_tc0[0,0])
-print(param_tc1[0,0])
+print(param_tree0[0,0])
+print(param_tree1[0,0])
 y = param_hi[:int(factor),:int(factor)].flatten()
 x = tree_hi[:int(factor),:int(factor)].flatten()
 plt.scatter(x,y)
