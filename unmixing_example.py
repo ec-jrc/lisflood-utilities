@@ -30,10 +30,10 @@ tree_hi[4,:] = tree_hi[4,:]-1
 t0 = time.time()
 
 # Resample maps
-param_small = imresize_mean(param_hi,shape_lo)
-param_avg = imresize_mean(param_small,shape_hi)
-tree_small = imresize_mean(tree_hi,shape_lo)
-tree_avg = imresize_mean(tree_small,shape_hi)
+param_lo = imresize_mean(param_hi,shape_lo)
+param_avg = imresize_mean(param_lo,shape_hi)
+tree_lo = imresize_mean(tree_hi,shape_lo)
+tree_avg = imresize_mean(tree_lo,shape_hi)
 factor = shape_hi[0]/shape_lo[0]
 no_of_pixels = np.zeros(shape_lo,dtype=np.single)+factor**2
 
@@ -41,7 +41,7 @@ no_of_pixels = np.zeros(shape_lo,dtype=np.single)+factor**2
 # https://www4.stat.ncsu.edu/~dickey/summer_institute/formulas
 # Y=param; X=tc
 slope = imresize_mean((param_hi-param_avg)*(tree_hi-tree_avg),shape_lo)*no_of_pixels/(imresize_mean((tree_hi-tree_avg)**2,shape_lo)*no_of_pixels)
-intercept = param_small-slope*tree_small
+intercept = param_lo-slope*tree_lo
 
 # Estimated param values at 0 % and 100 % forest cover
 param_tree0 = slope*0+intercept
