@@ -37,7 +37,7 @@ tree_avg = imresize_mean(tree_lo,shape_hi)
 factor = shape_hi[0]/shape_lo[0]
 no_of_pixels = np.zeros(shape_lo,dtype=np.single)+factor**2
 
-# Calculate linear regressin slope and intercept
+# Calculate linear regression slope and intercept
 # https://www4.stat.ncsu.edu/~dickey/summer_institute/formulas
 # Y=param; X=tc
 slope = imresize_mean((param_hi-param_avg)*(tree_hi-tree_avg),shape_lo)*no_of_pixels/(imresize_mean((tree_hi-tree_avg)**2,shape_lo)*no_of_pixels)
@@ -49,7 +49,7 @@ param_tree1 = slope*1+intercept
 
 print("Time elapsed is "+str(time.time()-t0)+" sec")
 
-# Verification for single grid-cell
+# Verification for single grid-cell [0,0]
 print(param_tree0[0,0])
 print(param_tree1[0,0])
 y = param_hi[:int(factor),:int(factor)].flatten()
