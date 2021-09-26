@@ -71,6 +71,7 @@ vars = ['fracwater','fracforest','fracsealed','fracrice','fracirrigation','fraco
 ############################################################################
 
 for year in np.arange(year_start,year_end+1):
+    #if year!=1979: continue
     print('-------------------------------------------------------------------------------')
     print('Year: '+str(year))
     
@@ -93,6 +94,7 @@ for year in np.arange(year_start,year_end+1):
     print("Time elapsed is "+str(time.time()-t0)+" sec")
     
     for month in np.arange(1,13):
+        #if month!=1: continue
         print('-------------------------------------------------------------------------------')
         print('Year: '+str(year)+' Month: '+str(month))
         t0 = time.time()
@@ -105,8 +107,10 @@ for year in np.arange(year_start,year_end+1):
         t0 = time.time()
         idx = (np.abs(np.array(gswe_years)-year)).argmin()
         gswe_year = gswe_years[idx]
-        print('Loading and resampling GSWE fracwater data ('+os.path.join(gswe_folder,str(gswe_year)+'_'+str(month).zfill(2)+'_B.nc')+')')
-        dset = Dataset(os.path.join(gswe_folder,str(gswe_year)+'_'+str(month).zfill(2)+'_B.nc'))
+        gswe_month = month.copy()
+        if (gswe_year==2018) & (gswe_month==10): gswe_month = 9 # October 2018 GSWE data are erroneous
+        print('Loading and resampling GSWE fracwater data ('+os.path.join(gswe_folder,str(gswe_year)+'_'+str(gswe_month).zfill(2)+'_B.nc')+')')
+        dset = Dataset(os.path.join(gswe_folder,str(gswe_year)+'_'+str(gswe_month).zfill(2)+'_B.nc'))
         gswe_lats = np.array(dset.variables['lat'][:])
         gswe_lons = np.array(dset.variables['lon'][:])
         gswe_res = gswe_lats[0]-gswe_lats[1]
@@ -196,8 +200,8 @@ for year in np.arange(year_start,year_end+1):
         print('Saving data to in Numpy format (folder '+output_folder+')')
         t0 = time.time()
         for vv in np.arange(len(vars)):            
-            data = eval(vars[vv]).astype(np.single)
-            data = np.round(data*100)/100
+            data = eval(vars[vv]) #.astype(np.single)
+            #data = np.round(data*100)/100
             np.savez_compressed(os.path.join(output_folder,str(year)+str(month).zfill(2)+'_'+vars[vv]),data=data)
         print("Time elapsed is "+str(time.time()-t0)+" sec")
 
@@ -236,8 +240,9 @@ for vv in np.arange(len(vars)):
     ncfile.createVariable('time', 'f8', 'time')
     ncfile.variables['time'].units = 'days since 1979-01-02 00:00:00'
     ncfile.variables['time'].long_name = 'time'
+    ncfile.variables['time'].calendar = 'proleptic_gregorian'
 
-    ncfile.createVariable(varname, np.single, ('time', 'lat', 'lon'), zlib=True, chunksizes=(1,32,32,), fill_value=-9999, least_significant_digit=3)
+    ncfile.createVariable(varname, np.single, ('time', 'lat', 'lon'), zlib=True, chunksizes=(1,32,32,), fill_value=-9999) #, least_significant_digit=9
     ncfile.variables[varname].units = 'fraction'
 
     for year in np.arange(year_start,year_end+1):
@@ -247,6 +252,7 @@ for vv in np.arange(len(vars)):
             t0 = time.time()
             
             data = np.load(os.path.join(output_folder,str(year)+str(month).zfill(2)+'_'+varname+'.npz'))['data']
+            #data = np.round(data,decimals=3)
             
             index = (year-year_start)*12+month-1
              
@@ -256,3 +262,30 @@ for vv in np.arange(len(vars)):
             print("Time elapsed is "+str(time.time()-t0)+" sec")
             
     ncfile.close()
+
+
+############################################################################
+#   Verify that sums are 1
+############################################################################
+
+print('-------------------------------------------------------------------------------')
+print('Sum verification')
+
+sum = np.zeros(mapsize_template)
+
+for vv in np.arange(len(vars)):
+
+    varname = vars[vv]        
+    
+    file = os.path.join(output_folder,varname+'.nc')    
+    ncfile = Dataset(file)
+    data = np.array(ncfile.variables[varname][0,:,:])
+    
+    #data = np.load(os.path.join(output_folder,'197901_'+varname+'.npz'))['data']
+    
+    sum = sum+data
+
+print('Max sum: '+str(np.nanmax(sum)))
+print('Min sum: '+str(np.nanmin(sum)))
+    
+
