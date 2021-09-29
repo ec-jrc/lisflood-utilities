@@ -1,3 +1,10 @@
+#!/usr/bin/env python  
+# -*- coding: utf-8 -*-
+
+__author__ = "Hylke E. Beck"
+__email__ = "hylke.beck@gmail.com"
+__date__ = "September 2021"
+
 import os, sys, glob, time, pdb
 import pandas as pd
 import geopandas as gpd

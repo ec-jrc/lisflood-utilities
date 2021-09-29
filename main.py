@@ -265,7 +265,7 @@ for vv in np.arange(len(vars)):
 
 
 ############################################################################
-#   Verify that sums are 1
+#   Verify that sum of fractions are 1
 ############################################################################
 
 print('-------------------------------------------------------------------------------')
@@ -285,7 +285,5 @@ for vv in np.arange(len(vars)):
     
     sum = sum+data
 
-print('Max sum: '+str(np.nanmax(sum)))
-print('Min sum: '+str(np.nanmin(sum)))
-    
-
+print('Max sum of fractions: '+str(np.nanmax(sum)))
+print('Min sum of fractions: '+str(np.nanmin(sum)))
