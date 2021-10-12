@@ -37,9 +37,9 @@ The script can be run on a normal desktop PC (Windows and Linux) with 16 GB or m
 
 # Instructions
 
-template the repository:
+Clone the repository:
 ```
-git template https://github.com/hylken/lisflood-create-dynamic-land-use-cover
+git clone https://github.com/hylken/lisflood-create-dynamic-land-use-cover
 cd lisflood-create-dynamic-land-use-cover
 ```
 Produce a configuration file with the correct paths and folders based on the provided template. 
