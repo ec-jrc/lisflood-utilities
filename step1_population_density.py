@@ -199,9 +199,7 @@ def main():
             
     print("Time elapsed is "+str(time.time()-t0)+" sec")
             
-    ncfile.close()    
-    
-    pdb.set_trace()
+    ncfile.close()
     
     
 if __name__ == '__main__':

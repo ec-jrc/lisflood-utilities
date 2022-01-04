@@ -56,7 +56,7 @@ def rowcol2latlon(row,col,res,lat_upper,lon_left):
     return lat.squeeze(),lon.squeeze()
             
 def imresize_mean(oldarray,newshape):
-    '''Resample using simple averaging'''
+    '''Resample an array using simple averaging'''
     
     oldshape = oldarray.shape
     
