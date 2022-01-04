@@ -47,7 +47,7 @@ def main():
     # List of years
     years = np.arange(config['year_start'],config['year_end']+1).astype(int)
 
-
+    
     ############################################################################
     #   Load GHSL population data and upscale to template map resolution
     ############################################################################
@@ -136,7 +136,7 @@ def main():
     t0 = time.time()
         
     for ii in np.arange(len(years)):
-        print('Saving '+str(years[ii])+' population')
+        print('Saving '+str(years[ii])+' population to npz')
         data = pop_big[:,:,ii]
         np.savez_compressed(os.path.join(config['output_folder'],'step1_population_density',str(years[ii])+'.npz'),data=data)
 
@@ -183,6 +183,7 @@ def main():
     ncfile.variables[varname].units = 'mm/d'
 
     for year in years:
+        print('Saving '+str(year)+' population to netCDF')
         for month in np.arange(1,13):
             
             data = np.load(os.path.join(config['output_folder'],'step1_population_density',str(year)+'.npz'))['data']

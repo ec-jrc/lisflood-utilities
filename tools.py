@@ -16,7 +16,7 @@ from scipy import ndimage as nd
 import rasterio
         
 def load_country_code_map(filepath,mapsize):
-
+    
     src = rasterio.open(filepath)
     country_code_map = src.read(1).astype(np.single)
     country_code_map_refmatrix = src.get_transform()
@@ -33,7 +33,7 @@ def load_country_code_map(filepath,mapsize):
     return country_code_map
     
 def load_us_state_code_map(filepath,mapsize):
-
+    
     src = rasterio.open(filepath)
     state_code_map = src.read(1).astype(np.single)
     state_code_map = resize(state_code_map,mapsize,order=0,mode='edge',anti_aliasing=False)
@@ -56,6 +56,7 @@ def rowcol2latlon(row,col,res,lat_upper,lon_left):
     return lat.squeeze(),lon.squeeze()
             
 def imresize_mean(oldarray,newshape):
+    '''Resample using simple averaging'''
     
     oldshape = oldarray.shape
     
@@ -75,14 +76,15 @@ def imresize_mean(oldarray,newshape):
     return newarray
    
 def fill(data, invalid=None):
-    # Nearest neighbor interpolation gap fill by Juh_
+    '''Nearest neighbor interpolation gap fill by Juh_'''
     
     if invalid is None: invalid = np.isnan(data)
     ind = nd.distance_transform_edt(invalid, return_distances=False, return_indices=True)
-    return data[tuple(ind)]
-    
+    return data[tuple(ind)]    
 
 def load_config(filepath):
+    '''Load configuration file into dict'''
+    
     df = pd.read_csv(filepath,header=None,index_col=False)
     config = {}
     for ii in np.arange(len(df)): 
