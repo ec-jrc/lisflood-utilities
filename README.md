@@ -39,8 +39,8 @@ The script can be run on a normal desktop PC (Windows and Linux) with 16 GB or m
 
 Clone the repository:
 ```
-git clone https://github.com/hylken/lisflood-dynamic-land-cover-historic
-cd lisflood-dynamic-land-cover-historic
+git clone https://github.com/hylken/lisflood-land-cover-future
+cd lisflood-land-cover-future
 ```
 Produce a configuration file with the correct paths and folders based on the provided template. 
 
