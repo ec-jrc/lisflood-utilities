@@ -1,6 +1,6 @@
 ﻿# Overview
 
-This module produces monthly sectoral water withdrawal maps to be used as input to the [LISFLOOD](https://github.com/ec-jrc/lisflood-code) hydrological model. The maps cover four water use sectors: domestic, thermoelectric, manufacturing, and livestock. The maps are resampled and subsetted to match the resolution and area of the template map (located at `templatemap_path` specified in the configuration file). 
+This module produces monthly historic sectoral water withdrawal maps to be used as input to the [LISFLOOD](https://github.com/ec-jrc/lisflood-code) hydrological model. The maps cover four water use sectors: domestic, thermoelectric, manufacturing, and livestock. The maps are resampled and subsetted to match the resolution and area of the template map (located at `templatemap_path` specified in the configuration file). 
 
 # Data
 
