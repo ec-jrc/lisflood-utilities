@@ -1,4 +1,4 @@
-#!/usr/bin/env python  
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 __author__ = "Hylke E. Beck"
@@ -24,6 +24,7 @@ def rowcol2latlon(row,col,res,lat_upper,lon_left):
     return lat.squeeze(),lon.squeeze()
             
 def imresize_mean(oldarray,newshape):
+    '''Resample an array using simple averaging'''
     
     oldshape = oldarray.shape
     
@@ -41,3 +42,19 @@ def imresize_mean(oldarray,newshape):
         newarray = downscale_local_mean(intarray,(factor,factor))
 
     return newarray
+    
+def load_config(filepath):
+    '''Load configuration file into dict'''
+    
+    df = pd.read_csv(filepath,header=None,index_col=False)
+    config = {}
+    for ii in np.arange(len(df)): 
+        string = df.iloc[ii,0].replace(" ","")
+        varname = string.rpartition('=')[0]
+        varcontents = string.rpartition('=')[2]
+        try:
+            varcontents = float(varcontents)
+        except:
+            pass
+        config[varname] = varcontents
+    return config
