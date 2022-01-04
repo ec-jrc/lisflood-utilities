@@ -75,8 +75,8 @@ The script can be run on a normal desktop PC (Windows and Linux) with 16 GB or m
 
 Clone the repository:
 ```
-git clone https://github.com/hylken/lisflood-dynamic-water-demand-historic
-cd lisflood-dynamic-water-demand-historic
+git clone https://github.com/hylken/lisflood-water-demand-historic
+cd lisflood-water-demand-historic
 ```
 Produce a configuration file with the correct paths and folders (based on the included example). 
 
