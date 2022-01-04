@@ -379,7 +379,6 @@ def main():
             data_monthly_map = (data_annual_map/12)*(((mswx_monthly[:,:,month-1]-mswx_avg)/(mswx_max-mswx_min))*R_map+1) # mm/month
             month_ndays = monthrange(year,month)[1]
             data = data_monthly_map/month_ndays # Convert from mm/month to mm/day        
-            data = data[row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)] # Subset to template map area        
             np.savez_compressed(os.path.join(config['output_folder'],'step2_domestic_demand',str(years[ii])+str(month).zfill(2)),data=data)
         
         
@@ -454,6 +453,7 @@ def main():
             data = np.load(os.path.join(config['output_folder'],'step2_domestic_demand',str(year)+str(month).zfill(2)+'.npz'))['data']
             data = np.round(data,decimals=2)
             data[np.isnan(data)] = 0
+            data = data[row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)] # Subset to template map area        
             
             index = (year-config['year_start'])*12+month-1
              

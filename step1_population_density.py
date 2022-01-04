@@ -36,6 +36,10 @@ def main():
     mapsize_template = template_np.shape
     row_upper,col_left = latlon2rowcol(template_lat[0],template_lon[0],template_res,90,-180)
 
+    # Compute area for each grid-cell
+    _, yi = np.meshgrid(np.arange(-180+template_res/2,180+template_res/2,template_res), np.arange(90-template_res/2,-90-template_res/2,-template_res))
+    area_map = (40075*template_res/360)**2*np.cos(np.deg2rad(yi))
+    
     # List of years with population data
     pop_folders = sorted(glob.glob(os.path.join(config['ghsl_folder'],'*')))
     pop_years = np.array([int(os.path.basename(pop_folder)[9:13]) for pop_folder in pop_folders])
@@ -74,10 +78,10 @@ def main():
         res = 180/pop_raw.shape[0]
         _, yi = np.meshgrid(np.arange(-180+res/2,180+res/2,res), np.arange(90-res/2,-90-res/2,-res))
         yi = yi.astype(np.single)
-        area_map = (40075*res/360)**2*np.cos(np.deg2rad(yi))
+        ghsl_area_map = (40075*res/360)**2*np.cos(np.deg2rad(yi))
         
         # Convert to density and upscale
-        pop_raw = pop_raw/area_map
+        pop_raw = pop_raw/ghsl_area_map
         pop_map = imresize_mean(pop_raw,mapsize_global)
         pop_upscaled[:,:,ii] = pop_map
         
@@ -134,10 +138,70 @@ def main():
     for ii in np.arange(len(years)):
         print('Saving '+str(years[ii])+' population')
         data = pop_big[:,:,ii]
-        np.savez_compressed(os.path.join(config['output_folder'],'step1_population_density',str(years[ii])),data=data)
+        np.savez_compressed(os.path.join(config['output_folder'],'step1_population_density',str(years[ii])+'.npz'),data=data)
 
     print("Time elapsed is "+str(time.time()-t0)+" sec")
 
+    
+    ############################################################################
+    #   Convert to netCDF
+    ############################################################################
+
+    print('-------------------------------------------------------------------------------')
+    print('Saving as netCDF')
+    t0 = time.time()
+    
+    varname = 'pop'
+    file = os.path.join(config['output_folder'],'step1_population_density',varname+'.nc')
+
+    if os.path.isfile(file):
+        os.remove(file)
+        
+    ncfile = Dataset(file, 'w', format='NETCDF4')
+    ncfile.history = 'Created on %s' % datetime.utcnow().strftime('%Y-%m-%d %H:%M')
+
+    ncfile.createDimension('lon', len(template_lon))
+    ncfile.createDimension('lat', len(template_lat))
+    ncfile.createDimension('time', None)
+
+    ncfile.createVariable('lon', 'f8', ('lon',))
+    ncfile.variables['lon'][:] = template_lon
+    ncfile.variables['lon'].units = 'degrees_east'
+    ncfile.variables['lon'].long_name = 'longitude'
+
+    ncfile.createVariable('lat', 'f8', ('lat',))
+    ncfile.variables['lat'][:] = template_lat
+    ncfile.variables['lat'].units = 'degrees_north'
+    ncfile.variables['lat'].long_name = 'latitude'
+
+    ncfile.createVariable('time', 'f8', 'time')
+    ncfile.variables['time'].units = 'days since 1979-01-02 00:00:00'
+    ncfile.variables['time'].long_name = 'time'
+    ncfile.variables['time'].calendar = 'proleptic_gregorian'
+
+    ncfile.createVariable(varname, np.single, ('time', 'lat', 'lon'), zlib=True, chunksizes=(1,32,32,), fill_value=-9999, least_significant_digit=2)
+    ncfile.variables[varname].units = 'mm/d'
+
+    for year in years:
+        for month in np.arange(1,13):
+            
+            data = np.load(os.path.join(config['output_folder'],'step1_population_density',str(year)+'.npz'))['data']
+            data = np.round(data/10)*10
+            data[np.isnan(data)] = 0
+            data = data*area_map # Convert from population density per km2 to total population per grid-cell
+            data = data[row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)] # Subset to template map area        
+            
+            index = (year-config['year_start'])*12+month-1
+             
+            ncfile.variables['time'][index] = (pd.to_datetime(datetime(year,month,1))-pd.to_datetime(datetime(1979, 1, 1))).total_seconds()/86400    
+            ncfile.variables[varname][index,:,:] = data
+            
+    print("Time elapsed is "+str(time.time()-t0)+" sec")
+            
+    ncfile.close()    
+    
+    pdb.set_trace()
+    
     
 if __name__ == '__main__':
     main()
