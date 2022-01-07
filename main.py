@@ -62,53 +62,38 @@ def main():
     vars = ['fracwater','fracforest','fracsealed','fracrice','fracirrigation','fracother']
     
     
-    '''
-    ######################
-    #gcam_demeter_folder test
-    ######################
+    ############################################################################
+    #   Load GCAM-Demeter data
+    ############################################################################
 
-    # ‘Forest’ refers to the sum of FLT# 1–8, ‘Non-Forest’ refers to the sum of FLT# 9–14 and 32, and ‘Crop’ refers to the sum of FLT# 15–30; For the base map, ‘Forest’ refers to the sum of BLT#2–9, ‘Non-Forest’ refers to the sum of BLT# 1 and 10–15, and ‘Crop’ refers to the sum of BLT# 16–79.
-    cls_forest = np.arange(1,9)
-    cls_nonforest = np.array([9,10,11,12,13,14,32])
-    cls_crop = np.arange(15,31)
-    scenarios = ['ssp1_rcp26', 'ssp1_rcp45', 'ssp1_rcp60', 'ssp2_rcp26',  'ssp2_rcp45',  'ssp2_rcp60',  'ssp3_rcp45',  'ssp3_rcp60',  'ssp4_rcp26',  'ssp4_rcp45',  'ssp4_rcp60',  'ssp5_rcp26',  'ssp5_rcp45',  'ssp5_rcp60', 'ssp5_rcp85']
-    yrs = np.arange(2015,2105,5)
+    # See table 2 of Chen et al. (2020; https://doi.org/10.1038/s41597-020-00669-x)
+    # for the GCAM-Demeter legend. 
+    classes_forest = np.arange(1,9) # Forest
+    classes_rice = np.array([24]) # Irrigated rice
+    classes_irrigation = np.array([16,18,20,22,26,28]) # Irrigated crops (no rice)
+    yrs = np.arange(2015,2020,5)
 
     for scenario in scenarios:
         for yr in yrs:
-            empty_array = sum = np.zeros((mapsize_template[0],mapsize_template[1],len(cls_forest)),dtype=np.single)
+            empty_array = np.zeros((mapsize_global[0],mapsize_global[1],len(classes_forest)),dtype=np.single)
             cnt = 0
-            for cls in cls_forest:
-                dset = Dataset(os.path.join(gcam_demeter_folder,'GCAM_Demeter_LU_'+scenario+'_gfdl_'+str(yr)+'.nc'))
+            for cls in classes_forest:
+                dset = Dataset(os.path.join(config['gcam_demeter_folder'],'GCAM_Demeter_LU_'+scenario+'_gfdl_'+str(yr)+'.nc'))
                 # resize
                 empty_array[:,:,cnt] = np.array(dset.variables['PFT'+str(cls)][:]).transpose()
                 cnt = cnt+1
-            plt.figure(0)
-            plt.imshow(np.sum(empty_array,axis=2))
             
-            
-            
-            
-            vcf_path = glob.glob(os.path.join(config['vcf_folder'],'*2015001*.tif'))[0]
-            print('Loading MEaSUREs VCF data ('+vcf_path+')')
-            src = rasterio.open(vcf_path)
-            fracforest = src.read(1).astype(np.double)
-            fracforest = (fracforest/100).clip(0,1)
-            src.close()
-            
-            plt.figure(1)
-            plt.imshow(fracforest)
-            
-
-            
-            
-            plt.show(block=False)
-            
-            
-            
+                
             
             pdb.set_trace()
-    '''
+        
+    
+    ############################################################################
+    #   Load Chen et al. (2020) urban land expansion data
+    ############################################################################
+    
+    SSP1-5
+    
     
     
     ############################################################################

@@ -1,6 +1,6 @@
 ﻿# Overview
 
-This script produces monthly dynamic land use/cover fraction maps to be used as input to the [LISFLOOD](https://github.com/ec-jrc/lisflood-code) hydrological model with the `TransientLandUseChange` option enabled. The maps account for yearly changes in the forest, sealed, irrigation (no rice), and irrigated rice fractions, and monthly changes in the water fraction (with the other fractions adjusted accordingly). The maps are resampled and subsetted to match the resolution and area of the template map (located at the `templatemap_path` specified in the configuration file). 
+This script produces monthly future land use/cover fraction maps to be used as input to the [LISFLOOD](https://github.com/ec-jrc/lisflood-code) hydrological model with the `TransientLandUseChange` option enabled. The maps account for yearly changes in the forest, sealed, irrigation (no rice), and irrigated rice fractions, and monthly changes in the water fraction (with the other fractions adjusted accordingly). The maps are resampled and subsetted to match the resolution and area of the template map (located at the `templatemap_path` specified in the configuration file). 
 
 # Data
 
