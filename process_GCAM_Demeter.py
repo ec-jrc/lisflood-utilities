@@ -44,7 +44,7 @@ def main():
         
         # Create output folder
         if os.path.isdir(os.path.join(config['output_folder'],'GCAM_Demeter',scenario))==False:
-            os.mkdir(os.path.join(config['output_folder'],'GCAM_Demeter',scenario))
+            os.makedirs(os.path.join(config['output_folder'],'GCAM_Demeter',scenario))
             
         # Loop through years and classes (forest, rice, and irrigation)
         for year in years:

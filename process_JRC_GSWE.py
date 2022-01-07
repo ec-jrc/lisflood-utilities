@@ -32,7 +32,7 @@ def main():
     
     # Create output folder
     if os.path.isdir(os.path.join(config['output_folder'],'JRC_GSWE'))==False:
-        os.mkdir(os.path.join(config['output_folder'],'JRC_GSWE'))
+        os.makedirs(os.path.join(config['output_folder'],'JRC_GSWE'))
         
     # Climatology years
     years = np.arange(2010,2020)    
