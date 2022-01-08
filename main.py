@@ -39,89 +39,22 @@ def main():
     
     # List of years
     years = np.arange(config['year_start'],config['year_end']+1).astype(int)
+    years_decades = np.arange(config['year_start'],config['year_end']+10,10).astype(int)
     
-    # List of years with HYDE data
-    hyde_files = glob.glob(os.path.join(config['hyde_folder'],'baseline','zip','cropland*'))
-    hyde_years = np.array([int(os.path.basename(hyde_file)[8:12]) for hyde_file in hyde_files])
-
-    # List of years with VCF data
-    vcf_files = glob.glob(os.path.join(config['vcf_folder'],'*'))
-    vcf_years = np.array([int(os.path.basename(vcf_file)[8:12]) for vcf_file in vcf_files])
-
-    # List of years with GAIA data
-    # Do not use data prior to 1990
-    gaia_files = glob.glob(os.path.join(config['gaia_folder'],'*.nc'))
-    gaia_years = np.array([int(os.path.basename(gaia_file)[0:4]) for gaia_file in gaia_files])
-    gaia_years = gaia_years[gaia_years>=1990]
-
-    # List of years with GSWE data
-    gswe_files = glob.glob(os.path.join(config['gswe_folder'],'*'))
-    gswe_years = np.array([int(os.path.basename(gswe_file)[:4]) for gswe_file in gswe_files])
-    gswe_years = np.unique(gswe_years)
-
+    pdb.set_trace()
+    
     vars = ['fracwater','fracforest','fracsealed','fracrice','fracirrigation','fracother']
     
     
     ############################################################################
-    #   Load GCAM-Demeter data
+    #   Maps are only available every decade (every five years for GCAM-Demeter).
+    #   Here we loop through decades to calculate fractions (no temporal 
+    #   interpolation).
     ############################################################################
 
-    # See table 2 of Chen et al. (2020; https://doi.org/10.1038/s41597-020-00669-x)
-    # for the GCAM-Demeter legend. 
-    classes_forest = np.arange(1,9) # Forest
-    classes_rice = np.array([24]) # Irrigated rice
-    classes_irrigation = np.array([16,18,20,22,26,28]) # Irrigated crops (no rice)
-    yrs = np.arange(2015,2020,5)
-
-    for scenario in scenarios:
-        for yr in yrs:
-            empty_array = np.zeros((mapsize_global[0],mapsize_global[1],len(classes_forest)),dtype=np.single)
-            cnt = 0
-            for cls in classes_forest:
-                dset = Dataset(os.path.join(config['gcam_demeter_folder'],'GCAM_Demeter_LU_'+scenario+'_gfdl_'+str(yr)+'.nc'))
-                # resize
-                empty_array[:,:,cnt] = np.array(dset.variables['PFT'+str(cls)][:]).transpose()
-                cnt = cnt+1
-            
-                
-            
-            pdb.set_trace()
-        
-    
-    ############################################################################
-    #   Load Chen et al. (2020) urban land expansion data
-    ############################################################################
-    
-    SSP1-5
-    
-    
-    
-    ############################################################################
-    #   Loop over years and months to calculate fractions
-    ############################################################################
-
-    for year in years:
-        #if year!=1979: continue
+    for year in years_decades:
         print('-------------------------------------------------------------------------------')
         print('Year: '+str(year))
-        
-        t0 = time.time()
-        idx = (np.abs(np.array(gaia_years)-year)).argmin()
-        gaia_year = gaia_years[idx]
-        print('Loading GAIA data ('+os.path.join(config['gaia_folder'],str(gaia_year)+'.nc')+')')
-        dset = Dataset(os.path.join(config['gaia_folder'],str(gaia_year)+'.nc'))
-        gaia_raw = np.array(dset.variables['impervious_fraction'][:]).clip(0,1)
-        dset.close()
-        print("Time elapsed is "+str(time.time()-t0)+" sec")
-
-        t0 = time.time()
-        print('Loading HILDA+ data ('+str(year)+')')
-        ind = year-1899
-        dset = Dataset(os.path.join(config['hildaplus_folder'],'hildaplus_vGLOB-1.0-f_states.nc'))
-        hilda_raw = np.array(dset.variables['LULC_states'][ind,:,:])
-        dset.close()
-        fracwater_hilda = imresize_mean(np.single((hilda_raw==0) | (hilda_raw==77)),mapsize_global).astype(np.double) 
-        print("Time elapsed is "+str(time.time()-t0)+" sec")
         
         for month in np.arange(1,13):
             #if month!=1: continue
@@ -129,34 +62,8 @@ def main():
             print('Year: '+str(year)+' Month: '+str(month))
             t0 = time.time()
             
-            t0 = time.time()
-            print('Resampling GAIA data')
-            fracsealed = 0.75*imresize_mean(gaia_raw,mapsize_global).astype(np.double)
-            print("Time elapsed is "+str(time.time()-t0)+" sec")
-            
-            t0 = time.time()
-            idx = (np.abs(np.array(gswe_years)-year)).argmin()
-            gswe_year = gswe_years[idx]
-            gswe_month = month.copy()
-            if (gswe_year==2018) & (gswe_month==10): gswe_month = 9 # October 2018 GSWE data are erroneous
-            print('Loading and resampling GSWE fracwater data ('+os.path.join(config['gswe_folder'],str(gswe_year)+'_'+str(gswe_month).zfill(2)+'_B.nc')+')')
-            dset = Dataset(os.path.join(config['gswe_folder'],str(gswe_year)+'_'+str(gswe_month).zfill(2)+'_B.nc'))
-            gswe_lats = np.array(dset.variables['lat'][:])
-            gswe_lons = np.array(dset.variables['lon'][:])
-            gswe_res = gswe_lats[0]-gswe_lats[1]
-            add_top = int(np.round((90-gswe_lats[0])/gswe_res))
-            add_bottom = int(np.round((90+gswe_lats[-1])/gswe_res))
-            gswe_shape = (int(len(gswe_lons)/2),len(gswe_lons))
-            gswe_raw = np.zeros(gswe_shape,dtype=np.single)*np.NaN
-            varname = list(dset.variables.keys())[-1] # Variable name differs for some years...
-            gswe_raw[add_top+1:gswe_shape[0]-add_bottom,:] = dset.variables[varname][:].clip(0,1)
-            fracwater = imresize_mean(gswe_raw,mapsize_global).astype(np.double)
-            del gswe_raw
-            dset.close()
-            print("Time elapsed is "+str(time.time()-t0)+" sec")
-            
-            print('Filling gaps in GSWE fracwater (at high latitudes) with HILDA+ fracwater')
-            fracwater[np.isnan(fracwater)] = fracwater_hilda[np.isnan(fracwater)]        
+            fracsealed = np.load(os.path.join(config['output_folder'],'Chen_2020_urban',scenario,'fracsealed_'+str(year)+'.npz'))
+            fracwater = np.load(os.path.join(config['output_folder'],'JRC_GSWE',str(month).zfill(2)+'.npz'))
             
             print('Making sure fracsealed+fracwater is <1')
             totals = fracsealed+fracwater

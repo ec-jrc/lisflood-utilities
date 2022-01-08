@@ -78,7 +78,7 @@ def main():
             
         # Compute and save climatology
         fracwater_clim = np.mean(fracwater_all,axis=2)
-        np.savez_compressed(os.path.join(config['output_folder'],'JRC_GSWE',str(month).zfill(2)+'.npz'),data=fracwater_clim)        
+        np.savez_compressed(os.path.join(config['output_folder'],'JRC_GSWE',str(month).zfill(2)+'.npz'),data=fracwater_clim)
         print("Time elapsed is "+str(time.time()-t0)+" sec")                
         
     pdb.set_trace()
