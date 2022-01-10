@@ -31,8 +31,8 @@ def main():
     row_upper,col_left = latlon2rowcol(template_lat[0],template_lon[0],template_res,90,-180)
     
     # Create output folder
-    if os.path.isdir(os.path.join(config['output_folder'],'JRC_GSWE'))==False:
-        os.makedirs(os.path.join(config['output_folder'],'JRC_GSWE'))
+    if os.path.isdir(os.path.join(config['output_folder'],'step3_JRC_GSWE'))==False:
+        os.makedirs(os.path.join(config['output_folder'],'step3_JRC_GSWE'))
         
     # Climatology years
     years = np.arange(2010,2020)    
@@ -78,7 +78,7 @@ def main():
             
         # Compute and save climatology
         fracwater_clim = np.mean(fracwater_all,axis=2)
-        np.savez_compressed(os.path.join(config['output_folder'],'JRC_GSWE',str(month).zfill(2)+'.npz'),data=fracwater_clim)
+        np.savez_compressed(os.path.join(config['output_folder'],'step3_JRC_GSWE',str(month).zfill(2)+'.npz'),data=fracwater_clim)
         print("Time elapsed is "+str(time.time()-t0)+" sec")                
         
     pdb.set_trace()

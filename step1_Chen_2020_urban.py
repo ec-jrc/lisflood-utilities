@@ -39,8 +39,8 @@ def main():
     for scenario in scenarios:
         
         # Create output folder
-        if os.path.isdir(os.path.join(config['output_folder'],'Chen_2020_urban',scenario))==False:
-            os.makedirs(os.path.join(config['output_folder'],'Chen_2020_urban',scenario))
+        if os.path.isdir(os.path.join(config['output_folder'],'step1_Chen_2020_urban',scenario))==False:
+            os.makedirs(os.path.join(config['output_folder'],'step1_Chen_2020_urban',scenario))
             
         # Loop through years
         for year in years:
@@ -52,7 +52,7 @@ def main():
             data = data-1
             data[data<0] = 0            
             data = imresize_mean(data,mapsize_global)            
-            np.savez_compressed(os.path.join(config['output_folder'],'Chen_2020_urban',scenario,'fracsealed_'+str(year)+'.npz'),data=data)
+            np.savez_compressed(os.path.join(config['output_folder'],'step1_Chen_2020_urban',scenario,'fracsealed_'+str(year)+'.npz'),data=data)
             print("Time elapsed is "+str(time.time()-t0)+" sec")
             
     pdb.set_trace()

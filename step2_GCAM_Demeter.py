@@ -43,8 +43,8 @@ def main():
     for scenario in scenarios:
         
         # Create output folder
-        if os.path.isdir(os.path.join(config['output_folder'],'GCAM_Demeter',scenario))==False:
-            os.makedirs(os.path.join(config['output_folder'],'GCAM_Demeter',scenario))
+        if os.path.isdir(os.path.join(config['output_folder'],'step2_GCAM_Demeter',scenario))==False:
+            os.makedirs(os.path.join(config['output_folder'],'step2_GCAM_Demeter',scenario))
             
         # Loop through years and classes (forest, rice, and irrigation)
         for year in years:
@@ -58,7 +58,7 @@ def main():
                     data = np.array(dset.variables['PFT'+str(type)][:]).transpose()
                     data = imresize_mean(data,mapsize_global)
                     data_sum += data/100
-                np.savez_compressed(os.path.join(config['output_folder'],'GCAM_Demeter',scenario,'frac'+klas+'_'+str(year)+'.npz'),data=data_sum)
+                np.savez_compressed(os.path.join(config['output_folder'],'step2_GCAM_Demeter',scenario,'frac'+klas+'_'+str(year)+'.npz'),data=data_sum)
             dset.close()
             print("Time elapsed is "+str(time.time()-t0)+" sec")
             

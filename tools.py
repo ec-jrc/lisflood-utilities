@@ -12,6 +12,7 @@ from netCDF4 import Dataset
 from skimage.transform import resize
 from skimage.transform import downscale_local_mean
 from datetime import datetime, timedelta
+from scipy import ndimage as nd
 
 def latlon2rowcol(lat,lon,res,lat_upper,lon_left):
     row = np.round((lat_upper-lat)/res-0.5).astype(int)
@@ -42,6 +43,13 @@ def imresize_mean(oldarray,newshape):
         newarray = downscale_local_mean(intarray,(factor,factor))
 
     return newarray
+
+def fill(data, invalid=None):
+    '''Nearest neighbor interpolation gap fill by Juh_'''
+    
+    if invalid is None: invalid = np.isnan(data)
+    ind = nd.distance_transform_edt(invalid, return_distances=False, return_indices=True)
+    return data[tuple(ind)]    
     
 def load_config(filepath):
     '''Load configuration file into dict'''
@@ -58,3 +66,19 @@ def load_config(filepath):
             pass
         config[varname] = varcontents
     return config
+    
+def blend_maps(map_1,map_2,year_1,year_2,year_target):
+    '''Linear interpolation between map_1 and map_2'''
+    
+    if (year_target>year_1) & (year_target<year_2):    
+        period = np.min(year_2-year_1)
+        contribution_map_1 = (year_target-year_1)/period
+        contribution_map_2 = 1-contribution_map_1
+        return map_1*contribution_map_1+map_2*contribution_map_2
+        
+    if year_target<=year_1:
+        return map_1
+                
+    if year_target>=year_2:
+        return map_2
+        
