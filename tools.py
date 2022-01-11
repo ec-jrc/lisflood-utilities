@@ -67,18 +67,33 @@ def load_config(filepath):
         config[varname] = varcontents
     return config
     
-def blend_maps(map_1,map_2,year_1,year_2,year_target):
-    '''Linear interpolation between map_1 and map_2'''
+def load_data_interp(year_target,file_pattern):
+    '''Linear interplation between maps for different years.'''
     
-    if (year_target>year_1) & (year_target<year_2):    
-        period = np.min(year_2-year_1)
-        contribution_map_1 = (year_target-year_1)/period
-        contribution_map_2 = 1-contribution_map_1
+    files = glob.glob(file_pattern)
+    files = sorted(files)
+    files_years = np.array([int(os.path.splitext(os.path.basename(file))[0][-4:]) for file in files])
+
+    # Backward nearest neighbor extrapolation
+    if year_target<=files_years[0]:
+        return np.load(files[0])['data']        
+        
+    # Forward nearest neighbor extrapolation
+    elif year_target>=files_years[-1]:
+        return np.load(files[-1])['data']
+    
+    # Linear interpolation
+    else:
+        ind_sort = np.argsort(np.abs(np.array(files_years)-year_target))[:2]
+        ind_sort = np.sort(ind_sort)
+        year_1 = files_years[ind_sort[0]]
+        year_2 = files_years[ind_sort[1]]
+        period = year_2-year_1
+        contribution_map_2 = (year_target-year_1)/period
+        contribution_map_1 = 1-contribution_map_2
+        map_1 = np.load(files[ind_sort[0]])['data']
+        map_2 = np.load(files[ind_sort[1]])['data']
         return map_1*contribution_map_1+map_2*contribution_map_2
         
-    if year_target<=year_1:
-        return map_1
-                
-    if year_target>=year_2:
-        return map_2
-        
+
+    

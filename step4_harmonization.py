@@ -39,7 +39,16 @@ def main():
     
     # List of years
     years = np.arange(config['year_start'],config['year_end']+1).astype(int)
-    years_decades = np.arange(config['year_start'],config['year_end']+10,10).astype(int)
+    
+    # List of years with GCAM-Demeter data
+    gcam_demeter_scenarios = glob.glob(os.path.join(config['output_folder'],'step2_GCAM_Demeter','*'))
+    gcam_demeter_files = glob.glob(os.path.join(gcam_demeter_scenarios[0],'fracforest*'))
+    gcam_demeter_years = np.array([int(os.path.basename(gcam_demeter_file)[-8:-4]) for gcam_demeter_file in gcam_demeter_files])
+    
+    # List of years with Chen et al. (2020) urban data
+    chen_2020_scenarios = glob.glob(os.path.join(config['output_folder'],'step1_Chen_2020_urban','*'))
+    chen_2020_files = glob.glob(os.path.join(chen_2020_scenarios[0],'fracsealed*'))
+    chen_2020_years = np.array([int(os.path.basename(chen_2020_file)[-8:-4]) for chen_2020_file in chen_2020_files])
     
     vars = ['fracwater','fracforest','fracsealed','fracrice','fracirrigation','fracother']
     
@@ -50,11 +59,12 @@ def main():
     #   interpolation).
     ############################################################################
     
-    scenarios = ['ssp1_rcp26', 'ssp1_rcp45', 'ssp1_rcp60', 'ssp2_rcp26',  'ssp2_rcp45',  'ssp2_rcp60',  'ssp3_rcp45',  'ssp3_rcp60',  'ssp4_rcp26',  'ssp4_rcp45',  'ssp4_rcp60',  'ssp5_rcp26',  'ssp5_rcp45',  'ssp5_rcp60', 'ssp5_rcp85']
+    scenarios = glob.glob(os.path.join(config['output_folder'],'step2_GCAM_Demeter','*'))
+    scenarios = [os.path.basename(scenario) for scenario in scenarios]
     
     for scenario in scenarios:
-        ssp = scenario[:4]
-        rcp = scenario[5:]
+        scenario_ssp = scenario[:4]
+        scenario_rcp = scenario[5:]
         for year in years:
             print('-------------------------------------------------------------------------------')
             print('Year: '+str(year))
@@ -65,10 +75,11 @@ def main():
                 print('Year: '+str(year)+' Month: '+str(month))
                 t0 = time.time()
                 
-                fracsealed = np.load(os.path.join(config['output_folder'],'step1_Chen_2020_urban',ssp,'fracsealed_'+str(year)+'.npz'))['data'].clip(0,1)
+                # Load fracsealed
+                fracsealed = load_data_interp(year,os.path.join(config['output_folder'],'step1_Chen_2020_urban',scenario_ssp,'fracsealed_*')).clip(0,1)
                 fracwater = np.load(os.path.join(config['output_folder'],'step3_JRC_GSWE',str(month).zfill(2)+'.npz'))['data'].clip(0,1)
                 
-                print('Reduce fracwater if fracsealed+fracwater >1')
+                print('Reduce fracwater if fracsealed+fracwater >1 (fracsealed overrides fracwater')
                 totals = fracsealed+fracwater
                 mask = totals>1
                 fracwater[mask] = fracwater[mask]-(totals[mask]-1)
@@ -78,9 +89,9 @@ def main():
                 fracother_init = 1-fracsealed-fracwater
                 fracother_init = fracother_init.clip(0,1)
                 
-                fracforest = fill(np.load(os.path.join(config['output_folder'],'step2_GCAM_Demeter',scenario,'fracforest_'+str(year)+'.npz'))['data']).clip(0,1)
-                fracirrigation = fill(np.load(os.path.join(config['output_folder'],'step2_GCAM_Demeter',scenario,'fracirrigation_'+str(year)+'.npz'))['data']).clip(0,1)
-                fracrice = fill(np.load(os.path.join(config['output_folder'],'step2_GCAM_Demeter',scenario,'fracrice_'+str(year)+'.npz'))['data']).clip(0,1)
+                fracforest = fill(load_data_interp(year,os.path.join(config['output_folder'],'step2_GCAM_Demeter',scenario,'fracforest_*'))).clip(0,1)
+                fracirrigation = fill(load_data_interp(year,os.path.join(config['output_folder'],'step2_GCAM_Demeter',scenario,'fracirrigation_*'))).clip(0,1)
+                fracrice = fill(load_data_interp(year,os.path.join(config['output_folder'],'step2_GCAM_Demeter',scenario,'fracrice_*'))).clip(0,1)
                 
                 print('Reducing fracforest, fracirrigation, and fracrice if sum exceeds fracother')
                 totals = fracforest+fracrice+fracirrigation
@@ -89,8 +100,7 @@ def main():
                 fracforest[mask] = fracforest[mask]-excess[mask]*fracforest[mask]/totals[mask]
                 fracrice[mask] = fracrice[mask]-excess[mask]*fracrice[mask]/totals[mask]
                 fracirrigation[mask] = fracirrigation[mask]-excess[mask]*fracirrigation[mask]/totals[mask]
-                
-                '''
+
                 print('Making sure sum of fractions (without other) is <=1')
                 total = fracwater+fracsealed+fracforest+fracrice+fracirrigation
                 mask = total>1
@@ -99,7 +109,6 @@ def main():
                 fracforest[mask] = fracforest[mask]/total[mask]
                 fracrice[mask] = fracrice[mask]/total[mask]
                 fracirrigation[mask] = fracirrigation[mask]/total[mask]
-                '''
                 
                 print('Recalculating fracother as residual')
                 fracother = 1-fracwater-fracsealed-fracforest-fracrice-fracirrigation
@@ -120,7 +129,7 @@ def main():
 
                 pdb.set_trace()
                 
-                print('Saving data to in Numpy format (folder '+config['output_folder']+'/step4_harmonization/'+scenario)')
+                print('Saving data to in Numpy format (folder '+config['output_folder']+'/step4_harmonization/'+scenario+')')
                 t0 = time.time()
                 for vv in np.arange(len(vars)):            
                     data = eval(vars[vv]) #.astype(np.single)
