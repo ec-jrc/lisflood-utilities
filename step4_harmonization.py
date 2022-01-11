@@ -20,10 +20,6 @@ config = load_config(sys.argv[1])
 def main():
     print('===============================================================================')
 
-    # Create output folder
-    if os.path.isdir(os.path.join(config['output_folder'],'step4_harmonization'))==False:
-        os.mkdir(os.path.join(config['output_folder'],'step4_harmonization'))
-       
     # Load template map
     dset = Dataset(config['templatemap_path'])
     template_lat = dset.variables['lat'][:]
@@ -65,21 +61,25 @@ def main():
     for scenario in scenarios:
         scenario_ssp = scenario[:4]
         scenario_rcp = scenario[5:]
-        for year in years:
-            print('-------------------------------------------------------------------------------')
-            print('Year: '+str(year))
+        
+        # Create output folder
+        if os.path.isdir(os.path.join(config['output_folder'],'step4_harmonization',scenario))==False:
+            os.makedirs(os.path.join(config['output_folder'],'step4_harmonization',scenario))
             
+        # Loop through years and months
+        for year in years:       
             for month in np.arange(1,13):
-                #if month!=1: continue
                 print('-------------------------------------------------------------------------------')
                 print('Year: '+str(year)+' Month: '+str(month))
                 t0 = time.time()
                 
-                # Load fracsealed
+                print('Loading Chen et al. (2020) fracsealed data (interpolating between years)')
                 fracsealed = load_data_interp(year,os.path.join(config['output_folder'],'step1_Chen_2020_urban',scenario_ssp,'fracsealed_*')).clip(0,1)
+                
+                print('Loading GSWE fracwater data (monthly climatology)')
                 fracwater = np.load(os.path.join(config['output_folder'],'step3_JRC_GSWE',str(month).zfill(2)+'.npz'))['data'].clip(0,1)
                 
-                print('Reduce fracwater if fracsealed+fracwater >1 (fracsealed overrides fracwater')
+                print('Reduce fracwater if fracsealed+fracwater >1 (fracsealed overrides fracwater)')
                 totals = fracsealed+fracwater
                 mask = totals>1
                 fracwater[mask] = fracwater[mask]-(totals[mask]-1)
@@ -121,6 +121,7 @@ def main():
                 fracirrigation = fracirrigation[row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)]
                 fracother = fracother[row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)]
 
+                '''
                 for vv in np.arange(len(vars)):
                     plt.figure(vv)
                     plt.imshow(eval(vars[vv]))
@@ -128,16 +129,15 @@ def main():
                 plt.show()
 
                 pdb.set_trace()
+                '''
                 
                 print('Saving data to in Numpy format (folder '+config['output_folder']+'/step4_harmonization/'+scenario+')')
                 t0 = time.time()
                 for vv in np.arange(len(vars)):            
-                    data = eval(vars[vv]) #.astype(np.single)
-                    #data = np.round(data*100)/100
-                    np.savez_compressed(os.path.join(config['output_folder'],str(year)+str(month).zfill(2)+'_'+vars[vv]),data=data)
+                    data = eval(vars[vv])
+                    np.savez_compressed(os.path.join(config['output_folder'],'step4_harmonization',scenario,str(year)+str(month).zfill(2)+'_'+vars[vv]),data=data)
+                
                 print("Time elapsed is "+str(time.time()-t0)+" sec")
-
-                gc.collect()
 
 
         ############################################################################
@@ -146,7 +146,7 @@ def main():
 
         for vv in np.arange(len(vars)):
 
-            file = os.path.join(config['output_folder'],vars[vv]+'.nc')
+            file = os.path.join(config['output_folder'],'step4_harmonization',scenario,vars[vv]+'.nc')
             varname = vars[vv]
             
             if os.path.isfile(file):
@@ -181,20 +181,14 @@ def main():
                 for month in np.arange(1,13):
                     print('-------------------------------------------------------------------------------')
                     print('Saving to netCDF var: '+varname+' year: '+str(year)+' month: '+str(month))
-                    t0 = time.time()
-                    
-                    data = np.load(os.path.join(config['output_folder'],str(year)+str(month).zfill(2)+'_'+varname+'.npz'))['data']
-                    #data = np.round(data,decimals=3)
-
-                    index = (year-config['year_start'])*12+month-1
-                     
+                    t0 = time.time()                    
+                    data = np.load(os.path.join(config['output_folder'],'step4_harmonization',scenario,str(year)+str(month).zfill(2)+'_'+varname+'.npz'))['data']
+                    index = (year-config['year_start'])*12+month-1                     
                     ncfile.variables['time'][index] = (pd.to_datetime(datetime(year,month,1))-pd.to_datetime(datetime(1979, 1, 1))).total_seconds()/86400    
-                    ncfile.variables[varname][index,:,:] = data
-                    
+                    ncfile.variables[varname][index,:,:] = data                    
                     print("Time elapsed is "+str(time.time()-t0)+" sec")
                     
             ncfile.close()
-
 
         ############################################################################
         #   Verify that sum of fractions are 1
@@ -209,7 +203,7 @@ def main():
 
             varname = vars[vv]        
             
-            file = os.path.join(config['output_folder'],varname+'.nc')    
+            file = os.path.join(config['output_folder'],'step4_harmonization',scenario,varname+'.nc')    
             ncfile = Dataset(file)
             data = np.array(ncfile.variables[varname][0,:,:])
             
@@ -220,6 +214,10 @@ def main():
         print('Max sum of fractions: '+str(np.nanmax(sum)))
         print('Min sum of fractions: '+str(np.nanmin(sum)))
         
-    
+
+        
+        pdb.set_trace()
+        
+        
 if __name__ == '__main__':
     main()
