@@ -38,19 +38,18 @@ The script can be run on a normal desktop PC (Windows and Linux) with 16 GB or m
 # Instructions
 
 Clone the repository:
-```
-git clone https://github.com/hylken/lisflood-land-cover-historic
-cd lisflood-land-cover-historic
-```
+
+>git clone https://github.com/hylken/lisflood-land-cover-historic
+>cd lisflood-land-cover-historic
+
 Produce a configuration file with the correct paths and folders based on the provided template. 
 
 Create and activate a Conda environment and run the script as follows:
-```
-conda create --name <env> --file requirements.txt
-conda activate <env>
-python main.py <config file>
-```
+
+>conda create --name <env> --file requirements.txt
+>conda activate <env>
+>python main.py <config file>
+
 If the environment creation step fails, we recommend creating the environment and installing the packages as follows:
-```
-conda create -n <env> -c conda-forge geopandas h5py pandas numpy netcdf4 matplotlib rasterio scikit-image
-```
+
+>conda create -n <env> -c conda-forge geopandas h5py pandas numpy netcdf4 matplotlib rasterio scikit-image
