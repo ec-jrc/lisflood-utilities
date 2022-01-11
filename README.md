@@ -74,19 +74,18 @@ The script can be run on a normal desktop PC (Windows and Linux) with 16 GB or m
 # Instructions
 
 Clone the repository:
-```
-git clone https://github.com/hylken/lisflood-water-demand-historic
-cd lisflood-water-demand-historic
-```
+
+>git clone https://github.com/hylken/lisflood-water-demand-historic
+>cd lisflood-water-demand-historic
+
 Produce a configuration file with the correct paths and folders (based on the included example). 
 
 Create and activate a Conda environment and run the script as follows:
-```
-conda create --name <env> --file requirements.txt
-conda activate <env>
-python main.py <config file>
-```
+
+>conda create --name <env> --file requirements.txt
+>conda activate <env>
+>python main.py <config file>
+
 If the environment creation step fails, the following might work:
-```
-conda create -n <env> -c conda-forge geopandas h5py pandas numpy netcdf4 matplotlib rasterio scikit-image openpyxl geopy
-```
+
+>conda create -n <env> -c conda-forge geopandas h5py pandas numpy netcdf4 matplotlib rasterio scikit-image openpyxl geopy
