@@ -70,7 +70,7 @@ def main():
         for year in years:       
             for month in np.arange(1,13):
                 print('-------------------------------------------------------------------------------')
-                print('Year: '+str(year)+' Month: '+str(month))
+                print('Scenario: '+scenario+' Year: '+str(year)+' Month: '+str(month))
                 t0 = time.time()
                 
                 print('Loading Chen et al. (2020) fracsealed data (interpolating between years)')
@@ -89,6 +89,7 @@ def main():
                 fracother_init = 1-fracsealed-fracwater
                 fracother_init = fracother_init.clip(0,1)
                 
+                print('Loading GCAM-Demeter fracforest, fracirrigation, and fracrice data (interpolating between years)')
                 fracforest = fill(load_data_interp(year,os.path.join(config['output_folder'],'step2_GCAM_Demeter',scenario,'fracforest_*'))).clip(0,1)
                 fracirrigation = fill(load_data_interp(year,os.path.join(config['output_folder'],'step2_GCAM_Demeter',scenario,'fracirrigation_*'))).clip(0,1)
                 fracrice = fill(load_data_interp(year,os.path.join(config['output_folder'],'step2_GCAM_Demeter',scenario,'fracrice_*'))).clip(0,1)
@@ -100,15 +101,15 @@ def main():
                 fracforest[mask] = fracforest[mask]-excess[mask]*fracforest[mask]/totals[mask]
                 fracrice[mask] = fracrice[mask]-excess[mask]*fracrice[mask]/totals[mask]
                 fracirrigation[mask] = fracirrigation[mask]-excess[mask]*fracirrigation[mask]/totals[mask]
-
-                print('Making sure sum of fractions (without other) is <=1')
-                total = fracwater+fracsealed+fracforest+fracrice+fracirrigation
-                mask = total>1
-                fracwater[mask] = fracwater[mask]/total[mask]
-                fracsealed[mask] = fracsealed[mask]/total[mask]
-                fracforest[mask] = fracforest[mask]/total[mask]
-                fracrice[mask] = fracrice[mask]/total[mask]
-                fracirrigation[mask] = fracirrigation[mask]/total[mask]
+                
+                print('Reducing precision to save space (round down to avoid sum >1)')
+                precision = 2
+                factor = 10**2
+                fracwater = np.floor(fracwater*factor)/factor
+                fracsealed = np.floor(fracsealed*factor)/factor
+                fracforest = np.floor(fracforest*factor)/factor
+                fracrice = np.floor(fracrice*factor)/factor
+                fracirrigation = np.floor(fracirrigation*factor)/factor
                 
                 print('Recalculating fracother as residual')
                 fracother = 1-fracwater-fracsealed-fracforest-fracrice-fracirrigation
@@ -121,27 +122,27 @@ def main():
                 fracirrigation = fracirrigation[row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)]
                 fracother = fracother[row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)]
 
-                '''
-                for vv in np.arange(len(vars)):
-                    plt.figure(vv)
-                    plt.imshow(eval(vars[vv]))
-                    plt.title(vars[vv])
-                plt.show()
-
-                pdb.set_trace()
-                '''
-                
-                print('Saving data to in Numpy format (folder '+config['output_folder']+'/step4_harmonization/'+scenario+')')
+                print('Saving data in Numpy format')
                 t0 = time.time()
+                
+                sum = np.zeros(mapsize_template)
+                
                 for vv in np.arange(len(vars)):            
                     data = eval(vars[vv])
+                    data = np.round(data,precision)
                     np.savez_compressed(os.path.join(config['output_folder'],'step4_harmonization',scenario,str(year)+str(month).zfill(2)+'_'+vars[vv]),data=data)
+
+                    sum += data
                 
+                print('Max sum of fractions: '+str(np.nanmax(sum)))
+                print('Min sum of fractions: '+str(np.nanmin(sum)))
+
                 print("Time elapsed is "+str(time.time()-t0)+" sec")
 
 
         ############################################################################
-        #   Convert to netCDF
+        #   Convert to netCDF. least_significant_digit option (useful to conserve
+        #   disk space) not used as it caused issues when running LISFLOOD. 
         ############################################################################
 
         for vv in np.arange(len(vars)):
@@ -180,8 +181,8 @@ def main():
             for year in years:
                 for month in np.arange(1,13):
                     print('-------------------------------------------------------------------------------')
-                    print('Saving to netCDF var: '+varname+' year: '+str(year)+' month: '+str(month))
-                    t0 = time.time()                    
+                    print('Saving to netCDF scenario: '+scenario+' var: '+varname+' year: '+str(year)+' month: '+str(month))
+                    t0 = time.time()
                     data = np.load(os.path.join(config['output_folder'],'step4_harmonization',scenario,str(year)+str(month).zfill(2)+'_'+varname+'.npz'))['data']
                     index = (year-config['year_start'])*12+month-1                     
                     ncfile.variables['time'][index] = (pd.to_datetime(datetime(year,month,1))-pd.to_datetime(datetime(1979, 1, 1))).total_seconds()/86400    
@@ -190,33 +191,26 @@ def main():
                     
             ncfile.close()
 
+
         ############################################################################
-        #   Verify that sum of fractions are 1
+        #   Verify that sum of fractions is 1
         ############################################################################
 
         print('-------------------------------------------------------------------------------')
         print('Sum verification')
-
+        
         sum = np.zeros(mapsize_template)
-
         for vv in np.arange(len(vars)):
-
             varname = vars[vv]        
-            
             file = os.path.join(config['output_folder'],'step4_harmonization',scenario,varname+'.nc')    
             ncfile = Dataset(file)
             data = np.array(ncfile.variables[varname][0,:,:])
-            
-            #data = np.load(os.path.join(config['output_folder'],'197901_'+varname+'.npz'))['data']
-            
-            sum = sum+data
+            sum += data
 
         print('Max sum of fractions: '+str(np.nanmax(sum)))
         print('Min sum of fractions: '+str(np.nanmin(sum)))
-        
-
-        
-        pdb.set_trace()
+            
+    pdb.set_trace()
         
         
 if __name__ == '__main__':
