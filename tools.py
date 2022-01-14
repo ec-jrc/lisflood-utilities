@@ -94,6 +94,4 @@ def load_data_interp(year_target,file_pattern):
         map_1 = np.load(files[ind_sort[0]])['data']
         map_2 = np.load(files[ind_sort[1]])['data']
         return map_1*contribution_map_1+map_2*contribution_map_2
-        
-
     
