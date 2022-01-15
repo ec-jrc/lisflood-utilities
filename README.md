@@ -1,15 +1,14 @@
 ﻿# Overview
 
-This script produces monthly future land use/cover fraction maps to be used as input to the [LISFLOOD](https://github.com/ec-jrc/lisflood-code) hydrological model with the `TransientLandUseChange` option enabled. The maps account for yearly changes in the forest, sealed, irrigation (no rice), and irrigated rice fractions, and monthly changes in the water fraction (with the other fractions adjusted accordingly). The maps are resampled and subsetted to match the resolution and area of the template map (located at the `templatemap_path` specified in the configuration file). 
+This script produces monthly future land use/cover fraction maps to be used as input to the [LISFLOOD](https://github.com/ec-jrc/lisflood-code) hydrological model with the `TransientLandUseChange` option enabled. The maps account for yearly changes in the forest, sealed, irrigation (no rice), and irrigated rice fractions. The water fraction represents a monthly climatology and thus does not change yearly. The maps are resampled and subsetted to match the resolution and area of the template map (located at the `templatemap_path` specified in the configuration file). 
 
 # Data
 
-The script is based on five data sources (GAIA, GSWE, HILDA+, MEaSUREs VCF, and HYDE):
-1. The sealed fraction was derived form the xxxx. Reprojected to 0.01° using `gdalwarp -t_srs EPSG:4326 -tr 0.01 0.01 -r near -te -180.0 -90.0 180.0 90.0 -of GTiff <ssp>/global_<ssp>_<year>.tif <ssp>/global_<ssp>_<year>_reprojected.tif`, where `<ssp>` is SSP1, SSP2, ..., SSP5 and year is 2020, 2030, ..., 2100.
-1. The water fraction was derived from GSWE V4 (30-m resolution; 1985–2019; [Pekel et al., 2016](https://doi.org/10.1038/nature20584)). We used a version of the GSWE resampled to 1-km resolution by Susann Guenther available on the JRC network and on request from [Hylke Beck](mailto:hylke.beck@gmail.com).
-1. The water fraction at high latitudes was based on HILDA+ V1.0 (1-km resolution; 1900–2019; [Winkler et al., 2021](https://doi.org/10.1038/s41467-021-22702-2)) available via the [PANGAEA data repository](https://doi.org/10.1594/PANGAEA.921846).
-1. The forest fraction was derived from xxx
-1. The irrigation (no rice) and irrigated rice fractions were based on HYDE V3.2 (0.083° resolution; 10,000 BC to 2015; [Klein Goldewijk et al., 2017](https://doi.org/10.5194/essd-9-927-2017)). The `baseline` and `general_files` folders should be downloaded from the [DANS data portal](https://doi.org/10.17026/dans-25g-gez3).
+The script is based on four data sources (Chen et al., 2020, GCAM-Demeter, GSWE, and HILDA+):
+1. [Chen et al. (2020)](https://doi.org/10.1594/PANGAEA.905890) urban land expansion projections under SSP1–5 (1-km resolution; 2020–2100). Each map was reprojected to 0.01° using `gdalwarp -t_srs EPSG:4326 -tr 0.01 0.01 -r near -te -180.0 -90.0 180.0 90.0 -of GTiff <ssp>/global_<ssp>_<year>.tif <ssp>/global_<ssp>_<year>_reprojected.tif`, where `<ssp>` is SSP1, SSP2, ..., SSP5 and year is 2020, 2030, ..., 2100.
+1. [GCAM-Demeter](https://dx.doi.org/10.25584/data.2020-04.1190/1615771) land use change projections for 15 SSP and RCP combinations (0.05° resolution; 2015–2100). Downloading all files at once did not work as the download kept getting interrupted. Downloading each SSP separately did work but required a lot of clicking.
+1. [JRC GSWE](https://doi.org/10.1038/nature20584) open water extent data (30-m resolution; 1985–2019). We used a version of the GSWE resampled to 1-km resolution by Susann Guenther available on the JRC network and on request from [Hylke Beck](mailto:hylke.beck@gmail.com).
+1. [HILDA+](https://doi.org/10.1594/PANGAEA.921846) historic land use change dataset (1-km resolution; 1900–2019).
 
 The locations of the data are specified in the configuration file. The script also requires a template map which defines the output resolution and area. The template map should be in netCDF-4 format and contain `lat` and `lon` variables and a data variable (any name). The location of the template map is specified using `templatemap_path` in the configuration file.
 
