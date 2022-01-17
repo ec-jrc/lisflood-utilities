@@ -1,6 +1,6 @@
 ﻿# Overview
 
-This module produces monthly land use/cover fraction maps for 15 SSP-RCP combinations to be used as input to the [LISFLOOD](https://github.com/ec-jrc/lisflood-code) hydrological model with the `TransientLandUseChange` option enabled. The maps account for yearly changes in the forest, sealed, irrigation (no rice), and irrigated rice fractions. The water fraction represents a monthly climatology and thus does not change yearly. The maps are resampled and subsetted to match the resolution and area of the template map (located at the `templatemap_path` specified in the configuration file). The data are produced for the period spanning `year_start` to `year_end` and saved to `output_folder` (all specified in the configuration file). The raw data sources start in 2015 and 2020 and are provided at 5- and 10-year intervals. The module linearly interpolates between subsequent maps to ensure gradual changes from year to year. For years prior to 2015, the module performs nearest-neighbour extrapolation and simply uses the earliest available data from 2015 and 2020.
+This module produces monthly land use/cover fraction maps for 15 SSP-RCP combinations to be used as input to the [LISFLOOD](https://github.com/ec-jrc/lisflood-code) hydrological model with the `TransientLandUseChange` option enabled. The maps account for yearly changes in the forest, sealed, irrigation (no rice), and irrigated rice fractions. The water fraction represents a monthly climatology and thus does not change yearly. The maps are resampled and subsetted to match the resolution and area of the template map (located at the `templatemap_path` specified in the configuration file). The data are produced for the period spanning `year_start` to `year_end` and saved to `output_folder` (all specified in the configuration file). The raw data sources start in 2015 and 2020 and are provided at 5- and 10-year intervals. The module linearly interpolates between subsequent maps to ensure gradual changes from year to year. For years prior to 2015, the module performs nearest-neighbour extrapolation and thus simply uses the earliest available data from 2015 and 2020. The fractions are output to netCDF-4 format (one file for each RCP-SSP combination and fraction).
 
 # Data
 
@@ -27,7 +27,6 @@ The module consists of four scripts:
 	1. reduces fracforest, fracirrigation, and fracrice if sum exceeds fracother;
 	1. recalculates fracother as the residual; and
 	1. subsets all data to the template map area.	
-	Finally, the fractions are converted to netCDF-4 format (one file for each RCP-SSP combination and fraction).
 
 # System requirements
 
