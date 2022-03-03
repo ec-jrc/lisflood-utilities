@@ -88,12 +88,17 @@ def load_config(filepath):
 # Load configuration file
 config = load_config('config.cfg')
 
+# Load MERIT Hydro credentials
+merit_user_pw = pd.read_csv('merit_user_pw.txt',index_col=None,header=None)
+merit_user = merit_user_pw.iloc[0][0]
+merit_pw = merit_user_pw.iloc[1][0]
+
 if os.path.isdir(config['merit_folder'])==False:
     os.mkdir(config['merit_folder'])
 
 if os.path.isdir(config['output_folder'])==False:
     os.mkdir(config['output_folder'])
-   
+
 
 ############################################################################
 #   Download and untar all MERIT Hydro upstream data
@@ -107,7 +112,7 @@ for lat in lats:
     for lon in lons:
         if os.path.isdir(os.path.join(config['merit_folder'],'upa_'+lat+lon)): continue
         filename = 'upa_'+lat+lon+'.tar'
-        command = 'wget '+url_pre+filename+' --no-clobber --user=hydrography --password=rivernetwork --directory-prefix='+config['merit_folder']
+        command = 'wget '+url_pre+filename+' --no-clobber --user='+merit_user+' --password='+merit_pw+' --directory-prefix='+config['merit_folder']
         subprocess.call(command,shell=True)
         command = 'tar -xvf '+os.path.join(config['merit_folder'],filename)+' -C '+config['merit_folder']
         subprocess.call(command,shell=True)
