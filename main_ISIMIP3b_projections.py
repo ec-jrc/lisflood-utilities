@@ -230,7 +230,7 @@ def main():
                                 albedo,factor = 0.05,0.5
                             if vars[vv,0]=='es': # Soil
                                 albedo,factor = 0.15,0.75
-                            pet = potential_evaporation(data,albedo,factor,doy,lat)
+                            pet = potential_evaporation(data,albedo,factor,doy,lat,elev)
                             
                             pdb.set_trace()
                             

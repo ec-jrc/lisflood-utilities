@@ -14,6 +14,8 @@ from skimage.transform import downscale_local_mean
 from datetime import datetime, timedelta
 from scipy import ndimage as nd
 import rasterio
+import math
+import matplotlib.pyplot as plt
         
 def load_country_code_map(filepath,mapsize):
     
@@ -98,8 +100,24 @@ def load_config(filepath):
         config[varname] = varcontents
     return config
     
-def potential_evaporation(data,albedo,factor,doy,lat):
+def potential_evaporation(data,albedo,factor,doy,lat,elev):
+    """
+    # Inputs
+    data = dict with grids of tmean, tmin, tmax, relhum, wind, pres, swd, lwd
+    albedo = albedo (0 to 1)
+    factor = empirical factor related to land cover (>0)
+    doy = day of year (1 to 366)
+    lat = latitude (degrees)
+    elev = elevation (m asl)
+    
+    # Output
+    Potential evaporation (mm/d)
+    """
 
+    #from pcraster.operations import sin,cos,tan,asin,sqrt,sqr,max,ifthenelse,exp
+    #import pcraster as pcr
+    #pcr.setclone(3600,7200,0.05,-180,90)
+    
     # difference between daily maximum and minimum temperature [deg C]
     DeltaT = data['tmax']-data['tmin']
     DeltaT[DeltaT<0] = 0
@@ -125,23 +143,11 @@ def potential_evaporation(data,albedo,factor,doy,lat):
     
     # latent heat of vaporization [MJ/kg]
     LatHeatVap = 2.501-0.002361*data['tmean']
-    
-    '''
-    # psychrometric constant at sea level [mbar/deg C]
-    # Corrected constant, was wrong originally
-    # Psychro0 should be around 0.67 mbar/ deg C
-    Psychro0 = 0.00163*(self.Press0/LatHeatVap)
-
-    # Correction for altitude (FAO, http://www.fao.org/docrep/X0490E/x0490e00.htm )
-    # Note that previously some equation from Supit et al was used,
-    # but this produced complete rubbish!
-    Psychro = Psychro0*((293-0.0065*self.Dem)/293) ** 5.26
-    '''
-    
-    # Allen et al. (1994) equation 8 [mbar/deg C]
+        
+    # Allen et al. (1994) equation 8 (mbar/deg C)
     Psychro = 10*(1.013*10**-3*data['pres']/10)/(0.622*LatHeatVap)
     
-    # slope of saturated vapour pressure curve [mbar/deg C]
+    # Slope of saturated vapour pressure curve (mbar/deg C)
     Delta = (238.102*17.32491*ESat)/((data['tmean']+238.102)**2)
     
 
@@ -149,37 +155,44 @@ def potential_evaporation(data,albedo,factor,doy,lat):
     # ***** ANGOT RADIATION **************************************
     # ************************************************************
 
-    # Latitude degrees to radians
-    lat = lat*np.pi/180
-
-    # solar declination [radians]
-    Declin = -23.45*np.cos(np.deg2rad((360*(doy+10))/365))*np.pi/180
+    # Solar declination (rad)
+    Declin_rad = math.asin(0.39795 * np.cos(0.2163108 + 2 * math.atan(0.9671396 * math.tan(.00860 * (doy - 186)))))
+    Declin_deg = Declin_rad*180/np.pi
+    #Declin_deg_pcr = pcr.numpy2pcr(pcr.Scalar,Declin_deg,mv=-9999)
     
-    # solar constant at top of the atmosphere [J/m2/s]
-    SolarConstant = 1370*(1+(0.033*np.cos(np.deg2rad(2*np.pi*doy/365))))
+    lat_deg = lat
+    lat_rad = lat*np.pi/180    
+    #lat_deg_pcr = pcr.numpy2pcr(pcr.Scalar,lat_deg,mv=-9999)
     
-    # daylength [hour]
-    tmp1 = ((-np.sin(np.deg2rad(-2.65/np.pi)))+np.sin(Declin)*np.sin(lat))/(np.cos(Declin)*np.cos(lat))
-    tmp2 = (tmp1<0)*np.rad2deg(np.arcsin(tmp1)-360)+(tmp1>=0)*np.rad2deg(np.arcsin(tmp1))
-    DayLength = 12+(24/180)*tmp2
-    pdb.set_trace()
-
-    # Daylength equation can produce NaN at high latitudes,
-    # replace NaNs with zeros
-    DayLength = cover(DayLength, 0.0)
-
-    # integral of solar height [s] over the day
-    IntSolarHeight = 3600*(DayLength*np.sin(Declin)*np.sin(lat)+(24./np.pi)*np.cos(Declin)*np.cos(lat)*np.sqrt(1-sqr(np.tan(Declin)*np.tan(lat))))
-
-    # Integral of solar height cannot be negative,
-    # so truncate at 0
-    IntSolarHeight = maximum(IntSolarHeight, 0.0)
-
-    # Replace NaNs with zeros
-    IntSolarHeight = cover(IntSolarHeight, 0.0)
-
-    # daily extra-terrestrial radiation (Angot radiation) [J/m2/d]
+    # Solar constant at top of the atmosphere (J/m2/s)
+    SolarConstant = 1370*(1+0.033*np.cos(2*np.pi*doy/365))
+    
+    # Day length (h)
+    # Ecological Modeling, volume 80 (1995) pp. 87-95
+    # "A Model Comparison for Daylength as a Function of Latitude and Day of the Year"    
+    DayLength = 24 - (24 / np.pi) * np.arccos((np.sin(0.8333 * np.pi / 180) + np.sin(lat_rad) * np.sin(Declin_rad)) / (np.cos(lat_rad) * np.cos(Declin_rad)))
+    DayLength = np.tile(fill(DayLength[:,:1]),(1,DayLength.shape[1]))
+    
+    plt.imshow(DayLength)
+    plt.savefig('DayLength.png',dpi=300)
+    plt.close()          
+    
+    #DayLength_pcr = pcr.numpy2pcr(pcr.Scalar,DayLength,mv=-9999)
+    
+    # Integral of solar height over the day (s)
+    #int_solar_height = 3600. * (DayLength_pcr * sin(Declin_deg_pcr) * sin(lat_deg_pcr) + (24./3.14) * cos(Declin_deg_pcr) * cos(lat_deg_pcr) * sqrt(1 - sqr(tan(Declin_deg_pcr) * tan(lat_deg_pcr))))
+    sinLD = np.sin(Declin_rad)*np.sin(lat_rad)
+    cosLD = np.cos(Declin_rad)*np.cos(lat_rad)
+    IntSolarHeight = 3600*(DayLength*sinLD+(24/np.pi)*cosLD*np.sqrt(1-(sinLD/cosLD)**2))
+    IntSolarHeight[IntSolarHeight<0] = 0
+    IntSolarHeight = np.tile(fill(IntSolarHeight[:,:1]),(1,IntSolarHeight.shape[1]))    
+    
+    # Daily extra-terrestrial radiation (Angot radiation) (J/m2/d)
     RadiationAngot = IntSolarHeight*SolarConstant
+    
+    plt.imshow(RadiationAngot)
+    plt.savefig('RadiationAngot.png',dpi=300)
+    plt.close()          
     
 
     # ************************************************************
@@ -189,22 +202,42 @@ def potential_evaporation(data,albedo,factor,doy,lat):
     # equation Allen et al. 1994
     # using the digital elevation model
     # from:  An Update for the Definition of Reference Evapotranspiration  Allen et al. 1994
-    Rso = RadiationAngot*(0.75+(2*10**-5*elev))
-    TransAtm_Allen = data['swd']/Rso
-    TransAtm_Allen = cover(TransAtm_Allen, 0)
+    Rso = RadiationAngot*(0.75+(2*10**-5*elev))/86400
+    TransAtm_Allen = (data['swd']+0.001)/(Rso+0.001)
     AdjCC = 1.8*TransAtm_Allen-0.35
     AdjCC[AdjCC<0] = 0.05
     AdjCC[AdjCC>1] = 1
+    
+    
+    plt.imshow(TransAtm_Allen,vmin=-1,vmax=2)
+    plt.savefig('TransAtm_Allen.png',dpi=300)
+    plt.close()          
+    
+    plt.imshow(AdjCC,vmin=0,vmax=1)
+    plt.savefig('AdjCC.png',dpi=300)
+    plt.close()          
     
     # Net emissivity
     EmNet = (0.56-0.079*np.sqrt(EAct))
     
     # net  longwave radiation [J/m2/day]
-    RN = 4.903*10**-3*((data['tmean']+273)**4)*EmNet*AdjCC    
+    RN = 4.903*10**-3*((data['tmean']+273.15)**4)*EmNet*AdjCC    
 
     # net absorbed radiation of reference vegetation canopy [mm/d]
-    RNA = maximum(((1-albedo)*data['swd']-RN)/(10**6*LatHeatVap), 0.0)    
+    RNA = ((1-albedo)*data['swd']-RN)/(10**6*LatHeatVap)
+    RNA[RNA<0] = 0
 
     # potential reference evapotranspiration rate [mm/day]
-    return ((Delta*RNA)+(Psychro*EA))/(Delta+Psychro)
+    pet = ((Delta*RNA)+(Psychro*EA))/(Delta+Psychro)
+    
+    plt.imshow(pet,vmin=0,vmax=10)
+    plt.savefig('pet.png',dpi=300)
+    plt.close()          
+    
+    
+    pdb.set_trace()
+    
+    
+    
+    return pet
     
