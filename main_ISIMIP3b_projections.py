@@ -232,11 +232,10 @@ def main():
                                 albedo,factor = 0.15,0.75
                             pet = potential_evaporation(data,albedo,factor,doy,lat,elev)
                             
-                            pdb.set_trace()
                             
                             # Subset data and write to netCDF
                             ncfile.variables['time'][index] = (file_dates_dly[ii]-pd.to_datetime(datetime(1979, 1, 1))).total_seconds()/86400
-                            ncfile.variables[vars[vv,0]][index,:,:] = pet[varname[vv,0]][row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)]
+                            ncfile.variables[vars[vv,0]][index,:,:] = pet[row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)]
                         
                         print("Time elapsed is "+str(time.time()-t0)+" sec")
                     

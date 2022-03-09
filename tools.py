@@ -102,142 +102,111 @@ def load_config(filepath):
     
 def potential_evaporation(data,albedo,factor,doy,lat,elev):
     """
-    # Inputs
-    data = dict with grids of tmean, tmin, tmax, relhum, wind, pres, swd, lwd
-    albedo = albedo (0 to 1)
-    factor = empirical factor related to land cover (>0)
-    doy = day of year (1 to 366)
-    lat = latitude (degrees)
-    elev = elevation (m asl)
+    Calculate potential evaporation (mm/d) using an approach based on Penman-
+    Monteith. More details provided in the LISVAP documentation (Van der 
+    Knijff, 2006).
     
-    # Output
-    Potential evaporation (mm/d)
+    Van der Knijff, J., 2006. LISVAP – Evaporation Pre-Processor for the 
+    LISFLOOD Water Balance and Flood Simulation Model, User Manual. EUR 22639
+    EN, Office for Official Publications of the European Communities, 
+    Luxembourg, 31 pp.
+    
+    INPUTS
+    data:       Dict with grids of tmean, tmin, tmax (all in degrees Celsius), 
+                relhum (%), wind (m/s), pres(mbar), swd (W/m2), and lwd (W/m2)
+    albedo:     Albedo (0 to 1)
+    factor:     Empirical factor related to land cover (>0)
+    doy:        Day of year (1 to 366)
+    lat:        Latitude (degrees)
+    elev:       Elevation (m asl)
+    
+    OUTPUTS
+    pet:        Potential evaporation (mm/d)
     """
 
-    #from pcraster.operations import sin,cos,tan,asin,sqrt,sqr,max,ifthenelse,exp
-    #import pcraster as pcr
-    #pcr.setclone(3600,7200,0.05,-180,90)
-    
-    # difference between daily maximum and minimum temperature [deg C]
+    # Difference between daily maximum and minimum temperature (degrees C)
     DeltaT = data['tmax']-data['tmin']
     DeltaT[DeltaT<0] = 0
     
-    # empirical constant in windspeed formula
-    # if DeltaT is less than 12 degrees, BU=0.54
+    # Empirical constant in windspeed formula (if DeltaT is less than 12 
+    # degrees C, BU=0.54)
     BU = 0.54+0.35*((DeltaT-12)/4)
     BU[BU<0.54] = 0.54
     
-    # Goudriaan equation (1977)
-    # saturated vapour pressure [mbar]
-    # TAvg [deg Celsius]
-    # exp is correct (e-power) (Van Der Goot, pers. comm 1999)    
+    # Goudriaan equation (1977) to calculate saturated vapour pressure (mbar)
     ESat = 6.10588*np.exp((17.32491*data['tmean'])/(data['tmean']+238.102))
     EAct = data['relhum']*ESat/100
     
-    # Vapour pressure deficit [mbar]
+    # Vapour pressure deficit (mbar)
     VapPressDef = ESat-EAct
     VapPressDef[VapPressDef<0] = 0
 
-    # evaporative demand of reference vegetation canopy [mm/d]
+    # Evaporative demand (mm/d)
     EA = 0.26*VapPressDef*(factor+BU*data['wind'])
     
-    # latent heat of vaporization [MJ/kg]
+    # Latent heat of vaporization (MJ/kg)
     LatHeatVap = 2.501-0.002361*data['tmean']
         
-    # Allen et al. (1994) equation 8 (mbar/deg C)
+    # Allen et al. (1994) equation 8 (mbar/degrees C)
     Psychro = 10*(1.013*10**-3*data['pres']/10)/(0.622*LatHeatVap)
     
-    # Slope of saturated vapour pressure curve (mbar/deg C)
+    # Slope of saturated vapour pressure curve (mbar/degrees C)
     Delta = (238.102*17.32491*ESat)/((data['tmean']+238.102)**2)
     
-
-    # ************************************************************
-    # ***** ANGOT RADIATION **************************************
-    # ************************************************************
+    
+    #--------------------------------------------------------------------------
+    #   Extraterrestrial radiation
+    #--------------------------------------------------------------------------
 
     # Solar declination (rad)
     Declin_rad = math.asin(0.39795 * np.cos(0.2163108 + 2 * math.atan(0.9671396 * math.tan(.00860 * (doy - 186)))))
-    Declin_deg = Declin_rad*180/np.pi
-    #Declin_deg_pcr = pcr.numpy2pcr(pcr.Scalar,Declin_deg,mv=-9999)
     
-    lat_deg = lat
-    lat_rad = lat*np.pi/180    
-    #lat_deg_pcr = pcr.numpy2pcr(pcr.Scalar,lat_deg,mv=-9999)
+    # Convert latitude from degrees to radians
+    lat_rad = lat*np.pi/180
     
     # Solar constant at top of the atmosphere (J/m2/s)
     SolarConstant = 1370*(1+0.033*np.cos(2*np.pi*doy/365))
     
-    # Day length (h)
-    # Ecological Modeling, volume 80 (1995) pp. 87-95
-    # "A Model Comparison for Daylength as a Function of Latitude and Day of the Year"    
-    DayLength = 24 - (24 / np.pi) * np.arccos((np.sin(0.8333 * np.pi / 180) + np.sin(lat_rad) * np.sin(Declin_rad)) / (np.cos(lat_rad) * np.cos(Declin_rad)))
-    DayLength = np.tile(fill(DayLength[:,:1]),(1,DayLength.shape[1]))
-    
-    plt.imshow(DayLength)
-    plt.savefig('DayLength.png',dpi=300)
-    plt.close()          
-    
-    #DayLength_pcr = pcr.numpy2pcr(pcr.Scalar,DayLength,mv=-9999)
+    # Day length (h) equation from Forsythe et al. (1995; https://doi.org/10.1016/0304-3800(94)00034-F)
+    DayLength = 24-(24/np.pi)*np.arccos((np.sin(0.8333*np.pi/180)+np.sin(lat_rad)*np.sin(Declin_rad))/(np.cos(lat_rad)*np.cos(Declin_rad)))
+    DayLength = np.tile(fill(DayLength[:,:1]),(1,DayLength.shape[1])) # Nearest-neighbor gap filling
     
     # Integral of solar height over the day (s)
-    #int_solar_height = 3600. * (DayLength_pcr * sin(Declin_deg_pcr) * sin(lat_deg_pcr) + (24./3.14) * cos(Declin_deg_pcr) * cos(lat_deg_pcr) * sqrt(1 - sqr(tan(Declin_deg_pcr) * tan(lat_deg_pcr))))
     sinLD = np.sin(Declin_rad)*np.sin(lat_rad)
     cosLD = np.cos(Declin_rad)*np.cos(lat_rad)
     IntSolarHeight = 3600*(DayLength*sinLD+(24/np.pi)*cosLD*np.sqrt(1-(sinLD/cosLD)**2))
     IntSolarHeight[IntSolarHeight<0] = 0
-    IntSolarHeight = np.tile(fill(IntSolarHeight[:,:1]),(1,IntSolarHeight.shape[1]))    
+    IntSolarHeight = np.tile(fill(IntSolarHeight[:,:1]),(1,IntSolarHeight.shape[1])) # Nearest-neighbor gap filling
     
     # Daily extra-terrestrial radiation (Angot radiation) (J/m2/d)
     RadiationAngot = IntSolarHeight*SolarConstant
     
-    plt.imshow(RadiationAngot)
-    plt.savefig('RadiationAngot.png',dpi=300)
-    plt.close()          
     
+    #--------------------------------------------------------------------------
+    #   Net absorbed radiation
+    #--------------------------------------------------------------------------
 
-    # ************************************************************
-    # ***** NET ABSORBED RADIATION *******************************
-    # ************************************************************
-
-    # equation Allen et al. 1994
-    # using the digital elevation model
-    # from:  An Update for the Definition of Reference Evapotranspiration  Allen et al. 1994
+    # Clear-sly radiation (Allen et al., 1994, equation 37)
     Rso = RadiationAngot*(0.75+(2*10**-5*elev))/86400
+    
+    
     TransAtm_Allen = (data['swd']+0.001)/(Rso+0.001)
     AdjCC = 1.8*TransAtm_Allen-0.35
     AdjCC[AdjCC<0] = 0.05
     AdjCC[AdjCC>1] = 1
     
-    
-    plt.imshow(TransAtm_Allen,vmin=-1,vmax=2)
-    plt.savefig('TransAtm_Allen.png',dpi=300)
-    plt.close()          
-    
-    plt.imshow(AdjCC,vmin=0,vmax=1)
-    plt.savefig('AdjCC.png',dpi=300)
-    plt.close()          
-    
     # Net emissivity
     EmNet = (0.56-0.079*np.sqrt(EAct))
     
-    # net  longwave radiation [J/m2/day]
+    # Net longwave radiation (J/m2/day)
     RN = 4.903*10**-3*((data['tmean']+273.15)**4)*EmNet*AdjCC    
 
-    # net absorbed radiation of reference vegetation canopy [mm/d]
+    # Net absorbed radiation of reference vegetation canopy (mm/d)
     RNA = ((1-albedo)*data['swd']-RN)/(10**6*LatHeatVap)
     RNA[RNA<0] = 0
 
-    # potential reference evapotranspiration rate [mm/day]
+    # Potential reference evapotranspiration rate (mm/d)
     pet = ((Delta*RNA)+(Psychro*EA))/(Delta+Psychro)
-    
-    plt.imshow(pet,vmin=0,vmax=10)
-    plt.savefig('pet.png',dpi=300)
-    plt.close()          
-    
-    
-    pdb.set_trace()
-    
-    
     
     return pet
     
