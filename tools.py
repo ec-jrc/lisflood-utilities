@@ -100,6 +100,31 @@ def load_config(filepath):
         config[varname] = varcontents
     return config
     
+def initialize_netcdf(outfile,lat,lon,varname,units,least_significant_digit):
+    
+    ncfile = Dataset(outfile, 'w', format='NETCDF4')
+    ncfile.history = 'Created on %s' % datetime.utcnow().strftime('%Y-%m-%d %H:%M')
+    ncfile.createDimension('lon', len(lon))
+    ncfile.createDimension('lat', len(lat))
+    ncfile.createDimension('time', None)
+    ncfile.createVariable('lon', 'f8', ('lon',))
+    ncfile.variables['lon'][:] = lon
+    ncfile.variables['lon'].units = 'degrees_east'
+    ncfile.variables['lon'].long_name = 'longitude'
+    ncfile.createVariable('lat', 'f8', ('lat',))
+    ncfile.variables['lat'][:] = lat
+    ncfile.variables['lat'].units = 'degrees_north'
+    ncfile.variables['lat'].long_name = 'latitude'
+    ncfile.createVariable('time', 'f8', 'time')
+    ncfile.variables['time'].units = 'days since 1979-01-02 00:00:00'
+    ncfile.variables['time'].long_name = 'time'
+    ncfile.variables['time'].calendar = 'proleptic_gregorian'
+    ncfile.createVariable(varname, np.single, ('time', 'lat', 'lon'), zlib=True,\
+        chunksizes=(1,450,450,), fill_value=-9999,least_significant_digit=least_significant_digit)
+    ncfile.variables[varname].units = units
+    
+    return ncfile
+
 def potential_evaporation(data,albedo,factor,doy,lat,elev):
     """
     Calculate potential evaporation (mm/d) using an approach based on Penman-
@@ -112,16 +137,16 @@ def potential_evaporation(data,albedo,factor,doy,lat,elev):
     Luxembourg, 31 pp.
     
     INPUTS
-    data:       Dict with grids of tmean, tmin, tmax (all in degrees Celsius), 
-                relhum (%), wind (m/s), pres(mbar), swd (W/m2), and lwd (W/m2)
-    albedo:     Albedo (0 to 1)
-    factor:     Empirical factor related to land cover (>0)
-    doy:        Day of year (1 to 366)
-    lat:        Latitude (degrees)
-    elev:       Elevation (m asl)
+    data:   Dict with grids of tmean, tmin, tmax (all in degrees Celsius), 
+            relhum (%), wind (m/s), pres(mbar), swd (W/m2), and lwd (W/m2)
+    albedo: Albedo (0 to 1)
+    factor: Empirical factor related to land cover (>0)
+    doy:    Day of year (1 to 366)
+    lat:    Latitude grid (degrees)
+    elev:   Elevation grid (m asl)
     
     OUTPUTS
-    pet:        Potential evaporation (mm/d)
+    pet:    Potential evaporation (mm/d)
     """
 
     # Difference between daily maximum and minimum temperature (degrees C)
@@ -135,6 +160,8 @@ def potential_evaporation(data,albedo,factor,doy,lat,elev):
     
     # Goudriaan equation (1977) to calculate saturated vapour pressure (mbar)
     ESat = 6.10588*np.exp((17.32491*data['tmean'])/(data['tmean']+238.102))
+    
+    # Actual vapor pressure calculated from relative humidity (mbar)
     EAct = data['relhum']*ESat/100
     
     # Vapour pressure deficit (mbar)
@@ -155,11 +182,11 @@ def potential_evaporation(data,albedo,factor,doy,lat,elev):
     
     
     #--------------------------------------------------------------------------
-    #   Extraterrestrial radiation
+    #   Extra-terrestrial radiation
     #--------------------------------------------------------------------------
 
     # Solar declination (rad)
-    Declin_rad = math.asin(0.39795 * np.cos(0.2163108 + 2 * math.atan(0.9671396 * math.tan(.00860 * (doy - 186)))))
+    Declin_rad = np.arcsin(0.39795*np.cos(0.2163108+2*np.arctan(0.9671396*np.tan(0.00860*(doy-186)))))
     
     # Convert latitude from degrees to radians
     lat_rad = lat*np.pi/180
@@ -168,45 +195,69 @@ def potential_evaporation(data,albedo,factor,doy,lat,elev):
     SolarConstant = 1370*(1+0.033*np.cos(2*np.pi*doy/365))
     
     # Day length (h) equation from Forsythe et al. (1995; https://doi.org/10.1016/0304-3800(94)00034-F)
-    DayLength = 24-(24/np.pi)*np.arccos((np.sin(0.8333*np.pi/180)+np.sin(lat_rad)*np.sin(Declin_rad))/(np.cos(lat_rad)*np.cos(Declin_rad)))
+    sinLD = np.sin(Declin_rad)*np.sin(lat_rad)
+    cosLD = np.cos(Declin_rad)*np.cos(lat_rad)
+    DayLength = 24-(24/np.pi)*np.arccos((np.sin(0.8333*np.pi/180)+sinLD)/cosLD)
     DayLength = np.tile(fill(DayLength[:,:1]),(1,DayLength.shape[1])) # Nearest-neighbor gap filling
     
     # Integral of solar height over the day (s)
-    sinLD = np.sin(Declin_rad)*np.sin(lat_rad)
-    cosLD = np.cos(Declin_rad)*np.cos(lat_rad)
     IntSolarHeight = 3600*(DayLength*sinLD+(24/np.pi)*cosLD*np.sqrt(1-(sinLD/cosLD)**2))
     IntSolarHeight[IntSolarHeight<0] = 0
     IntSolarHeight = np.tile(fill(IntSolarHeight[:,:1]),(1,IntSolarHeight.shape[1])) # Nearest-neighbor gap filling
     
-    # Daily extra-terrestrial radiation (Angot radiation) (J/m2/d)
-    RadiationAngot = IntSolarHeight*SolarConstant
+    # Daily extra-terrestrial radiation (J/m2/d)
+    Ra = IntSolarHeight*SolarConstant
     
+    # plt.imshow(Ra)
+    # plt.colorbar()
+    # plt.savefig('Ra.png',dpi=300)
+    # plt.close()
     
     #--------------------------------------------------------------------------
     #   Net absorbed radiation
     #--------------------------------------------------------------------------
 
-    # Clear-sly radiation (Allen et al., 1994, equation 37)
-    Rso = RadiationAngot*(0.75+(2*10**-5*elev))/86400
+    # Clear-sky radiation (J/m2/d) from Allen et al. (1994; equation 37)
+    Rso = Ra*(0.75+(2*10**-5*elev))
+
+    plt.imshow(Rso)
+    plt.colorbar()
+    plt.savefig('Rso.png',dpi=300)
+    plt.close()
     
-    
-    TransAtm_Allen = (data['swd']+0.001)/(Rso+0.001)
+    # Adjustment factor for cloud cover
+    TransAtm_Allen = (data['swd']*86400+1)/(Rso+1)
     AdjCC = 1.8*TransAtm_Allen-0.35
-    AdjCC[AdjCC<0] = 0.05
+    AdjCC[AdjCC<0.05] = 0.05
     AdjCC[AdjCC>1] = 1
     
-    # Net emissivity
-    EmNet = (0.56-0.079*np.sqrt(EAct))
+    # plt.imshow(AdjCC)
+    # plt.colorbar()
+    # plt.savefig('AdjCC.png',dpi=300)    
+    # plt.close()
     
-    # Net longwave radiation (J/m2/day)
-    RN = 4.903*10**-3*((data['tmean']+273.15)**4)*EmNet*AdjCC    
+    # plt.imshow(data['swd'])
+    # plt.colorbar()
+    # plt.savefig('swd.png',dpi=300)    
+    # plt.close()    
+    
+    # Net emissivity
+    EmNet = 0.56-0.079*np.sqrt(EAct)
+    
+    # Net longwave radiation (J/m2/d)
+    StefBoltzConstant = 4.903*10**-3 # J/K4/m2/d
+    RN = StefBoltzConstant*((data['tmean']+273.15)**4)*EmNet*AdjCC    
 
     # Net absorbed radiation of reference vegetation canopy (mm/d)
-    RNA = ((1-albedo)*data['swd']-RN)/(10**6*LatHeatVap)
+    RNA = ((1-albedo)*data['swd']*86400-RN)/(10**6*LatHeatVap)
     RNA[RNA<0] = 0
 
     # Potential reference evapotranspiration rate (mm/d)
     pet = ((Delta*RNA)+(Psychro*EA))/(Delta+Psychro)
     
-    return pet
+    # plt.imshow(pet)
+    # plt.colorbar()
+    # plt.savefig('pet.png',dpi=300)
+    # plt.close()
     
+    return pet

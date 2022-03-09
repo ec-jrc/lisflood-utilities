@@ -45,7 +45,7 @@ def main():
     elev_delta = elev-tmp
     temp_delta = -6.5*elev_delta/1000
     pres_delta = 1013*((((293-0.0065*elev)/293)**5.26)-(((293-0.0065*tmp)/293)**5.26)) # Allen et al. (1994) equation 7
-    _, lat = np.meshgrid(template_lon, template_lat)
+    lat = np.repeat(np.resize(np.arange(90-template_res/2,-90-template_res/2,-template_res),(1800,1)),mapsize_global[1],axis=1)
     
     # Loop through scenarios and models
     files = glob.glob(os.path.join(config['meteo_data_folder'],'*.nc'))
@@ -67,11 +67,11 @@ def main():
             
             # Loop over variables
             vars = np.array([\
+                ['ta','tas_',1,-273.15,'degree_Celsius',1],\
+                ['pr','pr_',86400,0,'mm d-1',1],\
                 ['et','tas_',1,0,'mm d-1',1],\
                 ['ew','tas_',1,0,'mm d-1',1],\
                 ['es','tas_',1,0,'mm d-1',1],\
-                ['ta','tas_',1,-273.15,'degree_Celsius',1],\
-                ['pr','pr_',86400,0,'mm d-1',1],\
                 ])
                 
             for vv in np.arange(len(vars)):
@@ -83,28 +83,8 @@ def main():
                 outfile = os.path.join(outdir,vars[vv,0]+'.nc')
                 if os.path.isfile(outfile):
                     os.remove(outfile)                
-                ncfile = netCDF4.Dataset(outfile, 'w', format='NETCDF4')
-                ncfile.history = 'Created on %s' % datetime.utcnow().strftime('%Y-%m-%d %H:%M')
-                ncfile.createDimension('lon', len(template_lon))
-                ncfile.createDimension('lat', len(template_lat))
-                ncfile.createDimension('time', None)
-                ncfile.createVariable('lon', 'f8', ('lon',))
-                ncfile.variables['lon'][:] = template_lon
-                ncfile.variables['lon'].units = 'degrees_east'
-                ncfile.variables['lon'].long_name = 'longitude'
-                ncfile.createVariable('lat', 'f8', ('lat',))
-                ncfile.variables['lat'][:] = template_lat
-                ncfile.variables['lat'].units = 'degrees_north'
-                ncfile.variables['lat'].long_name = 'latitude'
-                ncfile.createVariable('time', 'f8', 'time')
-                ncfile.variables['time'].units = 'days since 1979-01-02 00:00:00'
-                ncfile.variables['time'].long_name = 'time'
-                ncfile.variables['time'].calendar = 'proleptic_gregorian'
-                ncfile.createVariable(vars[vv,0], np.single, ('time', 'lat', 'lon'), zlib=True,\
-                    chunksizes=(1,450,450,), fill_value=-9999,least_significant_digit=int(vars[vv,5]))
-                ncfile.variables[vars[vv,0]].units = vars[vv,4]
-                
-                
+                ncfile = initialize_netcdf(outfile,template_lat,template_lon,vars[vv,0],vars[vv,4],int(vars[vv,5]))
+
                 #------------------------------------------------------------------------------
                 #   Precipitation and temperature
                 #------------------------------------------------------------------------------                            
@@ -230,8 +210,7 @@ def main():
                                 albedo,factor = 0.05,0.5
                             if vars[vv,0]=='es': # Soil
                                 albedo,factor = 0.15,0.75
-                            pet = potential_evaporation(data,albedo,factor,doy,lat,elev)
-                            
+                            pet = potential_evaporation(data,albedo,factor,doy,lat,elev)                            
                             
                             # Subset data and write to netCDF
                             ncfile.variables['time'][index] = (file_dates_dly[ii]-pd.to_datetime(datetime(1979, 1, 1))).total_seconds()/86400
