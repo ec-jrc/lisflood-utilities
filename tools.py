@@ -132,9 +132,9 @@ def potential_evaporation(data,albedo,factor,doy,lat,elev):
     Knijff, 2006).
     
     Van der Knijff, J., 2006. LISVAP – Evaporation Pre-Processor for the 
-    LISFLOOD Water Balance and Flood Simulation Model, User Manual. EUR 22639
-    EN, Office for Official Publications of the European Communities, 
-    Luxembourg, 31 pp.
+        LISFLOOD Water Balance and Flood Simulation Model, User Manual. EUR 
+        22639 EN, Office for Official Publications of the European 
+        Communities, Luxembourg, 31 pp.
     
     INPUTS
     data:   Dict with grids of tmean, tmin, tmax (all in degrees Celsius), 
@@ -169,8 +169,10 @@ def potential_evaporation(data,albedo,factor,doy,lat,elev):
     VapPressDef[VapPressDef<0] = 0
 
     # Evaporative demand (mm/d)
-    EA = 0.26*VapPressDef*(factor+BU*data['wind'])
-    
+    EA = {}
+    for key in factor.keys():
+        EA[key] = 0.26*VapPressDef*(factor[key]+BU*data['wind'])
+        
     # Latent heat of vaporization (MJ/kg)
     LatHeatVap = 2.501-0.002361*data['tmean']
         
@@ -249,11 +251,15 @@ def potential_evaporation(data,albedo,factor,doy,lat,elev):
     RN = StefBoltzConstant*((data['tmean']+273.15)**4)*EmNet*AdjCC    
 
     # Net absorbed radiation of reference vegetation canopy (mm/d)
-    RNA = ((1-albedo)*data['swd']*86400-RN)/(10**6*LatHeatVap)
-    RNA[RNA<0] = 0
-
+    RNA = {}
+    for key in albedo.keys():
+        RNA[key] = ((1-albedo[key])*data['swd']*86400-RN)/(10**6*LatHeatVap)
+        RNA[key] = RNA[key].clip(0,None)
+        
     # Potential reference evapotranspiration rate (mm/d)
-    pet = ((Delta*RNA)+(Psychro*EA))/(Delta+Psychro)
+    pet = {}
+    for key in albedo.keys():
+        pet[key] = ((Delta*RNA[key])+(Psychro*EA[key]))/(Delta+Psychro)
     
     # plt.imshow(pet)
     # plt.colorbar()
