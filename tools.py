@@ -14,8 +14,8 @@ from skimage.transform import downscale_local_mean
 from datetime import datetime, timedelta
 from scipy import ndimage as nd
 import rasterio
-import math
 import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
         
 def load_country_code_map(filepath,mapsize):
     
@@ -119,8 +119,9 @@ def initialize_netcdf(outfile,lat,lon,varname,units,least_significant_digit):
     ncfile.variables['time'].units = 'days since 1979-01-02 00:00:00'
     ncfile.variables['time'].long_name = 'time'
     ncfile.variables['time'].calendar = 'proleptic_gregorian'
-    ncfile.createVariable(varname, np.single, ('time', 'lat', 'lon'), zlib=True,\
-        chunksizes=(1,450,450,), fill_value=-9999,least_significant_digit=least_significant_digit)
+    ncfile.createVariable(varname, np.single, ('time', 'lat', 'lon'),zlib=True,
+        chunksizes=(1,450,450,), fill_value=-9999,
+        least_significant_digit=least_significant_digit)
     ncfile.variables[varname].units = units
     
     return ncfile
@@ -267,3 +268,17 @@ def potential_evaporation(data,albedo,factor,doy,lat,elev):
     # plt.close()
     
     return pet
+    
+def makefig(folder,title,data,vmin,vmax):
+    if os.path.isdir(folder)==False:
+        os.makedirs(folder)
+    plt.figure()
+    ax = plt.gca()
+    im = ax.imshow(data,vmin=vmin,vmax=vmax)
+    ax.set_axis_off()
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.05)   
+    plt.colorbar(im, cax=cax)
+    plt.title(title)
+    plt.savefig(os.path.join(folder,title+'.png'),dpi=300,bbox_inches='tight')
+    plt.close()
