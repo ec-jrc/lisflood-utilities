@@ -222,11 +222,11 @@ def potential_evaporation(data,albedo,factor,doy,lat,elev):
 
     # Clear-sky radiation (J/m2/d) from Allen et al. (1994; equation 37)
     Rso = Ra*(0.75+(2*10**-5*elev))
-
-    plt.imshow(Rso)
-    plt.colorbar()
-    plt.savefig('Rso.png',dpi=300)
-    plt.close()
+    
+    # plt.imshow(Rso)
+    # plt.colorbar()
+    # plt.savefig('Rso.png',dpi=300)
+    # plt.close()
     
     # Adjustment factor for cloud cover
     TransAtm_Allen = (data['swd']*86400+1)/(Rso+1)

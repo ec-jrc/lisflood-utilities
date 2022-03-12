@@ -107,35 +107,44 @@ def main():
                     continue
                 
                 # Open input files
-                print('Processing '+file)
-                t0 = time.time()
-                dset_tmean = netCDF4.Dataset(file) # K
-                dset_tmin = netCDF4.Dataset(file.replace('tas_','tasmin_')) # K
-                dset_tmax = netCDF4.Dataset(file.replace('tas_','tasmax_')) # K
-                dset_relhum = netCDF4.Dataset(file.replace('tas_','hurs_')) # kg/kg
-                dset_wind = netCDF4.Dataset(file.replace('tas_','sfcwind_')) # m/s
-                dset_pres = netCDF4.Dataset(file.replace('tas_','ps_')) # Pa
-                dset_swd = netCDF4.Dataset(file.replace('tas_','rsds_')) # W/m2
-                dset_lwd = netCDF4.Dataset(file.replace('tas_','rlds_')) # W/m2
-                dset_pr = netCDF4.Dataset(file.replace('tas_','pr_')) # mm/d
-                
+                try:
+                    print('Processing '+os.path.basename(file))
+                    t0 = time.time()
+                    dset_tmean = netCDF4.Dataset(file) # K
+                    dset_tmin = netCDF4.Dataset(file.replace('tas_','tasmin_')) # K
+                    dset_tmax = netCDF4.Dataset(file.replace('tas_','tasmax_')) # K
+                    dset_relhum = netCDF4.Dataset(file.replace('tas_','hurs_')) # kg/kg
+                    dset_wind = netCDF4.Dataset(file.replace('tas_','sfcwind_')) # m/s
+                    dset_pres = netCDF4.Dataset(file.replace('tas_','ps_')) # Pa
+                    dset_swd = netCDF4.Dataset(file.replace('tas_','rsds_')) # W/m2
+                    dset_lwd = netCDF4.Dataset(file.replace('tas_','rlds_')) # W/m2
+                    dset_pr = netCDF4.Dataset(file.replace('tas_','pr_')) # mm/d
+                except:
+                    print('PROBLEM OPENING INPUT FILE!!! HALTING!!!')
+                    pdb.set_trace()
+                    
                 # Loop over days of input file
-                for ii in np.arange(len(file_dates_dly)):
+                for ii in np.arange(0,len(file_dates_dly),100):
                     if file_dates_dly[ii] not in out_dates_dly:
                         continue
-                    
+                    print('Processing '+os.path.basename(file)+' ii='+str(ii))
+                        
                     # Read data from input files
                     data = {}
                     index = np.where(out_dates_dly==file_dates_dly[ii])[0][0]                            
-                    data['tmean'] = np.array(dset_tmean.variables['tas'][ii,:,:],dtype=np.single)-273.15 # degrees C
-                    data['tmin'] = np.array(dset_tmin.variables['tasmin'][ii,:,:],dtype=np.single)-273.15 # degrees C
-                    data['tmax'] = np.array(dset_tmax.variables['tasmax'][ii,:,:],dtype=np.single)-273.15 # degrees C
-                    data['relhum'] = np.array(dset_relhum.variables['hurs'][ii,:,:],dtype=np.single) # %
-                    data['wind'] = np.array(dset_wind.variables['sfcwind'][ii,:,:],dtype=np.single)*0.75 # m/s (factor 0.75 to translate from 10-m to 2-m height)
-                    data['pres'] = np.array(dset_pres.variables['ps'][ii,:,:],dtype=np.single)/100 # mbar
-                    data['swd'] = np.array(dset_swd.variables['rsds'][ii,:,:],dtype=np.single) # W/m2
-                    data['lwd'] = np.array(dset_lwd.variables['rlds'][ii,:,:],dtype=np.single) # W/m2
-                    data['pr'] = np.array(dset_pr.variables['pr'][ii,:,:],dtype=np.single)*86400 # mm/d
+                    try:
+                        data['tmean'] = np.array(dset_tmean.variables['tas'][ii,:,:],dtype=np.single)-273.15 # degrees C
+                        data['tmin'] = np.array(dset_tmin.variables['tasmin'][ii,:,:],dtype=np.single)-273.15 # degrees C
+                        data['tmax'] = np.array(dset_tmax.variables['tasmax'][ii,:,:],dtype=np.single)-273.15 # degrees C
+                        data['relhum'] = np.array(dset_relhum.variables['hurs'][ii,:,:],dtype=np.single) # %
+                        data['wind'] = np.array(dset_wind.variables['sfcwind'][ii,:,:],dtype=np.single)*0.75 # m/s (factor 0.75 to translate from 10-m to 2-m height)
+                        data['pres'] = np.array(dset_pres.variables['ps'][ii,:,:],dtype=np.single)/100 # mbar
+                        data['swd'] = np.array(dset_swd.variables['rsds'][ii,:,:],dtype=np.single) # W/m2
+                        data['lwd'] = np.array(dset_lwd.variables['rlds'][ii,:,:],dtype=np.single) # W/m2
+                        data['pr'] = np.array(dset_pr.variables['pr'][ii,:,:],dtype=np.single)*86400 # mm/d
+                    except:
+                        print('PROBLEM READING DATA FROM INPUT FILE!!! HALTING!!!')
+                        pdb.set_trace()
                     
                     # Switch eastern and western hemispheres
                     #for key in data.keys():
@@ -165,17 +174,22 @@ def main():
                     # Write data to output netCDFs
                     time_value = (file_dates_dly[ii]-pd.to_datetime(datetime(1979, 1, 1))).total_seconds()/86400                    
                     index = np.where(out_dates_dly==file_dates_dly[ii])[0][0]
-                    ncfile_pr.variables['time'][index] = time_value
-                    ncfile_pr.variables['pr'][index,:,:] = data['pr']
-                    ncfile_ta.variables['time'][index] = time_value
-                    ncfile_ta.variables['ta'][index,:,:] = data['tmean']
-                    ncfile_et.variables['time'][index] = time_value
-                    ncfile_et.variables['et'][index,:,:] = pet['et']
-                    ncfile_ew.variables['time'][index] = time_value
-                    ncfile_ew.variables['ew'][index,:,:] = pet['ew']
-                    ncfile_es.variables['time'][index] = time_value
-                    ncfile_es.variables['es'][index,:,:] = pet['es']
-                    
+                    try:
+                        ncfile_pr.variables['time'][index] = time_value
+                        ncfile_pr.variables['pr'][index,:,:] = data['pr']
+                        ncfile_ta.variables['time'][index] = time_value
+                        ncfile_ta.variables['ta'][index,:,:] = data['tmean']
+                        ncfile_et.variables['time'][index] = time_value
+                        ncfile_et.variables['et'][index,:,:] = pet['et']
+                        ncfile_ew.variables['time'][index] = time_value
+                        ncfile_ew.variables['ew'][index,:,:] = pet['ew']
+                        ncfile_es.variables['time'][index] = time_value
+                        ncfile_es.variables['es'][index,:,:] = pet['es']
+                    except:
+                        print('PROBLEM WRITING DATA TO OUTPUT FILE!!! HALTING!!!')
+                        pdb.set_trace()
+                        
+                    '''
                     # Generate figures to verify output
                     if ii==0:
                         makefig('figures','et',pet['et'],0,12)
@@ -184,6 +198,7 @@ def main():
                         for key in data.keys():
                             makefig('figures',key,data[key],np.min(data[key]),np.max(data[key]))
                         makefig('figures','elev_template',elev_template,0,6000)
+                    '''
                     
                 print("Time elapsed is "+str(time.time()-t0)+" sec")
             
