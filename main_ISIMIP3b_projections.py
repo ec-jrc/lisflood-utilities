@@ -124,7 +124,8 @@ def main():
                     pdb.set_trace()
                     
                 # Loop over days of input file
-                for ii in np.arange(0,len(file_dates_dly),100):
+                #for ii in np.append(np.arange(0,len(file_dates_dly),100),len(file_dates_dly)-1):
+                for ii in np.arange(len(file_dates_dly)):
                     if file_dates_dly[ii] not in out_dates_dly:
                         continue
                     print('Processing '+os.path.basename(file)+' ii='+str(ii))
