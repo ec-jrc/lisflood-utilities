@@ -108,8 +108,7 @@ def main():
                 
                 # Open input files
                 try:
-                    print('Processing '+os.path.basename(file))
-                    t0 = time.time()
+                    print('Processing '+os.path.basename(file))                    
                     dset_tmean = netCDF4.Dataset(file) # K
                     dset_tmin = netCDF4.Dataset(file.replace('tas_','tasmin_')) # K
                     dset_tmax = netCDF4.Dataset(file.replace('tas_','tasmax_')) # K
@@ -129,6 +128,7 @@ def main():
                     if file_dates_dly[ii] not in out_dates_dly:
                         continue
                     print('Processing '+os.path.basename(file)+' ii='+str(ii))
+                    t0 = time.time()
                         
                     # Read data from input files
                     data = {}
@@ -201,14 +201,18 @@ def main():
                         makefig('figures','elev_template',elev_template,0,6000)
                     '''
                     
-                print("Time elapsed is "+str(time.time()-t0)+" sec")
+                    print("Time elapsed is "+str(time.time()-t0)+" sec")
             
             # Close output netCDFs
-            ncfile_pr.close()
-            ncfile_ta.close()
-            ncfile_et.close()
-            ncfile_ew.close()
-            ncfile_es.close()
-            
+            try:
+                ncfile_pr.close()
+                ncfile_ta.close()
+                ncfile_et.close()
+                ncfile_ew.close()
+                ncfile_es.close()
+            except:
+                print('PROBLEM CLOSING OUTPUT FILE!!! HALTING!!!')
+                pdb.set_trace()            
+                
 if __name__ == '__main__':
     main()
