@@ -14,6 +14,7 @@ from skimage.transform import resize
 import matplotlib.pyplot as plt
 import rasterio
 import shutil
+import traceback
 
 # Load configuration file 
 config = load_config(sys.argv[1])
@@ -45,7 +46,7 @@ def main():
     tmp = imresize_mean(elev_global,(360,720))
     tmp = resize(tmp,mapsize_global,order=1,mode='edge',anti_aliasing=False)
     elev_delta = elev_global-tmp
-    temp_delta = -6.5*elev_delta/1000
+    temp_delta = -6.5*elev_delta/1000 # Simple 6.5 degrees C/km lapse rate
     pres_delta = 1013*((((293-0.0065*elev_global)/293)**5.26)-(((293-0.0065*tmp)/293)**5.26)) # Allen et al. (1994) equation 7
     lat_global = np.repeat(np.resize(np.arange(90-template_res/2,-90-template_res/2,-template_res),(1800,1)),mapsize_global[1],axis=1)
     lat_template = lat_global[row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)]
@@ -107,8 +108,8 @@ def main():
                     continue
                 
                 # Open input files
-                try:
-                    print('Processing '+os.path.basename(file))                    
+                print('Processing '+os.path.basename(file))
+                try:                    
                     dset_tmean = netCDF4.Dataset(file) # K
                     dset_tmin = netCDF4.Dataset(file.replace('tas_','tasmin_')) # K
                     dset_tmax = netCDF4.Dataset(file.replace('tas_','tasmax_')) # K
@@ -118,7 +119,9 @@ def main():
                     dset_swd = netCDF4.Dataset(file.replace('tas_','rsds_')) # W/m2
                     dset_lwd = netCDF4.Dataset(file.replace('tas_','rlds_')) # W/m2
                     dset_pr = netCDF4.Dataset(file.replace('tas_','pr_')) # mm/d
-                except:
+                except Exception as e:
+                    print("type error: " + str(e))
+                    print(traceback.format_exc())
                     print('PROBLEM OPENING INPUT FILE!!! HALTING!!!')
                     pdb.set_trace()
                     
@@ -127,7 +130,7 @@ def main():
                 for ii in np.arange(len(file_dates_dly)):
                     if file_dates_dly[ii] not in out_dates_dly:
                         continue
-                    print('Processing '+os.path.basename(file)+' ii='+str(ii))
+                    print('Processing '+os.path.basename(file)+', ii: '+str(ii)+', time stamp: '+datetime.now().strftime("%d/%m/%Y, %H:%M:%S")+')')
                     t0 = time.time()
                         
                     # Read data from input files
@@ -143,7 +146,9 @@ def main():
                         data['swd'] = np.array(dset_swd.variables['rsds'][ii,:,:],dtype=np.single) # W/m2
                         data['lwd'] = np.array(dset_lwd.variables['rlds'][ii,:,:],dtype=np.single) # W/m2
                         data['pr'] = np.array(dset_pr.variables['pr'][ii,:,:],dtype=np.single)*86400 # mm/d
-                    except:
+                    except Exception as e:
+                        print("type error: " + str(e))
+                        print(traceback.format_exc())
                         print('PROBLEM READING DATA FROM INPUT FILE!!! HALTING!!!')
                         pdb.set_trace()
                     
@@ -186,7 +191,9 @@ def main():
                         ncfile_ew.variables['ew'][index,:,:] = pet['ew']
                         ncfile_es.variables['time'][index] = time_value
                         ncfile_es.variables['es'][index,:,:] = pet['es']
-                    except:
+                    except Exception as e:
+                        print("type error: " + str(e))
+                        print(traceback.format_exc())
                         print('PROBLEM WRITING DATA TO OUTPUT FILE!!! HALTING!!!')
                         pdb.set_trace()
                         
@@ -210,7 +217,9 @@ def main():
                 ncfile_et.close()
                 ncfile_ew.close()
                 ncfile_es.close()
-            except:
+            except Exception as e:
+                print("type error: " + str(e))
+                print(traceback.format_exc())
                 print('PROBLEM CLOSING OUTPUT FILE!!! HALTING!!!')
                 pdb.set_trace()            
                 
