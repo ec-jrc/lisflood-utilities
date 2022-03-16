@@ -70,9 +70,10 @@ def main():
                 year_start,year_end = 2015,2100
             out_dates_dly = pd.date_range(start=datetime(year_start,1,1), end=datetime(year_end+1,1,1)-pd.Timedelta(days=1), freq='D')
 
-            # Check if output already exists
-            outdir = os.path.join(config['output_folder'],scenario,model)
-            if (config['delete_existing']==False) & (os.path.isfile(os.path.join(outdir,'ta.nc'))==True):
+            # Check if output already exists in scratch folder or output folder
+            scratchoutdir = os.path.join(config['scratch_folder'],scenario,model)
+            finaloutdir = os.path.join(config['output_folder'],scenario,model)            
+            if (config['delete_existing']==False) & ((os.path.isfile(os.path.join(scratchoutdir,'ta.nc'))==True) | (os.path.isfile(os.path.join(finaloutdir,'ta.nc'))==True)):
                 print('Already processed, skipping this model')
                 continue
                 
@@ -88,14 +89,14 @@ def main():
                 print(nfiles)
                 continue
                 
-            # Initialize output netCDFs            
-            if os.path.isdir(outdir)==False:
-                os.makedirs(outdir)
-            ncfile_ta = initialize_netcdf(os.path.join(outdir,'ta.nc'),template_lat,template_lon,'ta','degree_Celsius',1)
-            ncfile_pr = initialize_netcdf(os.path.join(outdir,'pr.nc'),template_lat,template_lon,'pr','mm d-1',1)
-            ncfile_et = initialize_netcdf(os.path.join(outdir,'et.nc'),template_lat,template_lon,'et','mm d-1',1)
-            ncfile_ew = initialize_netcdf(os.path.join(outdir,'ew.nc'),template_lat,template_lon,'ew','mm d-1',1)
-            ncfile_es = initialize_netcdf(os.path.join(outdir,'es.nc'),template_lat,template_lon,'es','mm d-1',1)
+            # Initialize output netCDFs
+            if os.path.isdir(scratchoutdir)==False:
+                os.makedirs(scratchoutdir)
+            ncfile_ta = initialize_netcdf(os.path.join(scratchoutdir,'ta.nc'),template_lat,template_lon,'ta','degree_Celsius',1)
+            ncfile_pr = initialize_netcdf(os.path.join(scratchoutdir,'pr.nc'),template_lat,template_lon,'pr','mm d-1',1)
+            ncfile_et = initialize_netcdf(os.path.join(scratchoutdir,'et.nc'),template_lat,template_lon,'et','mm d-1',1)
+            ncfile_ew = initialize_netcdf(os.path.join(scratchoutdir,'ew.nc'),template_lat,template_lon,'ew','mm d-1',1)
+            ncfile_es = initialize_netcdf(os.path.join(scratchoutdir,'es.nc'),template_lat,template_lon,'es','mm d-1',1)
 
             # Loop over input files (MFDataset doesn't work properly)
             files = glob.glob(os.path.join(config['meteo_data_folder'],'*'+model+'*'+scenario+'*_tas_*.nc'))
@@ -109,48 +110,36 @@ def main():
                 
                 # Open input files
                 print('Processing '+os.path.basename(file))
-                try:                    
-                    dset_tmean = netCDF4.Dataset(file) # K
-                    dset_tmin = netCDF4.Dataset(file.replace('tas_','tasmin_')) # K
-                    dset_tmax = netCDF4.Dataset(file.replace('tas_','tasmax_')) # K
-                    dset_relhum = netCDF4.Dataset(file.replace('tas_','hurs_')) # kg/kg
-                    dset_wind = netCDF4.Dataset(file.replace('tas_','sfcwind_')) # m/s
-                    dset_pres = netCDF4.Dataset(file.replace('tas_','ps_')) # Pa
-                    dset_swd = netCDF4.Dataset(file.replace('tas_','rsds_')) # W/m2
-                    dset_lwd = netCDF4.Dataset(file.replace('tas_','rlds_')) # W/m2
-                    dset_pr = netCDF4.Dataset(file.replace('tas_','pr_')) # mm/d
-                except Exception as e:
-                    print("type error: " + str(e))
-                    print(traceback.format_exc())
-                    print('PROBLEM OPENING INPUT FILE!!! HALTING!!!')
-                    pdb.set_trace()
+                t0 = time.time()
+                dset_tmean = netCDF4.Dataset(file,diskless=True) # K
+                dset_tmin = netCDF4.Dataset(file.replace('tas_','tasmin_'),diskless=True) # K
+                dset_tmax = netCDF4.Dataset(file.replace('tas_','tasmax_'),diskless=True) # K
+                dset_relhum = netCDF4.Dataset(file.replace('tas_','hurs_'),diskless=True) # kg/kg
+                dset_wind = netCDF4.Dataset(file.replace('tas_','sfcwind_'),diskless=True) # m/s
+                dset_pres = netCDF4.Dataset(file.replace('tas_','ps_'),diskless=True) # Pa
+                dset_swd = netCDF4.Dataset(file.replace('tas_','rsds_'),diskless=True) # W/m2
+                dset_lwd = netCDF4.Dataset(file.replace('tas_','rlds_'),diskless=True) # W/m2
+                dset_pr = netCDF4.Dataset(file.replace('tas_','pr_'),diskless=True) # mm/d
                     
                 # Loop over days of input file
-                #for ii in np.append(np.arange(0,len(file_dates_dly),100),len(file_dates_dly)-1):
-                for ii in np.arange(len(file_dates_dly)):
+                #for ii in np.arange(len(file_dates_dly)):
+                for ii in np.arange(0,len(file_dates_dly),1000):
                     if file_dates_dly[ii] not in out_dates_dly:
                         continue
-                    print('Processing '+os.path.basename(file)+', ii: '+str(ii)+', time stamp: '+datetime.now().strftime("%d/%m/%Y, %H:%M:%S")+')')
-                    t0 = time.time()
+                    #print('Processing '+os.path.basename(file)+', ii: '+str(ii)+', time stamp: '+datetime.now().strftime("%d/%m/%Y, %H:%M:%S")+')')                    
                         
                     # Read data from input files
                     data = {}
                     index = np.where(out_dates_dly==file_dates_dly[ii])[0][0]                            
-                    try:
-                        data['tmean'] = np.array(dset_tmean.variables['tas'][ii,:,:],dtype=np.single)-273.15 # degrees C
-                        data['tmin'] = np.array(dset_tmin.variables['tasmin'][ii,:,:],dtype=np.single)-273.15 # degrees C
-                        data['tmax'] = np.array(dset_tmax.variables['tasmax'][ii,:,:],dtype=np.single)-273.15 # degrees C
-                        data['relhum'] = np.array(dset_relhum.variables['hurs'][ii,:,:],dtype=np.single) # %
-                        data['wind'] = np.array(dset_wind.variables['sfcwind'][ii,:,:],dtype=np.single)*0.75 # m/s (factor 0.75 to translate from 10-m to 2-m height)
-                        data['pres'] = np.array(dset_pres.variables['ps'][ii,:,:],dtype=np.single)/100 # mbar
-                        data['swd'] = np.array(dset_swd.variables['rsds'][ii,:,:],dtype=np.single) # W/m2
-                        data['lwd'] = np.array(dset_lwd.variables['rlds'][ii,:,:],dtype=np.single) # W/m2
-                        data['pr'] = np.array(dset_pr.variables['pr'][ii,:,:],dtype=np.single)*86400 # mm/d
-                    except Exception as e:
-                        print("type error: " + str(e))
-                        print(traceback.format_exc())
-                        print('PROBLEM READING DATA FROM INPUT FILE!!! HALTING!!!')
-                        pdb.set_trace()
+                    data['tmean'] = np.array(dset_tmean.variables['tas'][ii,:,:],dtype=np.single)-273.15 # degrees C
+                    data['tmin'] = np.array(dset_tmin.variables['tasmin'][ii,:,:],dtype=np.single)-273.15 # degrees C
+                    data['tmax'] = np.array(dset_tmax.variables['tasmax'][ii,:,:],dtype=np.single)-273.15 # degrees C
+                    data['relhum'] = np.array(dset_relhum.variables['hurs'][ii,:,:],dtype=np.single) # %
+                    data['wind'] = np.array(dset_wind.variables['sfcwind'][ii,:,:],dtype=np.single)*0.75 # m/s (factor 0.75 to translate from 10-m to 2-m height)
+                    data['pres'] = np.array(dset_pres.variables['ps'][ii,:,:],dtype=np.single)/100 # mbar
+                    data['swd'] = np.array(dset_swd.variables['rsds'][ii,:,:],dtype=np.single) # W/m2
+                    data['lwd'] = np.array(dset_lwd.variables['rlds'][ii,:,:],dtype=np.single) # W/m2
+                    data['pr'] = np.array(dset_pr.variables['pr'][ii,:,:],dtype=np.single)*86400 # mm/d
                     
                     # Switch eastern and western hemispheres
                     #for key in data.keys():
@@ -180,22 +169,16 @@ def main():
                     # Write data to output netCDFs
                     time_value = (file_dates_dly[ii]-pd.to_datetime(datetime(1979, 1, 1))).total_seconds()/86400                    
                     index = np.where(out_dates_dly==file_dates_dly[ii])[0][0]
-                    try:
-                        ncfile_pr.variables['time'][index] = time_value
-                        ncfile_pr.variables['pr'][index,:,:] = data['pr']
-                        ncfile_ta.variables['time'][index] = time_value
-                        ncfile_ta.variables['ta'][index,:,:] = data['tmean']
-                        ncfile_et.variables['time'][index] = time_value
-                        ncfile_et.variables['et'][index,:,:] = pet['et']
-                        ncfile_ew.variables['time'][index] = time_value
-                        ncfile_ew.variables['ew'][index,:,:] = pet['ew']
-                        ncfile_es.variables['time'][index] = time_value
-                        ncfile_es.variables['es'][index,:,:] = pet['es']
-                    except Exception as e:
-                        print("type error: " + str(e))
-                        print(traceback.format_exc())
-                        print('PROBLEM WRITING DATA TO OUTPUT FILE!!! HALTING!!!')
-                        pdb.set_trace()
+                    ncfile_pr.variables['time'][index] = time_value
+                    ncfile_pr.variables['pr'][index,:,:] = data['pr']
+                    ncfile_ta.variables['time'][index] = time_value
+                    ncfile_ta.variables['ta'][index,:,:] = data['tmean']
+                    ncfile_et.variables['time'][index] = time_value
+                    ncfile_et.variables['et'][index,:,:] = pet['et']
+                    ncfile_ew.variables['time'][index] = time_value
+                    ncfile_ew.variables['ew'][index,:,:] = pet['ew']
+                    ncfile_es.variables['time'][index] = time_value
+                    ncfile_es.variables['es'][index,:,:] = pet['es']
                         
                     '''
                     # Generate figures to verify output
@@ -208,20 +191,24 @@ def main():
                         makefig('figures','elev_template',elev_template,0,6000)
                     '''
                     
-                    print("Time elapsed is "+str(time.time()-t0)+" sec")
+                print("Time elapsed is "+str(time.time()-t0)+" sec")
             
             # Close output netCDFs
-            try:
-                ncfile_pr.close()
-                ncfile_ta.close()
-                ncfile_et.close()
-                ncfile_ew.close()
-                ncfile_es.close()
-            except Exception as e:
-                print("type error: " + str(e))
-                print(traceback.format_exc())
-                print('PROBLEM CLOSING OUTPUT FILE!!! HALTING!!!')
-                pdb.set_trace()            
-                
+            ncfile_pr.close()
+            ncfile_ta.close()
+            ncfile_et.close()
+            ncfile_ew.close()
+            ncfile_es.close()
+
+            # Move output from scratch folder to output folder
+            print('-------------------------------------------------------------------------------')
+            if os.path.isdir(finaloutdir)==False:
+                os.makedirs(finaloutdir)
+            for file in glob.glob(os.path.join(scratchoutdir,'*')):
+                t0 = time.time()
+                print('Moving '+os.path.basename(file)+' ('+str(round(os.path.getsize(file)/10**9))+' GB) to '+finaloutdir)
+                shutil.copy(file, finaloutdir)
+                print("Time elapsed is "+str(time.time()-t0)+" sec")
+                            
 if __name__ == '__main__':
     main()
