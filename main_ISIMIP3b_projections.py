@@ -122,8 +122,7 @@ def main():
                 dset_pr = netCDF4.Dataset(file.replace('tas_','pr_'),diskless=True) # mm/d
                     
                 # Loop over days of input file
-                #for ii in np.arange(len(file_dates_dly)):
-                for ii in np.arange(0,len(file_dates_dly),1000):
+                for ii in np.arange(len(file_dates_dly)):
                     if file_dates_dly[ii] not in out_dates_dly:
                         continue
                     #print('Processing '+os.path.basename(file)+', ii: '+str(ii)+', time stamp: '+datetime.now().strftime("%d/%m/%Y, %H:%M:%S")+')')                    
