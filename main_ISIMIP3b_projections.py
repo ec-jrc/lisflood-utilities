@@ -89,7 +89,7 @@ def main():
                 print(nfiles)
                 continue
                 
-            # Initialize output netCDFs
+            # Initialize output files
             if os.path.isdir(scratchoutdir)==False:
                 os.makedirs(scratchoutdir)
             ncfile_ta = initialize_netcdf(os.path.join(scratchoutdir,'ta.nc'),template_lat,template_lon,'ta','degree_Celsius',1)
@@ -179,7 +179,6 @@ def main():
                     ncfile_es.variables['time'][index] = time_value
                     ncfile_es.variables['es'][index,:,:] = pet['es']
                         
-                    '''
                     # Generate figures to verify output
                     if ii==0:
                         makefig('figures','et',pet['et'],0,12)
@@ -188,11 +187,21 @@ def main():
                         for key in data.keys():
                             makefig('figures',key,data[key],np.min(data[key]),np.max(data[key]))
                         makefig('figures','elev_template',elev_template,0,6000)
-                    '''
-                    
+                
+                # Close input files
+                dset_tmean.close()
+                dset_tmin.close()
+                dset_tmax.close()
+                dset_relhum.close()
+                dset_wind.close()
+                dset_pres.close()
+                dset_swd.close()
+                dset_lwd.close()
+                dset_pr.close()
+                
                 print("Time elapsed is "+str(time.time()-t0)+" sec")
             
-            # Close output netCDFs
+            # Close output files
             ncfile_pr.close()
             ncfile_ta.close()
             ncfile_et.close()

@@ -177,7 +177,7 @@ def potential_evaporation(data,albedo,factor,doy,lat,elev):
     # Latent heat of vaporization (MJ/kg)
     LatHeatVap = 2.501-0.002361*data['tmean']
         
-    # Allen et al. (1994) equation 8 (mbar/degrees C)
+    # Allen et al. (1998) equation 8 (mbar/degrees C)
     Psychro = 10*(1.013*10**-3*data['pres']/10)/(0.622*LatHeatVap)
     
     # Slope of saturated vapour pressure curve (mbar/degrees C)
@@ -220,7 +220,7 @@ def potential_evaporation(data,albedo,factor,doy,lat,elev):
     #   Net absorbed radiation
     #--------------------------------------------------------------------------
 
-    # Clear-sky radiation (J/m2/d) from Allen et al. (1994; equation 37)
+    # Clear-sky radiation (J/m2/d) from Allen et al. (1998; equation 37)
     Rso = Ra*(0.75+(2*10**-5*elev))
     
     # plt.imshow(Rso)
