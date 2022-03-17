@@ -11,17 +11,18 @@ The module consists of several similar scripts tailored to different input meteo
 
 # Data
 
-All scripts require GMTED2010 1-km mean surface elevation data which can be downloaded from the [EarthEnv website](
+### GMTED2010 elevation data
+
+GMTED2010 1-km mean surface elevation data can be downloaded from the [EarthEnv website](
 https://data.earthenv.org/topography/elevation_1KMmn_GMTEDmn.tif). Put `elevation_1KMmn_GMTEDmn.tif` in `gmted2010_folder` (specified in the configuration file).
 
-### main_ISIMIP3b_projections.py
+### ISIMIP3b projections
 
-Requires ISIMIP daily meteorological forcing data for the historical period and all climate change scenarios. Download [this](https://data.isimip.org/api/v1/datasets/filelist/?page=1&climate_scenario=ssp119&climate_scenario=ssp126&climate_scenario=ssp245&climate_scenario=ssp370&climate_scenario=ssp460&climate_scenario=ssp534-over&climate_scenario=ssp585&climate_scenario=historical&query=&ISIMIP3b=time_step&simulation_round=ISIMIP3b&time_step=daily) file list and download the data with `wget -c -i file-list.txt`. Put the data in `isimip3b_folder`.
+ISIMIP3b daily meteorological forcing data for the historical period and all climate change scenarios. Download [this](https://data.isimip.org/api/v1/datasets/filelist/?page=1&climate_scenario=ssp119&climate_scenario=ssp126&climate_scenario=ssp245&climate_scenario=ssp370&climate_scenario=ssp460&climate_scenario=ssp534-over&climate_scenario=ssp585&climate_scenario=historical&query=&ISIMIP3b=time_step&simulation_round=ISIMIP3b&time_step=daily) file list and download the data with `wget -c -i file-list.txt`. Put the data in `isimip3b_folder`.
 
+### MSWX and MSWEP reanalysis data
 
-### main_MSWX_MSWEP_reanalysis.py
-
-Requires [MSWX](www.gloh2o.org/mswx) and [MSWEP](www.gloh2o.org/mswep) daily meteorological data. Follow the download instructions on the respective web pages. Use the following filter file for rclone:
+[MSWX](http://www.gloh2o.org/mswx) and [MSWEP](http://www.gloh2o.org/mswep) daily meteorological data. Follow the download instructions on the respective web pages. Use the following filter file for rclone:
 ```
 + MSWX_V100/Past/**/Daily/*.nc
 + MSWX_V100/Past/**/Monthly/*.nc
@@ -33,9 +34,9 @@ Requires [MSWX](www.gloh2o.org/mswx) and [MSWEP](www.gloh2o.org/mswep) daily met
 ```
 Put the data in `mswx_folder` and `mswep_folder`, respectively. 
 
-### main_W5E5_reanalysis.py
+### W5E5 reanalysis data
 
-Requires W5E5
+W5E5
 
 # System requirements
 
