@@ -1,14 +1,9 @@
 # Overview
 
-Module to generate daily meteorological input files for the [LISFLOOD](https://github.com/ec-jrc/lisflood-code) hydrological model. The following variables are created:
-1. precipitation (`pr.nc`), 
-2. temperature (`ta.nc`), 
-3. reference potential evaporation (`et.nc`), 
-4. open water potential evaporation (`ew.nc`), and 
-5. bare soil potential evaporation (`es.nc`). 
+Module to generate daily meteorological input files for the [LISFLOOD](https://github.com/ec-jrc/lisflood-code) hydrological model. The following variables are created: 1) precipitation (`pr.nc`), 2) temperature (`ta.nc`), 3) reference potential evaporation (`et.nc`), 4) open water potential evaporation (`ew.nc`), and 5) bare soil potential evaporation (`es.nc`). 
 
-The module consists of several similar scripts tailored to different meteorological datasets such as ISIMIP3b and W5E5. The following should be kept in mind when using the scripts:
-1. The scripts calculate potential evaporation directly from the input data following the LISVAP approach. Separately running the [LISVAP](https://github.com/ec-jrc/lisflood-lisvap) module is, therefore, no longer necessary. 
+The module consists of several similar scripts tailored to different input meteorological datasets, such as ISIMIP3b, W5E5, and MSWEP. The following should be kept in mind when using the scripts:
+1. The scripts calculate potential evaporation directly from the input data following the [LISVAP](https://github.com/ec-jrc/lisflood-lisvap) approach. Separately running the LISVAP module is, therefore, no longer necessary. 
 2. The data are resampled and subsetted to the resolution and area of the template map (located at `templatemap_path` specified in the configuration file).
 3. Air temperature and air pressure are downscaled to the template map resolution (up to 1 km using a simple delta lapse rate correction). 
 4. The output is written to the `scratch_folder` and moved to the `output_folder` once the processing is done. The `scratch_folder` should point to a storage location dedicated to a lot of file accesses.
@@ -16,7 +11,7 @@ The module consists of several similar scripts tailored to different meteorologi
 
 # Data
 
-##`main_ISIMIP3b_projections.py`
+## `main_ISIMIP3b_projections.py`
 Requires ISIMIP daily meteorological forcing data for the historical period and all climate change scenarios. Download [this](https://data.isimip.org/api/v1/datasets/filelist/?page=1&climate_scenario=ssp119&climate_scenario=ssp126&climate_scenario=ssp245&climate_scenario=ssp370&climate_scenario=ssp460&climate_scenario=ssp534-over&climate_scenario=ssp585&climate_scenario=historical&query=&ISIMIP3b=time_step&simulation_round=ISIMIP3b&time_step=daily) file list and download the data with `wget -c -i isimip3b.txt`. Put the data in `isimip3b_folder`.
 
 
