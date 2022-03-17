@@ -1,6 +1,6 @@
 # Overview
 
-Module to generate daily meteorological input files for the [LISFLOOD](https://github.com/ec-jrc/lisflood-code) hydrological model. The following variables are created: 1) precipitation (`pr.nc`), 2) temperature (`ta.nc`), 3) reference potential evaporation (`et.nc`), 4) open water potential evaporation (`ew.nc`), and 5) bare soil potential evaporation (`es.nc`). 
+Module to generate daily meteorological input files for the [LISFLOOD](https://github.com/ec-jrc/lisflood-code) hydrological model. The following variables are created: precipitation (`pr.nc`), 2-m air temperature (`ta.nc`), reference potential evaporation (`et.nc`), open water potential evaporation (`ew.nc`), and bare soil potential evaporation (`es.nc`). 
 
 The module consists of several similar scripts tailored to different input meteorological datasets, such as ISIMIP3b, W5E5, and MSWEP. The following should be kept in mind when using the scripts:
 1. The scripts calculate potential evaporation directly from the input data following the [LISVAP](https://github.com/ec-jrc/lisflood-lisvap) approach. Separately running the LISVAP module is, therefore, no longer necessary. 
@@ -11,15 +11,15 @@ The module consists of several similar scripts tailored to different input meteo
 
 # Data
 
-All scripts require GMTED2010 1-km mean surface elevation data from the [EarthEnv website](
-https://data.earthenv.org/topography/elevation_1KMmn_GMTEDmn.tif). Put `elevation_1KMmn_GMTEDmn.tif` in the `gmted2010_folder` specified in the configuration file.
+All scripts require GMTED2010 1-km mean surface elevation data which can be downloaded from the [EarthEnv website](
+https://data.earthenv.org/topography/elevation_1KMmn_GMTEDmn.tif). Put `elevation_1KMmn_GMTEDmn.tif` in `gmted2010_folder` (specified in the configuration file).
 
-## main_ISIMIP3b_projections.py
+### main_ISIMIP3b_projections.py
 
-Requires ISIMIP daily meteorological forcing data for the historical period and all climate change scenarios. Download [this](https://data.isimip.org/api/v1/datasets/filelist/?page=1&climate_scenario=ssp119&climate_scenario=ssp126&climate_scenario=ssp245&climate_scenario=ssp370&climate_scenario=ssp460&climate_scenario=ssp534-over&climate_scenario=ssp585&climate_scenario=historical&query=&ISIMIP3b=time_step&simulation_round=ISIMIP3b&time_step=daily) file list and download the data with `wget -c -i isimip3b.txt`. Put the data in `isimip3b_folder`.
+Requires ISIMIP daily meteorological forcing data for the historical period and all climate change scenarios. Download [this](https://data.isimip.org/api/v1/datasets/filelist/?page=1&climate_scenario=ssp119&climate_scenario=ssp126&climate_scenario=ssp245&climate_scenario=ssp370&climate_scenario=ssp460&climate_scenario=ssp534-over&climate_scenario=ssp585&climate_scenario=historical&query=&ISIMIP3b=time_step&simulation_round=ISIMIP3b&time_step=daily) file list and download the data with `wget -c -i file-list.txt`. Put the data in `isimip3b_folder`.
 
 
-## main_MSWX_MSWEP_reanalysis.py
+### main_MSWX_MSWEP_reanalysis.py
 
 Requires [MSWX](www.gloh2o.org/mswx) and [MSWEP](www.gloh2o.org/mswep) daily meteorological data. Follow the download instructions on the respective web pages. Use the following filter file for rclone:
 ```
@@ -33,13 +33,13 @@ Requires [MSWX](www.gloh2o.org/mswx) and [MSWEP](www.gloh2o.org/mswep) daily met
 ```
 Put the data in `mswx_folder` and `mswep_folder`, respectively. 
 
-## main_W5E5_reanalysis.py
+### main_W5E5_reanalysis.py
 
 Requires W5E5
 
 # System requirements
 
-The script can be run on a normal desktop PC (Windows and Linux) with 16 GB or more of physical memory.
+The scripts can be run on a normal desktop PC (Windows and Linux) with 32 GB or more of physical memory.
 
 # Instructions
 
