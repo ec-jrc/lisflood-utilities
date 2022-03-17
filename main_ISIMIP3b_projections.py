@@ -14,7 +14,6 @@ from skimage.transform import resize
 import matplotlib.pyplot as plt
 import rasterio
 import shutil
-import traceback
 
 # Load configuration file 
 config = load_config(sys.argv[1])

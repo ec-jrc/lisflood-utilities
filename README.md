@@ -11,11 +11,17 @@ The module consists of several similar scripts tailored to different input meteo
 
 # Data
 
-## `main_ISIMIP3b_projections.py`
+All scripts require GMTED2010 1-km mean surface elevation data from the [EarthEnv website](
+https://data.earthenv.org/topography/elevation_1KMmn_GMTEDmn.tif). Put `elevation_1KMmn_GMTEDmn.tif` in the `gmted2010_folder` specified in the configuration file.
+
+## main_ISIMIP3b_projections.py
+
 Requires ISIMIP daily meteorological forcing data for the historical period and all climate change scenarios. Download [this](https://data.isimip.org/api/v1/datasets/filelist/?page=1&climate_scenario=ssp119&climate_scenario=ssp126&climate_scenario=ssp245&climate_scenario=ssp370&climate_scenario=ssp460&climate_scenario=ssp534-over&climate_scenario=ssp585&climate_scenario=historical&query=&ISIMIP3b=time_step&simulation_round=ISIMIP3b&time_step=daily) file list and download the data with `wget -c -i isimip3b.txt`. Put the data in `isimip3b_folder`.
 
 
-`main_MSWX_MSWEP_reanalysis.py` requires [MSWX](www.gloh2o.org/mswx) and [MSWEP](www.gloh2o.org/mswep) daily meteorological data. Follow the download instructions on the respective web pages. Use the following filter file for rclone:
+## main_MSWX_MSWEP_reanalysis.py
+
+Requires [MSWX](www.gloh2o.org/mswx) and [MSWEP](www.gloh2o.org/mswep) daily meteorological data. Follow the download instructions on the respective web pages. Use the following filter file for rclone:
 ```
 + MSWX_V100/Past/**/Daily/*.nc
 + MSWX_V100/Past/**/Monthly/*.nc
@@ -27,18 +33,30 @@ Requires ISIMIP daily meteorological forcing data for the historical period and 
 ```
 Put the data in `mswx_folder` and `mswep_folder`, respectively. 
 
-`main_W5E5_reanalysis.py` requires W5E5
+## main_W5E5_reanalysis.py
 
+Requires W5E5
 
-All scripts require GMTED2010 1-km mean surface elevation data from the [EarthEnv website](
-https://data.earthenv.org/topography/elevation_1KMmn_GMTEDmn.tif). Put `elevation_1KMmn_GMTEDmn.tif` in the `gmted2010_folder` specified in the configuration file.
+# System requirements
 
- 
-
-Download GMTED2010 elevation data from https://www.earthenv.org/topography (dataset:Elevation, Aggregation: Median
+The script can be run on a normal desktop PC (Windows and Linux) with 16 GB or more of physical memory.
 
 # Instructions
 
-conda create -n <env> -c conda-forge pcraster h5py pandas numpy netcdf4 matplotlib rasterio scikit-image
+Clone the repository:
+```
+git clone https://github.com/hylken/lisflood-meteo-forcing
+cd lisflood-meteo-forcing
+```
+Produce a configuration file with the correct paths and folders based on the provided template.
 
-
+Create and activate a Conda environment and run the script as follows:
+```
+conda create --name <env> --file requirements.txt
+conda activate <env>
+python main_ISIMIP3b_projections.py <config file>
+```
+If the environment creation step fails, we recommend creating the environment and installing the packages as follows:
+```
+conda create -n <env> -c conda-forge scipy pandas numpy netcdf4 matplotlib rasterio scikit-image
+```
