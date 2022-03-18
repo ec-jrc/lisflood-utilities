@@ -51,10 +51,10 @@ def main():
     lat_template = lat_global[row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)]
     
     # Loop through scenarios and models
-    files = glob.glob(os.path.join(config['meteo_data_folder'],'*.nc'))
+    files = glob.glob(os.path.join(config['isimip3b_folder'],'*.nc'))
     scenarios = np.unique([os.path.basename(x).split('_')[3] for x in files])
     for scenario in scenarios:
-        files = glob.glob(os.path.join(config['meteo_data_folder'],'*'+scenario+'*.nc'))
+        files = glob.glob(os.path.join(config['isimip3b_folder'],'*'+scenario+'*.nc'))
         files = sorted(files)
         models = np.unique([os.path.basename(x).split('_')[0] for x in files])
         for model in models:           
@@ -70,8 +70,8 @@ def main():
             out_dates_dly = pd.date_range(start=datetime(year_start,1,1), end=datetime(year_end+1,1,1)-pd.Timedelta(days=1), freq='D')
 
             # Check if output already exists in scratch folder or output folder
-            scratchoutdir = os.path.join(config['scratch_folder'],scenario,model)
-            finaloutdir = os.path.join(config['output_folder'],scenario,model)            
+            scratchoutdir = os.path.join(config['scratch_folder'],'ISIMIP3b_projections',scenario,model)
+            finaloutdir = os.path.join(config['output_folder'],'ISIMIP3b_projections',scenario,model)            
             if (config['delete_existing']==False) & ((os.path.isfile(os.path.join(scratchoutdir,'ta.nc'))==True) | (os.path.isfile(os.path.join(finaloutdir,'ta.nc'))==True)):
                 print('Already processed, skipping this model')
                 continue
@@ -80,7 +80,7 @@ def main():
             varnames = ['tas','tasmin','tasmax','hurs','sfcwind','ps','rsds','rlds','pr']
             nfiles = {}
             for varname in varnames:
-                files = glob.glob(os.path.join(config['meteo_data_folder'],'*'+model+'*'+scenario+'*_'+varname+'_*.nc'))    
+                files = glob.glob(os.path.join(config['isimip3b_folder'],'*'+model+'*'+scenario+'*_'+varname+'_*.nc'))    
                 nfiles[varname] = len(files)            
             nfiles_arr = np.array(list(nfiles.values()))
             if (np.max(nfiles_arr)==0) | (any(nfiles_arr<np.max(nfiles_arr))):
@@ -98,7 +98,7 @@ def main():
             ncfile_es = initialize_netcdf(os.path.join(scratchoutdir,'es.nc'),template_lat,template_lon,'es','mm d-1',1)
 
             # Loop over input files (MFDataset doesn't work properly)
-            files = glob.glob(os.path.join(config['meteo_data_folder'],'*'+model+'*'+scenario+'*_tas_*.nc'))
+            files = glob.glob(os.path.join(config['isimip3b_folder'],'*'+model+'*'+scenario+'*_tas_*.nc'))
             for file in files:
                 file_year_start = int(os.path.basename(file).split('_')[7])
                 file_year_end = int(os.path.basename(file).split('_')[8][:-3])
@@ -113,7 +113,7 @@ def main():
                 dset_tmean = netCDF4.Dataset(file,diskless=True) # K
                 dset_tmin = netCDF4.Dataset(file.replace('tas_','tasmin_'),diskless=True) # K
                 dset_tmax = netCDF4.Dataset(file.replace('tas_','tasmax_'),diskless=True) # K
-                dset_relhum = netCDF4.Dataset(file.replace('tas_','hurs_'),diskless=True) # kg/kg
+                dset_relhum = netCDF4.Dataset(file.replace('tas_','hurs_'),diskless=True) # %
                 dset_wind = netCDF4.Dataset(file.replace('tas_','sfcwind_'),diskless=True) # m/s
                 dset_pres = netCDF4.Dataset(file.replace('tas_','ps_'),diskless=True) # Pa
                 dset_swd = netCDF4.Dataset(file.replace('tas_','rsds_'),diskless=True) # W/m2
