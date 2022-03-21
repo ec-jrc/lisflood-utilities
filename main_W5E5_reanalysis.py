@@ -64,8 +64,8 @@ def main():
         print('-------------------------------------------------------------------------------')
         
         # Check if output already exists in scratch folder or output folder
-        scratchoutdir = os.path.join(config['scratch_folder'],'ISIMIP3b_projections',scenario)
-        finaloutdir = os.path.join(config['output_folder'],'ISIMIP3b_projections',scenario)
+        scratchoutdir = os.path.join(config['scratch_folder'],'W5E5_reanalysis',scenario)
+        finaloutdir = os.path.join(config['output_folder'],'W5E5_reanalysis',scenario)
         if (config['delete_existing']==False) & ((os.path.isfile(os.path.join(scratchoutdir,'ta.nc'))==True) | (os.path.isfile(os.path.join(finaloutdir,'ta.nc'))==True)):
             print('Already processed, skipping this scenario')
             continue
@@ -94,8 +94,8 @@ def main():
         # Loop over input files (MFDataset doesn't work properly)
         files = glob.glob(os.path.join(config['w5e5_folder'],'*'+scenario+'*_tas_*.nc'))
         for file in files:
-            file_year_start = int(os.path.basename(file).split('_')[7])
-            file_year_end = int(os.path.basename(file).split('_')[8][:-3])
+            file_year_start = int(os.path.basename(file).split('_')[5])
+            file_year_end = int(os.path.basename(file).split('_')[6][:-3])
             file_dates_dly = pd.date_range(start=datetime(file_year_start,1,1), end=datetime(file_year_end+1,1,1)-pd.Timedelta(days=1), freq='D')
             hits = np.sum((out_dates_dly.year>=file_year_start) & (out_dates_dly.year<=file_year_end))
             if hits==0:
