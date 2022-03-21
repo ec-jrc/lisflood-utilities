@@ -8,19 +8,20 @@ The module consists of several similar scripts tailored to different input meteo
 3. Air temperature and air pressure are downscaled to the template map resolution (up to 1 km using a simple delta lapse rate correction). 
 4. The output is written to the `scratch_folder` and moved to the `output_folder` once the processing is done. The `scratch_folder` should point to a storage location dedicated to a lot of file accesses.
 5. The ISIMIP3b and W5E5 scripts load the input data into memory (using the `diskless=True` argument) to avoid read errors which frequently occurred on the system used for developing the scripts.
+6. The ISIMIP3b script can be run simultaneously multiple times to simultaneously process multiple scenarios/models. 
 
 # Data
 
-### GMTED2010 elevation data
+## GMTED2010 elevation data
 
 GMTED2010 1-km mean surface elevation data can be downloaded from the [EarthEnv website](
 https://data.earthenv.org/topography/elevation_1KMmn_GMTEDmn.tif). Put `elevation_1KMmn_GMTEDmn.tif` in `gmted2010_folder` (specified in the configuration file).
 
-### ISIMIP3b projections
+## ISIMIP3b projections
 
 ISIMIP3b daily meteorological data (historical and climate projections). Download [this](https://data.isimip.org/api/v1/datasets/filelist/?page=1&climate_scenario=ssp119&climate_scenario=ssp126&climate_scenario=ssp245&climate_scenario=ssp370&climate_scenario=ssp460&climate_scenario=ssp534-over&climate_scenario=ssp585&climate_scenario=historical&query=&ISIMIP3b=time_step&simulation_round=ISIMIP3b&time_step=daily) file list and download the data with `wget -c -i file-list.txt`. Put the data in `isimip3b_folder`.
 
-### MSWX and MSWEP reanalysis data
+## MSWX and MSWEP reanalysis data
 
 [MSWX](http://www.gloh2o.org/mswx) and [MSWEP](http://www.gloh2o.org/mswep) daily historical meteorological data. Follow the download instructions on the respective web pages. Use the following filter file for rclone:
 ```
@@ -32,9 +33,9 @@ ISIMIP3b daily meteorological data (historical and climate projections). Downloa
 + MSWEP_V280/NRT/Monthly/*.nc
 - *
 ```
-Put the data in `mswx_folder` and `mswep_folder`, respectively. 
+Put the data in `mswx_folder` and `mswep_folder`, respectively. Retain the folder structure (e.g., `<mswx_folder>/Past/Temp/Daily/2007133.nc`).
 
-### GSWP3-W5E5 reanalysis data
+## GSWP3-W5E5 reanalysis data
 
 GSWP3-W5E5 daily historical meteorological data (`obsclim` and `counterclim`). Download [this](https://data.isimip.org/api/v1/datasets/filelist/?page=1&tree=ISIMIP3a&InputData=climate&atmosphere=gswp3-w5e5&climate_scenario=counterclim&climate_scenario=obsclim&time_step=daily&climate_forcing=gswp3-w5e5) file list and download the data with `wget -c -i file-list.txt`. Put the data in `w5e5_folder`.
 

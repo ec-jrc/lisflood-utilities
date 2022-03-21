@@ -42,7 +42,7 @@ def main():
     elev_template = elev_global[row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)]
 
     # Prepare temperature and air pres downscaling
-    tmp = imresize_mean(elev_global,(360,720))
+    tmp = imresize_mean(elev_global,(360,720)) # Resample to dimensions of input data
     tmp = resize(tmp,mapsize_global,order=1,mode='edge',anti_aliasing=False)
     elev_delta = elev_global-tmp
     temp_delta = -6.5*elev_delta/1000 # Simple 6.5 degrees C/km lapse rate
