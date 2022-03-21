@@ -216,6 +216,7 @@ def main():
                 print('Moving '+os.path.basename(file)+' ('+str(round(os.path.getsize(file)/10**9))+' GB) to '+finaloutdir)
                 shutil.copy(file, finaloutdir)
                 print("Time elapsed is "+str(time.time()-t0)+" sec")
+            shutil.rmtree(scratchoutdir)
                             
 if __name__ == '__main__':
     main()

@@ -18,11 +18,11 @@ https://data.earthenv.org/topography/elevation_1KMmn_GMTEDmn.tif). Put `elevatio
 
 ### ISIMIP3b projections
 
-ISIMIP3b daily meteorological forcing data for the historical period and all climate change scenarios. Download [this](https://data.isimip.org/api/v1/datasets/filelist/?page=1&climate_scenario=ssp119&climate_scenario=ssp126&climate_scenario=ssp245&climate_scenario=ssp370&climate_scenario=ssp460&climate_scenario=ssp534-over&climate_scenario=ssp585&climate_scenario=historical&query=&ISIMIP3b=time_step&simulation_round=ISIMIP3b&time_step=daily) file list and download the data with `wget -c -i file-list.txt`. Put the data in `isimip3b_folder`.
+ISIMIP3b daily meteorological data (historical and climate projections). Download [this](https://data.isimip.org/api/v1/datasets/filelist/?page=1&climate_scenario=ssp119&climate_scenario=ssp126&climate_scenario=ssp245&climate_scenario=ssp370&climate_scenario=ssp460&climate_scenario=ssp534-over&climate_scenario=ssp585&climate_scenario=historical&query=&ISIMIP3b=time_step&simulation_round=ISIMIP3b&time_step=daily) file list and download the data with `wget -c -i file-list.txt`. Put the data in `isimip3b_folder`.
 
 ### MSWX and MSWEP reanalysis data
 
-[MSWX](http://www.gloh2o.org/mswx) and [MSWEP](http://www.gloh2o.org/mswep) daily meteorological data. Follow the download instructions on the respective web pages. Use the following filter file for rclone:
+[MSWX](http://www.gloh2o.org/mswx) and [MSWEP](http://www.gloh2o.org/mswep) daily historical meteorological data. Follow the download instructions on the respective web pages. Use the following filter file for rclone:
 ```
 + MSWX_V100/Past/**/Daily/*.nc
 + MSWX_V100/Past/**/Monthly/*.nc
@@ -34,9 +34,9 @@ ISIMIP3b daily meteorological forcing data for the historical period and all cli
 ```
 Put the data in `mswx_folder` and `mswep_folder`, respectively. 
 
-### W5E5 reanalysis data
+### GSWP3-W5E5 reanalysis data
 
-W5E5
+GSWP3-W5E5 daily historical meteorological data (`obsclim` and `counterclim`). Download [this](https://data.isimip.org/api/v1/datasets/filelist/?page=1&tree=ISIMIP3a&InputData=climate&atmosphere=gswp3-w5e5&climate_scenario=counterclim&climate_scenario=obsclim&time_step=daily&climate_forcing=gswp3-w5e5) file list and download the data with `wget -c -i file-list.txt`. Put the data in `w5e5_folder`.
 
 # System requirements
 

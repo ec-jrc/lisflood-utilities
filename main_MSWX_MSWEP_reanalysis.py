@@ -22,7 +22,7 @@ config = load_config(sys.argv[1])
 def main():
 
     # Output dates
-    year_start,year_end = 1979,1979
+    year_start,year_end = 1979,2021
     out_dates_dly = pd.date_range(start=datetime(year_start,1,1), end=datetime(year_end+1,1,1)-pd.Timedelta(days=1), freq='D')
     
     # Load template map
@@ -170,6 +170,7 @@ def main():
         print('Moving '+os.path.basename(file)+' ('+str(round(os.path.getsize(file)/10**9))+' GB) to '+finaloutdir)
         shutil.copy(file, finaloutdir)
         print("Time elapsed is "+str(time.time()-t0)+" sec")
+    shutil.rmtree(scratchoutdir)
 
 if __name__ == '__main__':
     main()
