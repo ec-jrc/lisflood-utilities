@@ -19,8 +19,7 @@ https://data.earthenv.org/topography/elevation_1KMmn_GMTEDmn.tif) (required for 
 
 2. ISIMIP3b daily meteorological data (historical and climate projections). Download [this](https://data.isimip.org/api/v1/datasets/filelist/?page=1&climate_scenario=ssp119&climate_scenario=ssp126&climate_scenario=ssp245&climate_scenario=ssp370&climate_scenario=ssp460&climate_scenario=ssp534-over&climate_scenario=ssp585&climate_scenario=historical&query=&ISIMIP3b=time_step&simulation_round=ISIMIP3b&time_step=daily) file list and download the data with `wget -c -i file-list.txt`. Put the data in `isimip3b_folder`.
 
-3. [MSWX](http://www.gloh2o.org/mswx) and [MSWEP](http://www.gloh2o.org/mswep) daily historical meteorological data. Follow the download instructions on the respective web pages. Use the following filter file for rclone:
-    ```
+3. [MSWX](http://www.gloh2o.org/mswx) and [MSWEP](http://www.gloh2o.org/mswep) daily historical meteorological data. Follow the download instructions on the respective web pages. Use the following filter file for rclone: ```
 + MSWX_V100/Past/**/Daily/*.nc
 + MSWX_V100/Past/**/Monthly/*.nc
 + MSWEP_V280/Past/Daily/*.nc
