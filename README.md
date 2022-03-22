@@ -8,7 +8,7 @@ The following should be kept in mind when using the scripts:
 3. Air temperature and air pressure are downscaled to the template map resolution (up to 1 km using a simple delta lapse-rate correction).
 4. The output is written to the `scratch_folder` and moved to the `output_folder` once the processing is done. The `scratch_folder` should point to a storage location dedicated to a lot of file accesses.
 5. The ISIMIP3b and W5E5 scripts load the input data into memory (using the `diskless=True` argument) to avoid read errors which frequently occurred on the system used for developing the scripts.
-6. The ISIMIP3b script can be run simultaneously multiple times to simultaneously process multiple scenarios/models. 
+6. The ISIMIP3b script can be run simultaneously multiple times to process simultaneously multiple scenarios/models. This will only work if `delete_existing=0` in the configuration file.
 
 # Data
 
@@ -34,13 +34,13 @@ Clone the repository:
 git clone https://github.com/hylken/lisflood-meteo-forcing
 cd lisflood-meteo-forcing
 ```
-Produce a configuration file with the correct paths and folders based on the provided template.
+Produce a configuration file with the correct paths and folders based on the provided template (`config.ini`).
 
 Create and activate a Conda environment and run the script as follows:
 ```
 conda create --name <env> --file requirements.txt
 conda activate <env>
-python main_ISIMIP3b_projections.py <config file>
+python main_ISIMIP3b_projections.py <configuration file>
 ```
 If the environment creation step fails, we recommend creating the environment and installing the packages as follows:
 ```
