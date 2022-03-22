@@ -2,7 +2,7 @@
 
 Module to generate daily meteorological input files for the [LISFLOOD](https://github.com/ec-jrc/lisflood-code) hydrological model. The following variables are created: precipitation (`pr.nc`), 2-m air temperature (`ta.nc`), reference potential evaporation (`et.nc`), open water potential evaporation (`ew.nc`), and bare soil potential evaporation (`es.nc`). 
 
-The module consists of several similar scripts tailored to different input meteorological datasets, such as ISIMIP3b, W5E5, and MSWEP. The following should be kept in mind when using the scripts:
+The module consists of several similar scripts tailored to different input meteorological datasets, such as ISIMIP3b, W5E5, and MSWX/MSWEP. The following should be kept in mind when using the scripts:
 1. The scripts calculate potential evaporation directly from the input data following the [LISVAP](https://github.com/ec-jrc/lisflood-lisvap) approach. Separately running the LISVAP module is, therefore, no longer necessary. 
 2. The data are resampled and subsetted to the resolution and area of the template map (located at `templatemap_path` specified in the configuration file).
 3. Air temperature and air pressure are downscaled to the template map resolution (up to 1 km using a simple delta lapse rate correction). 
