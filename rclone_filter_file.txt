@@ -1,4 +1,3 @@
-```
 + MSWX_V100/Past/**/Daily/*.nc
 + MSWX_V100/Past/**/Monthly/*.nc
 + MSWEP_V280/Past/Daily/*.nc
@@ -6,4 +5,3 @@
 + MSWEP_V280/NRT/Daily/*.nc
 + MSWEP_V280/NRT/Monthly/*.nc
 - *
-```
