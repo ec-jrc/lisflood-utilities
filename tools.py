@@ -211,10 +211,6 @@ def potential_evaporation(data,albedo,factor,doy,lat,elev):
     # Daily extra-terrestrial radiation (J/m2/d)
     Ra = IntSolarHeight*SolarConstant
     
-    # plt.imshow(Ra)
-    # plt.colorbar()
-    # plt.savefig('Ra.png',dpi=300)
-    # plt.close()
     
     #--------------------------------------------------------------------------
     #   Net absorbed radiation
@@ -223,26 +219,11 @@ def potential_evaporation(data,albedo,factor,doy,lat,elev):
     # Clear-sky radiation (J/m2/d) from Allen et al. (1998; equation 37)
     Rso = Ra*(0.75+(2*10**-5*elev))
     
-    # plt.imshow(Rso)
-    # plt.colorbar()
-    # plt.savefig('Rso.png',dpi=300)
-    # plt.close()
-    
     # Adjustment factor for cloud cover
     TransAtm_Allen = (data['swd']*86400+1)/(Rso+1)
     AdjCC = 1.8*TransAtm_Allen-0.35
     AdjCC[AdjCC<0.05] = 0.05
     AdjCC[AdjCC>1] = 1
-    
-    # plt.imshow(AdjCC)
-    # plt.colorbar()
-    # plt.savefig('AdjCC.png',dpi=300)    
-    # plt.close()
-    
-    # plt.imshow(data['swd'])
-    # plt.colorbar()
-    # plt.savefig('swd.png',dpi=300)    
-    # plt.close()    
     
     # Net emissivity
     EmNet = 0.56-0.079*np.sqrt(EAct)
@@ -261,11 +242,6 @@ def potential_evaporation(data,albedo,factor,doy,lat,elev):
     pet = {}
     for key in albedo.keys():
         pet[key] = ((Delta*RNA[key])+(Psychro*EA[key]))/(Delta+Psychro)
-    
-    # plt.imshow(pet)
-    # plt.colorbar()
-    # plt.savefig('pet.png',dpi=300)
-    # plt.close()
     
     return pet
     
