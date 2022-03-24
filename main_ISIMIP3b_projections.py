@@ -19,7 +19,11 @@ import shutil
 config = load_config(sys.argv[1])
 
 def main():
-    
+
+    # What is time span of output?
+    year_start,year_end = 1979,2100
+    out_dates_dly = pd.date_range(start=datetime(year_start,1,1), end=datetime(year_end+1,1,1)-pd.Timedelta(days=1), freq='D')
+            
     # Load template map
     dset = netCDF4.Dataset(config['templatemap_path'])
     template_lat = np.array(dset.variables['lat'][:])
@@ -52,7 +56,8 @@ def main():
     
     # Loop through scenarios and models
     files = glob.glob(os.path.join(config['isimip3b_folder'],'*.nc'))
-    scenarios = np.unique([os.path.basename(x).split('_')[3] for x in files])
+    scenarios = np.unique([os.path.basename(x).split('_')[3] for x in files]).tolist()
+    scenarios.remove('historical')
     for scenario in scenarios:
         files = glob.glob(os.path.join(config['isimip3b_folder'],'*'+scenario+'*.nc'))
         files = sorted(files)
@@ -61,19 +66,12 @@ def main():
             print('===============================================================================')            
             print('scenario: '+scenario+' model: '+model)
             print('-------------------------------------------------------------------------------')
-            
-            # What is time span of output?
-            if scenario=='historical': 
-                year_start,year_end = 1979,2014
-            else: 
-                year_start,year_end = 2015,2100
-            out_dates_dly = pd.date_range(start=datetime(year_start,1,1), end=datetime(year_end+1,1,1)-pd.Timedelta(days=1), freq='D')
 
             # Check if output already exists in scratch folder or output folder
             scratchoutdir = os.path.join(config['scratch_folder'],'ISIMIP3b_projections',scenario,model)
             finaloutdir = os.path.join(config['output_folder'],'ISIMIP3b_projections',scenario,model)            
             if (config['delete_existing']==False) & ((os.path.isfile(os.path.join(scratchoutdir,'ta.nc'))==True) | (os.path.isfile(os.path.join(finaloutdir,'ta.nc'))==True)):
-                print('Already processed, skipping this model')
+                print('Already (being) processed, skipping this model')
                 continue
                 
             # Check if all input variables are present
@@ -97,8 +95,12 @@ def main():
             ncfile_ew = initialize_netcdf(os.path.join(scratchoutdir,'ew.nc'),template_lat,template_lon,'ew','mm d-1',1)
             ncfile_es = initialize_netcdf(os.path.join(scratchoutdir,'es.nc'),template_lat,template_lon,'es','mm d-1',1)
 
-            # Loop over input files (MFDataset doesn't work properly)
+            # Get list of input files and add historical input files 
             files = glob.glob(os.path.join(config['isimip3b_folder'],'*'+model+'*'+scenario+'*_tas_*.nc'))
+            files = files+glob.glob(os.path.join(config['isimip3b_folder'],'*'+model+'*historical*_tas_*.nc'))
+            files = sorted(files)
+            
+            # Loop over input files (MFDataset doesn't work properly)            
             for file in files:
                 file_year_start = int(os.path.basename(file).split('_')[7])
                 file_year_end = int(os.path.basename(file).split('_')[8][:-3])
