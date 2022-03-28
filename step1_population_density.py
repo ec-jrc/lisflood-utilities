@@ -166,17 +166,17 @@ def main():
     ncfile = Dataset(file, 'w', format='NETCDF4')
     ncfile.history = 'Created on %s' % datetime.utcnow().strftime('%Y-%m-%d %H:%M')
 
-    ncfile.createDimension('lon', len(lon))
-    ncfile.createDimension('lat', len(lat))
+    ncfile.createDimension('lon', len(template_lon))
+    ncfile.createDimension('lat', len(template_lat))
     ncfile.createDimension('time', None)
 
     ncfile.createVariable('lon', 'f8', ('lon',))
-    ncfile.variables['lon'][:] = lon
+    ncfile.variables['lon'][:] = template_lon
     ncfile.variables['lon'].units = 'degrees_east'
     ncfile.variables['lon'].long_name = 'longitude'
 
     ncfile.createVariable('lat', 'f8', ('lat',))
-    ncfile.variables['lat'][:] = lat
+    ncfile.variables['lat'][:] = template_lat
     ncfile.variables['lat'].units = 'degrees_north'
     ncfile.variables['lat'].long_name = 'latitude'
 
@@ -196,7 +196,7 @@ def main():
             data = np.round(data/10)*10
             data[np.isnan(data)] = 0            
             data = data*area_map # Convert from population density per km2 to total population per grid-cell
-            #data = data[row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)] # Subset to template map area        
+            data = data[row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)] # Subset to template map area        
             
             index = (year-config['year_start'])*12+month-1
              
