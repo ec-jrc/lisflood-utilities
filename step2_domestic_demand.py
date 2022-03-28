@@ -40,8 +40,13 @@ def main():
     mapsize_template = template_np.shape
     row_upper,col_left = latlon2rowcol(template_lat[0],template_lon[0],template_res,90,-180)
 
-    # Compute area for each grid-cell
-    _, yi = np.meshgrid(np.arange(-180+template_res/2,180+template_res/2,template_res), np.arange(90-template_res/2,-90-template_res/2,-template_res))
+    # Compute area for each grid-cell (includes correction because lat/lon 
+    # values in templates are often not rounded...
+    xi, yi = np.meshgrid(np.arange(-180+template_res/2,180+template_res/2,template_res), np.arange(90-template_res/2,-90-template_res/2,-template_res))
+    if yi.shape[0]>np.round(180/template_res):
+        yi, xi = yi[:-1,:], xi[:-1,:]
+    if yi.shape[1]>np.round(360/template_res):
+        yi, xi = yi[:,:-1], xi[:,:-1]
     area_map = (40075*template_res/360)**2*np.cos(np.deg2rad(yi))
 
     # List of years
@@ -224,11 +229,12 @@ def main():
         df_state.drop(df_state.index[0],inplace=True)
         df_state.replace("-", "", regex=True, inplace=True)
         df_state.replace(r'^\s*$', np.nan,regex=True, inplace=True) # Turn empty strings into NaN
+        df_state = df_state.astype(object)
         if ii==0: 
             df_country = df_state
         else:
             df_country = pd.merge(df_country,df_state,how="outer")
-
+    
     # Loop over states and load water use data
     table_usgs_domestic_withdrawal = np.zeros((state_codes.shape[0],len(years)),dtype=np.single)*np.NaN
     table_usgs_manufacturing_withdrawal = np.zeros((state_codes.shape[0],len(years)),dtype=np.single)*np.NaN
@@ -301,7 +307,7 @@ def main():
 
     # Linearly interpolate and nearest-neighbor extrapolate USGS domestic withdrawals
     table_usgs_domestic_withdrawal_interp = pd.DataFrame(table_usgs_domestic_withdrawal).interpolate(axis=1,method="linear",fill_value="extrapolate", limit_direction="both").values
-        
+
         
     ############################################################################
     #   Disaggregate country scale withdrawal estimates using population data
@@ -441,7 +447,7 @@ def main():
     ncfile.variables['time'].long_name = 'time'
     ncfile.variables['time'].calendar = 'proleptic_gregorian'
 
-    ncfile.createVariable(varname, np.single, ('time', 'lat', 'lon'), zlib=True, chunksizes=(1,32,32,), fill_value=-9999, least_significant_digit=2)
+    ncfile.createVariable(varname, np.single, ('time', 'lat', 'lon'), zlib=True, chunksizes=(1,200,200,), fill_value=-9999, least_significant_digit=2)
     ncfile.variables[varname].units = 'mm/d'
 
     for year in years:

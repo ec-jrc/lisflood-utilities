@@ -38,8 +38,13 @@ def main():
     mapsize_template = template_np.shape
     row_upper,col_left = latlon2rowcol(template_lat[0],template_lon[0],template_res,90,-180)
 
-    # Compute area for each grid-cell
-    _, yi = np.meshgrid(np.arange(-180+template_res/2,180+template_res/2,template_res), np.arange(90-template_res/2,-90-template_res/2,-template_res))
+    # Compute area for each grid-cell (includes correction because lat/lon 
+    # values in templates are often not rounded...
+    xi, yi = np.meshgrid(np.arange(-180+template_res/2,180+template_res/2,template_res), np.arange(90-template_res/2,-90-template_res/2,-template_res))
+    if yi.shape[0]>np.round(180/template_res):
+        yi, xi = yi[:-1,:], xi[:-1,:]
+    if yi.shape[1]>np.round(360/template_res):
+        yi, xi = yi[:,:-1], xi[:,:-1]
     area_map = (40075*template_res/360)**2*np.cos(np.deg2rad(yi))
 
     # List of years
@@ -119,7 +124,6 @@ def main():
         tables[fname] = pd.read_csv(files[ii],index_col=0).values
 
     files = glob.glob(os.path.join(config['output_folder'],'step2_domestic_demand','tables','*.csv'))
-    tables = {}
     for ii in np.arange(len(files)):
         fname = os.path.basename(files[ii])[:-4]
         tables[fname] = pd.read_csv(files[ii],index_col=0).values
@@ -177,7 +181,7 @@ def main():
         ncfile.variables['time'].long_name = 'time'
         ncfile.variables['time'].calendar = 'proleptic_gregorian'
 
-        ncfile.createVariable(varname, np.single, ('time', 'lat', 'lon'), zlib=True, chunksizes=(1,32,32,), fill_value=-9999, least_significant_digit=1)
+        ncfile.createVariable(varname, np.single, ('time', 'lat', 'lon'), zlib=True, chunksizes=(1,200,200,), fill_value=-9999, least_significant_digit=1)
         ncfile.variables[varname].units = 'mm/d'
 
         for ii in np.arange(len(years)):    

@@ -14,7 +14,6 @@ from skimage.transform import resize
 from tools import *
 import rasterio
 from calendar import monthrange
-from geopy.distance import great_circle
 
 # Load configuration file
 config = load_config(sys.argv[1])
@@ -44,10 +43,6 @@ def main():
     mapsize_global = (np.round(180/template_res).astype(int),np.round(360/template_res).astype(int))
     mapsize_template = template_np.shape
     row_upper,col_left = latlon2rowcol(template_lat[0],template_lon[0],template_res,90,-180)
-
-    # Compute area for each grid-cell
-    _, yi = np.meshgrid(np.arange(-180+template_res/2,180+template_res/2,template_res), np.arange(90-template_res/2,-90-template_res/2,-template_res))
-    area_map = (40075*template_res/360)**2*np.cos(np.deg2rad(yi))
 
     # List of years
     years = np.arange(config['year_start'],config['year_end']+1).astype(int)
@@ -151,6 +146,7 @@ def main():
         country_centroid_lats[jj], country_centroid_lons[jj] = 90-180*np.mean(ind[0])/mapsize_global[0]-template_res/2, -180+360*np.mean(ind[1])/mapsize_global[1]+template_res/2
 
     # Determine closest neighbors for each country
+    from geopy.distance import great_circle
     closest_codes = np.zeros((country_codes.shape[0],country_codes.shape[0]))*np.NaN
     closest_indices = np.zeros((country_codes.shape[0],country_codes.shape[0]),dtype=int)*np.NaN
     for jj in np.arange(country_codes.shape[0]):

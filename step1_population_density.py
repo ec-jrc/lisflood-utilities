@@ -36,9 +36,15 @@ def main():
     mapsize_template = template_np.shape
     row_upper,col_left = latlon2rowcol(template_lat[0],template_lon[0],template_res,90,-180)
 
-    # Compute area for each grid-cell
-    _, yi = np.meshgrid(np.arange(-180+template_res/2,180+template_res/2,template_res), np.arange(90-template_res/2,-90-template_res/2,-template_res))
+    # Compute area for each grid-cell (includes correction because lat/lon 
+    # values in templates are often not rounded...
+    xi, yi = np.meshgrid(np.arange(-180+template_res/2,180+template_res/2,template_res), np.arange(90-template_res/2,-90-template_res/2,-template_res))
+    if yi.shape[0]>np.round(180/template_res):
+        yi, xi = yi[:-1,:], xi[:-1,:]
+    if yi.shape[1]>np.round(360/template_res):
+        yi, xi = yi[:,:-1], xi[:,:-1]
     area_map = (40075*template_res/360)**2*np.cos(np.deg2rad(yi))
+    lat, lon = yi[:,0], xi[0,:]
     
     # List of years with population data
     pop_folders = sorted(glob.glob(os.path.join(config['ghsl_folder'],'*')))
@@ -47,7 +53,7 @@ def main():
     # List of years
     years = np.arange(config['year_start'],config['year_end']+1).astype(int)
 
-    
+
     ############################################################################
     #   Load GHSL population data and upscale to template map resolution
     ############################################################################
@@ -160,17 +166,17 @@ def main():
     ncfile = Dataset(file, 'w', format='NETCDF4')
     ncfile.history = 'Created on %s' % datetime.utcnow().strftime('%Y-%m-%d %H:%M')
 
-    ncfile.createDimension('lon', len(template_lon))
-    ncfile.createDimension('lat', len(template_lat))
+    ncfile.createDimension('lon', len(lon))
+    ncfile.createDimension('lat', len(lat))
     ncfile.createDimension('time', None)
 
     ncfile.createVariable('lon', 'f8', ('lon',))
-    ncfile.variables['lon'][:] = template_lon
+    ncfile.variables['lon'][:] = lon
     ncfile.variables['lon'].units = 'degrees_east'
     ncfile.variables['lon'].long_name = 'longitude'
 
     ncfile.createVariable('lat', 'f8', ('lat',))
-    ncfile.variables['lat'][:] = template_lat
+    ncfile.variables['lat'][:] = lat
     ncfile.variables['lat'].units = 'degrees_north'
     ncfile.variables['lat'].long_name = 'latitude'
 
@@ -179,8 +185,8 @@ def main():
     ncfile.variables['time'].long_name = 'time'
     ncfile.variables['time'].calendar = 'proleptic_gregorian'
 
-    ncfile.createVariable(varname, np.single, ('time', 'lat', 'lon'), zlib=True, chunksizes=(1,32,32,), fill_value=-9999, least_significant_digit=2)
-    ncfile.variables[varname].units = 'mm/d'
+    ncfile.createVariable(varname, np.single, ('time', 'lat', 'lon'), zlib=True, chunksizes=(1,200,200,), fill_value=-9999, least_significant_digit=2)
+    ncfile.variables[varname].units = 'total population per grid-cell'
 
     for year in years:
         print('Saving '+str(year)+' population to netCDF')
@@ -188,9 +194,9 @@ def main():
             
             data = np.load(os.path.join(config['output_folder'],'step1_population_density',str(year)+'.npz'))['data']
             data = np.round(data/10)*10
-            data[np.isnan(data)] = 0
+            data[np.isnan(data)] = 0            
             data = data*area_map # Convert from population density per km2 to total population per grid-cell
-            data = data[row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)] # Subset to template map area        
+            #data = data[row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)] # Subset to template map area        
             
             index = (year-config['year_start'])*12+month-1
              
@@ -198,9 +204,8 @@ def main():
             ncfile.variables[varname][index,:,:] = data
             
     print("Time elapsed is "+str(time.time()-t0)+" sec")
-            
-    ncfile.close()
     
+    ncfile.close()
     
 if __name__ == '__main__':
     main()
