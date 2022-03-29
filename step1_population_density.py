@@ -44,7 +44,6 @@ def main():
     if yi.shape[1]>np.round(360/template_res):
         yi, xi = yi[:,:-1], xi[:,:-1]
     area_map = (40075*template_res/360)**2*np.cos(np.deg2rad(yi))
-    lat, lon = yi[:,0], xi[0,:]
     
     # List of years with population data
     pop_folders = sorted(glob.glob(os.path.join(config['ghsl_folder'],'*')))
