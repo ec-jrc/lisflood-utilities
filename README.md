@@ -25,7 +25,7 @@ The module consists of five scripts which require the following datasets and fil
 1. EIA [electricy capacity](https://www.eia.gov/international/data/world/electricity/), Select World, select Electricity, select Capacity and Generation, click View Data, click Sort by Energy Source/Activity, click Download Options, select Export CSV (table).
 -->
 
-The locations of the datasets and files are specified in the configuration file (see the `config_GloFAS_2021.cfg` example). The script also requires a template map which defines the output resolution and area. The template map should be in netCDF-4 format and contain `lat` and `lon` variables and a data variable (any name). The location of the template map is specified using `templatemap_path` in the configuration file. The data are produced for the period spanning `year_start` to `year_end` and saved in netCDF-4 format to `output_folder` (all specified in the configuration file). 
+The locations of the datasets and files are specified in the configuration file (see the `config.cfg` example). The script also requires a template map which defines the output resolution and area. The template map should be in netCDF-4 format and contain `lat` and `lon` variables and a data variable (any name). The location of the template map is specified using `templatemap_path` in the configuration file. The data are produced for the period spanning `year_start` to `year_end` and saved in netCDF-4 format to `output_folder` (all specified in the configuration file). 
 
 # Methods
 
