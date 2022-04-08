@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Apr  4 17:31:52 2022
+
+@author: tilloal
+"""
+
 #!/usr/bin/env python  
 # -*- coding: utf-8 -*-
 
@@ -16,7 +23,50 @@ from scipy import ndimage as nd
 import rasterio
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-        
+  
+
+__OUTPUT_FILE_EXT = '.nc'
+
+__NETCDF_DATASET_FORMAT = 'NETCDF4_CLASSIC'
+__NETCDF_CONVENTIONS = 'CF-1.6'
+__NETCDF_SOURCE_SOFTWARE = 'Python netCDF4'
+
+__NETCDF_VAR_TIME_DIMENSION = None
+__NETCDF_VAR_TIME_CALENDAR_TYPE = 'proleptic_gregorian'
+
+__NETCDF_VAR_DATA_TYPE = 'f8'
+__NETCDF_VALUE_DATA_TYPE = 'f4'
+__NETCDF_COORDINATES_DATA_TYPE = 'i4'
+
+__KEY_STANDARD_NAME = 'value_standard_name'
+__KEY_LONG_NAME = 'value_long_name'
+__KEY_UNIT = 'value_unit'
+__KEY_OFFSET = 0
+__KEY_SCALE_FACTOR = 1
+__KEY_VMIN = -400
+__KEY_VMAX = 400
+
+__meteo_vars_config = {
+   
+    'tp' : {__KEY_UNIT : 'mm', __KEY_STANDARD_NAME : 'tp', __KEY_LONG_NAME : 'total_precipitation',
+            __KEY_OFFSET : 0.0, __KEY_SCALE_FACTOR : 0.1, __KEY_VMIN : -1, __KEY_VMAX : 7000},
+    'ta' : {__KEY_UNIT : 'celcius', __KEY_STANDARD_NAME : 'ta', __KEY_LONG_NAME : 'mean_temperature',
+            __KEY_OFFSET : 0.0, __KEY_SCALE_FACTOR : 0.1, __KEY_VMIN : -700, __KEY_VMAX : 700},
+    'td' : {__KEY_UNIT : 'celcius', __KEY_STANDARD_NAME : 'td', __KEY_LONG_NAME : 'mean_dewpoint_temperature',
+            __KEY_OFFSET : 0.0, __KEY_SCALE_FACTOR : 0.1, __KEY_VMIN : -700, __KEY_VMAX : 700},
+    'ws' : {__KEY_UNIT : 'm/s', __KEY_STANDARD_NAME : 'ws', __KEY_LONG_NAME : 'avg_wind_speed',
+            __KEY_OFFSET : 0.0, __KEY_SCALE_FACTOR : 0.1, __KEY_VMIN : 0, __KEY_VMAX : 45},
+    'u10' : {__KEY_UNIT : 'm/s', __KEY_STANDARD_NAME : 'u10', __KEY_LONG_NAME : 'avg_u_component_wind',
+            __KEY_OFFSET : 0.0, __KEY_SCALE_FACTOR : 0.1, __KEY_VMIN : 0, __KEY_VMAX : 45},
+    'v10' : {__KEY_UNIT : 'm/s', __KEY_STANDARD_NAME : 'ws', __KEY_LONG_NAME : 'avg_v_component_wind',
+            __KEY_OFFSET : 0.0, __KEY_SCALE_FACTOR : 0.1, __KEY_VMIN : 0, __KEY_VMAX : 45},
+    'rgd' : {__KEY_UNIT : 'J/m2/d', __KEY_STANDARD_NAME : 'ssrd', __KEY_LONG_NAME : 'surface_downward_solar_radiation',
+        __KEY_OFFSET :0.0, __KEY_SCALE_FACTOR : 10000.0},
+    'rn' : {__KEY_UNIT : 'J/m2/d', __KEY_STANDARD_NAME : 'str', __KEY_LONG_NAME : 'surface_net_thermal_radiation',
+            __KEY_OFFSET : 0.0, __KEY_SCALE_FACTOR : 10000.0},
+}
+
+      
 def load_country_code_map(filepath,mapsize):
     
     src = rasterio.open(filepath)
@@ -121,8 +171,22 @@ def initialize_netcdf(outfile,lat,lon,varname,units,least_significant_digit):
     ncfile.variables['time'].calendar = 'proleptic_gregorian'
     ncfile.createVariable(varname, np.single, ('time', 'lat', 'lon'),zlib=True,
         chunksizes=(1,450,450,), fill_value=-9999,
-        least_significant_digit=least_significant_digit)
+        least_significant_digit=least_significant_digit,complevel=4)
     ncfile.variables[varname].units = units
+    
+    ncfile.scale_factor=__meteo_vars_config[varname][__KEY_SCALE_FACTOR]       
+    ncfile.add_offset=__meteo_vars_config[varname][__KEY_OFFSET]
+    #add projection system 
+    proj = ncfile.createVariable('wsg_1984', 'i4')
+    proj.grid_mapping_name = 'latitude_longitude'
+    #proj.false_easting= ''
+    #proj.false_northing= ''
+    #proj.longitude_of_projection_origin= ''
+    #proj.latitude_of_projection_origin= ''
+    proj.semi_major_axis= '6378137.0'
+    proj.inverse_flattening='298.257223563'
+    proj.proj4_params='+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs'
+    proj.EPSG_code='EPSG:4326'
     
     return ncfile
 
