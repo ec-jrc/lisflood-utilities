@@ -44,9 +44,30 @@ c = cdsapi.Client(key=CDSAPI_KEY, url=CDSAPI_URL)
 
 # select variable(s); name must be a valid ERA5 CDS API name.
 # Here I select varaibles necessary to compute evapotranspiration
+input_string = input('Enter varialbes that need to be processed from the list [u10,v10,2t,str,ssrd,d2m], enter "all" for all variables')
+print("\n")
+vin = input_string.split()
+if vin == ["all"]:
+    varnames = ['u10', 'v10','2t','str','ssrd','2d','tp']
+else:
+    varnames=vin
+    
+# print list
+print('list: ', varnames)
 
-var = ['10m_u_component_of_wind', '10m_v_component_of_wind', '2m_temperature','surface_net_thermal_radiation', 'surface_net_solar_radiation','2m_dewpoint_temperature']
-varnames = ['u10', 'v10','2t','str','ssr','2d']
+pair_var=[['u10', 'v10','2t','str','ssrd','2d','tp'],
+          ['10m_u_component_of_wind', '10m_v_component_of_wind', '2m_temperature','surface_net_thermal_radiation', 'surface_downward_solar_radiation','2m_dewpoint_temperature','total_precipitation']]
+
+pair_match=set(pair_var[0]).intersection(varnames)
+nf = [item for item,x in enumerate(pair_var[0]) if x in varnames]
+
+var=[pair_var[1][i] for i in nf]
+
+print('variable(s) '+' | '.join(var) + ' will be downloaded')
+
+                                        #,'surface_net_thermal_radiation', 'surface_net_solar_radiation','2m_dewpoint_temperature']
+#var = ['10m_u_component_of_wind', '10m_v_component_of_wind', '2m_temperature','surface_net_thermal_radiation', 'surface_net_solar_radiation','2m_dewpoint_temperature']
+#varnames = ['u10', 'v10','2t','str','ssrd','2d']
 date = config['date']
 
 
@@ -65,10 +86,11 @@ if date == "manual":
     # Uncomment years as required
     years =  [
     #'1981','1982', '1983','1984',
-    #'1985', '1986', '1987',
-    '1988', '1989', '1990',
+    #'1985', '1986', 'u101987',
+    '1988',
+    #'1989', '1990',
     #'1991', '1992', '1993','1994', '1995', '1996','1997', '1998',
-    '1999',
+    #'1999',
     #'2000', '2001', '2002','2003', '2004', '2005','2006', '2007', '2008',
     #'2009', '2010', '2011','2012', '2013', '2014','2015', '2016', '2017',
     #'2018', '2019', '2020',
