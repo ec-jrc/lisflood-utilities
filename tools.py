@@ -15,64 +15,42 @@ __date__ = "January 2022"
 import os, sys, glob, time, pdb
 import pandas as pd
 import numpy as np
+from config_comp import *
+import netCDF4 as nc
 from netCDF4 import Dataset
 from skimage.transform import resize
 from skimage.transform import downscale_local_mean
 from datetime import datetime, timedelta
 from scipy import ndimage as nd
-import rasterio
+#import rasterio
+from skimage.io import imread
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-  
 
-__OUTPUT_FILE_EXT = '.nc'
 
-__NETCDF_DATASET_FORMAT = 'NETCDF4_CLASSIC'
-__NETCDF_CONVENTIONS = 'CF-1.6'
-__NETCDF_SOURCE_SOFTWARE = 'Python netCDF4'
 
-__NETCDF_VAR_TIME_DIMENSION = None
-__NETCDF_VAR_TIME_CALENDAR_TYPE = 'proleptic_gregorian'
+#print(meteo_vars_config['tp'][KEY_OFFSET])
+#%%
 
-__NETCDF_VAR_DATA_TYPE = 'f8'
-__NETCDF_VALUE_DATA_TYPE = 'f4'
-__NETCDF_COORDINATES_DATA_TYPE = 'i4'
+# function to compute mean wind speed from u and v components of wind
+def wind_uv_to_spd(U,V):
+    """
+    Calculates the wind speed from the u and v wind components
+    Inputs:
+      U = west/east direction (wind from the west is positive, from the east is negative)
+      V = south/noth direction (wind from the south is positive, from the north is negative)
+    """
+    WSPD=np.sqrt(U**2+V**2)
+    return WSPD
 
-__KEY_STANDARD_NAME = 'value_standard_name'
-__KEY_LONG_NAME = 'value_long_name'
-__KEY_UNIT = 'value_unit'
-__KEY_OFFSET = 0
-__KEY_SCALE_FACTOR = 1
-__KEY_VMIN = -400
-__KEY_VMAX = 400
 
-__meteo_vars_config = {
-   
-    'tp' : {__KEY_UNIT : 'mm', __KEY_STANDARD_NAME : 'tp', __KEY_LONG_NAME : 'total_precipitation',
-            __KEY_OFFSET : 0.0, __KEY_SCALE_FACTOR : 0.1, __KEY_VMIN : -1, __KEY_VMAX : 7000},
-    'ta' : {__KEY_UNIT : 'celcius', __KEY_STANDARD_NAME : 'ta', __KEY_LONG_NAME : 'mean_temperature',
-            __KEY_OFFSET : 0.0, __KEY_SCALE_FACTOR : 0.1, __KEY_VMIN : -700, __KEY_VMAX : 700},
-    'td' : {__KEY_UNIT : 'celcius', __KEY_STANDARD_NAME : 'td', __KEY_LONG_NAME : 'mean_dewpoint_temperature',
-            __KEY_OFFSET : 0.0, __KEY_SCALE_FACTOR : 0.1, __KEY_VMIN : -700, __KEY_VMAX : 700},
-    'ws' : {__KEY_UNIT : 'm/s', __KEY_STANDARD_NAME : 'ws', __KEY_LONG_NAME : 'avg_wind_speed',
-            __KEY_OFFSET : 0.0, __KEY_SCALE_FACTOR : 0.1, __KEY_VMIN : 0, __KEY_VMAX : 45},
-    'u10' : {__KEY_UNIT : 'm/s', __KEY_STANDARD_NAME : 'u10', __KEY_LONG_NAME : 'avg_u_component_wind',
-            __KEY_OFFSET : 0.0, __KEY_SCALE_FACTOR : 0.1, __KEY_VMIN : 0, __KEY_VMAX : 45},
-    'v10' : {__KEY_UNIT : 'm/s', __KEY_STANDARD_NAME : 'ws', __KEY_LONG_NAME : 'avg_v_component_wind',
-            __KEY_OFFSET : 0.0, __KEY_SCALE_FACTOR : 0.1, __KEY_VMIN : 0, __KEY_VMAX : 45},
-    'rgd' : {__KEY_UNIT : 'J/m2/d', __KEY_STANDARD_NAME : 'ssrd', __KEY_LONG_NAME : 'surface_downward_solar_radiation',
-        __KEY_OFFSET :0.0, __KEY_SCALE_FACTOR : 10000.0},
-    'rn' : {__KEY_UNIT : 'J/m2/d', __KEY_STANDARD_NAME : 'str', __KEY_LONG_NAME : 'surface_net_thermal_radiation',
-            __KEY_OFFSET : 0.0, __KEY_SCALE_FACTOR : 10000.0},
-}
-
-      
 def load_country_code_map(filepath,mapsize):
     
-    src = rasterio.open(filepath)
-    country_code_map = src.read(1).astype(np.single)
+    #src = rasterio.open(filepath)
+    src=imread(filepath)
+    country_code_map = src.astype(np.single)
     country_code_map_refmatrix = src.get_transform()
-    src.close()
+    #src.close()
 
     # Check if country border raster covers entire globe
     assert (country_code_map_refmatrix[0]==-180) & (country_code_map_refmatrix[3]==90)
@@ -86,11 +64,12 @@ def load_country_code_map(filepath,mapsize):
     
 def load_us_state_code_map(filepath,mapsize):
     
-    src = rasterio.open(filepath)
-    state_code_map = src.read(1).astype(np.single)
+    #src = rasterio.open(filepath)
+    src=imread(filepath)
+    state_code_map = src.astype(np.single)
     state_code_map = resize(state_code_map,mapsize,order=0,mode='edge',anti_aliasing=False)
     state_code_map_refmatrix = src.get_transform()
-    src.close()
+    #src.close()
 
     # Check if state border raster covers entire globe
     assert (state_code_map_refmatrix[0]==-180) & (state_code_map_refmatrix[3]==90)
@@ -150,10 +129,18 @@ def load_config(filepath):
         config[varname] = varcontents
     return config
     
-def initialize_netcdf(outfile,lat,lon,varname,units,least_significant_digit):
+def initialize_netcdf(outfile,lat,lon,varname,units,compression,least_significant_digit):
     
-    ncfile = Dataset(outfile, 'w', format='NETCDF4')
+    ncfile = Dataset(outfile, 'w', format='NETCDF4_CLASSIC')
     ncfile.history = 'Created on %s' % datetime.utcnow().strftime('%Y-%m-%d %H:%M')
+    ncfile.Conventions = 'CF-1.6'
+    ncfile.Source_Software = 'Python netCDF4'
+    ncfile.reference = 'A global daily high-resolution gridded meteorological data set for 1979-2019'  #####
+    ncfile.title = 'Lisflood meteo maps 1981 for EUROPE setting Nov. 2021'
+    ncfile.keywords = 'Lisflood, Global'
+    ncfile.source = 'ERA5-land'
+    ncfile.institution = 'European Commission - Economics of climate change Unit (JRC.C.6) : https://ec.europa.eu/jrc/en/research-topic/climate-change'
+    ncfile.comment = 'The timestamp marks the end of the aggregation interval for a given map.'
     ncfile.createDimension('lon', len(lon))
     ncfile.createDimension('lat', len(lat))
     ncfile.createDimension('time', None)
@@ -166,16 +153,24 @@ def initialize_netcdf(outfile,lat,lon,varname,units,least_significant_digit):
     ncfile.variables['lat'].units = 'degrees_north'
     ncfile.variables['lat'].long_name = 'latitude'
     ncfile.createVariable('time', 'f8', 'time')
-    ncfile.variables['time'].units = 'days since 1979-01-02 00:00:00'
+    ncfile.variables['time'].units = 'days since 1979-01-01 00:00:00' #initial date has an importance when it comes to LISFLOOD
     ncfile.variables['time'].long_name = 'time'
     ncfile.variables['time'].calendar = 'proleptic_gregorian'
-    ncfile.createVariable(varname, np.single, ('time', 'lat', 'lon'),zlib=True,
-        chunksizes=(1,450,450,), fill_value=-9999,
-        least_significant_digit=least_significant_digit,complevel=4)
-    ncfile.variables[varname].units = units
+    if compression=="1":
+        ncfile.createVariable(varname, 'i2', ('time', 'lat', 'lon'),zlib=True,
+             fill_value=-9999,complevel=4)
+        ncfile.variables[varname].units = units
+        scale_factor=meteo_vars_config[varname][KEY_SCALE_FACTOR]   
+        add_offset=meteo_vars_config[varname][KEY_OFFSET]   
+        ncfile.variables[varname].scale_factor=scale_factor      
+        ncfile.variables[varname].add_offset=add_offset
+    else:
+        ncfile.createVariable(varname, 'f4', ('time', 'lat', 'lon'),zlib=True,
+        fill_value=-9999,least_significant_digit=least_significant_digit,complevel=4)
+        ncfile.variables[varname].units = units
     
-    ncfile.scale_factor=__meteo_vars_config[varname][__KEY_SCALE_FACTOR]       
-    ncfile.add_offset=__meteo_vars_config[varname][__KEY_OFFSET]
+    #ncfile.variables[varname].set_auto_maskandscale(True)
+    ncfile.variables[varname].missing_value=-9999
     #add projection system 
     proj = ncfile.createVariable('wsg_1984', 'i4')
     proj.grid_mapping_name = 'latitude_longitude'
