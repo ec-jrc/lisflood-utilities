@@ -72,25 +72,15 @@ yrlist=[]
 data ={}  
 #read all the monthly files downloaded from the CDS
 for file in files:
-    
+#format of namefile must be : xx_xxx_yr_month.nc 
     yrprev=yr
     lf=len(file)
-    spl_word='e5l'
-    res = file.partition(spl_word)[2]
-    id_f=res.split('_')[1]
-    if id_f.isdigit()== False:
-        print(id_f)
-        id2=res.split('_')[2]
-        if id2.isdigit()== False:
-            print("file name: " + file + " contains too many _, change base name in config")
-            #break
-        else:
-            file_yearnc = os.path.basename(file).split('_')[2]
-            file_monthnc = os.path.basename(file).split('_')[3]
+    splitname=os.path.basename(file).split('_')
+    yrloc=len(splitname)-2 #the year is always at the end of the filename
+    moloc=len(splitname)-1 #the month is always at the end of the filename
+    file_yearnc = os.path.basename(file).split('_')[yrloc]
+    file_monthnc = os.path.basename(file).split('_')[moloc]
             
-    if id_f.isdigit()== True:
-        file_yearnc = os.path.basename(file).split('_')[1]
-        file_monthnc = os.path.basename(file).split('_')[2]
     yr = int(file_yearnc.split('.')[0])
     mo = int(file_monthnc.split('.')[0])
     hourly_v = xr.open_dataset(os.path.join(file))

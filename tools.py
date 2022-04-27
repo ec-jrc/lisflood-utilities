@@ -144,15 +144,17 @@ def initialize_netcdf(outfile,lat,lon,varname,units,compression,least_significan
     ncfile.createDimension('lon', len(lon))
     ncfile.createDimension('lat', len(lat))
     ncfile.createDimension('time', None)
-    ncfile.createVariable('lon', 'f8', ('lon',))
+    ncfile.createVariable('lon', 'f4', ('lon',),complevel=4, zlib=True)
     ncfile.variables['lon'][:] = lon
     ncfile.variables['lon'].units = 'degrees_east'
+    ncfile.variables['lon'].standard_name = 'longitude'
     ncfile.variables['lon'].long_name = 'longitude'
-    ncfile.createVariable('lat', 'f8', ('lat',))
+    ncfile.createVariable('lat', 'f4', ('lat',),complevel=4, zlib=True)
     ncfile.variables['lat'][:] = lat
     ncfile.variables['lat'].units = 'degrees_north'
+    ncfile.variables['lat'].standard_name = 'latitude'
     ncfile.variables['lat'].long_name = 'latitude'
-    ncfile.createVariable('time', 'f8', 'time')
+    ncfile.createVariable('time', 'i4', 'time',complevel=4, zlib=True)
     ncfile.variables['time'].units = 'days since 1979-01-01 00:00:00' #initial date has an importance when it comes to LISFLOOD
     ncfile.variables['time'].long_name = 'time'
     ncfile.variables['time'].calendar = 'proleptic_gregorian'
@@ -168,16 +170,14 @@ def initialize_netcdf(outfile,lat,lon,varname,units,compression,least_significan
         ncfile.createVariable(varname, 'f4', ('time', 'lat', 'lon'),zlib=True,
         fill_value=-9999,least_significant_digit=least_significant_digit,complevel=4)
         ncfile.variables[varname].units = units
-    
+        
+    ncfile.variables[varname].grid_mapping='wgs_1984'
+    ncfile.variables[varname].esri_pe_string='GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433],AUTHORITY["EPSG","4326"]]'
     #ncfile.variables[varname].set_auto_maskandscale(True)
     ncfile.variables[varname].missing_value=-9999
     #add projection system 
     proj = ncfile.createVariable('wsg_1984', 'i4')
     proj.grid_mapping_name = 'latitude_longitude'
-    #proj.false_easting= ''
-    #proj.false_northing= ''
-    #proj.longitude_of_projection_origin= ''
-    #proj.latitude_of_projection_origin= ''
     proj.semi_major_axis= '6378137.0'
     proj.inverse_flattening='298.257223563'
     proj.proj4_params='+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs'

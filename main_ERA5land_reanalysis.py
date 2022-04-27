@@ -35,8 +35,8 @@ import shutil
 from datetime import timedelta
 
 # Load configuration file 
-config = load_config(sys.argv[1])
-#config = load_config("Z:/nahaUsers/tilloal/ERA5l_x_lisflood/Lisflood_Meteo/config.cfg")
+#config = load_config(sys.argv[1])
+config = load_config("D:/tilloal/Documents/Lisflood_Meteo/config.cfg")
 namefiles=config['namefiles']
 petc = config['petc']
 compression = config['compression']
@@ -47,16 +47,15 @@ cover = config['cover']
 start=  int(sys.argv[2])
 end = int(sys.argv[3])
 
-
-#start=1981
-#end=1982
+#start=1987
+#end=1988
 print("working on " + cover)
 
 if compression=='1':
     print('netcdf files will be compressed using add_offset and scale_factor')
 
 def main():
-  
+
     # Output dates
     year_start,year_end = start, end
     out_dates_dly = pd.date_range(start=datetime(year_start,1,1), end=datetime(year_end+1,1,1)-pd.Timedelta(days=1), freq='D')
@@ -132,7 +131,7 @@ def main():
     varnames = ['ws', 'ta','td','rn','rgd']
     nfiles = {}
     for vr in varnames:
-        files = glob.glob(os.path.join(config['e5land_folder'],vr,"0.1_deg",namefiles + "_" + vr + "_*.nc"))    
+        files = glob.glob(os.path.join(config['e5land_folder'], namefiles + "_ta_*.nc"))  
         nfiles[vr] = len(files)
     nfiles_arr = np.array(list(nfiles.values()))
     if (np.max(nfiles_arr)==0) | (any(nfiles_arr<np.max(nfiles_arr))):
@@ -144,7 +143,7 @@ def main():
     if os.path.isdir(scratchoutdir)==False:
         os.makedirs(scratchoutdir)
     ncfile_ta = initialize_netcdf(os.path.join(scratchoutdir,'ta.nc'),template_lat,template_lon,'ta','degree_Celsius',compression,1)
-    ncfile_pr = initialize_netcdf(os.path.join(scratchoutdir,'tp.nc'),template_lat,template_lon,'tp','mm d-1')
+    ncfile_pr = initialize_netcdf(os.path.join(scratchoutdir,'tp.nc'),template_lat,template_lon,'tp','mm d-1',compression,1)
     
     if petc=="1":
         ncfile_et = initialize_netcdf(os.path.join(scratchoutdir,'et.nc'),template_lat,template_lon,'et','mm d-1',compression,1)
@@ -157,21 +156,30 @@ def main():
         ncfile_td = initialize_netcdf(os.path.join(scratchoutdir,'td.nc'),template_lat,template_lon,'td','degree_Celsius',compression,1)
 
     # Loop over input files (MFDataset doesn't work properly)
-    print(os.path.join(config['e5land_folder'],"ta","0.1_deg",namefiles + "_ta_*.nc"))
-    files = glob.glob(os.path.join(config['e5land_folder'],"ta","0.1_deg", namefiles + "_ta_*.nc"))
+    print(os.path.join(config['e5land_folder'],namefiles + "_ta_*.nc"))
+    files = glob.glob(os.path.join(config['e5land_folder'], namefiles + "_ta_*.nc"))
+    
+
     for file in files:
-        file_yearnc = os.path.basename(file).split('_')[2]
+
+        splitname=os.path.basename(file).split('_')
+        yrloc=len(splitname)-1 #the year is always at the end of the filename
+        file_yearnc = os.path.basename(file).split('_')[yrloc]
         file_year = int(file_yearnc.split('.')[0])
         #file_year_end = int(os.path.basename(file).split('_')[6][:-3])
         file_dates_dly = pd.date_range(start=datetime(file_year,1,1), end=datetime(file_year+1,1,1)-pd.Timedelta(days=1), freq='D')
         hits = np.sum((out_dates_dly.year==file_year))
         if hits==0:
-            continue
-        
+          continue
+
         # Open input files
         print('Processing '+os.path.basename(file))
         t0 = time.time()
         dset_tmean = xr.open_dataset(file,diskless=True) # degrees C
+
+        #file2 = glob.glob(os.path.join('Z:\ClimateRun3\ERA5-land',"ta","0.1_deg", "e5ldxc_ta_1981.nc"))[0]
+        #compare_dset= xr.open_dataset(file2,diskless=True)
+
         #ta_vals=dset_tmean['ta']
         #ta_vals=ta_vals.rio.write_crs(4326)
         #ta_vals=ta_vals.rio.write_nodata('nan')
@@ -182,19 +190,18 @@ def main():
         dset_swd = xr.open_dataset(file.replace('ta','rgd'),diskless=True) # W/m2
         dset_lwd = xr.open_dataset(file.replace('ta','rn'),diskless=True) # W/m2
         dset_pr = xr.open_dataset(file.replace('ta','tp'),diskless=True) # mm/d
+        
         # Loop over days of input file
-
         for ii in np.arange(len(file_dates_dly)):
-            
-     
+
             if file_dates_dly[ii] not in out_dates_dly:
                 continue
    
-            print('Processing '+os.path.basename(file)+', ii: '+str(ii)+', time stamp: '+datetime.now().strftime("%d/%m/%Y, %H:%M:%S")+')')                    
+            print('Processing year '+ str(file_year) +', date: '+str(file_dates_dly[ii])+', time stamp: '+datetime.now().strftime("%d/%m/%Y, %H:%M:%S")+')')                    
 
             # Read data from input files
             data = {}
-            index = np.where(out_dates_dly==file_dates_dly[ii])[0][0]                            
+            #index = np.where(out_dates_dly==file_dates_dly[ii])[0][0]                            
             data['ta'] = dset_tmean['ta'][ii,:,:] # degrees C
             if petc=="1":
                data['ws'] = dset_wind.variables['ws'][ii,:,:]*0.75 # m/s (factor 0.75 to translate from 10-m to 2-m height)
@@ -216,12 +223,14 @@ def main():
             for key in data.keys():
                 data[key]=data[key].rio.write_crs(4326)
                 data[key]=data[key].rio.write_nodata('nan')
+                data[key]=data[key].rio.set_spatial_dims('lon','lat')
                 data[key]=data[key].rio.interpolate_na(method='nearest')
                 if (key=='ta')| (key=='td'):
                     data[key] = resize(data[key],mapsize_europe,order=1,mode='constant',anti_aliasing=False)
                     data[key] = np.around(data[key]+temp_delta,1)
                 else:
                     data[key] = resize(data[key],mapsize_europe,order=0,mode='edge',anti_aliasing=False)    
+                    
             # Subset data to template region
             for key in data.keys():
                 if cover=="global":
@@ -236,7 +245,7 @@ def main():
                     add_offset=meteo_vars_config[key][KEY_OFFSET] 
                     data[key][np.isnan(data[key])] = (-9999 - add_offset) * scale_factor
 
-            
+         
             #Potential evapotranspiration is not implemented yet for the set of input from ERA5-land
             if petc=="1":
             # Compute potential evaporation
@@ -246,12 +255,12 @@ def main():
                 pet = potential_evaporation(data,albedo,factor,doy,lat_template,elev_template)
             
             # Write data to output netCDFs
-            time_value = (file_dates_dly[ii]-pd.to_datetime(datetime(1979, 1, 1))).total_seconds()/86400                    
+            time_value = (file_dates_dly[ii]-pd.to_datetime(datetime(1979, 1, 1))).total_seconds()/86400                 
             index = np.where(out_dates_dly==file_dates_dly[ii])[0][0]
             
             #daily variables need to be the accumulation of the previous day
-            
             #no need to move date as the variable is already an accumulation of the previous day
+            
             ncfile_pr.variables['time'][index] = time_value
             ncfile_pr.variables['tp'][index,:,:] = data['tp']
             
