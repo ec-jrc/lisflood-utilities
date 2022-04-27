@@ -35,8 +35,8 @@ import shutil
 from datetime import timedelta
 
 # Load configuration file 
-#config = load_config(sys.argv[1])
-config = load_config("D:/tilloal/Documents/Lisflood_Meteo/config.cfg")
+config = load_config(sys.argv[1])
+#config = load_config("D:/tilloal/Documents/Lisflood_Meteo/config.cfg")
 namefiles=config['namefiles']
 petc = config['petc']
 compression = config['compression']
