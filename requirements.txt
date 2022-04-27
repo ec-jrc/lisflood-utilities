@@ -160,6 +160,7 @@ pyyaml=6.0=pypi_0
 qt=5.12.9=ha98a1a1_5
 rasterio=1.2.10=pypi_0
 readline=8.1=h46c0cb4_0
+rioxarray @ file:///home/conda/feedstock_root/build_artifacts/rioxarray_1634597436112/work
 scikit-image=0.19.2=pypi_0
 scipy=1.8.0=pypi_0
 setuptools=60.9.3=pypi_0
@@ -176,6 +177,7 @@ tzcode=2021e=h7f98852_0
 tzdata=2021e=he74cb21_0
 unicodedata2=14.0.0=pypi_0
 wheel=0.37.1=pyhd8ed1ab_0
+xarray @ file:///home/conda/feedstock_root/build_artifacts/xarray_1627311788418/work
 xerces-c=3.2.3=h8ce2273_4
 xorg-kbproto=1.0.7=h7f98852_1002
 xorg-libice=1.0.10=h7f98852_0
