@@ -92,6 +92,7 @@ def main():
     elev = np.zeros((21600,43200),dtype=np.single)
 
     srcz=imread(os.path.join(config['dem_folder'],'elevation_1KMmn_GMTEDmn.tif'), plugin="tifffile")
+    # Removed rastrio because it is conflicting with xarray
     #src = rasterio.open(os.path.join(config['dem_folder'],'elevation_1KMmn_GMTEDmn.tif'))
 
     elev[720:17520,:] = srcz

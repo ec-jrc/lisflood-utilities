@@ -56,6 +56,7 @@ else:
     
 # print list
 print('list: ', varnames)
+
 # define names of new variables
 tvar = ['ws','ta','rn','td','tp','rgd','u10','v10']
 var = tvar
@@ -95,7 +96,8 @@ for file in files:
     tan=len(hourly_v['time'])
     koudur=range(0,tan,24)
     start = time.time() 
-          
+    
+     # Aggregating to daily timestep for each variable   
     if 'u10' in vc and 'v10' in vc:
         v10= hourly_v['v10']
         u10 = hourly_v['u10']
@@ -184,9 +186,9 @@ for file in files:
 
     end=time.time()
     print(end - start)
- #%% 
+    
+    # Generate yearly files for each variable separately
     if mo==12:
-        compression='0'
         file_dates_dly = pd.date_range(start=datetime(yr,1,1), end=datetime(yr+1,1,1)-pd.Timedelta(days=1), freq='D')
         template_lat = np.array(hourly_v['latitude'][:])
         template_lon = np.array(hourly_v['longitude'][:])
