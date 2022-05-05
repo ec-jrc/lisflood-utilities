@@ -24,6 +24,8 @@ import sys
 from .. import version, logger
 from .cutlib import mask_from_ldd, get_filelist, get_cuts, cutmap
 from ..nc2pcr import convert
+from netCDF4 import Dataset 
+import numpy as np
 
 
 def parse_and_check_args(parser, cliargs):
@@ -141,8 +143,34 @@ def main(cliargs):
             continue
 
         cutmap(file_to_cut, fileout, x_min, x_max, y_min, y_max)
-
-
+        if ldd and stations:
+           mask_map=Dataset(pathout+'my_mask.nc','r',format='NETCDF4_CLASSIC') 
+           for k in mask_map.variables.keys():        
+               if (k !='x'  and k !='y'  and k !='lat'  and k !='lon'):
+                  mask_map_values=mask_map.variables[k][:]                                
+           file_out=Dataset(fileout,'r+',format='NETCDF4_CLASSIC')
+    
+           for name, variable in file_out.variables.items():
+               data=[]   
+               if (variable.dtype != '|S1' and name != 'crs' and name != 'wgs_1984' and name != 'lambert_azimuthal_equal_area'): 
+                k = name
+                data=file_out.variables[k][:] 
+               
+                if (len(data.shape)==2):
+                  values=[]
+                  values=file_out.variables[k][:]              
+                  values2=np.where(mask_map_values==1,values,np.nan)
+                  file_out.variables[k][:] = values2
+                  file_out.close()
+                if (len(data.shape)>2):
+                  for t in np.arange(data.shape[0]):
+                    file_out=Dataset(fileout,'r+',format='NETCDF4_CLASSIC')
+                    values=[]
+                    values=file_out.variables[k][:][t]               
+                    values2=np.where(mask_map_values==1,values,np.nan)
+                    file_out.variables[k][t,:,:] = values2
+                    file_out.close()   
+                                   
 def main_script():
     sys.exit(main(sys.argv[1:]))
 
