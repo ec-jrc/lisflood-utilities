@@ -243,16 +243,16 @@ cutmaps -m /workarea/Madeira/maps/MaskMap/Bacia_madeira.nc -f /workarea/Madeira/
 ```
 
 **Indices can also be passed as an argument (using -c argument instead of -m). Knowing your area of interest from your netCDF files, 
-you can determine indices of the array and you can pass in the form `imin_i_max:jmin_jmax`.**
+you can determine indices of the array and you can pass in the form `imin imax jmin jmax`.**
 
 ```bash
-cutmaps -c 150_350:80_180 -f /workarea/Madeira/lai/ -o ./
+cutmaps -c "150 350 80 180" -f /workarea/Madeira/lai/ -o ./
 ```
 
 **Example with coordinates and path to EFAS/GloFAS static data (-S option), with -W to allow overwriting existing files in output directory:**
 
 ```bash
-cutmaps -S /home/projects/lisflood-eu -c 4078546.12_4463723.85:811206.57_1587655.50 -o /Work/Tunisia/cutmaps -W
+cutmaps -S /home/projects/lisflood-eu -c "4078546.12 4463723.85 811206.57 1587655.50" -o /Work/Tunisia/cutmaps -W
 ```
 
 **Example with stations.txt and LDD**

@@ -59,7 +59,7 @@ class ParserHelpOnError(argparse.ArgumentParser):
                                                    'create mask cookie-cutter on-fly from stations list and ldd map')
         group_filelist = self.add_mutually_exclusive_group(required=True)
         group_mask.add_argument("-m", "--mask", help='mask file cookie-cutter, .map if pcraster, .nc if netcdf')
-        group_mask.add_argument("-c", "--cuts", help='Cut coordinates in the form lonmin lonmax latmin latmax', type=get_arg_coords)
+        group_mask.add_argument("-c", "--cuts", help='Cut coordinates in the form "lonmin lonmax latmin latmax"', type=get_arg_coords)
         group_mask.add_argument("-l", "--ldd", help='Path to LDD file')
         group_mask.add_argument("-N", "--stations",
                                 help='Path to stations.txt file.'
