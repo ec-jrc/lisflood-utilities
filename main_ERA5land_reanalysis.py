@@ -51,7 +51,7 @@ end = int(sys.argv[3])
 #start=1987
 #end=1988
 print("working on " + cover)
-#%%
+
 if compression=='1':
     print('netcdf files will be compressed using add_offset and scale_factor')
 
@@ -62,36 +62,38 @@ def main():
     out_dates_dly = pd.date_range(start=datetime(year_start,1,1), end=datetime(year_end+1,1,1)-pd.Timedelta(days=1), freq='D')
     
     # Load template map
-    #%%
+
     dset = nc.Dataset(config['templatemap_path'])
-    ptn=xr.open_dataset(config['templatemap_path'])
-    #%%
-    template_lat = np.asarray(ptn.variables['lat'][:])
-    template_lon = np.asarray(ptn.variables['lon'][:])
-    template_res = template_lon[1]-template_lon[0]
+    dset.set_auto_maskandscale(False)
+
+    template_lat = np.asarray(dset.variables['lat'])
+    template_lon = np.asarray(dset.variables['lon'])
+    template_res = round(template_lon[1]-template_lon[0],13)
     varname = list(dset.variables.keys())[-1]
     template_np = np.array(dset.variables[varname][:])
-    #%%
+    condition = template_np==0
+#%%
     #load of template domain with xarray to set a mask on the new data
-    Source = xr.open_dataset(config['templatemap_path'])
-    obj=Source['area']
+    #Source = xr.open_dataset(config['templatemap_path'])
+    #obj=dset.variables[varname][:]
+    #objx=Source[varname]
     #land mask at template resolution
-    condition = obj.isnull()
+    #condition = obj.isnull()
 
     # Determine map sizes
-#%%
+
     mapsize_global = (np.round(180/template_res).astype(int),np.round(360/template_res).astype(int))
-#%%    
+   
     # this is the map size for pan-european hydrological anaysis
-    scaleR=int(0.1/template_res)
+    scaleR=(0.1/template_res)
     
     # The grid need to be shifted if border has 2 significan digits
     shift=round(eu_area[0]-round(eu_area[0],1),2)
     mapsize_ereu =((np.round((eu_area[0]-eu_area[2])/e5land_res)+1).astype(int),(np.round((eu_area[3]-eu_area[1])/e5land_res)+1).astype(int))
-    size_eulon = mapsize_ereu[0]*scaleR
-    size_eulat = mapsize_ereu[1]*scaleR
+    size_eulon = round(mapsize_ereu[0]*scaleR)
+    size_eulat = round(mapsize_ereu[1]*scaleR)
     mapsize_europe = (size_eulon,size_eulat)
-    #mapsize_europe = (np.round((eu_area[0]-eu_area[2])/template_res).astype(int),np.round((eu_area[3]-eu_area[1]+1)/template_res).astype(int))
+    mapsize_europe2 = (np.round((eu_area[0]-eu_area[2])/template_res).astype(int),np.round((eu_area[3]-eu_area[1]+1)/template_res).astype(int))
     row_ue,col_lue = latlon2rowcol(template_lat[0],template_lon[0],template_res,eu_area[0]+shift,eu_area[1]-shift)
 
     mapsize_template = template_np.shape
@@ -99,7 +101,7 @@ def main():
     # locate the european and template domain in the global domain
     row_upper,col_left = latlon2rowcol(template_lat[0],template_lon[0],template_res,90,-180)
     row_uppeu,col_lefeu = latlon2rowcol(eu_area[0]+shift,eu_area[1]-shift,template_res,90,-180)
-#%%
+
     # Load elevation data, append zeros to top and bottom to make global, and resample to template resolution
     elev = np.zeros((21600,43200),dtype=np.single)
 
@@ -115,14 +117,14 @@ def main():
     elev_europe = elev_global[row_uppeu:row_uppeu+mapsize_europe[0],col_lefeu:col_lefeu+mapsize_europe[1]]
     elev_template = elev_global[row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)]
     
-#%%
+
     # Prepare temperature downscaling
     tmp = imresize_mean(elev_global,(1800,3600)) # Resample to dimensions of input data - global
     
     #Rescale to output resolution
     tmp = rescale(tmp,scaleR,order=1,mode='edge',anti_aliasing=False)
     #tmp3 = resize(tmp,mapsize_global,order=1,mode='edge',anti_aliasing=False)
- #%%
+
     #Add option: "Europe" vs "Global"
     if cover=="global":
         elev_delta = elev_global-tmp
@@ -136,7 +138,7 @@ def main():
     lat_global = np.repeat(np.resize(np.arange(90-template_res/2,-90-template_res/2,-template_res),(10800,1)),mapsize_global[1],axis=1)
     lat_template = lat_global[row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)]
     lat_europe = lat_global[row_uppeu:row_uppeu+mapsize_europe[0],col_lefeu:col_lefeu++mapsize_europe[1]]
-    
+   
     # Check if output already exists in scratch folder or output folder
     scratchoutdir = os.path.join(config['scratch_folder'],'e5land_reanalysis')
     finaloutdir = os.path.join(config['output_folder'],'e5land_reanalysis')
@@ -242,6 +244,7 @@ def main():
                 data[key]=data[key].rio.write_nodata('nan')
                 data[key]=data[key].rio.set_spatial_dims('lon','lat')
                 data[key]=data[key].rio.interpolate_na(method='nearest')
+  
                 if (key=='ta')| (key=='td'):
                     data[key] = resize(data[key],mapsize_europe,order=1,mode='constant',anti_aliasing=False)
                     data[key] = np.around(data[key]+temp_delta,1)
@@ -252,7 +255,7 @@ def main():
                     
                     #If this method is used no need to subset data to template region
                     #data[key] = data[key].interp_like(obj, method='nearest')
-              
+
             # Subset data to template region
             for key in data.keys():
                 if cover=="global":
@@ -261,7 +264,10 @@ def main():
                     data[key] = data[key][row_ue:row_ue+len(template_lat),col_lue:col_lue+len(template_lon)]
 
         # fill the values with NA where condition is false, where there should be NaN
+
                 data[key]= np.where(condition,np.nan,data[key])
+                
+            #compression part
                 if compression=="1":
                     scale_factor=meteo_vars_config[key][KEY_SCALE_FACTOR]   
                     add_offset=meteo_vars_config[key][KEY_OFFSET] 

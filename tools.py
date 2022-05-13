@@ -144,12 +144,12 @@ def initialize_netcdf(outfile,lat,lon,varname,units,compression,least_significan
     ncfile.createDimension('lon', len(lon))
     ncfile.createDimension('lat', len(lat))
     ncfile.createDimension('time', None)
-    ncfile.createVariable('lon', 'f4', ('lon',),complevel=4, zlib=True)
+    ncfile.createVariable('lon', 'f8', ('lon',),complevel=4, zlib=True)
     ncfile.variables['lon'][:] = lon
     ncfile.variables['lon'].units = 'degrees_east'
     ncfile.variables['lon'].standard_name = 'longitude'
     ncfile.variables['lon'].long_name = 'longitude'
-    ncfile.createVariable('lat', 'f4', ('lat',),complevel=4, zlib=True)
+    ncfile.createVariable('lat', 'f8', ('lat',),complevel=4, zlib=True)
     ncfile.variables['lat'][:] = lat
     ncfile.variables['lat'].units = 'degrees_north'
     ncfile.variables['lat'].standard_name = 'latitude'
