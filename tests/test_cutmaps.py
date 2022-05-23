@@ -52,7 +52,7 @@ class TestCutlib(TestWithCleaner):
 
     def test_get_cuts_withcoords(self):
         # lonmin_lonmax:latmin_latmax
-        cuts = '-127.0_-126.5:53.2_53.4'
+        cuts = (-127.0, -126.5, 53.2, 53.4)
         x_min, x_max, y_min, y_max = get_cuts(cuts=cuts)
         assert (x_min, x_max, y_min, y_max) == (-127.0, -126.5, 53.2, 53.4)
         fin = 'tests/data/folder_a/ta.nc'
@@ -71,7 +71,7 @@ class TestCutlib(TestWithCleaner):
 
     def test_get_cuts_indices(self):
         # minxi_maxxi:minyi_maxyi
-        cuts = '3_7:1_2'
+        cuts = (3, 7, 1, 2)
         ix_min, ix_max, iy_min, iy_max = get_cuts(cuts=cuts)
         assert (ix_min, ix_max, iy_min, iy_max) == (3, 7, 1, 2)
         fin = 'tests/data/folder_a/ta.nc'
