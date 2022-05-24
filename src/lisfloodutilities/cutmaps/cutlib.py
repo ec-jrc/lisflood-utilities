@@ -89,7 +89,10 @@ def cutmap(f, fileout, x_min, x_max, y_min, y_max):
 def open_dataset(f):
     try:
         nc = xr.open_dataset(f, chunks={'time': 'auto'}, decode_cf=False)
-        num_dims = 3
+        if 'time' in nc.coords:
+            num_dims = 3
+        else:
+            num_dims = 2
     except Exception:  # file has no time component
         num_dims = 2
         nc = xr.open_dataset(f, decode_cf=False)
