@@ -16,6 +16,7 @@ See the Licence for the specific language governing permissions and limitations 
 """
 
 import datetime
+import cftime
 import itertools
 from typing import Iterable
 
@@ -51,9 +52,9 @@ class Comparator(object):
         :param timestep (default None). If passed, comparison happens only at the defined timestep(s)
         :type timestep int, datetime.datetime, list[datetime.datetime]
         """
-        if timestep and isinstance(timestep, datetime.datetime):
+        if timestep and isinstance(timestep, (datetime.datetime, cftime.DatetimeProlepticGregorian)):
             timestep = [timestep]
-        if timestep and not isinstance(timestep, (int, datetime.datetime, Iterable)):
+        if timestep and not isinstance(timestep, (int, datetime.datetime, cftime.DatetimeProlepticGregorian, Iterable)):
             raise ValueError('timestep must be of type int for TSS, datetime.datetime or a range of dates for netCDF, but type {} was found'.format(str(type(timestep))))
         logger.info('Comparing %s and %s %s [skip missing: %s]',
                     path_a, path_b,
