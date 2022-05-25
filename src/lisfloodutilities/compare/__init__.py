@@ -52,9 +52,9 @@ class Comparator(object):
         :param timestep (default None). If passed, comparison happens only at the defined timestep(s)
         :type timestep int, datetime.datetime, list[datetime.datetime]
         """
-        if timestep and isinstance(timestep, datetime.datetime):
+        if timestep and isinstance(timestep, (datetime.datetime, cftime.DatetimeProlepticGregorian, cftime.real_datetime)):
             timestep = [timestep]
-        if timestep and not isinstance(timestep, (int, datetime.datetime, Iterable, cftime.DatetimeProlepticGregorian, cftime.real_datetime)):
+        if timestep and not isinstance(timestep, (int, datetime.datetime, cftime.DatetimeProlepticGregorian, cftime.real_datetime, Iterable)):
             raise ValueError('timestep must be of type int for TSS, datetime.datetime or a range of dates for netCDF, but type {} was found'.format(str(type(timestep))))
         logger.info('Comparing %s and %s %s [skip missing: %s]',
                     path_a, path_b,

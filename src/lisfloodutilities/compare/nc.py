@@ -109,7 +109,7 @@ class NetCDFComparator(Comparator):
     def compare_files(self, file_a, file_b, timestep=None):
         if timestep and isinstance(timestep, (datetime.datetime, cftime.DatetimeProlepticGregorian, cftime.real_datetime)):
             timestep = [timestep]
-        if timestep and not isinstance(timestep, (datetime.datetime, Iterable, cftime.DatetimeProlepticGregorian, cftime.real_datetime)):
+        if timestep and not isinstance(timestep, (datetime.datetime, cftime.DatetimeProlepticGregorian, cftime.real_datetime, Iterable)):
             raise ValueError('timestep must be of type datetime.datetime or a range of dates, but type {} was found'.format(str(type(timestep))))
 
         logger.info('Comparing %s and %s %s', file_a, file_b, '(from %s to %s)' % (min(timestep), max(timestep)) if timestep else '')
