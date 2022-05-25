@@ -175,7 +175,7 @@ def get_cuts(cuts=None, mask=None):
         # user provided coordinates bounds
         x_min, x_max, y_min, y_max = cuts
     else:
-        logger.error('You must provide either cuts (in the format minlon_maxlon:minlat_maxlat) or a mask map')
+        logger.error('You must provide either cuts (in the format "lonmin lonmax latmin latmax") or a mask map')
         sys.exit(1)
     logger.info('CUTS: \nmin x: %s \nmax x: %s \nmin y: %s \nmax y: %s', x_min, x_max, y_min, y_max)
     return x_min, x_max, y_min, y_max

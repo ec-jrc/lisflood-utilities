@@ -24,6 +24,8 @@ import sys
 from .. import version, logger
 from .cutlib import mask_from_ldd, get_filelist, get_cuts, cutmap
 from ..nc2pcr import convert
+from netCDF4 import Dataset 
+import numpy as np
 
 
 def parse_and_check_args(parser, cliargs):
@@ -57,7 +59,7 @@ class ParserHelpOnError(argparse.ArgumentParser):
                                                    'create mask cookie-cutter on-fly from stations list and ldd map')
         group_filelist = self.add_mutually_exclusive_group(required=True)
         group_mask.add_argument("-m", "--mask", help='mask file cookie-cutter, .map if pcraster, .nc if netcdf')
-        group_mask.add_argument("-c", "--cuts", help='Cut coordinates in the form lonmin lonmax latmin latmax', type=get_arg_coords)
+        group_mask.add_argument("-c", "--cuts", help='Cut coordinates in the form "lonmin lonmax latmin latmax"', type=get_arg_coords)
         group_mask.add_argument("-l", "--ldd", help='Path to LDD file')
         group_mask.add_argument("-N", "--stations",
                                 help='Path to stations.txt file.'
@@ -141,8 +143,31 @@ def main(cliargs):
             continue
 
         cutmap(file_to_cut, fileout, x_min, x_max, y_min, y_max)
-
-
+        if ldd and stations:
+            with Dataset(os.path.join(pathout, 'my_mask.nc'),'r',format='NETCDF4_CLASSIC')  as mask_map:  
+                for k in mask_map.variables.keys():        
+                    if (k !='x'  and k !='y'  and k !='lat'  and k !='lon'):
+                        mask_map_values=mask_map.variables[k][:] 
+            with Dataset(fileout,'r+',format='NETCDF4_CLASSIC') as file_out:                                    
+                for name, variable in file_out.variables.items():
+                    data=[]   
+                    if (variable.dtype != '|S1' and name != 'crs' and name != 'wgs_1984' and name != 'lambert_azimuthal_equal_area'): 
+                        k = name
+                        data=file_out.variables[k][:] 
+                    
+                        if (len(data.shape)==2):
+                            values=[]
+                            values=file_out.variables[k][:]              
+                            values2=np.where(mask_map_values==1,values,np.nan)
+                            file_out.variables[k][:] = values2
+                            
+                        if (len(data.shape)>2):
+                            for t in np.arange(data.shape[0]):
+                                values=[]
+                                values=file_out.variables[k][:][t]               
+                                values2=np.where(mask_map_values==1,values,np.nan)
+                                file_out.variables[k][t,:,:] = values2
+                                   
 def main_script():
     sys.exit(main(sys.argv[1:]))
 
