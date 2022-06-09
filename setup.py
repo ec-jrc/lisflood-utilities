@@ -133,14 +133,14 @@ setup_args = dict(
     setup_requires=[
             'setuptools>=41.0', 'numpy',
     ],
-    install_requires=['numpy', 'pyyaml>=5.3',
+    install_requires=['numpy', 'pyyaml>=5.4',
                       # Can create corrupted environment if using conda,
                       # Better to install GDAL manually before to install lisflood-utilities package
                       # 'GDAL=={}'.format(gdal_version),
                       'netCDF4>=1.5.3', 'toolz', 'xarray>=0.15.1',
                       'dask', 'pandas>=0.25.1', 'nine'],
-    author="Valerio Lorini, Domenico Nappo, Lorenzo Alfieri",
-    author_email="valerio.lorini@ec.europa.eu,domenico.nappo@gmail.com,lorenzo.alfieri@ec.europa.eu",
+    author="Valerio Lorini, Stefania Grimaldi, Carlo Russo, Domenico Nappo, Lorenzo Alfieri",
+    author_email="valerio.lorini@ec.europa.eu,stefania.grimaldi@ec.europa.eu,carlo.russo@ext.ec.europa.eu,domenico.nappo@gmail.com,lorenzo.alfieri@ec.europa.eu",
     keywords=['netCDF4', 'PCRaster', 'mapstack', 'lisflood', 'efas', 'glofas', 'ecmwf', 'copernicus'],
     license='EUPL 1.2',
     url='https://github.com/ec-jrc/lisflood-utilities',
