@@ -20,6 +20,8 @@ import numpy as np
 from netCDF4 import Dataset
 import logging
 
+from lisfloodutilities.cutmaps.main import get_arg_coords
+
 logging.basicConfig(format="%(threadName)s:%(message)s")
 from lisfloodutilities import IS_PYTHON2
 from lisfloodutilities.cutmaps.cutlib import get_filelist, get_cuts, cutmap, mask_from_ldd
@@ -51,8 +53,9 @@ class TestCutlib(TestWithCleaner):
                        'tests/data/folder_a/tp.nc']))) == res
 
     def test_get_cuts_withcoords(self):
-        # lonmin_lonmax:latmin_latmax
-        cuts = '-127.0_-126.5:53.2_53.4'
+        # "lonmin lonmax latmin latmax"
+        cuts = '-127.0 -126.5 53.2 53.4'
+        cuts = get_arg_coords(cuts)
         x_min, x_max, y_min, y_max = get_cuts(cuts=cuts)
         assert (x_min, x_max, y_min, y_max) == (-127.0, -126.5, 53.2, 53.4)
         fin = 'tests/data/folder_a/ta.nc'
@@ -70,8 +73,9 @@ class TestCutlib(TestWithCleaner):
         assert (-126.95, -126.55, 53.25, 53.35) == (res_x_min, res_x_max, res_y_min, res_y_max)
 
     def test_get_cuts_indices(self):
-        # minxi_maxxi:minyi_maxyi
-        cuts = '3_7:1_2'
+        # "minxi maxxi minyi maxyi"
+        cuts = '3 7 1 2'
+        cuts = get_arg_coords(cuts)
         ix_min, ix_max, iy_min, iy_max = get_cuts(cuts=cuts)
         assert (ix_min, ix_max, iy_min, iy_max) == (3, 7, 1, 2)
         fin = 'tests/data/folder_a/ta.nc'
