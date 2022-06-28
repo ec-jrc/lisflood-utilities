@@ -1,9 +1,14 @@
-# -*- coding: utf-8 -*-
 """
 Created on Wed Oct 27 17:29:27 2021
 
 @author: tilloal
 """
+
+#!/usr/bin/env python  
+# -*- coding: utf-8 -*-
+
+__author__ = "Alois Tilloy"
+__date__ = "June 2022"
 # Import the os module
 import os
 
@@ -21,7 +26,6 @@ import pandas as pd
 from xarray import concat
 
 from tools import *
-#%%
 
 ## Script 2/4
 
@@ -34,12 +38,11 @@ from tools import *
  
 # Output:
 # 1) separate netCDF file for chosen daily variable for each year
-#%%
 
 #config = load_config(sys.argv[1])
 config = load_config("cds_config.cfg")
 # Print the current working directory
-#print("Current working directory: {0}".format(os.getcwd()))
+print("Current working directory: {0}".format(os.getcwd()))
 
 # select your variable(s); name must be a valid ERA5 CDS API name 
 longnames = ['10m_u_component_of_wind', '10m_v_component_of_wind', '2m_temperature','surface_net_thermal_radiation', 'surface_net_solar_radiation','2m_dewpoint_temperature']
@@ -56,12 +59,14 @@ else:
 # print list
 print('list: ', varnames)
 
-# define names of new variables
+# define names of new variables for LISFLOOD
 tvar = ['ws','ta','rn','td','tp','rgd','u10','v10']
 var = tvar
 
 file_dir= config['download_folder']
-namefile="e5l"
+
+#name at the beginning of the files
+namefile=config["namefile"]
 
 scratchoutdir = config['scratch_folder']
 files = glob.glob(os.path.join(config['download_folder'],"hourly",namefile+"_*_*.nc"))    
@@ -72,7 +77,7 @@ yrlist=[]
 data ={}  
 #read all the monthly files downloaded from the CDS
 for file in files:
-#format of namefile must be : xx_xxx_yr_month.nc 
+#format of input file must be : namefile_xx_yr_month.nc 
     yrprev=yr
     lf=len(file)
     splitname=os.path.basename(file).split('_')

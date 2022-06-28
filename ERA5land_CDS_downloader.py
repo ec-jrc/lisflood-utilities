@@ -55,6 +55,8 @@ else:
 # print list
 print('list: ', varnames)
 
+
+#this list has to be modified to include more variables
 pair_var=[['u10', 'v10','2t','str','ssrd','2d','tp'],
           ['10m_u_component_of_wind', '10m_v_component_of_wind', '2m_temperature','surface_net_thermal_radiation', 'surface_downward_solar_radiation','2m_dewpoint_temperature','total_precipitation']]
 

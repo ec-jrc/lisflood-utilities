@@ -1,16 +1,15 @@
-# -*- coding: utf-8 -*-
+
 """
 Created on Mon Apr  4 17:09:58 2022
 
-@author: tilloal
+@author: Alois Tilloy and Hylke Beck
 """
 
 #!/usr/bin/env python  
 # -*- coding: utf-8 -*-
 
-__author__ = "Hylke E. Beck"
-__email__ = "hylke.beck@gmail.com"
-__date__ = "March 2022"
+__author__ = "Alois Tilloy"
+__date__ = "June 2022"
 
 
 import rioxarray # for the extension to load
@@ -34,10 +33,9 @@ import matplotlib.pyplot as plt
 #import rasterio
 import shutil
 from datetime import timedelta
-#%%
+
 # Load configuration file 
 config = load_config(sys.argv[1])
-#config = load_config("D:/tilloal/Documents/Lisflood_Meteo/config.cfg")
 namefiles=config['namefiles']
 petc = config['petc']
 compression = config['compression']
@@ -56,13 +54,12 @@ if compression=='1':
     print('netcdf files will be compressed using add_offset and scale_factor')
 
 def main():
-#%%
+
     # Output dates
     year_start,year_end = start, end
     out_dates_dly = pd.date_range(start=datetime(year_start,1,1), end=datetime(year_end+1,1,1)-pd.Timedelta(days=1), freq='D')
     
     # Load template map
-
     dset = nc.Dataset(config['templatemap_path'])
     dset.set_auto_maskandscale(False)
 
@@ -72,16 +69,8 @@ def main():
     varname = list(dset.variables.keys())[-1]
     template_np = np.array(dset.variables[varname][:])
     condition = template_np==0
-#%%
-    #load of template domain with xarray to set a mask on the new data
-    #Source = xr.open_dataset(config['templatemap_path'])
-    #obj=dset.variables[varname][:]
-    #objx=Source[varname]
-    #land mask at template resolution
-    #condition = obj.isnull()
 
     # Determine map sizes
-
     mapsize_global = (np.round(180/template_res).astype(int),np.round(360/template_res).astype(int))
    
     # this is the map size for pan-european hydrological anaysis
@@ -97,7 +86,7 @@ def main():
     row_ue,col_lue = latlon2rowcol(template_lat[0],template_lon[0],template_res,eu_area[0]+shift,eu_area[1]-shift)
 
     mapsize_template = template_np.shape
-#%%
+
     # locate the european and template domain in the global domain
     row_upper,col_left = latlon2rowcol(template_lat[0],template_lon[0],template_res,90,-180)
     row_uppeu,col_lefeu = latlon2rowcol(eu_area[0]+shift,eu_area[1]-shift,template_res,90,-180)
@@ -106,24 +95,21 @@ def main():
     elev = np.zeros((21600,43200),dtype=np.single)
 
     srcz=imread(os.path.join(config['dem_folder'],'elevation_1KMmn_GMTEDmn.tif'), plugin="tifffile")
+    
     # Removed rastrio because it is conflicting with xarray
     #src = rasterio.open(os.path.join(config['dem_folder'],'elevation_1KMmn_GMTEDmn.tif'))
 
     elev[720:17520,:] = srcz
-    #elev[720:17520,:] = src.read(1)
-    #src.close()
 
     elev_global = imresize_mean(elev,mapsize_global)
     elev_europe = elev_global[row_uppeu:row_uppeu+mapsize_europe[0],col_lefeu:col_lefeu+mapsize_europe[1]]
     elev_template = elev_global[row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)]
-    
 
     # Prepare temperature downscaling
     tmp = imresize_mean(elev_global,(1800,3600)) # Resample to dimensions of input data - global
     
     #Rescale to output resolution
     tmp = rescale(tmp,scaleR,order=1,mode='edge',anti_aliasing=False)
-    #tmp3 = resize(tmp,mapsize_global,order=1,mode='edge',anti_aliasing=False)
 
     #Add option: "Europe" vs "Global"
     if cover=="global":
@@ -142,12 +128,8 @@ def main():
     # Check if output already exists in scratch folder or output folder
     scratchoutdir = os.path.join(config['scratch_folder'],'e5land_reanalysis')
     finaloutdir = os.path.join(config['output_folder'],'e5land_reanalysis')
-    #if (config['delete_existing']==False) & ((os.path.isfile(os.path.join(scratchoutdir,'ta.nc'))==True) | (os.path.isfile(os.path.join(finaloutdir,'ta.nc'))==True)):
-     #   print('Already processed, skipping this scenario')
-      #  continue
         
     # Check if all input variables are present
-    #varnames = ['tas','tasmin','tasmax','hurs','sfcwind','ps','rsds','rlds','pr']
     varnames = ['ws', 'ta','td','rn','rgd']
     nfiles = {}
     for vr in varnames:
@@ -197,13 +179,6 @@ def main():
         t0 = time.time()
         dset_tmean = xr.open_dataset(file,diskless=True) # degrees C
 
-        #file2 = glob.glob(os.path.join('Z:\ClimateRun3\ERA5-land',"ta","0.1_deg", "e5ldxc_ta_1981.nc"))[0]
-        #compare_dset= xr.open_dataset(file2,diskless=True)
-
-        #ta_vals=dset_tmean['ta']
-        #ta_vals=ta_vals.rio.write_crs(4326)
-        #ta_vals=ta_vals.rio.write_nodata('nan')
-        #ta_vals=ta_vals.rio.set_spatial_dims('lon','lat', inplace=True)
         dset_tdew = xr.open_dataset(file.replace('ta','td'),diskless=True) 
         dset_wind = xr.open_dataset(file.replace('ta','ws'),diskless=True) # m/s
         dset_tdew = xr.open_dataset(file.replace('ta','td'),diskless=True) # Pa
@@ -232,12 +207,7 @@ def main():
                 data['tp'] = dset_pr['tp'][ii,:,:] # mm/d
                 data['td'] = dset_tdew['td'][ii,:,:]
                 
-     
-            
-            # Switch eastern and western hemispheres
-            #for key in data.keys():
-            #    data[key] = np.roll(data[key],int(data[key].shape[1]/2),axis=1)
-        
+ 
             # Simple lapse rate downscaling of temperature and air pressure, nearest-neighbor resampling of other vars
             for key in data.keys():
                 data[key]=data[key].rio.write_crs(4326)
@@ -251,7 +221,6 @@ def main():
                 else:
                     #3 possible methods
                     data[key] = resize(data[key],mapsize_europe,order=0,mode='edge',anti_aliasing=False) 
-                    #data[key] = rescale(data[key],scaleR,order=0,mode='edge',anti_aliasing=False) 
                     
                     #If this method is used no need to subset data to template region
                     #data[key] = data[key].interp_like(obj, method='nearest')
@@ -274,18 +243,11 @@ def main():
                     data[key][np.isnan(data[key])] = (-9999 - add_offset) * scale_factor
 
          
-            #Potential evapotranspiration is not implemented yet for the set of input from ERA5-land
-            if petc=="1":
-            # Compute potential evaporation
-                albedo = {'et':0.23,'ew':0.05,'es':0.15}
-                factor = {'et':1,'ew':0.5,'es':0.75}
-                doy = int(datetime.strftime(file_dates_dly[ii],'%j'))
-                pet = potential_evaporation(data,albedo,factor,doy,lat_template,elev_template)
-            
             # Write data to output netCDFs
             time_value = (file_dates_dly[ii]-pd.to_datetime(datetime(1979, 1, 1))).total_seconds()/86400                 
             index = np.where(out_dates_dly==file_dates_dly[ii])[0][0]
-            
+
+            #Potential evapotranspiration is not implemented yet for the set of input from ERA5-land
             #daily variables need to be the accumulation of the previous day
             #no need to move date as the variable is already an accumulation of the previous day
             
@@ -296,28 +258,16 @@ def main():
             ncfile_ta.variables['time'][index] = time_value+1
             ncfile_ta.variables['ta'][index,:,:] = data['ta']
       
-            
-            if petc=="1": 
-                ncfile_et.variables['time'][index] = time_value
-                ncfile_et.variables['et'][index,:,:] = pet['et']
-                ncfile_ew.variables['time'][index] = time_value
-                ncfile_ew.variables['ew'][index,:,:] = pet['ew']
-                ncfile_es.variables['time'][index] = time_value
-                ncfile_es.variables['es'][index,:,:] = pet['es']
-            else:
-                ncfile_ws.variables['time'][index] = time_value+1 
-                ncfile_ws.variables['ws'][index,:,:] = data['ws']
-                ncfile_rn.variables['time'][index] = time_value
-                ncfile_rn.variables['rn'][index,:,:] = data['rn']
-                ncfile_rgd.variables['time'][index] = time_value
-                ncfile_rgd.variables['rgd'][index,:,:] = data['rgd']
-                ncfile_td.variables['time'][index] = time_value+1
-                ncfile_td.variables['td'][index,:,:] = data['td']
+            ncfile_ws.variables['time'][index] = time_value+1 
+            ncfile_ws.variables['ws'][index,:,:] = data['ws']
+            ncfile_rn.variables['time'][index] = time_value
+            ncfile_rn.variables['rn'][index,:,:] = data['rn']
+            ncfile_rgd.variables['time'][index] = time_value
+            ncfile_rgd.variables['rgd'][index,:,:] = data['rgd']
+            ncfile_td.variables['time'][index] = time_value+1
+            ncfile_td.variables['td'][index,:,:] = data['td']
                     
             # Generate figures to verify output
-            #plt.imshow(data['ta'][1600:1700,1400:1500])
-            #plt.show()
-
             if ii==0:
                 makefig('figures','ta',data['ta'],0,12)
                 #makefig('figures','pr',data['pr'],0,12)
