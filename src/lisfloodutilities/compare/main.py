@@ -26,6 +26,7 @@ else:
 import numpy as np
 
 from lisfloodutilities.compare.nc import NetCDFComparator
+from lisfloodutilities.compare.pcr import PCRComparator, TSSComparator
 from .. import version, logger
 
 np.set_printoptions(precision=4, linewidth=300, suppress=True)
@@ -50,11 +51,26 @@ def main(cliargs):
     comparator = NetCDFComparator(maskfile, array_equal=array_equal, for_testing=False, atol=atol, rtol=rtol,
                                   max_perc_diff=max_diff_perc, max_perc_large_diff=max_large_diff_perc,
                                   save_diff_files=save_diff_files)
-    logger.info('\n\nComparing %s and %s\n\n ', dataset_a, dataset_b)
-    errors = comparator.compare_dirs(dataset_a, dataset_b, skip_missing=skip_missing)
+    logger.info('NetCDFComparator - Comparing %s and %s ', dataset_a, dataset_b)
+    comparator.compare_dirs(dataset_a, dataset_b, skip_missing=skip_missing)
+    errors = comparator.errors
 
-    for i, e in enumerate(errors):
-        logger.error('%d - %s', i, e)
+    logger.info('TSSComparator - Comparing %s and %s ', dataset_a, dataset_b)
+    comparator = TSSComparator(array_equal=array_equal, for_testing=False, atol=atol, rtol=rtol)
+    comparator.compare_dirs(dataset_a, dataset_b, skip_missing=skip_missing)
+    errors2 = comparator.errors
+
+    logger.info('PCRComparator - Comparing %s and %s ', dataset_a, dataset_b)
+    comparator = PCRComparator(array_equal=array_equal)
+    comparator.compare_dirs(dataset_a, dataset_b, skip_missing=skip_missing)
+    errors3 = comparator.errors
+
+    errors+=errors2
+    errors+=errors3    
+
+    if errors!=None:
+        for i, e in enumerate(errors):
+            logger.error('%d - %s', i, e)
 
 
 def main_script():
