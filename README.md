@@ -488,7 +488,7 @@ The following should be kept in mind when using the scripts:
 * cds_config.cfg: proxyKey (if required); CDSAPI_KEY; download_folder; scratch_folder; date (manual or auto); namefile; latitudes and longitudes of the area where data needs to be extracted
 * config.cfg: templatemap_path; output_folder; e5land_folder; dem_folder; scratch_folder; delete_existing; petc (to activate computation of evapotranpiration - not availaible for ERA5); compression (compressing the .nc outputs - 0 or 1); namefiles; cover (europe or global); input_res (resolution of the input data in deg)
 
-## Requirements
+### Requirements
 
 The scripts can be run on a normal desktop PC (Windows and Linux) with 32 GB or more of physical memory.
 
