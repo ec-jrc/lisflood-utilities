@@ -492,7 +492,7 @@ The following should be kept in mind when using the scripts:
 
 The scripts can be run on a normal desktop PC (Windows and Linux) with 32 GB or more of physical memory.
 
-#### Usage
+### Usage
 Running ERA5-land scripts
 ```text
 usage: main_ERA5land_reanalysis.py config yearstart yearend
