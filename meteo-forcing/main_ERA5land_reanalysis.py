@@ -41,7 +41,7 @@ petc = config['petc']
 compression = config['compression']
 
 eu_area = [72.25, -25.25, 22.25, 50.25,]
-e5land_res= config['e5land_res']
+input_res= config['input_res']
 cover = config['cover']
 start=  int(sys.argv[2])
 end = int(sys.argv[3])
@@ -78,7 +78,7 @@ def main():
     
     # The grid need to be shifted if border has 2 significan digits
     shift=round(eu_area[0]-round(eu_area[0],1),2)
-    mapsize_ereu =((np.round((eu_area[0]-eu_area[2])/e5land_res)+1).astype(int),(np.round((eu_area[3]-eu_area[1])/e5land_res)+1).astype(int))
+    mapsize_ereu =((np.round((eu_area[0]-eu_area[2])/input_res)+1).astype(int),(np.round((eu_area[3]-eu_area[1])/input_res)+1).astype(int))
     size_eulon = round(mapsize_ereu[0]*scaleR)
     size_eulat = round(mapsize_ereu[1]*scaleR)
     mapsize_europe = (size_eulon,size_eulat)

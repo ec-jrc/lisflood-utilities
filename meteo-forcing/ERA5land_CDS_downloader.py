@@ -76,6 +76,9 @@ date = config['date']
 # define area where data needs to be extracted (long/lat)
 area=[config['Lat1'], config['Lon1'], config['Lat2'], config['Lon2'],]
 
+#Prefix of dowloaded file
+namefile=config["namefile"]
+
 #automatic selection of date range according to user input
 if date == 'auto':
     start=  int(sys.argv[1])
@@ -145,4 +148,4 @@ for yr in years:
             'area':area ,
             'format': 'netcdf',
         },
-        "e5l_lf-met" + "_" + yr + "_" + mn + ".nc")
+        namefile + "_" + yr + "_" + mn + ".nc")

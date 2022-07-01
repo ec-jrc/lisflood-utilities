@@ -11,6 +11,11 @@ The following should be kept in mind when using the scripts:
 4. The output is written to the `scratch_folder` and moved to the `output_folder` once the processing is done. The `scratch_folder` should point to a storage location dedicated to a lot of file accesses.
 5. The ISIMIP3b and W5E5 scripts load the input data into memory (using the `diskless=True` argument) to avoid read errors which frequently occurred on the system used for developing the scripts.
 6. The ISIMIP3b script can be run simultaneously multiple times to process simultaneously multiple scenarios/models. This will only work if `delete_existing=0` in the configuration file.
+7. Users need to specify key variables in the two congif files: 
+* cds_config.cfg: proxyKey (if required); CDSAPI_KEY; download_folder; scratch_folder; date (manual or auto); namefile; latitudes and longitudes of the area where data needs to be extracted
+* config.cfg: templatemap_path; output_folder; e5land_folder; dem_folder; scratch_folder; delete_existing; petc (to activate computation of evapotranpiration - not availaible for ERA5); compression (compressing the .nc outputs - 0 or 1); namefiles; cover (europe or global); input_res (resolution of the input data in deg)
+
+
 
 # Data
 
@@ -26,6 +31,7 @@ The following datasets are required depending on the script in question:
 3. GSWP3-W5E5 daily historical meteorological data (`obsclim` and `counterclim`). Download [this](https://data.isimip.org/api/v1/datasets/filelist/?page=1&tree=ISIMIP3a&InputData=climate&atmosphere=gswp3-w5e5&climate_scenario=counterclim&climate_scenario=obsclim&time_step=daily&climate_forcing=gswp3-w5e5) file list and download the data with `wget -c -i file-list.txt`. Put the data in `w5e5_folder`.
 
 4. ERA5-land climate reanalysis hourly climate data. Documentation availaible [here](https://confluence.ecmwf.int/display/CKB/ERA5-Land%3A+data+documentation). The script *ERA5land_CDS_downloader.py* allows to download ERA5-land data from the Copernicus Climate Data Store (CDS). This requires a CDS API key. Data are downloaded in monthly files at an hourly time scale in a `download_folder` and then aggregated to the daily time scale in yearly files with the script *ERA5land_h2d_yearly.py* and saved into the `e5land_folder`. Retain the file structure with `_YYYY_MM.nc` at the end for monthly files and `_YYYY.nc` for yearly files.
+The year of analysis can be set manually (withing the script) or auto (with a start date and end date specified in the command).
 
 # System requirements
 
@@ -35,7 +41,7 @@ The scripts can be run on a normal desktop PC (Windows and Linux) with 32 GB or 
 
 Clone the repository:
 ```
-git clone https://github.com/hylken/lisflood-meteo-forcing
+git clone https://github.com/ec-jrc/lisflood-utilities/tree/feature/meteo-forcing/meteo-forcing
 cd lisflood-meteo-forcing
 ```
 Produce a configuration file with the correct paths and folders based on the provided template (`config.ini`).
@@ -49,4 +55,11 @@ python main_ISIMIP3b_projections.py <configuration file>
 If the environment creation step fails, we recommend creating the environment and installing the packages as follows:
 ```
 conda create -n <env> -c conda-forge scipy pandas numpy netcdf4 matplotlib rasterio scikit-image
+```
+Running ERA5-land scripts
+```
+python ERA5land_CDS_downloader.py 1981 1990
+python ERA5land_h2d_yearly.py 
+python main_ERA5land_reanalysis.py config.cfg 1981 1990
+
 ```
