@@ -12,8 +12,8 @@ The following should be kept in mind when using the scripts:
 5. The ISIMIP3b and W5E5 scripts load the input data into memory (using the `diskless=True` argument) to avoid read errors which frequently occurred on the system used for developing the scripts.
 6. The ISIMIP3b script can be run simultaneously multiple times to process simultaneously multiple scenarios/models. This will only work if `delete_existing=0` in the configuration file.
 7. Users need to specify key variables in the two congif files: 
-  * cds_config.cfg: proxyKey (if required); CDSAPI_KEY; download_folder; scratch_folder; date (manual or auto); namefile; latitudes and longitudes of the area where     data needs to be extracted
-  * config.cfg: templatemap_path; output_folder; e5land_folder; dem_folder; scratch_folder; delete_existing; petc (to activate computation of evapotranpiration - not     availaible for ERA5); compression (compressing the .nc outputs - 0 or 1); namefiles; cover (europe or global); input_res (resolution of the input data in deg)
+  - cds_config.cfg: proxyKey (if required); CDSAPI_KEY; download_folder; scratch_folder; date (manual or auto); namefile; latitudes and longitudes of the area where     data needs to be extracted
+  - config.cfg: templatemap_path; output_folder; e5land_folder; dem_folder; scratch_folder; delete_existing; petc (to activate computation of evapotranpiration - not     availaible for ERA5); compression (compressing the .nc outputs - 0 or 1); namefiles; cover (europe or global); input_res (resolution of the input data in deg)
 
 
 # Data
