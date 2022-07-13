@@ -15,7 +15,7 @@ __date__ = "January 2022"
 import os, sys, glob, time, pdb
 import pandas as pd
 import numpy as np
-from config_comp import *
+#from config_comp import *
 import netCDF4 as nc
 from netCDF4 import Dataset
 from skimage.transform import resize
