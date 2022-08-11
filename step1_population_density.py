@@ -189,13 +189,14 @@ def main():
 
     for year in years:
         print('Saving '+str(year)+' population to netCDF')
+    
+        data = np.load(os.path.join(config['output_folder'],'step1_population_density',str(year)+'.npz'))['data']
+        data = np.round(data/10)*10
+        data[np.isnan(data)] = 0            
+        data = data*area_map # Convert from population density per km2 to total population per grid-cell
+        data = data[row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)] # Subset to template map area        
+        
         for month in np.arange(1,13):
-            
-            data = np.load(os.path.join(config['output_folder'],'step1_population_density',str(year)+'.npz'))['data']
-            data = np.round(data/10)*10
-            data[np.isnan(data)] = 0            
-            data = data*area_map # Convert from population density per km2 to total population per grid-cell
-            data = data[row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)] # Subset to template map area        
             
             index = (year-config['year_start'])*12+month-1
              
