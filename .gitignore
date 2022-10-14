@@ -50,3 +50,5 @@ dist/
 tests/**/*aux.xml
 .coverage
 ./merit_user_pw.txt
+__pycache__/*
+proxy_credentials.cfg
