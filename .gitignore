@@ -43,9 +43,10 @@ vignettes/*.pdf
 !environment.yml
 dist/
 *.egg-info/
-**/build/
+**/build/git merge test_b/main --allow-unrelated-histories
 .eggs/
 !/**/samples/*
 !tests/**/*.nc
 tests/**/*aux.xml
 .coverage
+./merit_user_pw.txt
