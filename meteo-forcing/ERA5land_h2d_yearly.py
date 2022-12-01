@@ -26,7 +26,7 @@ import pandas as pd
 from xarray import concat
 
 from tools import *
-
+#%%
 ## Script 2/4
 
 # script that creates yearly files of daily ERA5-land variables and from aggregated hourly values
@@ -39,6 +39,7 @@ from tools import *
 # Output:
 # 1) separate netCDF file for chosen daily variable for each year
 
+compression="0"
 #config = load_config(sys.argv[1])
 config = load_config("cds_config.cfg")
 # Print the current working directory
@@ -129,6 +130,7 @@ for file in files:
         #convertion to mm
         tp=tp*1000
         daily_pr=tp.resample(time='D').max('time')  
+        daily_pr = tp[koudur,:,:] 
         dptest= daily_pr
         #dptest.plot.surface(yincrease=True)
         daily_pr=daily_pr.rename('tp')
@@ -274,7 +276,7 @@ for file in files:
         if 'tp' in vc:
             vr=var[4]
             print ('Start generating netcdf file for variable: '+ vr)
-            ncfile_tp = initialize_netcdf(os.path.join(scratchoutdir,'e5ld_01deg_tp_' + str(yr) + '.nc'),template_lat,template_lon,vr,'degrees Celcius',compression,1)
+            ncfile_tp = initialize_netcdf(os.path.join(scratchoutdir,'e5ld_01deg_tpcorr1_' + str(yr) + '.nc'),template_lat,template_lon,vr,'degrees Celcius',compression,1)
             time_value =(file_dates_dly-pd.to_datetime(datetime(1979, 1, 1)))
             ti0=time_value.astype('timedelta64[D]')
             tlist=ti0.tolist()

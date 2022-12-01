@@ -22,8 +22,8 @@ import xarray as xr
 dir_path = os.path.dirname(os.path.realpath(__file__))
 # Change working directory
 os.chdir(dir_path)
-
-from config_comp import *
+#%%
+#from config_comp import *
 import netCDF4 as nc
 from tools import *
 from skimage.transform import resize
@@ -36,16 +36,19 @@ from datetime import timedelta
 
 # Load configuration file 
 config = load_config(sys.argv[1])
+config = load_config("config.cfg")
 namefiles=config['namefiles']
 petc = config['petc']
 compression = config['compression']
 
 eu_area = [72.25, -25.25, 22.25, 50.25,]
-input_res= config['input_res']
+input_res= config['e5land_res']
 cover = config['cover']
 start=  int(sys.argv[2])
 end = int(sys.argv[3])
+var = sys.argv[4]
 
+print(var)
 #start=1987
 #end=1988
 print("working on " + cover)
@@ -127,13 +130,19 @@ def main():
    
     # Check if output already exists in scratch folder or output folder
     scratchoutdir = os.path.join(config['scratch_folder'],'e5land_reanalysis')
-    finaloutdir = os.path.join(config['output_folder'],'e5land_reanalysis')
+    finaloutdir = os.path.join(config['output_folder'],var)
         
     # Check if all input variables are present
-    varnames = ['ws', 'ta','td','rn','rgd']
+    if var=="all":
+        varnames = ['ws', 'ta','td','rn','rgd','tp']
+    else:
+        varnames=[str(var)]
+        print(varnames)
+        
     nfiles = {}
     for vr in varnames:
-        files = glob.glob(os.path.join(config['e5land_folder'], namefiles + "_ta_*.nc"))  
+        files = glob.glob(os.path.join(config['e5land_folder'],namefiles + "_" + vr + "corr1_*.nc"))  
+        print(os.path.join(config['e5land_folder'],namefiles + "_" + vr + "corr1_*.nc"))
         nfiles[vr] = len(files)
     nfiles_arr = np.array(list(nfiles.values()))
     if (np.max(nfiles_arr)==0) | (any(nfiles_arr<np.max(nfiles_arr))):
@@ -144,22 +153,28 @@ def main():
     # Initialize output files
     if os.path.isdir(scratchoutdir)==False:
         os.makedirs(scratchoutdir)
-    ncfile_ta = initialize_netcdf(os.path.join(scratchoutdir,'ta.nc'),template_lat,template_lon,'ta','degree_Celsius',compression,1)
-    ncfile_pr = initialize_netcdf(os.path.join(scratchoutdir,'tp.nc'),template_lat,template_lon,'tp','mm d-1',compression,1)
-    
-    if petc=="1":
-        ncfile_et = initialize_netcdf(os.path.join(scratchoutdir,'et.nc'),template_lat,template_lon,'et','mm d-1',compression,1)
-        ncfile_ew = initialize_netcdf(os.path.join(scratchoutdir,'ew.nc'),template_lat,template_lon,'ew','mm d-1',compression,1)
-        ncfile_es = initialize_netcdf(os.path.join(scratchoutdir,'es.nc'),template_lat,template_lon,'es','mm d-1',compression,1)
-    else: 
-        ncfile_rn = initialize_netcdf(os.path.join(scratchoutdir,'rn.nc'),template_lat,template_lon,'rn','J m-2 d',compression,1)
-        ncfile_ws = initialize_netcdf(os.path.join(scratchoutdir,'ws.nc'),template_lat,template_lon,'ws','m s-1',compression,1)
-        ncfile_rgd = initialize_netcdf(os.path.join(scratchoutdir,'rgd.nc'),template_lat,template_lon,'rgd','J m-2 d',compression,1)
-        ncfile_td = initialize_netcdf(os.path.join(scratchoutdir,'td.nc'),template_lat,template_lon,'td','degree_Celsius',compression,1)
+    if var=="all":
+        ncfile_ta = initialize_netcdf(os.path.join(scratchoutdir,'ta.nc'),template_lat,template_lon,'ta','degree_Celsius',compression,1)
+        ncfile_pr = initialize_netcdf(os.path.join(scratchoutdir,'tp.nc'),template_lat,template_lon,'tp','mm d-1',compression,1)
+        
+        if petc=="1":
+            ncfile_et = initialize_netcdf(os.path.join(scratchoutdir,'et.nc'),template_lat,template_lon,'et','mm d-1',compression,1)
+            ncfile_ew = initialize_netcdf(os.path.join(scratchoutdir,'ew.nc'),template_lat,template_lon,'ew','mm d-1',compression,1)
+            ncfile_es = initialize_netcdf(os.path.join(scratchoutdir,'es.nc'),template_lat,template_lon,'es','mm d-1',compression,1)
+        else: 
+            ncfile_rn = initialize_netcdf(os.path.join(scratchoutdir,'rn.nc'),template_lat,template_lon,'rn','J m-2 d',compression,1)
+            ncfile_ws = initialize_netcdf(os.path.join(scratchoutdir,'ws.nc'),template_lat,template_lon,'ws','m s-1',compression,1)
+            ncfile_rgd = initialize_netcdf(os.path.join(scratchoutdir,'rgd.nc'),template_lat,template_lon,'rgd','J m-2 d',compression,1)
+            ncfile_td = initialize_netcdf(os.path.join(scratchoutdir,'td.nc'),template_lat,template_lon,'td','degree_Celsius',compression,1)
 
-    # Loop over input files (MFDataset doesn't work properly)
-    print(os.path.join(config['e5land_folder'],namefiles + "_ta_*.nc"))
-    files = glob.glob(os.path.join(config['e5land_folder'], namefiles + "_ta_*.nc"))
+        # Loop over input files (MFDataset doesn't work properly)
+        print(os.path.join(config['e5land_folder'],namefiles + "_ta_*.nc"))
+        files = glob.glob(os.path.join(config['e5land_folder'], namefiles + "_ta_*.nc"))
+    elif var=="tp":
+        ncfile_pr = initialize_netcdf(os.path.join(scratchoutdir,'tp_corr2.nc'),template_lat,template_lon,'tp','mm d-1',compression,1)
+        print(os.path.join(config['e5land_folder'],namefiles + "_tpcorr1_*.nc"))
+        files = glob.glob(os.path.join(config['e5land_folder'], namefiles + "_tpcorr1_*.nc"))
+        
     
 
     for file in files:
@@ -177,15 +192,17 @@ def main():
         # Open input files
         print('Processing '+os.path.basename(file))
         t0 = time.time()
-        dset_tmean = xr.open_dataset(file,diskless=True) # degrees C
-
-        dset_tdew = xr.open_dataset(file.replace('ta','td'),diskless=True) 
-        dset_wind = xr.open_dataset(file.replace('ta','ws'),diskless=True) # m/s
-        dset_tdew = xr.open_dataset(file.replace('ta','td'),diskless=True) # Pa
-        dset_swd = xr.open_dataset(file.replace('ta','rgd'),diskless=True) # W/m2
-        dset_lwd = xr.open_dataset(file.replace('ta','rn'),diskless=True) # W/m2
-        dset_pr = xr.open_dataset(file.replace('ta','tp'),diskless=True) # mm/d
-        
+        if var=="all":
+            dset_tmean = xr.open_dataset(file,diskless=True) # degrees C
+    
+            dset_tdew = xr.open_dataset(file.replace('ta','td'),diskless=True) 
+            dset_wind = xr.open_dataset(file.replace('ta','ws'),diskless=True) # m/s
+            dset_tdew = xr.open_dataset(file.replace('ta','td'),diskless=True) # Pa
+            dset_swd = xr.open_dataset(file.replace('ta','rgd'),diskless=True) # W/m2
+            dset_lwd = xr.open_dataset(file.replace('ta','rn'),diskless=True) # W/m2
+            dset_pr = xr.open_dataset(file.replace('ta','tp'),diskless=True) # mm/d
+        elif var=="tp": 
+            dset_pr = xr.open_dataset(file,diskless=True)
         # Loop over days of input file
         for ii in np.arange(len(file_dates_dly)):
 
@@ -196,18 +213,20 @@ def main():
 
             # Read data from input files
             data = {}
-            #index = np.where(out_dates_dly==file_dates_dly[ii])[0][0]                            
-            data['ta'] = dset_tmean['ta'][ii,:,:] # degrees C
-            if petc=="1":
-               data['ws'] = dset_wind.variables['ws'][ii,:,:]*0.75 # m/s (factor 0.75 to translate from 10-m to 2-m height)
-            else:
-                data['ws'] = dset_wind['ws'][ii,:,:] # m/s (the factor will be applied in LISVAP)
-                data['rgd'] = dset_swd['rgd'][ii,:,:] # J/m2/d
-                data['rn'] = dset_lwd['rn'][ii,:,:] # J/m2/d
+            if var=="all":
+                #index = np.where(out_dates_dly==file_dates_dly[ii])[0][0]                            
+                data['ta'] = dset_tmean['ta'][ii,:,:] # degrees C
+                if petc=="1":
+                   data['ws'] = dset_wind.variables['ws'][ii,:,:]*0.75 # m/s (factor 0.75 to translate from 10-m to 2-m height)
+                else:
+                    data['ws'] = dset_wind['ws'][ii,:,:] # m/s (the factor will be applied in LISVAP)
+                    data['rgd'] = dset_swd['rgd'][ii,:,:] # J/m2/d
+                    data['rn'] = dset_lwd['rn'][ii,:,:] # J/m2/d
+                    data['tp'] = dset_pr['tp'][ii,:,:] # mm/d
+                    data['td'] = dset_tdew['td'][ii,:,:]
+            elif var=="tp":       
                 data['tp'] = dset_pr['tp'][ii,:,:] # mm/d
-                data['td'] = dset_tdew['td'][ii,:,:]
                 
- 
             # Simple lapse rate downscaling of temperature and air pressure, nearest-neighbor resampling of other vars
             for key in data.keys():
                 data[key]=data[key].rio.write_crs(4326)
@@ -250,54 +269,62 @@ def main():
             #Potential evapotranspiration is not implemented yet for the set of input from ERA5-land
             #daily variables need to be the accumulation of the previous day
             #no need to move date as the variable is already an accumulation of the previous day
-            
-            ncfile_pr.variables['time'][index] = time_value
-            ncfile_pr.variables['tp'][index,:,:] = data['tp']
-            
-            #+1 as LISVAP and LISFLOOD use the value of the previous day
-            ncfile_ta.variables['time'][index] = time_value+1
-            ncfile_ta.variables['ta'][index,:,:] = data['ta']
-      
-            ncfile_ws.variables['time'][index] = time_value+1 
-            ncfile_ws.variables['ws'][index,:,:] = data['ws']
-            ncfile_rn.variables['time'][index] = time_value
-            ncfile_rn.variables['rn'][index,:,:] = data['rn']
-            ncfile_rgd.variables['time'][index] = time_value
-            ncfile_rgd.variables['rgd'][index,:,:] = data['rgd']
-            ncfile_td.variables['time'][index] = time_value+1
-            ncfile_td.variables['td'][index,:,:] = data['td']
-                    
+            if var=="all":
+                ncfile_pr.variables['time'][index] = time_value
+                ncfile_pr.variables['tp'][index,:,:] = data['tp']
+                
+                #+1 as LISVAP and LISFLOOD use the value of the previous day
+                ncfile_ta.variables['time'][index] = time_value+1
+                ncfile_ta.variables['ta'][index,:,:] = data['ta']
+          
+                ncfile_ws.variables['time'][index] = time_value+1 
+                ncfile_ws.variables['ws'][index,:,:] = data['ws']
+                ncfile_rn.variables['time'][index] = time_value
+                ncfile_rn.variables['rn'][index,:,:] = data['rn']
+                ncfile_rgd.variables['time'][index] = time_value
+                ncfile_rgd.variables['rgd'][index,:,:] = data['rgd']
+                ncfile_td.variables['time'][index] = time_value+1
+                ncfile_td.variables['td'][index,:,:] = data['td']
+            elif var=="tp":
+                ncfile_pr.variables['time'][index] = time_value
+                ncfile_pr.variables['tp'][index,:,:] = data['tp']
             # Generate figures to verify output
-            if ii==0:
-                makefig('figures','ta',data['ta'],0,12)
+            #if ii==0:
+                #makefig('figures','ta',data['ta'],0,12)
                 #makefig('figures','pr',data['pr'],0,12)
                 for key in data.keys():
                     makefig('figures',key,data[key],np.min(data[key]),np.max(data[key]))
-                makefig('figures','elev_template',elev_template,0,6000)
+                makefig('figures','elev_template',elev_template,0,1000)
         
         # Close input files
-        dset_tmean.close()
-        dset_wind.close()
-        dset_swd.close()
-        dset_lwd.close()
-        dset_pr.close()
-        dset_tdew.close()
-        
-
+        if var=="all":
+            dset_tmean.close()
+            dset_wind.close()
+            dset_swd.close()
+            dset_lwd.close()
+            dset_pr.close()
+            dset_tdew.close()
+        elif var=="tp":
+            dset_pr.close()
         print("Time elapsed is "+str(time.time()-t0)+" sec") 
     # Close output files
-    ncfile_pr.close()
-    ncfile_ta.close()
-    
-    if "petc"==1: 
-        ncfile_et.close()
-        ncfile_ew.close()
-        ncfile_es.close()
-    else:  
-        ncfile_ws.close()
-        ncfile_rn.close()
-        ncfile_rgd.close()
-        ncfile_td.close()
+    if var=="all":
+        ncfile_pr.close()
+        ncfile_ta.close()
+        
+        if "petc"==1: 
+            ncfile_et.close()
+            ncfile_ew.close()
+            ncfile_es.close()
+        else:  
+            ncfile_ws.close()
+            ncfile_rn.close()
+            ncfile_rgd.close()
+            ncfile_td.close()
+            
+    elif var=="tp":
+        ncfile_pr.close()
+
     # Move output from scratch folder to output folder
     print('-------------------------------------------------------------------------------')
     if os.path.isdir(finaloutdir)==False:
