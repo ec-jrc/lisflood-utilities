@@ -118,8 +118,10 @@ class NetCDFWriter:
             if self.is_mapstack:
                 self.nf.createDimension('time', None)
             # create spatial dimensions (variable name must be same of dimension)
-            self.nf.createDimension('y', self.metadata.get('rows') or self.metadata['lats'].size)
-            self.nf.createDimension('x', self.metadata.get('cols') or self.metadata['lons'].size)
+            self.variable_x_name = self.metadata.get('geographical', {}).get('variable_x_name', 'x').lower()
+            self.variable_y_name = self.metadata.get('geographical', {}).get('variable_y_name', 'y').lower()
+            self.nf.createDimension(self.variable_y_name, self.metadata.get('rows') or self.metadata['lats'].size)
+            self.nf.createDimension(self.variable_x_name, self.metadata.get('cols') or self.metadata['lons'].size)
 
             # define coordinates variables by calling one of the define_* functions
             datum = self.metadata.get('geographical', {}).get('datum', '').lower()
@@ -129,7 +131,7 @@ class NetCDFWriter:
             post_datum_function = '{}_post'.format(datum_function)
             getattr(self, datum_function)()  # call the function
 
-            vardimensions = ('y', 'x')
+            vardimensions = (self.variable_y_name, self.variable_x_name)
             if self.is_mapstack:
                 # time variable
                 time_units = self.metadata['time'].get('units', '')
@@ -144,7 +146,7 @@ class NetCDFWriter:
                         start_date = start_date + datetime.timedelta(days=1)
                         time_nc.units = 'days since {} 00:00'.format(start_date.strftime('%Y-%m-%d'))
                     time_nc.calendar = self.metadata['time'].get('calendar', 'proleptic_gregorian') if 'time' in self.metadata else 'proleptic_gregorian'
-                vardimensions = ('time', 'y', 'x')
+                vardimensions = ('time', self.variable_y_name, self.variable_x_name)
 
             # data variable
             complevel = self.metadata['variable'].get('compression')
@@ -242,12 +244,12 @@ class NetCDFWriter:
         """
         # coordinates variables
         logger.info('Defining WGS84 coordinates variables')
-        longitude = self.nf.createVariable('x', 'f8', ('x',))
+        longitude = self.nf.createVariable(self.variable_x_name, 'f8', (self.variable_x_name,))
         longitude.standard_name = 'longitude'
         longitude.long_name = 'longitude coordinate'
         longitude.units = 'degrees_east'
 
-        latitude = self.nf.createVariable('y', 'f8', ('y',))
+        latitude = self.nf.createVariable(self.variable_y_name, 'f8', (self.variable_y_name,))
         latitude.standard_name = 'latitude'
         latitude.long_name = 'latitude coordinate'
         latitude.units = 'degrees_north'
@@ -259,7 +261,7 @@ class NetCDFWriter:
             latitude[:] = wgs84_lats
 
     def define_wgs84_post(self, values_var):
-        values_var.coordinates = 'x y'
+        values_var.coordinates = self.variable_x_name + ' ' + self.variable_y_name
         values_var.esri_pe_string = self.WKT_STRINGS['WGS84']
 
     def define_etrs89(self):
@@ -268,8 +270,8 @@ class NetCDFWriter:
         """
         logger.info('Defining ETRS89 coordinates variables')
         # create coordinates variables (having the same name of the associated dimension)
-        x = self.nf.createVariable('x', 'f8', ('x',))
-        y = self.nf.createVariable('y', 'f8', ('y',))
+        x = self.nf.createVariable(self.variable_x_name, 'f8', (self.variable_x_name,))
+        y = self.nf.createVariable(self.variable_y_name, 'f8', (self.variable_y_name,))
         x.standard_name = 'projection_x_coordinate'
         x.long_name = 'x coordinate of projection'
         x.units = 'm'
@@ -297,7 +299,7 @@ class NetCDFWriter:
 
 
     def define_etrs89_post(self, values_var):
-        values_var.coordinates = 'x y'
+        values_var.coordinates = self.variable_x_name + ' ' + self.variable_y_name
         values_var.grid_mapping = 'lambert_azimuthal_equal_area'
         values_var.esri_pe_string = self.WKT_STRINGS['ETRS89']
         values_var.spatial_ref = self.WKT_STRINGS['ETRS89']
@@ -308,8 +310,8 @@ class NetCDFWriter:
         It defines a custom LAEA ETRS89 GISCO reference system
         """
         logger.info('Defining GISCO coordinates variables')
-        x = self.nf.createVariable('x', 'f8', ('x',))
-        y = self.nf.createVariable('y', 'f8', ('y',))
+        x = self.nf.createVariable(self.variable_x_name, 'f8', (self.variable_x_name,))
+        y = self.nf.createVariable(self.variable_y_name, 'f8', (self.variable_y_name,))
         x.standard_name = 'projection_x_coordinate'
         x.long_name = 'x coordinate of projection'
         x.units = 'm'
@@ -332,7 +334,7 @@ class NetCDFWriter:
         crs.spatial_ref = self.WKT_STRINGS['GISCO']
 
     def define_gisco_post(self, values_var):
-        values_var.coordinates = 'x y'
+        values_var.coordinates = self.variable_x_name + ' ' + self.variable_y_name
         values_var.grid_mapping = 'crs'
         values_var.esri_pe_string = self.WKT_STRINGS['GISCO']
 

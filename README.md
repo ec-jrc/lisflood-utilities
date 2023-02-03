@@ -149,6 +149,8 @@ source: JRC Space, Security, Migration
 reference: JRC Space, Security, Migration
 geographical:
   datum: WGS84
+  variable_x_name: lon
+  variable_y_name: lat
 time:
   calendar: proleptic_gregorian
   units: days since 1996-01-01
@@ -185,8 +187,9 @@ instead of 'lossless', that is some precision in the data is sacrificed for the 
 
 #### Geographical section
 
-In `geographical` section the only setting to configure is `datum`. 
-Currently, pcr2nc supports the following list:
+In `geographical` section the you can configure `datum` and name of the x and y variables, in `variable_x_name` and `variable_y_name`. As geographical variable names you should use lon/lat for WGS84 and x/y for ETRS89.
+ 
+Currently, pcr2nc supports the following list for `datum`:
 
   * `WGS84`
   * `ETRS89`
