@@ -149,6 +149,8 @@ source: JRC Space, Security, Migration
 reference: JRC Space, Security, Migration
 geographical:
   datum: WGS84
+  variable_x_name: lon
+  variable_y_name: lat
 time:
   calendar: proleptic_gregorian
   units: days since 1996-01-01
@@ -185,8 +187,9 @@ instead of 'lossless', that is some precision in the data is sacrificed for the 
 
 #### Geographical section
 
-In `geographical` section the only setting to configure is `datum`. 
-Currently, pcr2nc supports the following list:
+In the `geographical` section you can configure `datum` and name of the x and y variables. As `variable_x_name` and `variable_y_name` you should use 'lon' and 'lat' for geographical coordinates (e.g. WGS84) and 'x' and 'y' for projected coordinates (e.g. ETRS89).
+ 
+Currently, pcr2nc supports the following list for `datum`:
 
   * `WGS84`
   * `ETRS89`
@@ -209,13 +212,13 @@ This tool converts single maps netCDF (time dimension is not supported yet) to P
 ### Usage
 
 ```bash
-nc2pcr -i /path/to/input/file.nc -o /path/to/output/out.map -c /path/to/clone.map
+nc2pcr -i /path/to/input/file.nc -o /path/to/output/out.map [-c /path/to/clone.map optional]
 ```
 
 If input file is a LDD map, you must add the `-l` flag:
 
 ```bash
-nc2pcr -i /path/to/input/ldd.nc -o /path/to/output/ldd.map -c /path/to/clone.map -l
+nc2pcr -i /path/to/input/ldd.nc -o /path/to/output/ldd.map  -l [-c /path/to/clone.map optional]
 ```
 
 ## Cutmaps: a NetCDF files cookie-cutter
@@ -257,7 +260,7 @@ cutmaps -S /home/projects/lisflood-eu -c "4078546.12 4463723.85 811206.57 158765
 
 **Example with stations.txt and LDD**
 
-Given a LDD map and a list of stations in a text file, each row having coordinates X/Y or lat/lon and an index, separated by tabs:
+Given a LDD map and a list of stations in a text file, each row having coordinates X/Y or lon/lat and an index, separated by tabs:
 
 ```text
 4297500	1572500 1
@@ -472,17 +475,9 @@ The utility **pcr2nc** can be used to convert a map in pcraster format into netc
 
 
 
-## Using lisfloodutilities programmatically TODO
+## Using lisfloodutilities programmatically 
 
-You can use lisflood utilities in your python programs.
-
-### lisfloodutilities.readers
-
-### lisfloodutilities.writers
-
-### lisfloodutilities.compare
-
-### lisfloodutilities.cutmaps
+You can use lisflood utilities in your python programs. As an example, the script below creates the mask map for a set of stations (stations.txt). The mask map is a boolean map with 1 and 0. 1 is used for all (and only) the pixels hydrologically connected to one of the stations. The resulting mask map is in pcraster format.
 
 ```python
 from lisfloodutilities.cutmaps.cutlib import mask_from_ldd
@@ -499,6 +494,4 @@ mask_map = PCRasterMap(mask)
 print(mask_map.data)
 ```
 
-### lisfloodutilities.nc2pcr
 
-### lisfloodutilities.pcr2nc
