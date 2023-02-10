@@ -187,7 +187,7 @@ instead of 'lossless', that is some precision in the data is sacrificed for the 
 
 #### Geographical section
 
-In `geographical` section the you can configure `datum` and name of the x and y variables, in `variable_x_name` and `variable_y_name`. As geographical variable names you should use lon/lat for WGS84 and x/y for ETRS89.
+In the `geographical` section you can configure `datum` and name of the x and y variables. As `variable_x_name` and `variable_y_name` you should use 'lon' and 'lat' for geographical coordinates (e.g. WGS84) and 'x' and 'y' for projected coordinates (e.g. ETRS89).
  
 Currently, pcr2nc supports the following list for `datum`:
 
