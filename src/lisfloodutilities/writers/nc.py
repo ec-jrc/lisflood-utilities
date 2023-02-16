@@ -84,11 +84,14 @@ class NetCDFWriter:
         self.hour = float(self.metadata.get('time', {}).get('hour') or 0)
 
         # you can pass the MV to set in netcdf files directly in yaml configuration, otherwuse np.nan is used
-        self.mv = self.metadata['variable'].get('mv')
+        self.mv = self.metadata['variable'].get('mv') 
+        if self.mv is None:
+            self.mv = self.metadata['mv'] 
         if self.mv is not None:
             self.mv = int(self.mv) if np.issubdtype(self.metadata['dtype'], np.integer) else float(self.mv)
         else:
-            self.mv = np.nan
+            self.mv = -9999 if np.issubdtype(self.metadata['dtype'], np.integer) else np.nan
+
         self.current_idx1 = 0
         self.current_idx2 = 0
         self.time, self.variable = self._init_dataset()
