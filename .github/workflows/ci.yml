@@ -15,20 +15,15 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    
-    - name: Set up Python 3.7
-      uses: actions/setup-python@v3
-      with:
-        python-version: "3.7"
-        
+           
     - name: Add conda to system path
       run: |
         # $CONDA is an environment variable pointing to the root of the miniconda directory
         echo $CONDA/bin >> $GITHUB_PATH
         
-    - name: Install pcraster and gdal
+    - name: Install pcraster, gdal, python
       run: |
-        conda install -c conda-forge pcraster gdal
+        conda install -c conda-forge python=3.7 pcraster gdal
         
     - name: Install dependencies
       run: |
