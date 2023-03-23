@@ -1,4 +1,5 @@
 import xarray as xr
+from netCDF4 import default_fillvals
 
 x_coordinates_names = ('lon', 'x', 'longitude')
 y_coordinates_names = ('lat', 'y', 'latitude')
@@ -19,7 +20,7 @@ class NetCDFMap:
         for variable in self.ds.variables.values():
             if len(variable.dims) < 2:
                 continue
-            return variable.attrs['_FillValue'] if '_FillValue' in variable.attrs else -9999
+            return variable.attrs['_FillValue'] if '_FillValue' in variable.attrs else default_fillvals[variable.dtype.str[1:]]
 
     @property
     def data(self):

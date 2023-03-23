@@ -197,12 +197,12 @@ class PCRasterReader:
     def get_metadata_from_set(self):
         """
         Get metadata from first map of a set.
-        :return: A dictionary with keys ['rows', 'cols', 'lats', 'lons', 'dtype']
+        :return: A dictionary with keys ['rows', 'cols', 'lats', 'lons', 'dtype', 'mv']
         """
         first_map, _ = next(self.fileset)
         return {'rows': first_map.rows, 'cols': first_map.cols,
                 'lats': first_map.lats, 'lons': first_map.lons,
-                'dtype': first_map.data.dtype}
+                'dtype': first_map.data.dtype, 'mv': first_map.mv}
 
     @property
     def fileset(self):

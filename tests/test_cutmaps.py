@@ -74,14 +74,14 @@ class TestCutlib(TestWithCleaner):
 
     def test_get_cuts_indices(self):
         # "minxi maxxi minyi maxyi"
-        cuts = '3 7 1 2'
-        cuts = get_arg_coords(cuts)
-        ix_min, ix_max, iy_min, iy_max = get_cuts(cuts=cuts)
+        cuts_indices = '3 7 1 2'
+        cuts_indices = get_arg_coords(cuts_indices)
+        ix_min, ix_max, iy_min, iy_max = get_cuts(cuts_indices=cuts_indices)
         assert (ix_min, ix_max, iy_min, iy_max) == (3, 7, 1, 2)
         fin = 'tests/data/folder_a/ta.nc'
         fout = 'tests/data/folder_a/ta_cut.nc'
         self.cleanups.append((os.unlink, (fout,)))
-        cutmap(fin, fout, ix_min, ix_max, iy_min, iy_max)
+        cutmap(fin, fout, ix_min, ix_max, iy_min, iy_max, use_coords=False)
         with Dataset(fout) as nc:
             lons = nc.variables['lon'][:]
             lats = nc.variables['lat'][:]
