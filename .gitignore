@@ -37,10 +37,8 @@ vignettes/*.pdf
 *.utf8.md
 *.knit.md
 
-*.yml
 *.yaml
 *.json
-!environment.yml
 dist/
 *.egg-info/
 **/build/
