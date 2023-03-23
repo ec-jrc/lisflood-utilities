@@ -30,14 +30,14 @@ import numpy as np
 
 def parse_and_check_args(parser, cliargs):
     args = parser.parse_args(cliargs)
-    if args.mask and args.cuts:
-        parser.error('[--mask | --cuts] arguments are mutually exclusive')
-    if not (args.mask or args.cuts) and not (args.ldd and args.stations):
-        parser.error('(--mask | --cuts | [--ldd, --stations]) You need to pass mask path or cuts coordinates '
+    if (args.mask!=None) + (args.cuts!=None) + (args.cuts_indices!=None) > 1:
+        parser.error('[--mask | --cuts | --cuts_indices] arguments are mutually exclusive')
+    if not (args.mask or args.cuts or args.cuts_indices) and not (args.ldd and args.stations):
+        parser.error('(--mask | --cuts | --cuts_indices | [--ldd, --stations]) You need to pass mask path or cuts coordinates '
                      'or a list of stations along with LDD path')
-    if (args.mask or args.cuts) and (args.ldd or args.stations):
-        parser.error('(--mask | --cuts | [--ldd, --stations]) '
-                     '--mask, --cuts and --ldd and --stations arguments are mutually exclusive')
+    if (args.mask or args.cuts or args.cuts_indices) and (args.ldd or args.stations):
+        parser.error('(--mask | --cuts | --cuts_indices | [--ldd, --stations]) '
+                     '--mask, --cuts, --cuts_indices and --ldd and --stations arguments are mutually exclusive')
     return args
 
 def get_arg_coords(value):
@@ -59,7 +59,8 @@ class ParserHelpOnError(argparse.ArgumentParser):
                                                    'create mask cookie-cutter on-fly from stations list and ldd map')
         group_filelist = self.add_mutually_exclusive_group(required=True)
         group_mask.add_argument("-m", "--mask", help='mask file cookie-cutter, .map if pcraster, .nc if netcdf')
-        group_mask.add_argument("-c", "--cuts", help='Cut coordinates in the form "lonmin lonmax latmin latmax"', type=get_arg_coords)
+        group_mask.add_argument("-c", "--cuts", help='Cut coordinates in the form "lonmin lonmax latmin latmax" using coordinates bounding box', type=get_arg_coords)
+        group_mask.add_argument("-i", "--cuts_indices", help='Cut coordinates in the form "imin imax jmin jmax" using matrix indices', type=get_arg_coords)
         group_mask.add_argument("-l", "--ldd", help='Path to LDD file')
         group_mask.add_argument("-N", "--stations",
                                 help='Path to stations.txt file.'
@@ -84,6 +85,7 @@ def main(cliargs):
     args = parse_and_check_args(parser, cliargs)
     mask = args.mask
     cuts = args.cuts
+    cuts_indices = args.cuts_indices
 
     ldd = args.ldd
     stations = args.stations
@@ -107,13 +109,13 @@ def main(cliargs):
         shutil.copy(mask, os.path.join(pathout, 'my_mask.map'))
         shutil.copy(mask_nc, os.path.join(pathout, 'my_mask.nc'))
 
+    x_min, x_max, y_min, y_max = get_cuts(cuts=cuts, cuts_indices=cuts_indices, mask=mask)
     logger.info('\n\nCutting using: %s\n Files to cut from: %s\n Output: %s\n Overwrite existing: %s\n\n',
-                mask or cuts,
+                mask or ([x_min, x_max, y_min, y_max if cuts or cuts_indices else None]),
                 input_folder or static_data_folder,
                 pathout, overwrite)
 
     list_to_cut = get_filelist(input_folder, static_data_folder)
-    x_min, x_max, y_min, y_max = get_cuts(cuts=cuts, mask=mask)
 
     # walk through list_to_cut
     for file_to_cut in list_to_cut:
@@ -142,7 +144,7 @@ def main(cliargs):
             logger.warning('%s already existing. This file will not be overwritten', fileout)
             continue
 
-        cutmap(file_to_cut, fileout, x_min, x_max, y_min, y_max)
+        cutmap(file_to_cut, fileout, x_min, x_max, y_min, y_max, use_coords=(cuts_indices is None))
         if ldd and stations:
             with Dataset(os.path.join(pathout, 'my_mask.nc'),'r',format='NETCDF4_CLASSIC')  as mask_map:  
                 for k in mask_map.variables.keys():        

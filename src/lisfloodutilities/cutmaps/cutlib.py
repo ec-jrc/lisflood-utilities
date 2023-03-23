@@ -33,17 +33,20 @@ from .. import version, logger
 encoding_netcdf_vars = {'zlib': False}
 
 
-def cutmap(f, fileout, x_min, x_max, y_min, y_max):
+def cutmap(f, fileout, x_min, x_max, y_min, y_max, use_coords = True):
     nc, num_dims = open_dataset(f)
     var = [v for v in nc.variables if len(nc.variables[v].dims) == num_dims][0]
     logger.info('Variable: %s', var)
-
-    if isinstance(x_min, float):
+    
+    if use_coords:
         # bounding box input from user  # FIXME weak isinstance test
         sliced_var = cut_from_coords(nc, var, x_min, x_max, y_min, y_max)
     else:
-        # user provides with indices directly (not coordinates)
-        sliced_var = cut_from_indices(nc, var, x_min, x_max, y_min, y_max)
+        if isinstance(x_min, float):
+            raise ValueError('box values must be integer when using cut_indices')
+        else:
+            # user provides with indices directly (not coordinates)
+            sliced_var = cut_from_indices(nc, var, x_min, x_max, y_min, y_max)
 
     if sliced_var is not None:
         if 'missing_value' in sliced_var.encoding:
@@ -153,7 +156,7 @@ def get_filelist(input_folder=None, static_data_folder=None):
     return list_to_cut
 
 
-def get_cuts(cuts=None, mask=None):
+def get_cuts(cuts=None, cuts_indices=None, mask=None):
     if mask:
         if not os.path.isfile(mask):
             raise FileNotFoundError('Wrong input mask: %s not a file' % mask)
@@ -174,13 +177,18 @@ def get_cuts(cuts=None, mask=None):
         else:
             logger.error('Mask map format not recognized. Must be either .map or .nc. Found %s', ext)
             sys.exit(1)
+        logger.info('MASK: \nmin x: %s \nmax x: %s \nmin y: %s \nmax y: %s', x_min, x_max, y_min, y_max)
     elif cuts:
         # user provided coordinates bounds
         x_min, x_max, y_min, y_max = cuts
+        logger.info('CUTS: \nmin x: %s \nmax x: %s \nmin y: %s \nmax y: %s', x_min, x_max, y_min, y_max)
+    elif cuts_indices:
+        # user provided indices bounds
+        x_min, x_max, y_min, y_max = cuts_indices
+        logger.info('CUTS_INDICES: \nmin x: %s \nmax x: %s \nmin y: %s \nmax y: %s', x_min, x_max, y_min, y_max)
     else:
-        logger.error('You must provide either cuts (in the format "lonmin lonmax latmin latmax") or a mask map')
+        logger.error('You must provide either cuts (in the format "lonmin lonmax latmin latmax") or cuts_indices (in the format "imin imax jmin jmax") or a mask map')
         sys.exit(1)
-    logger.info('CUTS: \nmin x: %s \nmax x: %s \nmin y: %s \nmax y: %s', x_min, x_max, y_min, y_max)
     return x_min, x_max, y_min, y_max
 
 

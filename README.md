@@ -228,10 +228,10 @@ This tool cut netcdf files, using a mask, a bounding box or a list of stations a
 ### Usage:
 The tool accepts as input:
 
-* a mask map (either PCRaster or netCDF format) or 
-  - alternatively, matrix indices in the form `imin imax jmin jmax` (imin, imax, jmin, jmax  must be integer numbers)
-  - alternatively, coordinates bounding box in the form `xmin xmax ymin ymax` (xmin, xmax, ymin, ymax must be floating point numbers; x = longitude, y = latitude) 
-  - alternatively, list of stations with coordinates and a LDD map.
+* a mask map (either PCRaster or netCDF format) using the -m argument or 
+  - alternatively, using the -i argument, matrix indices in the form `imin imax jmin jmax` (imin, imax, jmin, jmax  must be integer numbers)
+  - alternatively, using the -c argument, coordinates bounding box in the form `xmin xmax ymin ymax` (xmin, xmax, ymin, ymax can be integer or floating point numbers; x = longitude, y = latitude) 
+  - alternatively, using the -N and -l arguments, list of stations with coordinates and a LDD map.
 * a path to a folder containing netCDF files to cut or a static dataset path like LISFLOOD static files. 
 * a path to a folder where to write cut files.
 
@@ -245,14 +245,14 @@ The mask can also be in PCRaster format.
 cutmaps -m /workarea/Madeira/maps/MaskMap/Bacia_madeira.nc -f /workarea/Madeira/lai/ -o ./
 ```
 
-**Indices can also be passed as an argument (using -c argument instead of -m). Knowing your area of interest from your netCDF files, 
+**Indices can also be passed as an argument (using -i argument instead of -m). Knowing your area of interest from your netCDF files, 
 you can determine indices of the array and you can pass in the form `imin imax jmin jmax` (imin, imax, jmin, jmax  must be integer numbers).**
 
 ```bash
-cutmaps -c "150 350 80 180" -f /workarea/Madeira/lai/ -o ./
+cutmaps -i "150 350 80 180" -f /workarea/Madeira/lai/ -o ./
 ```
 
-**Example with coordinates `xmin xmax ymin ymax` (xmin, xmax, ymin, ymax must be floating point numbers; x = longitude, y = latitude) and path to EFAS/GloFAS static data (-S option), with -W to allow overwriting existing files in output directory:**
+**Example with coordinates (using -c argument) `xmin xmax ymin ymax` (xmin, xmax, ymin, ymax can be integer or floating point numbers; x = longitude, y = latitude) and path to EFAS/GloFAS static data (-S option), with -W to allow overwriting existing files in output directory:**
 
 ```bash
 cutmaps -S /home/projects/lisflood-eu -c "4078546.12 4463723.85 811206.57 1587655.50" -o /Work/Tunisia/cutmaps -W
