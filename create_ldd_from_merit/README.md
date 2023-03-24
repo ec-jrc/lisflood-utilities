@@ -19,8 +19,8 @@ If you're using Windows, install the cross-platform [wget](http://gnuwin32.sourc
 
 Clone the repository:
 ```
-git clone https://github.com/hylken/create_ldd_from_merit
-cd create_ldd_from_merit
+git clone https://github.com/ec-jrc/lisflood-utilities/create_ldd_from_merit
+cd lisflood-utilities/create_ldd_from_merit
 ```
 Modify `config.cfg` with the correct paths and folders. `res` should match the resolution of the clone map. The clone map should contain `lat` and `lon` variables and a data variable (any name).
 
