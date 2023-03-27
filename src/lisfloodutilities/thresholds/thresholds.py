@@ -95,10 +95,6 @@ def gumbel_function(y, sigma, mu):
     return mu - sigma * np.log(np.log(y / (y - 1)))
 
 
-def sort_values(dis):
-    return np.sort(dis, axis=0)[::-1]
-
-
 def find_main_var(ds, path):
     variable_names = [k for k in ds.variables if len(ds.variables[k].dims) == 3]
     if len(variable_names) > 1:
