@@ -37,7 +37,7 @@ Here's a list of utilities you can find in lisflood-utilities package.
   - an existing boolean area mask
   - a list of stations and a LDD (in netCDF or PCRaster format) **Note: PCRaster must be installed in the conda env**
  
-* __thresholds__ is a tool to compute the discharge return period thresholds from discharge time series.
+* __thresholds__ is a tool to compute the discharge return period thresholds from netCDF4 file containing a discharge time series.
 
 * __compare__ is a package containing a set of simple Python classes that helps to compare 
 netCDF, PCRaster and TSS files.
