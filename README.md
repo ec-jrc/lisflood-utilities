@@ -42,6 +42,15 @@ netCDF, PCRaster and TSS files.
 
 * __waterregions__ is a package containing two scripts that allow to create and verify a water regions map, respectively.
 
+* __gridding__ is a tool to interpolate meteo variables observations stored in text files containing (lon, lat, value) into grids.
+  - uses inverse distance interpolation
+  - input file names must use format: <var>YYYYMMDDHHMI_YYYYMMDDHHMISS.txt
+  - option to store all interpolated grids in a single NetCDF4 file
+  - option to store each interpolated grid in a GeoTIFF file
+  - output files are compressed
+  - grids are setup in the configuration folder and are defined by a dem.nc file
+  - meteo variables parameters are defined in the same configuration folder
+
 The package contains convenient classes for reading/writing:
 
 * PCRasterMap
@@ -471,6 +480,83 @@ optional arguments:
 
 NOTE:
 The utility **pcr2nc** can be used to convert a map in pcraster format into netcdf format.
+
+
+## gridding
+
+This tool is used to interpolate meteo variables observations stored in text files containing (lon, lat, value) into grids.
+It uses inverse distance interpolation method from pyg2p.
+
+#### Requirements
+python3, pyg2p
+
+### Usage
+
+> __Note:__ This guide assumes you have installed the program with pip tool.
+> If you cloned the source code instead, just substitute the executable `gridding` with `python bin/gridding` that is in the root folder of the cloned project.
+
+The tool requires four mandatory command line input arguments:
+
+- -i, --in: Set input folder path with kiwis/point files
+- -o, --out: Set output folder base path for the tiff files or the netCDF file path.
+- -c, --conf: Set the grid configuration type to use. Right now only 5x5km, 1arcmin are available.
+- -v, --var: Set the variable to be processed. Right now only variables pr,pd,tn,tx,ws,rg,pr6,ta6 are available.
+
+The input folder must contain the meteo observation in text files with file name format:  <var>YYYYMMDDHHMI_YYYYMMDDHHMISS.txt
+The files must contain the columns longitude, latitude, observation_value is separated by TAB and without the header.
+Not mandatory but could help to store the files in a folder structure like: ./YYYY/MM/DD/<var>YYYYMMDDHHMI_YYYYMMDDHHMISS.txt
+
+Example of command that will generate a netCDF file containing the grids for March 2023:
+
+```bash
+gridding -i /meteo/pr/2023/ -o /meteo/pr/pr_MARCH_2023.nc -c 1arcmin -v pr -s 202303010600 -e 202304010600
+```
+
+The input and output arguments are listed below and can be seen by using the help flag.
+
+```bash
+gridding --help
+```
+
+```text
+usage: gridding [-h] -i input_folder -o {output_folder, netcdf_file} -c
+                {5x5km, 1arcmin,...} -v {pr,pd,tn,tx,ws,rg,...}
+                [-d files2process.txt] [-s YYYYMMDDHHMISS] [-e YYYYMMDDHHMISS]
+                [-q] [-t] [-f]
+
+version v0.1 ($Mar 28, 2023 16:01:00$) This script interpolates meteo input
+variables data into either a single NETCDF4 file or one GEOTIFF file per
+timestep. The resulting netCDF is CF-1.6 compliant.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -i input_folder, --in input_folder
+                        Set input folder path with kiwis/point files
+  -o {output_folder, netcdf_file}, --out {output_folder, netcdf_file}
+                        Set output folder base path for the tiff files or the
+                        netCDF file path.
+  -c {5x5km, 1arcmin,...}, --conf {5x5km, 1arcmin,...}
+                        Set the grid configuration type to use.
+  -v {pr,pd,tn,tx,ws,rg,...}, --var {pr,pd,tn,tx,ws,rg,...}
+                        Set the variable to be processed.
+  -d files2process.txt, --dates files2process.txt
+                        Set file containing a list of filenames to be
+                        processed in the form of
+                        <var>YYYYMMDDHHMI_YYYYMMDDHHMISS.txt
+  -s YYYYMMDDHHMISS, --start YYYYMMDDHHMISS
+                        Set the start date and time from which data is
+                        imported [default: date defining the time units inside
+                        the config file]
+  -e YYYYMMDDHHMISS, --end YYYYMMDDHHMISS
+                        Set the end date and time until which data is imported
+                        [default: 20230421060000]
+  -q, --quiet           Set script output into quiet mode [default: False]
+  -t, --tiff            Outputs a tiff file per timestep instead of the
+                        default single netCDF [default: False]
+  -f, --force           Force write to existing file. TIFF files will be
+                        overwritten and netCDF file will be appended.
+                        [default: False]
+```
 
 
 

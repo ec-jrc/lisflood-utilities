@@ -25,3 +25,6 @@ toolz>=0.10.0
 wcwidth>=0.1.8
 xarray>=0.15.1
 zipp>=3.0.0
+eccodes-python>=0.9.7
+GDAL>=3.5.2
+pyg2p>=3.2.3

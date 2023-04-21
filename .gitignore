@@ -49,3 +49,7 @@ dist/
 !tests/**/*.nc
 tests/**/*aux.xml
 .coverage
+!src/lisfloodutilities/gridding/**/*.nc
+.settings
+.project
+.pydevproject

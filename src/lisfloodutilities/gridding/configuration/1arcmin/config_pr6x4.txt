@@ -1,0 +1,20 @@
+[PROPERTIES]
+
+VAR_CODE = pr6
+CELL_METHODS = time: sum
+UNIT = mm/day
+UNIT_CONVERSION = 4.0
+VALUE_MIN = 0
+VALUE_MAX = 2400
+VALUE_SCALE = 0.1
+VALUE_OFFSET = 0.0
+DATA_TYPE_PACKED = i2
+STANDARD_NAME = precipitation_amount
+LONG_NAME = 6 Hourly Accumulated Precipitation per Day
+
+[VAR_TIME]
+
+UNIT_PATTERN = hours since %%Y-%%m-%%d %%H:%%M:%%S.%%f
+UNIT = hours since 1990-01-01 12:00:00.0
+FREQUENCY = 6
+
