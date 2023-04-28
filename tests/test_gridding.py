@@ -42,6 +42,8 @@ class TestGridding:
         reference_output = 'tests/data/gridding/reference/test1/pr6.nc'
         output_netcdf = 'tests/data/gridding/meteo_out/test1/pr6.nc'
 
+        Path('tests/data/gridding/meteo_out/test1').mkdir(parents=True, exist_ok=True)
+
         if os.path.exists(output_netcdf):
             os.remove(output_netcdf)
 
@@ -85,6 +87,8 @@ class TestGridding:
         output_netcdf = 'tests/data/gridding/meteo_out/test2/pr6.nc'
         processing_dates_file = 'tests/data/gridding/meteo_in/test2/dates_to_process.txt'
 
+        Path('tests/data/gridding/meteo_out/test2').mkdir(parents=True, exist_ok=True)
+
         # This is needed so we can test updating 1 timestep on an existing netCDF file.
         copy2(os.path.join(input_folder, 'pr6.nc'), output_netcdf)
 
@@ -124,6 +128,8 @@ class TestGridding:
         input_folder = 'tests/data/gridding/meteo_in/test1'
         reference_output = 'tests/data/gridding/reference/test3'
         output_folder = 'tests/data/gridding/meteo_out/test3'
+
+        Path(output_folder).mkdir(parents=True, exist_ok=True)
 
         for filename in os.listdir(output_folder):
             file_path = os.path.join(output_folder, filename)
