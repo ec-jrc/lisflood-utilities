@@ -50,6 +50,8 @@ dist/
 tests/**/*aux.xml
 .coverage
 !src/lisfloodutilities/gridding/**/*.nc
+tests/data/gridding/meteo_out/**/*.nc
+tests/data/gridding/meteo_out/**/*.tiff
 .settings
 .project
 .pydevproject

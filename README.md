@@ -44,7 +44,7 @@ netCDF, PCRaster and TSS files.
 
 * __gridding__ is a tool to interpolate meteo variables observations stored in text files containing (lon, lat, value) into grids.
   - uses inverse distance interpolation
-  - input file names must use format: <var>YYYYMMDDHHMI_YYYYMMDDHHMISS.txt
+  - input file names must use format: \<var\>YYYYMMDDHHMI_YYYYMMDDHHMISS.txt
   - option to store all interpolated grids in a single NetCDF4 file
   - option to store each interpolated grid in a GeoTIFF file
   - output files are compressed
@@ -502,11 +502,11 @@ The tool requires four mandatory command line input arguments:
 - -c, --conf: Set the grid configuration type to use. Right now only 5x5km, 1arcmin are available.
 - -v, --var: Set the variable to be processed. Right now only variables pr,pd,tn,tx,ws,rg,pr6,ta6 are available.
 
-The input folder must contain the meteo observation in text files with file name format:  <var>YYYYMMDDHHMI_YYYYMMDDHHMISS.txt
+The input folder must contain the meteo observation in text files with file name format:  \<var\>YYYYMMDDHHMI_YYYYMMDDHHMISS.txt
 The files must contain the columns longitude, latitude, observation_value is separated by TAB and without the header.
-Not mandatory but could help to store the files in a folder structure like: ./YYYY/MM/DD/<var>YYYYMMDDHHMI_YYYYMMDDHHMISS.txt
+Not mandatory but could help to store the files in a folder structure like: ./YYYY/MM/DD/\<var\>YYYYMMDDHHMI_YYYYMMDDHHMISS.txt
 
-Example of command that will generate a netCDF file containing the grids for March 2023:
+Example of command that will generate a netCDF file containing the precipitation (pr) grids for March 2023:
 
 ```bash
 gridding -i /meteo/pr/2023/ -o /meteo/pr/pr_MARCH_2023.nc -c 1arcmin -v pr -s 202303010600 -e 202304010600
