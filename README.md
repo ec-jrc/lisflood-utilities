@@ -327,7 +327,9 @@ optional arguments:
 
 ## thresholds
 
-The thresholds tool compute the discharge return period thresholds using the method of L-moments.
+The thresholds tool computes the discharge return period thresholds using the method of L-moments.
+It is used to post-process the discharge from the LISFLOOD long term run.
+The resulting thresholds can be used in a flood forecasting system to define the flood warning levels.
 
 ### Usage:
 The tool takes as input a Netcdf file containing the annual maxima of the discharge signal.
@@ -336,7 +338,8 @@ The output NetCDF file contains the following return period thresholds [1.5, 2, 
 ```text
 usage: thresholds [-h] [-d DISCHARGE] [-o OUTPUT]
 
-Utility to compute the discharge return period thresholds using the method of L-moments. Thresholds computed: [1.5, 2, 5, 10, 20, 50, 100, 200, 500]
+Utility to compute the discharge return period thresholds using the method of L-moments.
+Thresholds computed: [1.5, 2, 5, 10, 20, 50, 100, 200, 500]
 
 options:
   -h, --help            show this help message and exit
