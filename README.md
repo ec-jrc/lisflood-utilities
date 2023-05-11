@@ -332,7 +332,8 @@ It is used to post-process the discharge from the LISFLOOD long term run.
 The resulting thresholds can be used in a flood forecasting system to define the flood warning levels.
 
 ### Usage:
-The tool takes as input a Netcdf file containing the annual maxima of the discharge signal.
+The tool takes as input a Netcdf file containing the annual maxima of the discharge signal. LISFLOOD computes time series of discharge values (average value over the selected computational time step). The users are therefore required to compute the annual maxima. As an example, this step can be achieved by using CDO (cdo yearmax), for all the details please refer to [https://code.mpimet.mpg.de/projects/cdo/embedded/index.html#x1-190001.2.5](https://code.mpimet.mpg.de/projects/cdo/embedded/index.html#x1-190001.2.5)
+
 The output NetCDF file contains the following return period thresholds [1.5, 2, 5, 10, 20, 50, 100, 200, 500], together with the Gumbel parameters (sigma and mu).
 
 ```text
