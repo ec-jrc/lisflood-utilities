@@ -54,12 +54,12 @@ class PCRasterWriter:
             rs = ma.masked_values(rs, no_data_value, copy=False)
             self._mask = ma.getmask(rs)
             rs = None
-            self.mv = no_data_value if not mv else float(mv)
+            self.mv = no_data_value if mv is None else float(mv)
         else:
             self.cols = self._coordinates['x'].size
             self.rows = self._coordinates['y'].size
             self.src_geo_transform = self._get_geo_transform_from_coords()
-            self.mv = np.nan if not mv else float(mv)
+            self.mv = np.nan if mv is None else float(mv)
             self.flipped_x = self._coordinates['x'][0] > self._coordinates['x'][1]
             self.flipped_y = self._coordinates['y'][0] < self._coordinates['y'][1]
 
