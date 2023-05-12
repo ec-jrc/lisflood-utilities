@@ -166,6 +166,7 @@ dependencies:
   - xz=5.2.6=h166bdaf_0
   - zlib=1.2.13=h166bdaf_4
   - zstd=1.5.2=h3eb15da_6
+  - pip
   - pip:
     - attrs==23.1.0
     - cffi==1.15.1
