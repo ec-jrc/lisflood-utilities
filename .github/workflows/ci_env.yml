@@ -21,7 +21,6 @@ jobs:
         export C_INCLUDE_PATH=/usr/include/gdal
         # check gdal version with 
         gdal-config --version
-        GDAL_VERSION=`gdal-config --version`
     - name: Add conda to system path
       run: |
         # $CONDA is an environment variable pointing to the root of the miniconda directory
@@ -31,7 +30,9 @@ jobs:
         conda install -c conda-forge pcraster=4.4.0
     - name: Install GDAL
       run: |
+        GDAL_VERSION=`gdal-config --version`
         conda install -c conda-forge libgdal=$GDAL_VERSION gdal=$GDAL_VERSION
+        pip install GDAL==$GDAL_VERSION
     - name: Install ECCODES
       run: |
         conda install -c conda-forge eccodes=2.28.0
