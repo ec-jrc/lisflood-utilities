@@ -37,6 +37,8 @@ Here's a list of utilities you can find in lisflood-utilities package.
   - an existing boolean area mask
   - a list of stations and a LDD (in netCDF or PCRaster format) **Note: PCRaster must be installed in the conda env**
  
+* __thresholds__ is a tool to compute the discharge return period thresholds from netCDF4 file containing a discharge time series.
+
 * __compare__ is a package containing a set of simple Python classes that helps to compare 
 netCDF, PCRaster and TSS files.
 
@@ -237,10 +239,10 @@ This tool cut netcdf files, using a mask, a bounding box or a list of stations a
 ### Usage:
 The tool accepts as input:
 
-* a mask map (either PCRaster or netCDF format) or 
-  - alternatively, matrix indices in the form xmini_xmaxi:ymini_ymaxi or
-  - alternatively, coordinates bounding box in the form xmin_xmax:ymin_ymax
-  - alternatively, list of stations with coordinates and a LDD map.
+* a mask map (either PCRaster or netCDF format) using the -m argument or 
+  - alternatively, using the -i argument, matrix indices in the form `imin imax jmin jmax` (imin, imax, jmin, jmax  must be integer numbers)
+  - alternatively, using the -c argument, coordinates bounding box in the form `xmin xmax ymin ymax` (xmin, xmax, ymin, ymax can be integer or floating point numbers; x = longitude, y = latitude) 
+  - alternatively, using the -N and -l arguments, list of stations with coordinates and a LDD map.
 * a path to a folder containing netCDF files to cut or a static dataset path like LISFLOOD static files. 
 * a path to a folder where to write cut files.
 
@@ -254,14 +256,14 @@ The mask can also be in PCRaster format.
 cutmaps -m /workarea/Madeira/maps/MaskMap/Bacia_madeira.nc -f /workarea/Madeira/lai/ -o ./
 ```
 
-**Indices can also be passed as an argument (using -c argument instead of -m). Knowing your area of interest from your netCDF files, 
-you can determine indices of the array and you can pass in the form `imin imax jmin jmax`.**
+**Indices can also be passed as an argument (using -i argument instead of -m). Knowing your area of interest from your netCDF files, 
+you can determine indices of the array and you can pass in the form `imin imax jmin jmax` (imin, imax, jmin, jmax  must be integer numbers).**
 
 ```bash
-cutmaps -c "150 350 80 180" -f /workarea/Madeira/lai/ -o ./
+cutmaps -i "150 350 80 180" -f /workarea/Madeira/lai/ -o ./
 ```
 
-**Example with coordinates and path to EFAS/GloFAS static data (-S option), with -W to allow overwriting existing files in output directory:**
+**Example with coordinates (using -c argument) `xmin xmax ymin ymax` (xmin, xmax, ymin, ymax can be integer or floating point numbers; x = longitude, y = latitude) and path to EFAS/GloFAS static data (-S option), with -W to allow overwriting existing files in output directory:**
 
 ```bash
 cutmaps -S /home/projects/lisflood-eu -c "4078546.12 4463723.85 811206.57 1587655.50" -o /Work/Tunisia/cutmaps -W
@@ -332,45 +334,30 @@ optional arguments:
                         threshold for large diffs percentage
 ```
 
-## gfit
+## thresholds
 
-### Introduction
+The thresholds tool computes the discharge return period thresholds using the method of L-moments.
+It is used to post-process the discharge from the LISFLOOD long term run.
+The resulting thresholds can be used in a flood forecasting system to define the flood warning levels.
 
-The tool Gfit2 was created to extract flood warning thresholds from a map stack of daily discharge for several years, given in NetCDF format.
-It is designed to work with any other variable as well as with different sampling (sub- or super- daily)
+### Usage:
+The tool takes as input a Netcdf file containing the annual maxima of the discharge signal. LISFLOOD computes time series of discharge values (average value over the selected computational time step). The users are therefore required to compute the annual maxima. As an example, this step can be achieved by using CDO (cdo yearmax), for all the details please refer to [https://code.mpimet.mpg.de/projects/cdo/embedded/index.html#x1-190001.2.5](https://code.mpimet.mpg.de/projects/cdo/embedded/index.html#x1-190001.2.5)
 
-The tool is made of three files:
+The output NetCDF file contains the following return period thresholds [1.5, 2, 5, 10, 20, 50, 100, 200, 500], together with the Gumbel parameters (sigma and mu).
 
-1. Gfit2.sh: the main file, used to run the tool (e.g., ./Gfit2.sh ./settingFile_test.sh)
-2. settingFile_test.sh: a setting file, where paths and values of the input variables are defined. It can be renamed, as long as the correct name is called in the script (e.g.: set1.sh --> ./Gfit2.sh ./set1.sh)
-3. gfit2.r: the r script that  performs the extreme value analysis
+```text
+usage: thresholds [-h] [-d DISCHARGE] [-o OUTPUT]
 
-### Requirements
+Utility to compute the discharge return period thresholds using the method of L-moments.
+Thresholds computed: [1.5, 2, 5, 10, 20, 50, 100, 200, 500]
 
-You need to have installed the following:
-
-- CDO
-- R
-
-### How to run
-The tool operates in a Linux environment (also as a job with qsub). To run the tool you'll need:
-- R (the script was tested with R version 3.5.0)
-- the following R packages: ncdf4, lmomco, ismev
-- CDO (the script was tested with CDO version 1.6.5.1)
-
-### What does the tool do
-
-The Gfit2 tool performs the following steps:
-- It takes the input file in NetCDF and extract the series of annual maxima. an optional number of warm-up years ($warmup_yrs) are excluded at the beginning of the data, to remove potential spin-up effect. Also the map of average value is computed
-- An extreme value fitting is performed on each pixel of the map, using L-moments and a 2-parameter Gumbel distribution. As option, the user can limit the analysis to a specific number of years. Also, one can use the option to remove from the fitting all values smaller than the long-term average. The fitting is performed only where at least 5 annual maxima are available, otherwise a NA is returned on the output map
-- Output return level maps (corresponding to user-selected years of recurrence interval) are saved in a netcdf file (return_levels.nc) and as ascii files. If a clone map in PCRaster format is provided, maps are also saved in PCRaster (return level maps and parameters of the Gumbel distribution)
-- After the EV fitting, the tool estimates some further statistics from the long-term input file, including minimum, maximum, and different percentile maps. This part can be commented out if not of interest
-
-### Reference
-[L-Moments: Analysis and Estimation of Distributions Using Linear Combinations of Order Statistics](https://www.jstor.org/stable/2345653)
-
-Hosking, J.R.M., 1990. L-Moments: Analysis and Estimation of Distributions Using Linear Combinations of Order Statistics. J. R. Stat. Soc. Ser. B Methodol. 52, 105124.
-
+options:
+  -h, --help            show this help message and exit
+  -d DISCHARGE, --discharge DISCHARGE
+                        Input discharge files (annual maxima)
+  -o OUTPUT, --output OUTPUT
+                        Output thresholds file
+```
 
 ## waterregions
 

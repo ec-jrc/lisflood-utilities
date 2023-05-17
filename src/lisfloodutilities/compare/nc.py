@@ -113,6 +113,7 @@ class NetCDFComparator(Comparator):
             raise ValueError('timestep must be of type datetime.datetime or a range of dates, but type {} was found'.format(str(type(timestep))))
 
         logger.info('Comparing %s and %s %s', file_a, file_b, '(from %s to %s)' % (min(timestep), max(timestep)) if timestep else '')
+        self.diff_timesteps = []
 
         with Dataset(file_a) as nca, Dataset(file_b) as ncb:
             num_dims = 3 if 'time' in nca.variables else 2
@@ -197,7 +198,6 @@ class NetCDFComparator(Comparator):
                 filepath = os.path.basename(filepath) if filepath else '<mem>'
                 varname = varname or '<unknown var>'
                 message = '{}/{}@{} - {:3.2f}% of different values - max diff: {:3.6f}'.format(filepath, varname, step, perc_wrong, max_diff)
-                logger.error(message)
                 if self.for_testing:
                     assert False, message
                 else:
