@@ -37,6 +37,9 @@ vignettes/*.pdf
 *.utf8.md
 *.knit.md
 
+# precompiled files
+*.py[cod]
+
 *.yaml
 *.json
 dist/
