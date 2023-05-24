@@ -10,18 +10,25 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: Set up Python 3.7
-      uses: actions/setup-python@v3
+    - uses: conda-incubator/setup-miniconda@v2
       with:
-        python-version: '3.7'
-    - name: Add conda to system path
+        auto-update-conda: true
+        python-version: 3.7
+    - name: Conda info
+      shell: bash -el {0}
+      run: conda info
+    - name: Install python and gcc
+      shell: bash -el {0}
       run: |
-        # $CONDA is an environment variable pointing to the root of the miniconda directory
-        echo $CONDA/bin >> $GITHUB_PATH
+        conda install -c conda-forge python=3.7
+        conda install -c conda-forge gcc=12.1.0
     - name: Install dependencies
+      shell: bash -el {0}
       run: |
-        conda env update --file environment.yml --name base
+        conda install -c conda-forge gdal pcraster
+        pip install -r requirements.txt
     - name: Test with pytest
+      shell: bash -el {0}
       run: |
-        conda install pytest
+        conda install -c conda-forge pytest pytest-cov
         pytest
