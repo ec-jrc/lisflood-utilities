@@ -17,14 +17,25 @@ jobs:
     - name: Conda info
       shell: bash -el {0}
       run: conda info
-    - name: Install conda env
+    - name: Install python and gcc
       shell: bash -el {0}
       run: |
-        conda install -c conda-forge python=3.7 gcc=12.1.0 gdal pcraster
+        conda install -c conda-forge python=3.7
+        conda install -c conda-forge gcc=12.1.0
+    - name: Install gdal and pcraster
+      shell: bash -el {0}
+      run: |
+        conda install -c conda-forge gdal pcraster
     - name: Install dependencies
       shell: bash -el {0}
       run: |
         pip install -r requirements.txt
+    - name: Check installation
+      shell: bash -el {0}
+      run: |
+        gdal-config --version
+        python -c "from osgeo import gdal; print(gdal.__version__)"
+        conda list
     - name: Test with pytest
       shell: bash -el {0}
       run: |
