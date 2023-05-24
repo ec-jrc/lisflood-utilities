@@ -17,18 +17,16 @@ jobs:
     - name: Conda info
       shell: bash -el {0}
       run: conda info
-    - name: Install python and gcc
+    - name: Install conda env
       shell: bash -el {0}
       run: |
-        conda install -c conda-forge python=3.7
-        conda install -c conda-forge gcc=12.1.0
+        conda install -c conda-forge python=3.7 gcc=12.1.0 gdal pcraster
     - name: Install dependencies
       shell: bash -el {0}
       run: |
-        conda install -c conda-forge gdal pcraster
         pip install -r requirements.txt
     - name: Test with pytest
       shell: bash -el {0}
       run: |
-        conda install -c conda-forge pytest pytest-cov
+        pip install pytest pytest-cov
         pytest
