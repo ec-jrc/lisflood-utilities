@@ -65,6 +65,7 @@ class Dem(Printable):
         self.lon_min = reader.lon_min
         self.lat_max = reader.lat_max
         self.lon_max = reader.lon_max
+        self.count_nan = np.count_nonzero(np.isnan(self.values))
 
 
 class FileUtils(Printable):
@@ -330,6 +331,20 @@ class GriddingUtils(Printable):
         grid_data = result.reshape(grid_shape)
         return grid_data
 
+    def check_grid_nan(self, filename: Path, result: np.ndarray):
+        # Verify if grid contains NaN different than the ones on the DEM.
+        # Which means there are NaN values that shouldn't be generated.
+        count_dem_nan = self.conf.dem.count_nan
+        value_min = int(self.conf.get_config_field('PROPERTIES', 'VALUE_MIN'))
+        value_max = int(self.conf.get_config_field('PROPERTIES', 'VALUE_MAX'))
+        current_grid = result.copy()
+        current_grid[np.where(current_grid < value_min)] = np.nan
+        current_grid[np.where(current_grid > value_max)] = np.nan
+        current_grid[np.where(current_grid == self.conf.VALUE_NAN)] = np.nan
+        count_grid_nan = np.count_nonzero(np.isnan(current_grid))
+        if count_dem_nan != count_grid_nan:
+            print(f"WARNING: The grid interpolated from file {filename.name} contains different NaN values ({count_grid_nan}) than the DEM ({count_dem_nan}). diff: {count_grid_nan - count_dem_nan}")
+
     def generate_grid(self, filename: Path) -> np.ndarray:
         mv_target = self.conf.dem.mv
         mv_source = None
@@ -353,5 +368,6 @@ class GriddingUtils(Printable):
         result = np.ma.masked_array(data=results, mask=self.conf.dem_mask, fill_value=self.conf.VALUE_NAN)
         self.print_msg('Finish interpolation')
         result = self.reset_height(result)
+        self.check_grid_nan(filename, result)
         grid_data = self.prepare_grid(result, grid_x.shape)
         return grid_data
