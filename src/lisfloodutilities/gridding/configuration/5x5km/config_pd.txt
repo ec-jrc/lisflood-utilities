@@ -1,0 +1,22 @@
+[PROPERTIES]
+
+VAR_CODE = pd
+CELL_METHODS = time: mean
+UNIT = hPa
+UNIT_CONVERSION = 1.0
+VALUE_MIN = 0
+VALUE_MAX = 50
+VALUE_SCALE = 0.1
+VALUE_OFFSET = 0.0
+DATA_TYPE_PACKED = i2
+STANDARD_NAME = water_vapor_partial_pressure_in_air
+LONG_NAME = Daily Average Vapor Pressure
+
+[VAR_TIME]
+
+UNIT = days since 1990-01-02 00:00:00.0
+FREQUENCY = 1
+
+# Used to allow moving the files 1 day forward for variables (WS, RG, PD, PR?)
+OFFSET_FILE_DATE = 1
+

@@ -9,7 +9,12 @@ jobs:
       max-parallel: 5
 
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout github repo (+ download lfs dependencies)
+      uses: actions/checkout@v3
+      with:
+        lfs: true
+    - name: Checkout LFS objects
+      run: git lfs checkout
     - uses: conda-incubator/setup-miniconda@v2
       with:
         auto-update-conda: true
@@ -22,10 +27,10 @@ jobs:
       run: |
         conda install -c conda-forge python=3.7
         conda install -c conda-forge gcc=12.1.0
-    - name: Install gdal and pcraster
+    - name: Install gdal eccodes and pcraster
       shell: bash -el {0}
       run: |
-        conda install -c conda-forge gdal pcraster
+        conda install -c conda-forge gdal eccodes pcraster
     - name: Install dependencies
       shell: bash -el {0}
       run: |
