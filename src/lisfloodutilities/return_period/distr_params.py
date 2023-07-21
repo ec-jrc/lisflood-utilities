@@ -10,47 +10,39 @@ import xarray as xr
 import lmoments
 
 
-def gev_parameters_lmoments(dis):
-    
-    l1, l2, l3 = lmoments.lmoments(dis)
-    l1_new, l2_new, l3_new = lmoments.lmoments_new(dis)
-    
-    t3 = l3/l2
-    
-    z = 2/(3+t3) - np.log(2)/np.log(3)
-    
-    k = 7.8590 * z + 2.9554 * np.square(z)    #shape
-    sigma = l2 * k / ((1 - np.exp2(-k)) * scipy.special.gamma(1+k))    #scale
-    mu = l1 + sigma * (scipy.special.gamma(1 + k) - 1) / k    #location
-    
+def distr_params_lmom(ds,distr):
+
+    l1, l2, l3 = lmoments.lmoments_new(ds)
+
     res = dict()
-    res['k'] = k
+
+    if distr == "GEV":
+        
+        t3 = l3/l2
+        z = 2/(3+t3) - np.log(2)/np.log(3)
+        
+        k = 7.8590 * z + 2.9554 * np.square(z)    #shape
+        sigma = l2 * k / ((1 - np.exp2(-k)) * scipy.special.gamma(1+k))    #scale
+        mu = l1 + sigma * (scipy.special.gamma(1 + k) - 1) / k    #location
+
+        res['k'] = k
+        
+    elif distr == "Gumbel":
+
+        sigma = l2 / np.log(2)
+        mu = l1 - sigma * 0.5772
+
+    else:
+        print("Invalid distribution")
+        exit()
+    
     res['sigma'] = sigma
     res['mu'] = mu
+    
     res['l1'] = l1
     res['l2'] = l2
     res['l3'] = l3
-    res['l1_new'] = l1_new
-    res['l2_new'] = l2_new
-    res['l3_new'] = l3_new
 
-    return res
-
-
-def gumbel_parameters_lmoments(dis):
-    
-    l1, l2, l3 = lmoments.lmoments(dis)
-    l1_new, l2_new, l3_new = lmoments.lmoments_new(dis)
-    
-    lambda_coef = lmoments.lmoments(dis)
-    
-    sigma = l2 / np.log(2)
-    mu = l1 - sigma * 0.5772
-    
-    res = dict()
-    res['sigma'] = sigma
-    res['mu'] = mu
-    
     return res
 
 
@@ -83,35 +75,15 @@ def unmask_array(mask, template, data):
 
 
 
-def create_dataset(var, mask, params):
+def create_dataset(tmpl, mask, params):
     
-    print(params.keys())
+    ds = xr.Dataset(coords={"latitude": tmpl.coords["latitude"],
+                            "longitude": tmpl.coords["longitude"]})
     
-    ds = xr.Dataset(coords={"latitude": var.coords["latitude"], "longitude": var.coords["longitude"]})
-    
-    #L-moments
-    l1, l2, l3 = params['l1'], params['l2'], params['l3']
-    l1_new, l2_new, l3_new = params['l1_new'], params['l2_new'], params['l3_new']
-    
-    for lmom,name in zip((l1,l2,l3,l1_new,l2_new,l3_new),('l1','l2','l3','l1_new','l2_new','l3_new')):
-        l = unmask_array(mask, var.isel(time=0).values, lmom)
-        print(f'{name} shape: ',l.shape)
-        ds[f"{name}"] = (["latitude", "longitude"], l)
-    
-    # Distribution parameters
-    if 'k' in params.keys():    #Only for GEV
-        k = unmask_array(mask, var.isel(time=0).values, params['k'])
-        print('\nK shape: ',k.shape)
-        ds[f"k"] = (["latitude", "longitude"], k)
-        
-     
-    s = unmask_array(mask, var.isel(time=0).values, params['sigma'])
-    print('Sigma shape: ',s.shape)
-    ds[f"sigma"] = (["latitude", "longitude"], s)
-    
-    m = unmask_array(mask, var.isel(time=0).values, params['mu'])
-    print('Mu shape: ',m.shape)
-    ds[f"mu"] = (["latitude", "longitude"], m)
+    for p in params.keys():
+        v = unmask_array(mask, tmpl.isel(time=0).values, params[p])
+        print(f"{p} shape: ",v.shape)
+        ds[f"{p}"] = (["latitude", "longitude"], v)
     
     print(f'\nOutput dataset:\n{ds}\n\n')
 
@@ -119,7 +91,7 @@ def create_dataset(var, mask, params):
 
 
 
-def compute_params(dataset,d):
+def compute_params(dataset,distribution):
     
     # Mask NaN
     mask = np.isfinite(dataset.isel(time=0).values)    #exclude nan
@@ -127,13 +99,7 @@ def compute_params(dataset,d):
  
     # Computing distribution parameters
     start = time.time()
-    if d == "GEV": 
-        params = gev_parameters_lmoments(ds_masked)
-    elif d == "Gumbel":
-        params = gumbel_parameters_lmoments(var_masked)
-    else:
-        print("Invalid distribution")
-        exit()
+    params = distr_params_lmom(ds_masked,distr=distribution)
     end = time.time() - start
     print(f'Computation took {end:.1f} seconds\n')
         
@@ -171,7 +137,7 @@ def main(argv=sys.argv):
 
     #Compute the return period
     print(f"Computing {distr} coefficients...")
-    params = compute_params(pr_ym,d=distr)
+    params = compute_params(pr_ym,distribution=distr)
     
     #Write to NetCDF
     params.to_netcdf(args.output)
@@ -185,6 +151,5 @@ def main_script():
 
 if __name__ == "__main__":
     main_script()
-    
     
     

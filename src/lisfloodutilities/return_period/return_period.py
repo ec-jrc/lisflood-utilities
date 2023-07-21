@@ -158,7 +158,7 @@ def main(argv=sys.argv):
         
     #Open the input file
     pr = read_precipitation(args.input)
-    print('Input precipitation\n',pr,'\n\n')
+    print('Input precipitation:\n',pr,'\n\n')
     #pr_subset = pr.isel(time=slice(0,487))    #!!!
     #print(pr_subset)
     
@@ -166,13 +166,13 @@ def main(argv=sys.argv):
     print('*** Start computing the return period ***')
     start = time.time()
     rp = compute_return_period(pr, params, distr)
-    print('*** End computing the return period ***')
+    print('\n*** End computing the return period ***')
     print(f'Total elapsed time {time.time()-start:.1f} seconds\n\n')
 
     params.close()
         
     #Store results in NetCDF dataset
-    print('Store the result')
+    print('Store the result\n')
     times = pr['time']   #!!!
     mask = np.isfinite(pr.isel(time=0).values)
     templ = pr.isel(time=0)    #Read lats and lons form here
