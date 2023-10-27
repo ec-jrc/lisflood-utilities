@@ -27,10 +27,11 @@ jobs:
       run: |
         conda install -c conda-forge python=3.7
         conda install -c conda-forge gcc=12.1.0
-    - name: Install gdal eccodes and pcraster
+    - name: Install gdal eccodes pcraster hdf5
       shell: bash -el {0}
       run: |
         conda install -c conda-forge gdal eccodes pcraster
+        conda install -c conda-forge hdf5
     - name: Install dependencies
       shell: bash -el {0}
       run: |
