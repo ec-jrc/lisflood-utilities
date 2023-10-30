@@ -36,6 +36,7 @@ jobs:
       shell: bash -el {0}
       run: |
         pip install -r requirements.txt
+        pip install .
     - name: Check installation
       shell: bash -el {0}
       run: |
