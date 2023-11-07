@@ -550,7 +550,7 @@ optional arguments:
 
 ## ncextract
 
-The ncextract tool extracts the values of (multiple) netCDF file(s) at user defined coordinates and returns them in chronological order.
+The ncextract tool extracts the time series of values from (multiple) netCDF file(s) at user defined coordinates.
 
 ### Usage:
 The tool takes as input a CSV file containing point coordinates (structured in 3 columns: id, lat, lon) and a directory containing one or more netCDF files.
@@ -559,7 +559,7 @@ The output is a CSV file (or optionally a netCDF file) containing the values at 
 ```text
 usage: ncextract.py [-h] -i INPUT -d DIRECTORY -o OUTPUT [-nc]
 
-Utility to extract values from (multiple) NetCDF files at specific coordinates over time.
+Utility to extract time series of values from (multiple) NetCDF files at specific coordinates.
 Coordinates of points of interest must be included in a CSV file with at least 3 columns named id,
 lat, lon.
 

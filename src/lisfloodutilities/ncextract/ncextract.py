@@ -68,8 +68,8 @@ def main(argv=sys.argv):
     prog = os.path.basename(argv[0])
     parser = argparse.ArgumentParser(
         description="""
-        Utility to extract values from (multiple) NetCDF files
-        at specific coordinates (over a time series).
+        Utility to extract time series of values from
+        (multiple) NetCDF files at specific coordinates.
         Coordinates of points of interest must be 
         included in a CSV file with at least 3 columns
         named id, lat, lon.
