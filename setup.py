@@ -127,7 +127,8 @@ setup_args = dict(
                 'pcr2nc: Convert PCRaster files to netCDF CF 1.6; '
                 'nc2pcr: Convert netCDF files ot PCRaster format; '
                 'cutmaps: cut netCDF files;'
-                'compare: compare two set of netcdf files',
+                'compare: compare two set of netCDF files;',
+                'ncextract: extract values from netCDF files;',
     long_description=long_description,
     long_description_content_type='text/markdown',
     setup_requires=[
@@ -144,7 +145,7 @@ setup_args = dict(
     keywords=['netCDF4', 'PCRaster', 'mapstack', 'lisflood', 'efas', 'glofas', 'ecmwf', 'copernicus'],
     license='EUPL 1.2',
     url='https://github.com/ec-jrc/lisflood-utilities',
-    scripts=['bin/pcr2nc', 'bin/cutmaps', 'bin/compare', 'bin/nc2pcr', 'bin/thresholds', 'bin/gridding',],
+    scripts=['bin/pcr2nc', 'bin/cutmaps', 'bin/compare', 'bin/nc2pcr', 'bin/thresholds', 'bin/gridding', 'bin/ncextract',],
     zip_safe=True,
     classifiers=[
           # complete classifier list: http://pypi.python.org/pypi?%3Aaction=list_classifiers

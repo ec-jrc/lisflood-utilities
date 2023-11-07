@@ -53,6 +53,8 @@ netCDF, PCRaster and TSS files.
   - grids are setup in the configuration folder and are defined by a dem.nc file
   - meteo variables parameters are defined in the same configuration folder
 
+* __ncextract__ is a tool to extract values from netCDF4 file at specific coordinates.
+
 The package contains convenient classes for reading/writing:
 
 * PCRasterMap
@@ -545,6 +547,32 @@ optional arguments:
                         [default: False]
 ```
 
+
+## ncextract
+
+The ncextract tool extracts the values of (multiple) netCDF file(s) at user defined coordinates and returns them in chronological order.
+
+### Usage:
+The tool takes as input a CSV file containing point coordinates (structured in 3 columns: id, lat, lon) and a directory containing one or more netCDF files.
+The output is a CSV file (or optionally a netCDF file) containing the values at the  points corresponding to the provided coordinates, in chronological order.
+
+```text
+usage: ncextract.py [-h] -i INPUT -d DIRECTORY -o OUTPUT [-nc]
+
+Utility to extract values from (multiple) NetCDF files at specific coordinates over time.
+Coordinates of points of interest must be included in a CSV file with at least 3 columns named id,
+lat, lon.
+
+options:
+  -h, --help            show this help message and exit
+  -i INPUT, --input INPUT
+                        Input CSV file (id, lat, lon)
+  -d DIRECTORY, --directory DIRECTORY
+                        Input directory with .nc files
+  -o OUTPUT, --output OUTPUT
+                        Output file (default is CSV, use -nc for NetCDF)
+  -nc, --nc             Output to NetCDF
+```
 
 
 
