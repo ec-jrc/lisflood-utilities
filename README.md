@@ -62,6 +62,8 @@ The package contains convenient classes for reading/writing:
 * NetCDFMap
 * NetCDFWriter
 
+* __ncextract__ is a tool to extract values from netCDF4 file at specific coordinates.
+
 ### Installation
 
 #### Requisites
@@ -584,6 +586,31 @@ Example of command that will generate txt files for the CDD of precipitation (pr
 cddmap /meteo/pr --parallel --maxdistance 500
 ```
 
+
+## ncextract
+
+The ncextract tool extracts the time series of values from (multiple) netCDF file(s) at user defined coordinates.
+
+### Usage:
+The tool takes as input a CSV file containing point coordinates (structured in 3 columns: id, lat, lon) and a directory containing one or more netCDF files.
+The output is a CSV file (or optionally a netCDF file) containing the values at the  points corresponding to the provided coordinates, in chronological order.
+
+```text
+usage: ncextract.py [-h] -i INPUT -d DIRECTORY -o OUTPUT [-nc]
+
+Utility to extract time series of values from (multiple) NetCDF files at specific coordinates.
+Coordinates of points of interest must be included in a CSV file with at least 3 columns named id,
+lat, lon.
+
+options:
+  -h, --help            show this help message and exit
+  -i INPUT, --input INPUT
+                        Input CSV file (id, lat, lon)
+  -d DIRECTORY, --directory DIRECTORY
+                        Input directory with .nc files
+  -o OUTPUT, --output OUTPUT
+                        Output file (default is CSV, use -nc for NetCDF)
+  -nc, --nc             Output to NetCDF
 
 
 ## Using lisfloodutilities programmatically 
