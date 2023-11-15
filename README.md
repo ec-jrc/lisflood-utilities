@@ -53,6 +53,8 @@ netCDF, PCRaster and TSS files.
   - grids are setup in the configuration folder and are defined by a dem.nc file
   - meteo variables parameters are defined in the same configuration folder
 
+* __cddmap__ is a tool to generate correlation decay distance (CDD) maps starting from station timeseries
+
 The package contains convenient classes for reading/writing:
 
 * PCRasterMap
@@ -545,6 +547,36 @@ optional arguments:
                         [default: False]
 ```
 
+
+## cddmap
+
+This tool is used to generate correlation decay distance (CDD) maps starting from station timeseries
+
+#### Requirements
+python3, pyg2p
+
+### Usage
+
+cddmap [directory]/[--analyze]/[--merge-and-filter-jsons]/--generatemap] [--start first_station] [--end last_station] [--parallel] [--only-extract-timeseries timeseries_keys_file] [--maxdistance max_distance_in_km]
+
+The tool requires an input argument indicating the station timeseries main folder, and calculates the CDD for each stations as well as correlations and distances files. Outputs the results in a txt file containing station coordinates and CDD values.
+After creating the CDD txt file, it can be used with one of the following commands:
+
+- --analyze: read cdd file previously created for postprocessing  
+- --merge-and-filter-jsons: merge all cdd files in a folder and filters out a list of stations.
+- --generatemap: generate a NetCDF CDD map file using CDD txt file and angular distance weighted interpolation between station points
+- --start and --end arguments are used to split the task in many sub tesks, evaluating only the stations between "start" and "end", since the CDD evaluation can be very time-demanding. 
+- --only-extract-timeseries: in combination with path of the station's main folder, extracts the timeseries specified in the timeseries_keys_file txt list of keys
+- --parallel: enable CDD evaluation in parallel on multiple cores. It will require more memory
+- --maxdistance: evaluates only station that are clores then maxdistance in km
+
+The input folder must contain the meteo observation in text files
+
+Example of command that will generate txt files for the CDD of precipitation (pr), in parallel mode, for station that are closer then 500 kms:
+
+```bash
+cddmap /meteo/pr --parallel --maxdistance 500
+```
 
 
 
