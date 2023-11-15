@@ -38,6 +38,10 @@ else:
 
 class TestCutlib(TestWithCleaner):
 
+    def test_getfiles_to_cut_file(self):
+        res = get_filelist(input_file='tests/data/folder_a/ta.nc')
+        assert ['tests/data/folder_a/ta.nc'] == res
+
     def test_getfiles_to_cut_folder(self):
         res = sorted(get_filelist(input_folder='tests/data/folder_a'))
         assert sorted(list(map(Path, ['tests/data/folder_a/ta.nc', 'tests/data/folder_a/tp.nc']))) == res

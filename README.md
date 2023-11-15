@@ -245,8 +245,8 @@ The tool accepts as input:
   - alternatively, using the -i argument, matrix indices in the form `imin imax jmin jmax` (imin, imax, jmin, jmax  must be integer numbers)
   - alternatively, using the -c argument, coordinates bounding box in the form `xmin xmax ymin ymax` (xmin, xmax, ymin, ymax can be integer or floating point numbers; x = longitude, y = latitude) 
   - alternatively, using the -N and -l arguments, list of stations with coordinates and a LDD map.
-* a path to a folder containing netCDF files to cut or a static dataset path like LISFLOOD static files. 
-* a path to a folder where to write cut files.
+* a path to a netCDF file (-F argument), a folder containing netCDF files to cut (-f argument) or a static dataset path (-S argument) like LISFLOOD static files. 
+* a path to a folder where to write cut files (-o argument).
 
 The following command will cut all netcdf files inside _/workarea/Madeira/lai/_ folder 
 and produced files will be writte in current folder. 
@@ -256,6 +256,12 @@ The mask can also be in PCRaster format.
 
 ```bash
 cutmaps -m /workarea/Madeira/maps/MaskMap/Bacia_madeira.nc -f /workarea/Madeira/lai/ -o ./
+```
+
+The following command will cut a single netCDF file and produced file will be writte in current folder. 
+
+```bash
+cutmaps -m /workarea/Madeira/maps/MaskMap/Bacia_madeira.nc -F /workarea/Madeira/lai/tp.nc -o ./
 ```
 
 **Indices can also be passed as an argument (using -i argument instead of -m). Knowing your area of interest from your netCDF files, 
