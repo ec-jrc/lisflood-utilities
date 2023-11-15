@@ -126,9 +126,9 @@ setup_args = dict(
     description='A set of utilities for lisflood users. '
                 'pcr2nc: Convert PCRaster files to netCDF CF 1.6; '
                 'nc2pcr: Convert netCDF files ot PCRaster format; '
-                'cutmaps: cut netCDF files;'
-                'compare: compare two set of netCDF files;',
-                'ncextract: extract values from netCDF files;',
+                'cutmaps: cut netCDF files; '
+                'compare: compare two set of netCDF files; '
+                'ncextract: extract values from netCDF files; ',
     long_description=long_description,
     long_description_content_type='text/markdown',
     setup_requires=[
