@@ -69,6 +69,7 @@ class ParserHelpOnError(argparse.ArgumentParser):
                                 help='Path to PCRaster clonemap; used to convert ldd.nc to ldd.map')
 
         group_filelist.add_argument("-f", "--folder", help='Directory with netCDF files to be cut')
+        group_filelist.add_argument("-F", "--file", help='netCDF file to be cut')
         group_filelist.add_argument("-S", "--static-data",
                                     help='Directory with EFAS/GloFAS static maps. '
                                          'Output files will have same directories structure')
@@ -91,6 +92,7 @@ def main(cliargs):
     stations = args.stations
 
     input_folder = args.folder
+    input_file = args.file
     static_data_folder = args.static_data
     overwrite = args.overwrite
     pathout = args.outpath
@@ -115,7 +117,7 @@ def main(cliargs):
                 input_folder or static_data_folder,
                 pathout, overwrite)
 
-    list_to_cut = get_filelist(input_folder, static_data_folder)
+    list_to_cut = get_filelist(input_folder, static_data_folder, input_file)
 
     # walk through list_to_cut
     for file_to_cut in list_to_cut:

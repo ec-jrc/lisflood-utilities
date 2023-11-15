@@ -53,7 +53,7 @@ netCDF, PCRaster and TSS files.
   - grids are setup in the configuration folder and are defined by a dem.nc file
   - meteo variables parameters are defined in the same configuration folder
 
-* __ncextract__ is a tool to extract values from netCDF4 file at specific coordinates.
+* __cddmap__ is a tool to generate correlation decay distance (CDD) maps starting from station timeseries
 
 The package contains convenient classes for reading/writing:
 
@@ -61,6 +61,8 @@ The package contains convenient classes for reading/writing:
 * PCRasterReader
 * NetCDFMap
 * NetCDFWriter
+
+* __ncextract__ is a tool to extract values from netCDF4 file at specific coordinates.
 
 ### Installation
 
@@ -245,8 +247,8 @@ The tool accepts as input:
   - alternatively, using the -i argument, matrix indices in the form `imin imax jmin jmax` (imin, imax, jmin, jmax  must be integer numbers)
   - alternatively, using the -c argument, coordinates bounding box in the form `xmin xmax ymin ymax` (xmin, xmax, ymin, ymax can be integer or floating point numbers; x = longitude, y = latitude) 
   - alternatively, using the -N and -l arguments, list of stations with coordinates and a LDD map.
-* a path to a folder containing netCDF files to cut or a static dataset path like LISFLOOD static files. 
-* a path to a folder where to write cut files.
+* a path to a netCDF file (-F argument), a folder containing netCDF files to cut (-f argument) or a static dataset path (-S argument) like LISFLOOD static files. 
+* a path to a folder where to write cut files (-o argument).
 
 The following command will cut all netcdf files inside _/workarea/Madeira/lai/_ folder 
 and produced files will be writte in current folder. 
@@ -256,6 +258,12 @@ The mask can also be in PCRaster format.
 
 ```bash
 cutmaps -m /workarea/Madeira/maps/MaskMap/Bacia_madeira.nc -f /workarea/Madeira/lai/ -o ./
+```
+
+The following command will cut a single netCDF file and produced file will be writte in current folder. 
+
+```bash
+cutmaps -m /workarea/Madeira/maps/MaskMap/Bacia_madeira.nc -F /workarea/Madeira/lai/tp.nc -o ./
 ```
 
 **Indices can also be passed as an argument (using -i argument instead of -m). Knowing your area of interest from your netCDF files, 
@@ -548,6 +556,37 @@ optional arguments:
 ```
 
 
+## cddmap
+
+This tool is used to generate correlation decay distance (CDD) maps starting from station timeseries
+
+#### Requirements
+python3, pyg2p
+
+### Usage
+
+cddmap [directory]/[--analyze]/[--merge-and-filter-jsons]/--generatemap] [--start first_station] [--end last_station] [--parallel] [--only-extract-timeseries timeseries_keys_file] [--maxdistance max_distance_in_km]
+
+The tool requires an input argument indicating the station timeseries main folder, and calculates the CDD for each stations as well as correlations and distances files. Outputs the results in a txt file containing station coordinates and CDD values.
+After creating the CDD txt file, it can be used with one of the following commands:
+
+- --analyze: read cdd file previously created for postprocessing  
+- --merge-and-filter-jsons: merge all cdd files in a folder and filters out a list of stations.
+- --generatemap: generate a NetCDF CDD map file using CDD txt file and angular distance weighted interpolation between station points
+- --start and --end arguments are used to split the task in many sub tesks, evaluating only the stations between "start" and "end", since the CDD evaluation can be very time-demanding. 
+- --only-extract-timeseries: in combination with path of the station's main folder, extracts the timeseries specified in the timeseries_keys_file txt list of keys
+- --parallel: enable CDD evaluation in parallel on multiple cores. It will require more memory
+- --maxdistance: evaluates only station that are clores then maxdistance in km
+
+The input folder must contain the meteo observation in text files
+
+Example of command that will generate txt files for the CDD of precipitation (pr), in parallel mode, for station that are closer then 500 kms:
+
+```bash
+cddmap /meteo/pr --parallel --maxdistance 500
+```
+
+
 ## ncextract
 
 The ncextract tool extracts the time series of values from (multiple) netCDF file(s) at user defined coordinates.
@@ -572,8 +611,6 @@ options:
   -o OUTPUT, --output OUTPUT
                         Output file (default is CSV, use -nc for NetCDF)
   -nc, --nc             Output to NetCDF
-```
-
 
 
 ## Using lisfloodutilities programmatically 

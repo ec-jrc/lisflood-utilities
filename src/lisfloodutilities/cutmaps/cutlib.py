@@ -146,12 +146,14 @@ def cut_from_coords(nc, var, x_min, x_max, y_min, y_max):
     return sliced_var
 
 
-def get_filelist(input_folder=None, static_data_folder=None):
+def get_filelist(input_folder=None, static_data_folder=None, input_file=None):
     list_to_cut = []
     if input_folder:
         list_to_cut = [f for f in Path(input_folder).glob('**/*.nc')]
     elif static_data_folder:
         list_to_cut = [f for f in Path(static_data_folder).glob('**/*') if '/.git/' not in f.as_posix()]
+    if input_file:
+        list_to_cut = [input_file]
     logger.info('==================> Going to cut %d files', len(list_to_cut))
     return list_to_cut
 
