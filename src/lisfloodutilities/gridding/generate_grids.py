@@ -21,8 +21,8 @@ import csv
 from pathlib import Path
 from argparse import ArgumentParser, ArgumentTypeError
 from datetime import datetime, timedelta
-from src.lisfloodutilities.gridding.lib.utils import Printable, Dem, Config, FileUtils, GriddingUtils
-from src.lisfloodutilities.gridding.lib.writers import NetCDFWriter, GDALWriter
+from lisfloodutilities.gridding.lib.utils import Printable, Dem, Config, FileUtils, GriddingUtils
+from lisfloodutilities.gridding.lib.writers import NetCDFWriter, GDALWriter
 
 
 END_DATE_DEFAULT = datetime.now().strftime('%Y%m%d060000')

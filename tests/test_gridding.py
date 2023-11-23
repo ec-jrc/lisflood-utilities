@@ -5,8 +5,8 @@ from pathlib import Path
 import numpy as np
 from osgeo import gdal
 from netCDF4 import Dataset
-from src.lisfloodutilities.gridding.generate_grids import run, print_msg
-from src.lisfloodutilities.gridding.lib.utils import FileUtils
+from lisfloodutilities.gridding.generate_grids import run, print_msg
+from lisfloodutilities.gridding.lib.utils import FileUtils
 
 
 cur_folder = os.path.dirname(os.path.realpath(__file__))

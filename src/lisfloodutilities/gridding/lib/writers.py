@@ -20,8 +20,8 @@ from datetime import datetime, timedelta
 from netCDF4 import Dataset, default_fillvals, date2num, num2date
 from netCDF4._netCDF4 import Variable as NetCDF4Variable
 from osgeo import osr, gdal
-from src.lisfloodutilities.gridding.lib.utils import Printable, Config, FileUtils
-from src.lisfloodutilities import version
+from lisfloodutilities.gridding.lib.utils import Printable, Config, FileUtils
+from lisfloodutilities import version
 
 
 class OutputWriter(Printable):
