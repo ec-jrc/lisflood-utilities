@@ -5,8 +5,8 @@ from pathlib import Path
 import numpy as np
 from osgeo import gdal
 from netCDF4 import Dataset
-from lisfloodutilities.gridding.generate_grids import run, print_msg
-from lisfloodutilities.gridding.lib.utils import FileUtils
+from src.lisfloodutilities.gridding.generate_grids import run, print_msg
+from src.lisfloodutilities.gridding.lib.utils import FileUtils
 
 
 cur_folder = os.path.dirname(os.path.realpath(__file__))
@@ -28,13 +28,13 @@ class TestGridding:
             ds2 = gdal.Open(str(tiff_file2))
             values2 = ds2.GetRasterBand(1).ReadAsArray()
             ds2 = None
-            values1 = np.zeros(values2.shape)
-            print(f'Testing {tiff_file2.name}')
-            for tiff_file1 in tiff_folder_path1.rglob(tiff_file2.name):
+            values1 = None
+            for tiff_file1 in sorted(tiff_folder_path1.rglob(tiff_file2.name)):
                 ds1 = gdal.Open(str(tiff_file1))
                 values1 = ds1.GetRasterBand(1).ReadAsArray()
                 ds1 = None
-            assert values2.size == values2.size, 'Grid {tiff_file2.name} do not have same size as reference.'
+            assert values1 is not None, f'Grid {tiff_file2.name} was not generated.'
+            assert values1.size == values2.size, f'Grid {tiff_file2.name} do not have same size as reference.'
             assert np.allclose(values1, values2, atol=0.0000001), f'File {tiff_file2.name} is not equal to reference.'
 
     def test_generate_netcdf(self):
@@ -92,6 +92,7 @@ class TestGridding:
         # This is needed so we can test updating 1 timestep on an existing netCDF file.
         copy2(os.path.join(input_folder, 'pr6.nc'), output_netcdf)
 
+        use_broadcasting = False
         quiet_mode = True
         variable_code = 'pr6'
         config_type = '1arcmin'
@@ -114,7 +115,7 @@ class TestGridding:
         end_date = datetime.strptime(end_date_str, FileUtils.DATE_PATTERN_CONDENSED)
 
         run(config_filename, infolder, outfolder_or_file, processing_dates_file,
-            file_utils, out_tiff, overwrite_output, start_date, end_date)
+            file_utils, out_tiff, overwrite_output, start_date, end_date, use_broadcasting=use_broadcasting)
 
         reference = Dataset(reference_output)
         out = Dataset(output_netcdf)
@@ -128,14 +129,16 @@ class TestGridding:
         input_folder = 'tests/data/gridding/meteo_in/test1'
         reference_output = 'tests/data/gridding/reference/test3'
         output_folder = 'tests/data/gridding/meteo_out/test3'
+        
+        output_folder_path = Path(output_folder)
 
-        Path(output_folder).mkdir(parents=True, exist_ok=True)
+        output_folder_path.mkdir(parents=True, exist_ok=True)
+        
+        # Clean output folder
+        for output_file in sorted(output_folder_path.rglob('*.*')):
+            os.remove(output_file)
 
-        for filename in os.listdir(output_folder):
-            file_path = os.path.join(output_folder, filename)
-            if os.path.exists(file_path):
-                rmtree(file_path)
-
+        use_broadcasting = False
         quiet_mode = True
         variable_code = 'pr6'
         config_type = '1arcmin'
@@ -144,7 +147,7 @@ class TestGridding:
         out_tiff = True
         infolder = input_folder
         overwrite_output = False
-        outfolder_or_file = output_folder
+        outfolder_or_file = str(Path(output_folder, 'output.nc'))
         processing_dates_file = None
 
         configuration_base_folder = os.path.join(cur_folder, '../src/lisfloodutilities/gridding/configuration')
@@ -159,10 +162,18 @@ class TestGridding:
         end_date = datetime.strptime(end_date_str, FileUtils.DATE_PATTERN_CONDENSED)
 
         run(config_filename, infolder, outfolder_or_file, processing_dates_file,
-            file_utils, out_tiff, overwrite_output, start_date, end_date)
+            file_utils, out_tiff, overwrite_output, start_date, end_date, use_broadcasting=use_broadcasting)
 
-        print('compare_tiffs')
-        self.compare_tiffs(Path(output_folder), Path(reference_output))
+        # Remove netcdf output file since we are only interested in the output tiffs
+        if os.path.exists(outfolder_or_file):
+            os.remove(outfolder_or_file)
+        
+        # Move the output tiffs from the input folder into the output folder
+        for tiff_file in sorted(Path(input_folder).rglob('*.tiff')):
+            out_tiff_file = Path(output_folder, tiff_file.name)
+            tiff_file.rename(out_tiff_file)
 
+        self.compare_tiffs(output_folder_path, Path(reference_output))
+        
         out = None
         reference = None
