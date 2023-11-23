@@ -21,8 +21,8 @@ import csv
 from pathlib import Path
 from argparse import ArgumentParser, ArgumentTypeError
 from datetime import datetime, timedelta
-from lisfloodutilities.gridding.lib.utils import Printable, Dem, Config, FileUtils, GriddingUtils
-from lisfloodutilities.gridding.lib.writers import NetCDFWriter, GDALWriter
+from src.lisfloodutilities.gridding.lib.utils import Printable, Dem, Config, FileUtils, GriddingUtils
+from src.lisfloodutilities.gridding.lib.writers import NetCDFWriter, GDALWriter
 
 
 END_DATE_DEFAULT = datetime.now().strftime('%Y%m%d060000')
@@ -35,8 +35,14 @@ def print_msg(msg: str = ''):
     if not quiet_mode:
         print(msg)
 
-def run(config_filename: str, infolder: str, outfolder_or_file: str, processing_dates_file: str, file_utils: FileUtils,
-        output_tiff: bool, overwrite_output: bool, start_date: datetime = None, end_date: datetime = None):
+def interpolation_mode_type(mode: str) -> str:
+    if not mode or mode not in Config.INTERPOLATION_MODES:
+        raise ArgumentTypeError(f'You must select a mode out of {list(Config.INTERPOLATION_MODES.keys())}.')
+    return mode
+
+def run(config_filename: str, infolder: str, output_file: str, processing_dates_file: str, file_utils: FileUtils,
+        output_tiff: bool, overwrite_output: bool, start_date: datetime = None, end_date: datetime = None,
+        interpolation_mode: str = 'adw', use_broadcasting: bool = False):
     """
     Interpolate text files containing (x, y, value) using inverse distance interpolation.
     Produces as output, either a netCDF file containing all the grids or one TIFF file per grid.
@@ -47,13 +53,13 @@ def run(config_filename: str, infolder: str, outfolder_or_file: str, processing_
     """
     global quiet_mode
 
-    conf = Config(config_filename, start_date, end_date, quiet_mode)
+    conf = Config(config_filename, start_date, end_date, quiet_mode, interpolation_mode)
 
     if conf.start_date > conf.end_date:
         raise ArgumentTypeError("Start date is greater than End date.")
 
     dates_to_process = file_utils.read_processing_dates_file(processing_dates_file)
-    grid_utils = GriddingUtils(conf, quiet_mode)
+    grid_utils = GriddingUtils(conf, quiet_mode, use_broadcasting)
 
     size_lons = len(conf.dem_lons)
     size_lats = len(conf.dem_lats)
@@ -69,34 +75,25 @@ def run(config_filename: str, infolder: str, outfolder_or_file: str, processing_
 
     netcdf_offset_file_date = int(conf.get_config_field('VAR_TIME','OFFSET_FILE_DATE'))
 
+    outfile = output_file
     if output_tiff:
-        outfolder = outfolder_or_file
-        output_writer = GDALWriter(conf, overwrite_output, quiet_mode)
-        for filename in sorted(Path(infolder).rglob(inwildcard)):
-            file_timestamp = file_utils.get_timestamp_from_filename(filename) + timedelta(days=netcdf_offset_file_date)
-            if not file_utils.processable_file(file_timestamp, dates_to_process, conf.start_date, conf.end_date):
-                continue  # Skip processing file
-            print_msg(f'Processing file: {filename}')
-            outfile = str(filename).replace(infolder, outfolder)
-            outfilepath = Path(outfile).with_suffix('.tiff')
-            # Create the output parent folders if not exist yet
-            Path(outfilepath.parent).mkdir(parents=True, exist_ok=True)
-            output_writer.open(Path(outfilepath))
-            grid_data = grid_utils.generate_grid(filename)
-            output_writer.write(grid_data, file_timestamp)
-            output_writer.close()
-    else: # NetCDF
-        outfile = outfolder_or_file
-        output_writer = NetCDFWriter(conf, overwrite_output, quiet_mode)
-        output_writer.open(Path(outfile))
-        for filename in sorted(Path(infolder).rglob(inwildcard)):
-            file_timestamp = file_utils.get_timestamp_from_filename(filename) + timedelta(days=netcdf_offset_file_date)
-            if not file_utils.processable_file(file_timestamp, dates_to_process, conf.start_date, conf.end_date):
-                continue  # Skip processing file
-            print_msg(f'Processing file: {filename}')
-            grid_data = grid_utils.generate_grid(filename)
-            output_writer.write(grid_data, file_timestamp)
-        output_writer.close()
+        output_writer_tiff = GDALWriter(conf, overwrite_output, quiet_mode)
+    output_writer_netcdf = NetCDFWriter(conf, overwrite_output, quiet_mode)
+    output_writer_netcdf.open(Path(outfile))
+    for filename in sorted(Path(infolder).rglob(inwildcard)):
+        file_timestamp = file_utils.get_timestamp_from_filename(filename) + timedelta(days=netcdf_offset_file_date)
+        if not file_utils.processable_file(file_timestamp, dates_to_process, conf.start_date, conf.end_date):
+            continue  # Skip processing file
+        print_msg(f'Processing file: {filename}')
+        if output_tiff:
+            outfilepath = filename.with_suffix('.tiff')
+            output_writer_tiff.open(outfilepath)
+        grid_data = grid_utils.generate_grid(filename)
+        output_writer_netcdf.write(grid_data, file_timestamp)
+        if output_tiff:
+            output_writer_tiff.write(grid_data, file_timestamp)
+            output_writer_tiff.close()
+    output_writer_netcdf.close()
     print_msg('Finished writing files')
 
 
@@ -111,7 +108,7 @@ def main(argv):
 
     program_version_string = 'version %s (%s)\n' % (program_version, program_build_date)
     program_longdesc = '''
-    This script interpolates meteo input variables data into either a single NETCDF4 file or one GEOTIFF file per timestep.
+    This script interpolates meteo input variables data into a single NETCDF4 file and, if selected, generates also a GEOTIFF file per timestep.
     The resulting netCDF is CF-1.6 compliant.
     '''
     program_license = """
@@ -134,14 +131,16 @@ def main(argv):
                             out_tiff=False,
                             overwrite_output=False,
                             start_date='',
-                            end_date=END_DATE_DEFAULT)
+                            end_date=END_DATE_DEFAULT,
+                            interpolation_mode='adw',
+                            use_broadcasting=False)
 
         parser.add_argument("-i", "--in", dest="infolder", required=True, type=FileUtils.folder_type,
                             help="Set input folder path with kiwis/point files",
                             metavar="input_folder")
-        parser.add_argument("-o", "--out", dest="outfolder_or_file", required=True, type=FileUtils.file_or_folder,
-                            help="Set output folder base path for the tiff files or the netCDF file path.",
-                            metavar="{output_folder, netcdf_file}")
+        parser.add_argument("-o", "--out", dest="output_file", required=True, type=FileUtils.file_or_folder,
+                            help="Set the output netCDF file path containing all the timesteps between start and end dates.",
+                            metavar="output_netcdf_file")
         parser.add_argument("-c", "--conf", dest="config_type", required=True,
                             help="Set the grid configuration type to use.",
                             metavar="{5x5km, 1arcmin,...}")
@@ -159,9 +158,14 @@ def main(argv):
                             metavar="YYYYMMDDHHMISS")
         parser.add_argument("-q", "--quiet", dest="quiet", action="store_true", help="Set script output into quiet mode [default: %(default)s]")
         parser.add_argument("-t", "--tiff", dest="out_tiff", action="store_true",
-                            help="Outputs a tiff file per timestep instead of the default single netCDF [default: %(default)s]")
+                            help="Outputs a tiff file per timestep and also the single netCDF with all the timesteps [default: %(default)s]")
         parser.add_argument("-f", "--force", dest="overwrite_output", action="store_true",
                             help="Force write to existing file. TIFF files will be overwritten and netCDF file will be appended. [default: %(default)s]")
+        parser.add_argument("-m", "--mode", dest="interpolation_mode", required=False, type=interpolation_mode_type,
+                            help="Set interpolation mode. [default: %(default)s]",
+                            metavar=f"{list(Config.INTERPOLATION_MODES.keys())}")
+        parser.add_argument("-b", "--broadcast", dest="use_broadcasting", action="store_true",
+                            help="When set, computations will run faster in full broadcasting mode but require more memory. [default: %(default)s]")
 
         # process options
         args = parser.parse_args(argv)
@@ -194,17 +198,18 @@ def main(argv):
 
         print_msg(f"Input Folder:  {args.infolder}")
         print_msg(f"Overwrite Output: {args.overwrite_output}")
+        print_msg(f"Interpolation Mode: {args.interpolation_mode}")
+        print_msg(f"Broadcasting: {args.use_broadcasting}")
         if args.out_tiff:
             print_msg("Output Type: TIFF")
-            print_msg(f"Output Folder: {args.outfolder_or_file}")
-        else:
-            print_msg("Output Type: netCDF")
-            print_msg(f"Output File: {args.outfolder_or_file}")
+            print_msg(f"Output Folder: {args.infolder}")
+        print_msg("Output Type: netCDF")
+        print_msg(f"Output File: {args.output_file}")
         print_msg(f"Processing Dates File: {args.processing_dates_file}")
         print_msg(f"Config File: {config_filename}")
 
-        run(config_filename, args.infolder, args.outfolder_or_file, args.processing_dates_file, 
-            file_utils, args.out_tiff, args.overwrite_output, start_date, end_date)
+        run(config_filename, args.infolder, args.output_file, args.processing_dates_file, 
+            file_utils, args.out_tiff, args.overwrite_output, start_date, end_date, args.interpolation_mode, args.use_broadcasting)
     except Exception as e:
         indent = len(program_name) * " "
         sys.stderr.write(program_name + ": " + repr(e) + "\n")

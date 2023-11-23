@@ -47,8 +47,8 @@ class Printable(Loggable):
 
 
 class Dem(Printable):
-    def __init__(self, dem_map: Path):
-        super().__init__()
+    def __init__(self, dem_map: Path, quiet_mode: bool = False):
+        super().__init__(quiet_mode)
         self._dem_map = dem_map
         self.print_msg(f'Reading grid settings and altitude values from: {dem_map}')
         reader = NetCDFReader(self._dem_map)
@@ -150,14 +150,18 @@ class FileUtils(Printable):
 
 
 class Config(Printable):
+    # Each interpolation is paired with the number of neighbours used by the interpolation algorithm.
+    INTERPOLATION_MODES = {'nearest': 1, 'invdist': 20, 'adw': 11, 'cdd': 11,
+                           'bilinear': 4, 'triangulation': 3, 'bilinear_delaunay': 4}
     def __init__(self, config_filename: str, start_date: datetime = None,
-                 end_date: datetime = None, quiet_mode: bool = False):
+                 end_date: datetime = None, quiet_mode: bool = False, interpolation_mode: str = 'adw'):
         super().__init__(quiet_mode)
         self.COLUMN_HEIGHT = "height"
         self.COLUMN_VALUE = "value"
         self.COLUMN_LON = "lon"
         self.COLUMN_LAT = "lat"
         self.VALUE_NAN = -9999.0
+        self.interpolation_mode = interpolation_mode
         self.__setup_variable_config(config_filename)
         self.__HEIGHT_CORRECTION_FACTOR = {"tx": 0.006, "tn": 0.006, "ta": 0.006, "ta6": 0.006, "pd": 0.00025}
 
@@ -167,17 +171,29 @@ class Config(Printable):
         self._dem_height_correction_kdt_file = Path(self.config_path).joinpath('dem.kdt')
 
         self.__setup_dem()
-
-        # self.interpolation_mode = 'nearest'
-        self.interpolation_mode = 'invdist'
-        # self.interpolation_mode = 'bilinear'
-        # self.interpolation_mode = 'triangulation'
-        # self.interpolation_mode = 'bilinear_delaunay'
-        self.scipy_modes_nnear = {'nearest': 1, 'invdist': 4, 'bilinear': 4, 'triangulation': 3, 'bilinear_delaunay': 4}
-        self.grid_details = {'gridType': 'NOT rotated', 'Nj': 1, 'radius': 1.0}
-
+        self.__setup_interpolation_parameters()
         self.__setup_data_structures()
         self.__setup_dates(start_date, end_date)
+
+    def __setup_interpolation_parameters(self):
+        self.scipy_modes_nnear = Config.INTERPOLATION_MODES
+        self.grid_details = {'gridType': 'NOT rotated', 'Nj': 1, 'radius': 6367470.0}
+        self.min_upper_bound = 100000000 # max search distance in meters
+        cdd_map_path = Path(self.config_path).joinpath(f'CDDmap_{self.var_code}.nc')
+        self.cdd_map = f'{cdd_map_path}'
+        if self.interpolation_mode == 'cdd' and not os.path.isfile(self.cdd_map):
+            raise ArgumentTypeError(f'CDD map was not found: {self.cdd_map}')
+        self.cdd_mode = 'MixHofstraShepard'
+        # 1) m=4; r=1/3; min 4 stations
+        # 2) m=8, r=1/3; min 4 stations
+        # 3) m=8; r=2/3; min 4 stations
+        # 4) m=4; r=1/3; min 4 stations + CDD map without Euro4m, CarpatClim
+        self.cdd_options = {
+            'm_const': 4,
+            'min_num_of_station': 4,
+            'radius_ratio': 1/3,
+            'weights_mode': 'All' # 'OnlyTOP10'
+        }
 
     def __setup_dates(self, start_date: datetime = None, end_date: datetime = None):
         netcdf_var_time_unit_pattern = self.get_config_field('VAR_TIME','UNIT_PATTERN')
@@ -202,7 +218,7 @@ class Config(Printable):
         self.__configFile.read(config_filename)
 
     def __setup_dem(self):
-        self.dem = Dem(self._dem_file)
+        self.dem = Dem(self._dem_file, self.quiet_mode)
         self.dem_nrows = self.dem.nrows
         self.dem_ncols = self.dem.ncols
         self.dem_lons = self.dem.lons.flatten()
@@ -263,39 +279,62 @@ class Config(Printable):
             self.DEM_HEIGHT_CORRECTION_QUERY = pickle.load(self._dem_height_correction_kdt_file.open("rb"))
             self.print_msg('Finish loading data structures')
 
-    def get_config_field(self, config_group: str = '', config_property: str = ''):
+    def get_config_field(self, config_group: str = '', config_property: str = '') -> str:
         return self.__configFile.get(config_group, config_property)
 
     @property
-    def scale_factor(self):
+    def scale_factor(self) -> float:
         return float(self.get_config_field('PROPERTIES', 'VALUE_SCALE'))
 
     @property
-    def add_offset(self):
+    def add_offset(self) -> float:
         return float(self.get_config_field('PROPERTIES', 'VALUE_OFFSET'))
 
     @property
-    def var_code(self):
+    def value_min(self) -> int:
+        return int(self.get_config_field('PROPERTIES', 'VALUE_MIN'))
+
+    @property
+    def value_max(self) -> int:
+        return int(self.get_config_field('PROPERTIES', 'VALUE_MAX'))
+
+    @property
+    def value_min_packed(self) -> int:
+        return int((self.value_min - self.add_offset) / self.scale_factor)
+
+    @property
+    def value_max_packed(self) -> int:
+        return int((self.value_max - self.add_offset) / self.scale_factor)
+
+    @property
+    def value_nan_packed(self) -> float:
+        return float((self.VALUE_NAN - self.add_offset) / self.scale_factor)
+
+    @property
+    def var_code(self) -> str:
         return self.get_config_field('PROPERTIES', 'VAR_CODE')
 
     @property
-    def do_height_correction(self):
+    def do_height_correction(self) -> bool:
         return self.var_code in self.__HEIGHT_CORRECTION_FACTOR
 
     @property
-    def height_correction_factor(self):
+    def height_correction_factor(self) -> float:
         return self.__HEIGHT_CORRECTION_FACTOR[self.var_code]
 
     @property
-    def neighbours_near(self):
+    def neighbours_near(self) -> int:
         return self.scipy_modes_nnear[self.interpolation_mode]
 
 
 class GriddingUtils(Printable):
 
-    def __init__(self, conf: Config, quiet_mode: bool = False):
+    def __init__(self, conf: Config, quiet_mode: bool = False, use_broadcasting: bool = False):
         super().__init__(quiet_mode)
         self.conf = conf
+        self.use_broadcasting = use_broadcasting
+        self.unit_conversion = float(self.conf.get_config_field('PROPERTIES', 'UNIT_CONVERSION'))
+        # self.compressed_NaN = (self.conf.VALUE_NAN - self.conf.add_offset) / self.conf.scale_factor
 
     def correct_height(self, df: pd.DataFrame) -> pd.DataFrame:
         if self.conf.do_height_correction:
@@ -325,8 +364,14 @@ class GriddingUtils(Printable):
 
     def prepare_grid(self, result: np.ndarray, grid_shape: np.ndarray) -> np.ndarray:
         # Compress data
-        result[np.where(result!=self.conf.VALUE_NAN)] /= self.conf.scale_factor
-        result[np.where(result!=self.conf.VALUE_NAN)] += self.conf.add_offset
+        if self.unit_conversion != 1.0:
+            result = result * self.unit_conversion
+        result[np.where(result == self.conf.VALUE_NAN)] = np.nan
+        result[np.where(result < self.conf.value_min)] = np.nan
+        result[np.where(result > self.conf.value_max)] = np.nan
+        result = np.round(result.astype(float), 1)
+        result = (result - self.conf.add_offset) / self.conf.scale_factor
+        result[np.isnan(result)] = self.conf.VALUE_NAN
         # Reshape grid
         grid_data = result.reshape(grid_shape)
         return grid_data
@@ -335,12 +380,10 @@ class GriddingUtils(Printable):
         # Verify if grid contains NaN different than the ones on the DEM.
         # Which means there are NaN values that shouldn't be generated.
         count_dem_nan = self.conf.dem.count_nan
-        value_min = int(self.conf.get_config_field('PROPERTIES', 'VALUE_MIN'))
-        value_max = int(self.conf.get_config_field('PROPERTIES', 'VALUE_MAX'))
         current_grid = result.copy()
-        current_grid[np.where(current_grid < value_min)] = np.nan
-        current_grid[np.where(current_grid > value_max)] = np.nan
         current_grid[np.where(current_grid == self.conf.VALUE_NAN)] = np.nan
+        current_grid[np.where(current_grid < self.conf.value_min)] = np.nan
+        current_grid[np.where(current_grid > self.conf.value_max)] = np.nan
         count_grid_nan = np.count_nonzero(np.isnan(current_grid))
         if count_dem_nan != count_grid_nan:
             print(f"WARNING: The grid interpolated from file {filename.name} contains different NaN values ({count_grid_nan}) than the DEM ({count_dem_nan}). diff: {count_grid_nan - count_dem_nan}")
@@ -360,10 +403,24 @@ class GriddingUtils(Printable):
         xp = np.array(x)
         yp = np.array(y)
         values = np.array(z)
-        scipy_interpolation = ScipyInterpolation(xp, yp, self.conf.grid_details, values,
-                                                 self.conf.neighbours_near, mv_target, mv_source,
-                                                 target_is_rotated=False, parallel=False,
-                                                 mode=self.conf.interpolation_mode)
+        if self.conf.interpolation_mode == 'cdd':
+            scipy_interpolation = ScipyInterpolation(xp, yp, self.conf.grid_details, values,
+                                                     self.conf.neighbours_near, mv_target, mv_source,
+                                                     target_is_rotated=False, parallel=False,
+                                                     mode=self.conf.interpolation_mode,
+                                                     cdd_map=self.conf.cdd_map,
+                                                     cdd_mode=self.conf.cdd_mode,
+                                                     cdd_options=self.conf.cdd_options,
+                                                     use_broadcasting=self.use_broadcasting)
+        else:
+            scipy_interpolation = ScipyInterpolation(xp, yp, self.conf.grid_details, values,
+                                                     self.conf.neighbours_near, mv_target, mv_source,
+                                                     target_is_rotated=False, parallel=False,
+                                                     mode=self.conf.interpolation_mode,
+                                                     use_broadcasting=self.use_broadcasting)
+
+        # reset search radius to a fixed value
+        scipy_interpolation.min_upper_bound = self.conf.min_upper_bound
         results, weights, indexes = scipy_interpolation.interpolate(grid_x, grid_y)
         result = np.ma.masked_array(data=results, mask=self.conf.dem_mask, fill_value=self.conf.VALUE_NAN)
         self.print_msg('Finish interpolation')
