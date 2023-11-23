@@ -181,6 +181,8 @@ class Config(Printable):
         self.min_upper_bound = 100000000 # max search distance in meters
         cdd_map_path = Path(self.config_path).joinpath(f'CDDmap_{self.var_code}.nc')
         self.cdd_map = f'{cdd_map_path}'
+        if self.interpolation_mode == 'cdd' and not os.path.isfile(self.cdd_map):
+            raise ArgumentTypeError(f'CDD map was not found: {self.cdd_map}')
         self.cdd_mode = 'MixHofstraShepard'
         # 1) m=4; r=1/3; min 4 stations
         # 2) m=8, r=1/3; min 4 stations
@@ -401,14 +403,21 @@ class GriddingUtils(Printable):
         xp = np.array(x)
         yp = np.array(y)
         values = np.array(z)
-        scipy_interpolation = ScipyInterpolation(xp, yp, self.conf.grid_details, values,
-                                                 self.conf.neighbours_near, mv_target, mv_source,
-                                                 target_is_rotated=False, parallel=False,
-                                                 mode=self.conf.interpolation_mode,
-                                                 cdd_map=self.conf.cdd_map,
-                                                 cdd_mode=self.conf.cdd_mode,
-                                                 cdd_options=self.conf.cdd_options,
-                                                 use_broadcasting=self.use_broadcasting)
+        if self.conf.interpolation_mode == 'cdd':
+            scipy_interpolation = ScipyInterpolation(xp, yp, self.conf.grid_details, values,
+                                                     self.conf.neighbours_near, mv_target, mv_source,
+                                                     target_is_rotated=False, parallel=False,
+                                                     mode=self.conf.interpolation_mode,
+                                                     cdd_map=self.conf.cdd_map,
+                                                     cdd_mode=self.conf.cdd_mode,
+                                                     cdd_options=self.conf.cdd_options,
+                                                     use_broadcasting=self.use_broadcasting)
+        else:
+            scipy_interpolation = ScipyInterpolation(xp, yp, self.conf.grid_details, values,
+                                                     self.conf.neighbours_near, mv_target, mv_source,
+                                                     target_is_rotated=False, parallel=False,
+                                                     mode=self.conf.interpolation_mode,
+                                                     use_broadcasting=self.use_broadcasting)
 
         # reset search radius to a fixed value
         scipy_interpolation.min_upper_bound = self.conf.min_upper_bound
