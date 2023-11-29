@@ -329,6 +329,115 @@ def main():
                 
         ncfile.close()
 
+        # test: reverse computation
+        # #file = os.path.join(config['output_folder'],'step3b_industrial_demand',varname+'.nc')
+        # file = os.path.join('/media/sf_VMSharedFolder/lf_utilities_waterdemand_test/waterdemand_GloFAS_hylke',varname+'.nc')
+        
+
+        # if os.path.isfile(file):
+        #     dset = Dataset(file,'r')
+        #     data = np.array(dset.variables[varname][0:12,:,:])
+        #     dset.close()
+
+        #     year=1979
+        #     ii=0
+
+        #     data_monthly_maps = np.zeros((mapsize_global[0],mapsize_global[1],12),dtype=np.single)*np.NaN
+        #     for month in np.arange(1,13):
+        #         month_ndays = monthrange(year,month)[1]
+        #         data_monthly_maps[:,:,month-1] = data[month-1,:,:]*month_ndays
+
+        #     #--------------------------------------------------------------------------
+        #     #   Temporal downscaling
+        #     #--------------------------------------------------------------------------
+        
+        #     # Compute p coefficients for temporally downscaling thermoelectric (see Huang et al., 2018)        
+        #     p_b, p_it = np.zeros(mapsize_global,dtype=np.single)*np.NaN,np.zeros(mapsize_global,dtype=np.single)*np.NaN
+        #     p_h, p_c, p_u = np.zeros(mapsize_global,dtype=np.single)*np.NaN,np.zeros(mapsize_global,dtype=np.single)*np.NaN,np.zeros(mapsize_global,dtype=np.single)*np.NaN
+        #     for jj in np.arange(country_codes.shape[0]):
+        #         country_code = country_codes.iloc[jj]['country-code']
+        #         country_name = country_codes.iloc[jj]['name']
+        #         country_acronym = country_codes.iloc[jj]['alpha-3']
+        #         kw = dict(method="linear",fill_value="extrapolate", limit_direction="both")
+        #         gcam_elec_building = pd.Series(tables['gcam_elec_building'][jj,:]).interpolate(**kw).values[ii]+10**-6 # +10**-6 to avoid divide by zero
+        #         gcam_elec_trans_ind = pd.Series(tables['gcam_elec_trans_ind'][jj,:]).interpolate(**kw).values[ii]+10**-6
+        #         gcam_elec_heating = pd.Series(tables['gcam_elec_heating'][jj,:]).interpolate(**kw).values[ii]+10**-6
+        #         gcam_elec_cooling = pd.Series(tables['gcam_elec_cooling'][jj,:]).interpolate(**kw).values[ii]+10**-6
+        #         gcam_elec_other = pd.Series(tables['gcam_elec_other'][jj,:]).interpolate(**kw).values[ii]+10**-6
+        #         mask = country_code_map==country_code    
+        #         p_b[mask] = gcam_elec_building/(gcam_elec_building+gcam_elec_trans_ind)
+        #         p_it[mask] = gcam_elec_trans_ind/(gcam_elec_building+gcam_elec_trans_ind)
+        #         p_h[mask] = gcam_elec_heating/(gcam_elec_heating+gcam_elec_cooling+gcam_elec_other)
+        #         p_c[mask] = gcam_elec_cooling/(gcam_elec_heating+gcam_elec_cooling+gcam_elec_other)
+        #         p_u[mask] = gcam_elec_other/(gcam_elec_heating+gcam_elec_cooling+gcam_elec_other)
+        #     p_b, p_it = fill(p_b), fill(p_it)
+        #     p_h, p_c, p_u = fill(p_h), fill(p_c), fill(p_u)
+            
+        #     # Load HDD and CDD data
+        #     hdd_monthly_maps = np.zeros((mapsize_global[0],mapsize_global[1],12),dtype=np.single)*np.NaN
+        #     cdd_monthly_maps = np.zeros((mapsize_global[0],mapsize_global[1],12),dtype=np.single)*np.NaN
+        #     for month in np.arange(1,13):
+        #         npz = np.load(os.path.join(config['output_folder'],'step3a_industrial_demand','hdd',str(year)+str(month).zfill(2)+'.npz'))
+        #         hdd_monthly_maps[:,:,month-1] = imresize_mean(npz['data'],mapsize_global)+10**-6
+        #         npz = np.load(os.path.join(config['output_folder'],'step3a_industrial_demand','cdd',str(year)+str(month).zfill(2)+'.npz'))
+        #         cdd_monthly_maps[:,:,month-1] = imresize_mean(npz['data'],mapsize_global)+10**-6
+
+        #     # Temporally downscale annual withdrawals
+        #     data_annual_map = np.zeros(mapsize_global,dtype=np.single)*np.NaN
+        #     for month in np.arange(1,13):
+        #         month_ndays = monthrange(year,month)[1]
+                
+        #         # Compute annual HDD and CDD sums
+        #         hdd_annual_sum = np.sum(hdd_monthly_maps,axis=2)
+        #         cdd_annual_sum = np.sum(cdd_monthly_maps,axis=2)
+                
+        #         # Temporally downscale withdrawals following Huang et al. (2018) equations 7 to 10
+        #         data_monthly_map = data_monthly_maps[:,:,month-1] 
+        #         mask = (hdd_annual_sum<650) & (cdd_annual_sum<450)
+        #         data_annual_map[mask] = data_monthly_map[mask]*365.25/month_ndays
+        #         mask = (hdd_annual_sum>=650) & (cdd_annual_sum<450)
+        #         data_annual_map[mask] = data_monthly_map[mask]/(p_b[mask]*((p_h[mask]+p_c[mask])*hdd_monthly_maps[:,:,month-1][mask]/hdd_annual_sum[mask]+p_u[mask]*month_ndays/365.25)+p_it[mask]*month_ndays/365.25)
+        #         mask = (hdd_annual_sum<650) & (cdd_annual_sum>=450)
+        #         data_annual_map[mask] = data_monthly_map[mask]/(p_b[mask]*((p_h[mask]+p_c[mask])*cdd_monthly_maps[:,:,month-1][mask]/cdd_annual_sum[mask]+p_u[mask]*month_ndays/365.25)+p_it[mask]*month_ndays/365.25)
+        #         mask = (hdd_annual_sum>=650) & (cdd_annual_sum>=450)
+        #         data_annual_map[mask] = data_monthly_map[mask]/(p_b[mask]*(p_h[mask]*hdd_monthly_maps[:,:,month-1][mask]/hdd_annual_sum[mask]+p_c[mask]*cdd_monthly_maps[:,:,month-1][mask]/cdd_annual_sum[mask]+p_u[mask]*month_ndays/365.25)+p_it[mask]*month_ndays/365.25)
+
+        #     # Load population data
+        #     npz = np.load(os.path.join(config['output_folder'],'step1_population_density',str(year)+'.npz'))
+        #     pop_map = npz['data']+10**-6
+
+            
+        #     #--------------------------------------------------------------------------
+        #     #   Spatial downscaling
+        #     #--------------------------------------------------------------------------
+        
+        #     # Spatially downscale annual country withdrawals using population data
+        #     for jj in np.arange(country_codes.shape[0]):
+        #         country_code = country_codes.iloc[jj]['country-code']
+        #         mask = country_code_map==country_code
+        #         country_val = np.sum(area_map[mask]*data_annual_map[mask]/1000/1000)
+        #         country_table[jj,ii] = country_val # Country withdrawal estimate from preceding script
+
+        #     pd.DataFrame(country_table[:,0],index=country_codes['name'],columns=years).to_csv("testCountries.csv")
+            
+        #     sum_state_val=0
+        #     us_mask=np.zeros(mapsize_global,dtype=np.bool)
+        #     us_mask=False
+        #     # Spatially downscale annual US state withdrawals using population data
+        #     for jj in np.arange(state_codes.shape[0]):
+        #         state_code = state_codes.iloc[jj]['st']
+        #         mask = state_code_map==state_code
+        #         us_mask = np.logical_or(us_mask,mask)
+        #         state_val = np.sum(area_map[mask]*data_annual_map[mask]/1000/1000)
+        #         sum_state_val+=state_val
+        #         state_table[jj,ii] = state_val
+
+        #     pd.DataFrame(state_table[:,0],index=state_codes['stname'],columns=years).to_csv("testStates.csv")
+                    
+        #     print("End test, time is "+str(time.time()-t0)+" sec")
+            
+                    
+
     print("Total time elapsed is "+str(time.time()-t0)+" sec")
 
 
