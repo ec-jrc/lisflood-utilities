@@ -1,10 +1,14 @@
 ﻿# Overview
 
-This module produces monthly historic sectoral water withdrawal maps to be used as input to the [LISFLOOD](https://github.com/ec-jrc/lisflood-code) hydrological model. The maps cover four water use sectors: domestic, thermoelectric, manufacturing, and livestock. The maps are resampled and subsetted to match the resolution and area of the template map (located at `templatemap_path` specified in the configuration file). 
+This utility allows to create water demand maps at the desired resolution and for the desired geographical areas. The maps indicate, for each pixel, the time-varying water demand map to supply for domestic, livestock, industrial, and energetic (cooling) water consumption. The temporal discretization of the information is monthly for domestic and energy demand, yearly for industrial and livestock demand. The users can select the temporal time span of the output datasets (i.e. start year and end year). The maps of sectoral water demand are required by the LISFLOOD OS [water use module](https://ec-jrc.github.io/lisflood-model/2_18_stdLISFLOOD_water-use). Clearly, this utility can be used also for other applications or stand-alone analysis of water demand for anthropogenic use. Due to the large uncertainty of the global data sets, the distinction between demand and withdrawal is here omitted.
+
+This README file provides detailed technical information about the input datasets and the usage of this utility. The methodology is explained in the manuscript: Choulga, M., Moschini, F., Mazzetti, C., Grimaldi, S., Disperati, J., Beck, H., Salamon, P., and Prudhomme, C.: Technical note: Surface fields for global environmental modelling, EGUsphere, 2023 ([preprint](https://doi.org/10.5194/egusphere-2023-1306)).
+
+The global sectoral water demand maps at 3 arcmin (or 0.05 degrees) resolution, 1979-2020, produced using the scripts of this utility can be downloaded from [Joint Research Centre Data Catalogue - LISFLOOD static and parameter maps for GloFAS - European Commission (europa.eu)](https://data.jrc.ec.europa.eu/dataset/68050d73-9c06-499c-a441-dc5053cb0c86)
 
 # Data
 
-The module consists of five scripts which require the following datasets and files:
+The utility consists of five scripts which require several following datasets and files. The full list of datasets is provided below. For each dataset, this documentation provides the link and the instructions relative to available version at the time of creation of the scripts. The correct functioning of the scripts is guaranteed for those datasets. Clearly, updated versions are regularly published: one relevant example is [Global Human Settlement - Datasets - European Commission (europa.eu)](https://ghsl.jrc.ec.europa.eu/datasets.php) (see Global Human Settlement Layer (GHSL)). Albeit the functioning of the utility is expected to be maintained, the users are invited to report problems or suggestions via GitHub issues.
 1. [FAO AQUASTAT](http://fao.org/aquastat/statistics/query/index.html?lang=en) sectoral water withdrawal estimates. Select "All Countries" and the following seven fields in the variable groups "Geography and population" and "Water use": "Gross Domestic Product (GDP)", "Industry, value added to GDP", "Agricultural water withdrawal", "Industrial water withdrawal", "Municipal water withdrawal", "Total water withdrawal", and "Irrigation water withdrawal". Select All Years, then click on the "Show Data" button.  On the new page, click on the "Download" button that will appear on the top right corner to download the xlsx file containing all data. Convert the Excel file to CVS and save it as `aquastat_clean.csv` in `aquastat_folder` specified in the configuration file.
 1. [Global Human Settlement Layer (GHSL)](https://ghsl.jrc.ec.europa.eu/ghs_pop2019.php) POP R2019A residential population estimates for target years 1975, 1990, 2000, and 2015. You will find data as an archive [here]( https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/GHSL/GHS_POP_MT_GLOBE_R2019A/). For each year, download the 0.0025° (9 arcsec, folders ending by "_9ss", e.g. "GHS_POP_E2015_GLOBE_R2019A_4326_9ss") maps in WGS84 projection and resample them to 0.01° using `gdalwarp -t_srs EPSG:4326 -tr 0.01 0.01 -r average -of GTiff GHS_POP_E<year>_GLOBE_R2019A_4326_9ss_V1_0.tif GHS_POP_E<year>_GLOBE_R2019A_4326_9ss_V1_0_reprojected.tif`, where `<year>` is 1975, 1990, 2000, or 2015. We resample the maps using `average` instead of `sum` as the latter is broken. Put resampled files in `ghsl_folder`.
 1. [Global Change Analysis Model (GCAM)](https://github.com/JGCRI/gcam-core/releases) regional water withdrawal and electricity consumption estimates. Download the Windows release package version 5.4, execute `run-gcam.bat`, wait for the model to finish. Execute `run-model-interface.bat`, click "File" > "Open" > "DB Open", select `output/database_basexdb`, and select all scenarios and all regions. Select `water demand`, select `water withdrawals by sector`, and click "Run query". Select `energy transformation`, select `electricity`, select `elec consumption by demand sector`, and click "Run query". For each tab, select all data with ctrl-a and click "Edit" > "Copy". Open a blank [Google Sheets](http://sheets.google.com/) spreadsheet, press ctrl-v, manually add the headers, click "File" > "Download" > "Comma-separated values", save as `water_demand.csv` and `elec_consumption.csv`, respectively, and put both files in `gcam_folder`.
@@ -31,12 +35,12 @@ The locations of the datasets and files are specified in the configuration file 
 
 The module consists of five scripts:
 1. `step1_population_density.py`: 
-	1. Resamples the 1-km GHSL population grids to the template map resolution.
+	1. Resamples the native resolution of the GHSL population grids to the template map resolution.
 	1. Computes population grids (in density per km<sup>2</sup>) for each year using linear interpolation and nearest-neighbor extrapolation.
 1. `step2_domestic_demand.py`:
 	1. Produces a map of the R parameter (measures the relative withdrawal difference between the warmest and coldest months).
 	1. Computes annual time series of population for each country.
-	1. Loads the country-scale AQUASTAT industrial withdrawal estimates and produces annual time series using linear interpolation and population-based forward and backward extrapolation.
+	1. Loads the country-scale AQUASTAT municipal water withdrawal estimate and produces annual time series using linear interpolation and population-based forward and backward extrapolation.
 	1. Loads the state-level USGS withdrawal data and computes annual values using linear interpolation and nearest-neighbour extrapolation.
 	1. For each year, computes country- and state-scale per capita water demand and produces a global map.
 	1. Gap-fills the annual per capita water demand map using nearest-neighbor interpolation. Necessary for countries without any AQUASTAT estimates, such as Sudan.
@@ -69,7 +73,7 @@ The module consists of five scripts:
 
 # System requirements
 
-The script can be run on a normal desktop PC (Windows and Linux) with 16 GB or more of physical memory.
+The script can be run on a normal desktop PC, support is provided only for Linux. Physical memory requirements depend on the desired geographical extent and resolution of the maps dataset. For instance, the generation of  the sectoral water demand dataset for the global domain at 3arcmin (or 0.05 degrees) resolution required 32 GB.
 
 # Instructions
 
@@ -78,7 +82,7 @@ Clone the repository:
 git clone https://github.com/ec-jrc/lisflood-utilities/water-demand-historic
 cd lisflood-utilities/water-demand-historic
 ```
-Produce a configuration file with the correct paths and folders (based on the included example). 
+Produce a configuration file with the correct paths and folders (based on the [included example](config_Europe_EFAS_1arcmin.cfg)). 
 
 Create and activate a Conda environment and run the script as follows:
 ```
