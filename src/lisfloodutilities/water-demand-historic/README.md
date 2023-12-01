@@ -1,10 +1,10 @@
 ﻿# Overview
 
-This utility allows to create water demand maps at the desired resolution and for the desired geographical areas. The maps indicate, for each pixel, the time-varying water demand map to supply for domestic, livestock, industrial, and energetic (cooling) water consumption. The temporal discretization of the information is monthly for domestic and energy demand, yearly for industrial and livestock demand. The users can select the temporal time span of the output datasets (i.e. start year and end year). The maps of sectoral water demand are required by the LISFLOOD OS [water use module](https://ec-jrc.github.io/lisflood-model/2_18_stdLISFLOOD_water-use). Clearly, this utility can be used also for other applications or stand-alone analysis of water demand for anthropogenic use. Due to the large uncertainty of the global data sets, the distinction between demand and withdrawal is here omitted.
+This utility allows to create sectoral water demand maps at the desired spatial resolution and for the desired geographical areas. The maps indicate, for each pixel, the time-varying water demand map to supply for domestic, livestock, industrial, and energetic (cooling) water consumption. The temporal discretization of the information is monthly for domestic and energy demand, yearly for industrial and livestock demand. The users can select the historical temporal span of the output datasets (start year and end year). The maps of sectoral water demand are required by the LISFLOOD OS [water use module](https://ec-jrc.github.io/lisflood-model/2_18_stdLISFLOOD_water-use). Clearly, the scripts and the outputs of this utility can be used also for other applications, as well as for stand-alone analysis of historical water demand for anthropogenic use. Due to the large uncertainty of the global data sets, the distinction between demand and withdrawal is here omitted.
 
 This README file provides detailed technical information about the input datasets and the usage of this utility. The methodology is explained in the manuscript: Choulga, M., Moschini, F., Mazzetti, C., Grimaldi, S., Disperati, J., Beck, H., Salamon, P., and Prudhomme, C.: Technical note: Surface fields for global environmental modelling, EGUsphere, 2023 ([preprint](https://doi.org/10.5194/egusphere-2023-1306)).
 
-The global sectoral water demand maps at 3 arcmin (or 0.05 degrees) resolution, 1979-2020, produced using the scripts of this utility can be downloaded from [Joint Research Centre Data Catalogue - LISFLOOD static and parameter maps for GloFAS - European Commission (europa.eu)](https://data.jrc.ec.europa.eu/dataset/68050d73-9c06-499c-a441-dc5053cb0c86)
+The global sectoral water demand maps at 3 arcmin (or 0.05 degrees) resolution, 1979-2019, produced using the scripts of this utility can be downloaded from [Joint Research Centre Data Catalogue - LISFLOOD static and parameter maps for GloFAS - European Commission (europa.eu)](https://data.jrc.ec.europa.eu/dataset/68050d73-9c06-499c-a441-dc5053cb0c86)
 
 # Data
 
@@ -43,7 +43,7 @@ The module consists of five scripts:
 	1. Loads the country-scale AQUASTAT municipal water withdrawal estimate and produces annual time series using linear interpolation and population-based forward and backward extrapolation.
 	1. Loads the state-level USGS withdrawal data and computes annual values using linear interpolation and nearest-neighbour extrapolation.
 	1. For each year, computes country- and state-scale per capita water demand and produces a global map.
-	1. Gap-fills the annual per capita water demand map using nearest-neighbor interpolation. Necessary for countries without any AQUASTAT estimates, such as Sudan.
+	1. Annual per capita water demand for countries without any AQUASTAT information is estimated using nearest-neighbour interpolation.
 	1. Spatially disaggregates the country- and state-scale annual per capita water demand estimates using the population estimates to obtain global annual withdrawal grids.
 	1. Temporally downscales the annual withdrawal grids using monthly MSWX air temperature grids and the map of the R parameter.
 1. `step3a_industrial_demand.py`: 
@@ -82,13 +82,15 @@ Clone the repository:
 git clone https://github.com/ec-jrc/lisflood-utilities/water-demand-historic
 cd lisflood-utilities/water-demand-historic
 ```
-Produce a configuration file with the correct paths and folders (based on the [included example](config_Europe_EFAS_1arcmin.cfg)). 
+Produce a configuration file with the correct paths and folders (based on the [included example](config_global_0p1deg.cfg)). 
 
-Create and activate a Conda environment and run the script as follows:
+Create and activate a Conda environment and run the scripts as follows:
 ```
 conda create --name <env> --file requirements.txt
 conda activate <env>
-python main.py <config file>
+python step1_population_density.py <config file>
+python step2_domestic_demand.py <config file>
+...
 ```
 If the environment creation step fails, the following might work:
 ```
