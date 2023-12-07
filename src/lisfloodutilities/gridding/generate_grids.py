@@ -91,7 +91,6 @@ def run(config_filename: str, infolder: str, output_file: str, processing_dates_
             outfilepath = filename.with_suffix('.tiff')
             output_writer_tiff.open(outfilepath)
         grid_data = grid_utils.generate_grid(filename)
-        print('orig: ', grid_data[1519][2250])
         output_writer_netcdf.write(grid_data, file_timestamp)
         if output_tiff:
             output_writer_tiff.write(grid_data, file_timestamp)

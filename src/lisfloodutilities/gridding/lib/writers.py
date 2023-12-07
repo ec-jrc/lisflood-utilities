@@ -124,14 +124,12 @@ class NetCDFWriter(OutputWriter):
                 raise Exception("netCDF Dataset was not initialized. If file already exists, use --force flag to append.")
             timestep_idx = int(timestep / self.time_frequency)
             self.nf.variables[self.netcdf_var_time][timestep_idx] = timestep
-            print('ncdf f(grid): ', grid[1519][2250])
             values = self.setNaN(copy.deepcopy(grid))
             values[values < self.conf.value_min_packed] = np.nan
             values[values > self.conf.value_max_packed] = np.nan
             values[values != self.conf.VALUE_NAN] *= self.conf.scale_factor
             values[values != self.conf.VALUE_NAN] += self.conf.add_offset
             values[np.isnan(values)] = self.conf.VALUE_NAN * self.conf.scale_factor + self.conf.add_offset
-            print('ncdf i(grid): ', values[1519][2250])
             self.nf.variables[self.var_code][timestep_idx, :, :] = values
 
     def opened(self) -> bool:
@@ -290,8 +288,6 @@ class GDALWriter(OutputWriter):
             ds.GetRasterBand(1).SetScale(self.conf.scale_factor)
             ds.GetRasterBand(1).SetOffset(self.conf.add_offset)
             ds = self.setup_dataset_metadata(ds)
-            print('tiff f(grid): ', grid[1519][2250])
-            print('tiff i(grid): ', grid.astype(np.int16)[1519][2250])
             ds.GetRasterBand(1).WriteArray(grid.astype(np.int16))
             ds.FlushCache()
             ds = None
