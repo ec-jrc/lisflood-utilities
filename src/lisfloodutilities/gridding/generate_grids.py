@@ -21,7 +21,7 @@ import csv
 from pathlib import Path
 from argparse import ArgumentParser, ArgumentTypeError
 from datetime import datetime, timedelta
-from lisfloodutilities.gridding.lib.utils import Printable, Dem, Config, FileUtils, GriddingUtils
+from lisfloodutilities.gridding.lib.utils import Printable, Dem, Config, FileUtils, GriddingUtils # , KiwisLoader
 from lisfloodutilities.gridding.lib.writers import NetCDFWriter, GDALWriter
 
 
@@ -80,6 +80,8 @@ def run(config_filename: str, infolder: str, output_file: str, processing_dates_
         output_writer_tiff = GDALWriter(conf, overwrite_output, quiet_mode)
     output_writer_netcdf = NetCDFWriter(conf, overwrite_output, quiet_mode)
     output_writer_netcdf.open(Path(outfile))
+#    file_loader = KiwisLoader(conf, overwrite_output, Path(infolder), quiet_mode)
+#    for filename in file_loader:
     for filename in sorted(Path(infolder).rglob(inwildcard)):
         file_timestamp = file_utils.get_timestamp_from_filename(filename) + timedelta(days=netcdf_offset_file_date)
         if not file_utils.processable_file(file_timestamp, dates_to_process, conf.start_date, conf.end_date):
@@ -89,6 +91,7 @@ def run(config_filename: str, infolder: str, output_file: str, processing_dates_
             outfilepath = filename.with_suffix('.tiff')
             output_writer_tiff.open(outfilepath)
         grid_data = grid_utils.generate_grid(filename)
+        print('orig: ', grid_data[1519][2250])
         output_writer_netcdf.write(grid_data, file_timestamp)
         if output_tiff:
             output_writer_tiff.write(grid_data, file_timestamp)
@@ -144,6 +147,9 @@ def main(argv):
         parser.add_argument("-c", "--conf", dest="config_type", required=True,
                             help="Set the grid configuration type to use.",
                             metavar="{5x5km, 1arcmin,...}")
+        parser.add_argument("-p", "--pathconf", dest="config_base_path", required=False, type=FileUtils.folder_type,
+                            help="Overrides the base path where the configurations are stored.",
+                            metavar="/path/to/config")
         parser.add_argument("-v", "--var", dest="variable_code", required=True,
                             help="Set the variable to be processed.",
                             metavar="{pr,pd,tn,tx,ws,rg,...}")
@@ -172,6 +178,8 @@ def main(argv):
         quiet_mode = args.quiet
 
         configuration_base_folder = os.path.join(program_path, '../src/lisfloodutilities/gridding/configuration')
+        if args.config_base_path is not None and len(args.config_base_path) > 0:
+            configuration_base_folder = args.config_base_path
 
         file_utils = FileUtils(args.variable_code, quiet_mode)
 
