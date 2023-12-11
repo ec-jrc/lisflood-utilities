@@ -33,7 +33,9 @@ series = None
 df_dic = {
     'mae': None,
     'mbe': None,
+    'mse': None,
     'pearson_r': None,
+    'csi': None,
     'values_sum': None,
     'pixels_with_values_0<X<=0.1': None,
     'pixels_with_values_0.1<X<1': None
@@ -42,7 +44,9 @@ df_dic = {
 df_file_name = {
     'mae': f'{variable_name}_mae.stats',
     'mbe': f'{variable_name}_mbe.stats',
+    'mse': f'{variable_name}_mse.stats',
     'pearson_r': f'{variable_name}_pearson_r.stats',
+    'csi': f'{variable_name}_csi.stats',
     'values_sum': f'{variable_name}_values_sum.stats',
     'pixels_with_values_0<X<=0.1': f'{variable_name}_pixels_with_values_between_0_and_0.1.stats',
     'pixels_with_values_0.1<X<1': f'{variable_name}_pixels_with_values_between_0.1_and_1.stats'

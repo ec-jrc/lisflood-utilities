@@ -29,7 +29,7 @@ import netCDF4 as nc
 from scipy.spatial import cKDTree
 from scipy.stats import pearsonr
 from sklearn.model_selection import RepeatedStratifiedKFold
-from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import mean_absolute_error, mean_squared_error
 from sklearn.feature_selection import r_regression
 
 
@@ -44,6 +44,29 @@ def mean_bias_error(y_true: np.array, y_pred: np.array) -> float:
     '''
     mbe = np.mean(y_true - y_pred)
     return mbe
+
+
+def critical_success_index(df: pd.DataFrame, limit_value: float) -> float:
+    '''
+    Critical Success Index is used only for Precipitation.
+
+    Parameters:
+        df (pandas dataframe): Dataframe containing both observed and predicted values
+        limit_value (float): Limit in millimeters to be used in the formula
+
+    csi = wc / (wc+wi+di) 
+    Wc = total number of points where y_true and y_pred > 1mm
+    Wi = total number of points where y_true  > 1mm and y_pred < 1mm
+    Di = total number of points where y_true  < 1mm and y_pred > 1mm
+
+    Returns:
+        csi (float): Critical Success Index
+    '''
+    wc = len(df[(df['true_value'] > limit_value) & (df['interpolated_value'] > limit_value)])
+    wi = len(df[(df['true_value'] > limit_value) & (df['interpolated_value'] < limit_value)])
+    di = len(df[(df['true_value'] < limit_value) & (df['interpolated_value'] > limit_value)])
+    csi = wc / (wc + wi + di) 
+    return csi
 
 
 def get_netcdf_meteo_variable_name(nc_file_obj):
@@ -63,14 +86,16 @@ def get_pixel_area(pixel_area_file: Path) -> np.ndarray:
 
 
 def write_results(outfile: Path, test_code: str, mae: float, mbe: float, pearson_r: float, values_sum: float,
-                  count_pixels_1st_interval: float, count_pixels_2nd_interval: float):
+                  count_pixels_1st_interval: float, count_pixels_2nd_interval: float, mse: float, csi: float):
     if outfile.is_file():
         df = pd.read_csv(outfile, delimiter='\t')
         new_data = [{
             'test': test_code,
             'mae': mae,
             'mbe': mbe,
+            'mse': mse,
             'pearson_r': pearson_r,
+            'csi': csi,
             'values_sum': values_sum,
             'pixels_with_values_0<X<=0.1': count_pixels_1st_interval,
             'pixels_with_values_0.1<X<1': count_pixels_2nd_interval,
@@ -81,20 +106,14 @@ def write_results(outfile: Path, test_code: str, mae: float, mbe: float, pearson
             'test': [test_code],
             'mae': [mae],
             'mbe': [mbe],
+            'mse': [mse],
             'pearson_r': [pearson_r],
+            'csi': [csi],
             'values_sum': [values_sum],
             'pixels_with_values_0<X<=0.1': [count_pixels_1st_interval],
             'pixels_with_values_0.1<X<1': [count_pixels_2nd_interval],
         })
     df.to_csv(outfile, sep='\t', index=False)
-
-
-# def unpack_data(data: np.ndarray, scale_factor: float = 1.0, offset: float = 0.0, no_data: float = -9999.0) -> np.ndarray:
-#     compressed_data = data.astype(float)
-#     decompressed_data = compressed_data * scale_factor + offset
-#     decompressed_data = np.round(decompressed_data, 1)
-#     decompressed_data = np.where(decompressed_data == no_data, np.nan, decompressed_data)
-#     return decompressed_data
 
 
 def unpack_data(data: np.ndarray, scale_factor: float = 1.0, offset: float = 0.0, no_data: float = -9999.0) -> np.ndarray:
@@ -129,7 +148,7 @@ def get_unpacking_metadata(file_interpolated_values: Path) -> tuple[float, float
     return scale_factor, offset, no_data
 
 
-def get_interpolated_values_dataframe(file_interpolated_values: Path, is_compressed_data: bool) -> pd.DataFrame:
+def get_interpolated_values_dataframe(file_interpolated_values: Path) -> pd.DataFrame:
     scale_factor, offset, no_data = get_unpacking_metadata(file_interpolated_values)
     dataarray = rxr.open_rasterio(file_interpolated_values)
     band = dataarray[0]
@@ -156,20 +175,24 @@ def get_interpolated_values(df_interpolated_values: pd.DataFrame, df_true_values
     return interpolated_values[idx]
 
 
-def run(file_true_values: str, file_interpolated_values: str, file_pixel_area: str, outfile: str, is_compressed_data: bool, limit_value: float):
+def run(file_true_values: str, file_interpolated_values: str, file_pixel_area: str, outfile: str, run_csi: bool, limit_value: float):
 
     file_interpolated_values_path = Path(file_interpolated_values)
     outfile_path = Path(outfile)
     file_true_values_path = Path(file_true_values)
     # Load the CSV file into a pandas dataframe
     df_true_values = pd.read_csv(file_true_values_path, delimiter='\t', header=None, names=['x', 'y', 'true_value'])
-    df_interpolated_values = get_interpolated_values_dataframe(file_interpolated_values_path, is_compressed_data)
+    df_interpolated_values = get_interpolated_values_dataframe(file_interpolated_values_path)
     predicted_values_mm = np.ascontiguousarray(df_interpolated_values['value'].values)  # includes NaN
     df_interpolated_values = df_interpolated_values.dropna()
     interpolated_values = get_interpolated_values(df_interpolated_values, df_true_values)
     df_true_values['interpolated_value'] = interpolated_values
     # write intermediate results to a file
     df_true_values.to_csv(file_true_values_path.with_suffix('.tab'), sep="\t", index=False)
+
+    csi = -9999.0
+    if run_csi:
+        csi = critical_success_index(df_true_values, 1.0)
 
     # process only values greater than 1.0 mm
     # limit_value = 1.0
@@ -181,6 +204,7 @@ def run(file_true_values: str, file_interpolated_values: str, file_pixel_area: s
     test_code = file_interpolated_values_path.parent.name
     mae = -9999.0
     mbe = -9999.0
+    mse = -9999.0
     pearson_correlation_coeficient = -9999.0
     values_sum = -9999.0
     count_pixels_1st_interval = -9999.0
@@ -189,6 +213,7 @@ def run(file_true_values: str, file_interpolated_values: str, file_pixel_area: s
     if len(true_values) > 0 and len(predicted_values) > 0:
         mae = mean_absolute_error(true_values, predicted_values)
         mbe = mean_bias_error(true_values, predicted_values)
+        mse = mean_squared_error(true_values, predicted_values)
         # The correlations needs at least 2 elements in each array
         if len(true_values) > 1 and len(predicted_values) > 1: 
             pearson_correlation_coeficient, p_value = pearsonr(true_values, predicted_values)
@@ -207,7 +232,7 @@ def run(file_true_values: str, file_interpolated_values: str, file_pixel_area: s
 
     # write the results to the output file
     write_results(outfile_path, test_code, mae, mbe, pearson_correlation_coeficient, values_sum,
-                  count_pixels_1st_interval, count_pixels_2nd_interval)
+                  count_pixels_1st_interval, count_pixels_2nd_interval, mse, csi)
 
 
 def main(argv):
@@ -242,7 +267,7 @@ def main(argv):
         parser = ArgumentParser(epilog=program_license, description=program_version_string+program_longdesc)
 
         # set defaults
-        parser.set_defaults(is_compressed_data=False, limit_value=1.0)
+        parser.set_defaults(run_csi=False, limit_value=1.0)
 
         parser.add_argument("-t", "--test", dest="file_true_values", required=True, type=FileUtils.file_type,
                             help="Set file path for true values form the test dataset in txt format.",
@@ -256,10 +281,10 @@ def main(argv):
         parser.add_argument("-o", "--out", dest="outfile", required=True, type=FileUtils.file_or_folder,
                             help="Set output file containing the statistics.",
                             metavar="output_file")
-        parser.add_argument("-c", "--compressed", dest="is_compressed_data", action="store_true",
-                            help="Indicates if data in the tiff file is compressed and decompresses it before using. [default: %(default)s]")
         parser.add_argument("-l", "--limit", dest="limit_value", required=False, type=float,
                             help="process only values greater than limit", metavar="limit_value")
+        parser.add_argument("-c", "--csi", dest="run_csi", action="store_true",
+                            help="Critical Success Index is used only for Precipitation. [default: %(default)s]")
 
         # process options
         args = parser.parse_args(argv)
@@ -267,14 +292,14 @@ def main(argv):
         print(f"True values: {args.file_true_values}")
         print(f"Interpolated values: {args.file_interpolated_values}")
         print(f"Output File: {args.outfile}")
-        print(f"Compressed Data: {args.is_compressed_data}")
+        print(f"Run CSI: {args.run_csi}")
         print(f"Limit Value: {args.limit_value}")
         file_pixel_area = ""
         if args.file_pixel_area is not None:
             file_pixel_area = args.file_pixel_area
             print(f"Pixel Area File: {file_pixel_area}")
 
-        run(args.file_true_values, args.file_interpolated_values, file_pixel_area, args.outfile, args.is_compressed_data, args.limit_value)
+        run(args.file_true_values, args.file_interpolated_values, file_pixel_area, args.outfile, args.run_csi, args.limit_value)
         print("Finished.")
     except Exception as e:
         indent = len(program_name) * " "

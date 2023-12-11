@@ -11,6 +11,8 @@ VALUE_OFFSET = 0.0
 DATA_TYPE_PACKED = i2
 STANDARD_NAME = precipitation_amount
 LONG_NAME = 6 Hourly Accumulated Precipitation
+KIWIS_FILTER_PLUGIN_CLASSES = {'DowgradedObservationsKiwisFilter': {'1295': 1.0}, 'ObservationsKiwisFilter': {'1303': 100.0}}
+
 
 [VAR_TIME]
 

@@ -14,6 +14,7 @@ import os
 import time as timex
 import warnings
 import numpy as np
+import copy
 from argparse import ArgumentTypeError
 from pathlib import Path
 from datetime import datetime, timedelta
@@ -123,7 +124,7 @@ class NetCDFWriter(OutputWriter):
                 raise Exception("netCDF Dataset was not initialized. If file already exists, use --force flag to append.")
             timestep_idx = int(timestep / self.time_frequency)
             self.nf.variables[self.netcdf_var_time][timestep_idx] = timestep
-            values = self.setNaN(grid)
+            values = self.setNaN(copy.deepcopy(grid))
             values[values < self.conf.value_min_packed] = np.nan
             values[values > self.conf.value_max_packed] = np.nan
             values[values != self.conf.VALUE_NAN] *= self.conf.scale_factor
