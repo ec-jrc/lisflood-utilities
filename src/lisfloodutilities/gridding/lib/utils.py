@@ -58,9 +58,11 @@ class Dem(Printable):
         reader = NetCDFReader(self._dem_map)
         self.nrows = reader._rows
         self.ncols = reader._cols
-        self.mv = reader.mv
-        self.values = reader.values
+        self.mv = reader.mv.astype(np.float32)
+        self.values = reader.values.astype(np.float32)
         self.lats, self.lons = reader.get_lat_lon_values()
+        self.lats = self.lats.astype(np.float32)
+        self.lons = self.lons.astype(np.float32) 
         self.lat_values = reader.get_lat_values()
         self.lon_values = reader.get_lon_values()
         self.cell_size_x = reader._pxlW
@@ -185,7 +187,7 @@ class Config(Printable):
     def __setup_interpolation_parameters(self):
         self.scipy_modes_nnear = Config.INTERPOLATION_MODES
         self.grid_details = {'gridType': 'NOT rotated', 'Nj': 1, 'radius': 6367470.0}
-        self.min_upper_bound = 100000000 # max search distance in meters
+        self.min_upper_bound = 100000000.0 # max search distance in meters
         cdd_map_path = Path(self.config_path).joinpath(f'CDDmap_{self.var_code}.nc')
         self.cdd_map = f'{cdd_map_path}'
         if self.interpolation_mode == 'cdd' and not os.path.isfile(self.cdd_map):
@@ -411,9 +413,9 @@ class GriddingUtils(Printable):
         x = df[self.conf.COLUMN_LON].values
         y = df[self.conf.COLUMN_LAT].values
         z = df[self.conf.COLUMN_VALUE].values
-        xp = np.array(x)
-        yp = np.array(y)
-        values = np.array(z)
+        xp = np.array(x).astype(np.float32)
+        yp = np.array(y).astype(np.float32)
+        values = np.array(z).astype(np.float32)
         df = None
         if self.conf.interpolation_mode == 'cdd':
             scipy_interpolation = ScipyInterpolation(xp, yp, self.conf.grid_details, values,
