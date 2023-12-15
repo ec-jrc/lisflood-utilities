@@ -157,8 +157,10 @@ class Config(Printable):
     # Each interpolation is paired with the number of neighbours used by the interpolation algorithm.
     INTERPOLATION_MODES = {'nearest': 1, 'invdist': 20, 'adw': 11, 'cdd': 11,
                            'bilinear': 4, 'triangulation': 3, 'bilinear_delaunay': 4}
-    def __init__(self, config_filename: str, start_date: datetime = None,
-                 end_date: datetime = None, quiet_mode: bool = False, interpolation_mode: str = 'adw'):
+    # Allows splitting the grid to interpolate into several parts and run isolated interpolations for each
+    MEMORY_SAVE_MODES = {'0': None, '1': 2, '2': 4, '3': 10, '4': 20, '5': 50}
+    def __init__(self, config_filename: str, start_date: datetime = None, end_date: datetime = None,
+                 quiet_mode: bool = False, interpolation_mode: str = 'adw', memory_save_mode: str = '0'):
         super().__init__(quiet_mode)
         self.COLUMN_HEIGHT = "height"
         self.COLUMN_VALUE = "value"
@@ -166,6 +168,7 @@ class Config(Printable):
         self.COLUMN_LAT = "lat"
         self.VALUE_NAN = -9999.0
         self.interpolation_mode = interpolation_mode
+        self.memory_save_mode = memory_save_mode
         self.__setup_variable_config(config_filename)
         self.__HEIGHT_CORRECTION_FACTOR = {"tx": 0.006, "tn": 0.006, "ta": 0.006, "ta6": 0.006, "pd": 0.00025}
 
@@ -330,6 +333,10 @@ class Config(Printable):
     def neighbours_near(self) -> int:
         return self.scipy_modes_nnear[self.interpolation_mode]
 
+    @property
+    def num_of_splits(self) -> int:
+        return Config.MEMORY_SAVE_MODES[self.memory_save_mode]
+
 
 class GriddingUtils(Printable):
 
@@ -407,6 +414,7 @@ class GriddingUtils(Printable):
         xp = np.array(x)
         yp = np.array(y)
         values = np.array(z)
+        df = None
         if self.conf.interpolation_mode == 'cdd':
             scipy_interpolation = ScipyInterpolation(xp, yp, self.conf.grid_details, values,
                                                      self.conf.neighbours_near, mv_target, mv_source,
@@ -415,13 +423,15 @@ class GriddingUtils(Printable):
                                                      cdd_map=self.conf.cdd_map,
                                                      cdd_mode=self.conf.cdd_mode,
                                                      cdd_options=self.conf.cdd_options,
-                                                     use_broadcasting=self.use_broadcasting)
+                                                     use_broadcasting=self.use_broadcasting,
+                                                     num_of_splits=self.conf.num_of_splits)
         else:
             scipy_interpolation = ScipyInterpolation(xp, yp, self.conf.grid_details, values,
                                                      self.conf.neighbours_near, mv_target, mv_source,
                                                      target_is_rotated=False, parallel=False,
                                                      mode=self.conf.interpolation_mode,
-                                                     use_broadcasting=self.use_broadcasting)
+                                                     use_broadcasting=self.use_broadcasting,
+                                                     num_of_splits=self.conf.num_of_splits)
 
         # reset search radius to a fixed value
         scipy_interpolation.min_upper_bound = self.conf.min_upper_bound
@@ -440,7 +450,7 @@ class GriddingUtils(Printable):
 #     CSV_DELIMITER = '\t'
 #     FILES_WILDCARD = '??????????00_all.kiwis'
 #
-#     def __init__(self, conf: Config, overwrite_file: bool = False, infolder: Path, quiet_mode: bool = False):
+#     def __init__(self, conf: Config, infolder: Path, overwrite_file: bool = False, quiet_mode: bool = False):
 #         super().__init__(quiet_mode)
 #         self.conf = conf
 #         self.overwrite_file = overwrite_file
@@ -469,7 +479,7 @@ class GriddingUtils(Printable):
 #                 self.file_group_read_idx += 1
 #         raise StopIteration
 #
-#     def __get_filter_classes(self) -> array:
+#     def __get_filter_classes(self) -> list:
 #         '''
 #         TODO: Implement the class.
 #         '''

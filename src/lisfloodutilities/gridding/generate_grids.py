@@ -40,9 +40,14 @@ def interpolation_mode_type(mode: str) -> str:
         raise ArgumentTypeError(f'You must select a mode out of {list(Config.INTERPOLATION_MODES.keys())}.')
     return mode
 
+def memory_save_mode_type(mode: str) -> str:
+    if mode not in Config.MEMORY_SAVE_MODES:
+        raise ArgumentTypeError(f'You must select a RAM save mode out of {list(Config.MEMORY_SAVE_MODES.keys())}.')
+    return mode
+
 def run(config_filename: str, infolder: str, output_file: str, processing_dates_file: str, file_utils: FileUtils,
         output_tiff: bool, overwrite_output: bool, start_date: datetime = None, end_date: datetime = None,
-        interpolation_mode: str = 'adw', use_broadcasting: bool = False):
+        interpolation_mode: str = 'adw', use_broadcasting: bool = False, memory_save_mode: str = None):
     """
     Interpolate text files containing (x, y, value) using inverse distance interpolation.
     Produces as output, either a netCDF file containing all the grids or one TIFF file per grid.
@@ -53,7 +58,7 @@ def run(config_filename: str, infolder: str, output_file: str, processing_dates_
     """
     global quiet_mode
 
-    conf = Config(config_filename, start_date, end_date, quiet_mode, interpolation_mode)
+    conf = Config(config_filename, start_date, end_date, quiet_mode, interpolation_mode, memory_save_mode)
 
     if conf.start_date > conf.end_date:
         raise ArgumentTypeError("Start date is greater than End date.")
@@ -135,7 +140,8 @@ def main(argv):
                             start_date='',
                             end_date=END_DATE_DEFAULT,
                             interpolation_mode='adw',
-                            use_broadcasting=False)
+                            use_broadcasting=False,
+                            memory_save_mode='0')
 
         parser.add_argument("-i", "--in", dest="infolder", required=True, type=FileUtils.folder_type,
                             help="Set input folder path with kiwis/point files",
@@ -169,6 +175,9 @@ def main(argv):
         parser.add_argument("-m", "--mode", dest="interpolation_mode", required=False, type=interpolation_mode_type,
                             help="Set interpolation mode. [default: %(default)s]",
                             metavar=f"{list(Config.INTERPOLATION_MODES.keys())}")
+        parser.add_argument("-r", "--ramsavemode", dest="memory_save_mode", required=False, type=memory_save_mode_type,
+                            help="Set memory save mode level. Used to reduce memory usage [default: %(default)s]",
+                            metavar=f"{list(Config.MEMORY_SAVE_MODES.keys())}")
         parser.add_argument("-b", "--broadcast", dest="use_broadcasting", action="store_true",
                             help="When set, computations will run faster in full broadcasting mode but require more memory. [default: %(default)s]")
 
@@ -206,6 +215,7 @@ def main(argv):
         print_msg(f"Input Folder:  {args.infolder}")
         print_msg(f"Overwrite Output: {args.overwrite_output}")
         print_msg(f"Interpolation Mode: {args.interpolation_mode}")
+        print_msg(f"RAM Save Mode: {args.memory_save_mode}")
         print_msg(f"Broadcasting: {args.use_broadcasting}")
         if args.out_tiff:
             print_msg("Output Type: TIFF")
@@ -216,7 +226,8 @@ def main(argv):
         print_msg(f"Config File: {config_filename}")
 
         run(config_filename, args.infolder, args.output_file, args.processing_dates_file, 
-            file_utils, args.out_tiff, args.overwrite_output, start_date, end_date, args.interpolation_mode, args.use_broadcasting)
+            file_utils, args.out_tiff, args.overwrite_output, start_date, end_date, args.interpolation_mode,
+            args.use_broadcasting, args.memory_save_mode)
     except Exception as e:
         indent = len(program_name) * " "
         sys.stderr.write(program_name + ": " + repr(e) + "\n")
