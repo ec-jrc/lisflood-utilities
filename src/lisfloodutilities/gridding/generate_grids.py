@@ -21,7 +21,7 @@ import csv
 from pathlib import Path
 from argparse import ArgumentParser, ArgumentTypeError
 from datetime import datetime, timedelta
-from lisfloodutilities.gridding.lib.utils import Printable, Dem, Config, FileUtils, GriddingUtils # , KiwisLoader
+from lisfloodutilities.gridding.lib.utils import Printable, Dem, Config, FileUtils, GriddingUtils, KiwisLoader
 from lisfloodutilities.gridding.lib.writers import NetCDFWriter, GDALWriter
 
 
@@ -46,7 +46,7 @@ def memory_save_mode_type(mode: str) -> str:
     return mode
 
 def run(config_filename: str, infolder: str, output_file: str, processing_dates_file: str, file_utils: FileUtils,
-        output_tiff: bool, overwrite_output: bool, start_date: datetime = None, end_date: datetime = None,
+        output_tiff: bool, output_netcdf: bool, overwrite_output: bool, start_date: datetime = None, end_date: datetime = None,
         interpolation_mode: str = 'adw', use_broadcasting: bool = False, memory_save_mode: str = None):
     """
     Interpolate text files containing (x, y, value) using inverse distance interpolation.
@@ -83,24 +83,24 @@ def run(config_filename: str, infolder: str, output_file: str, processing_dates_
     outfile = output_file
     if output_tiff:
         output_writer_tiff = GDALWriter(conf, overwrite_output, quiet_mode)
-    output_writer_netcdf = NetCDFWriter(conf, overwrite_output, quiet_mode)
-    output_writer_netcdf.open(Path(outfile))
-#    file_loader = KiwisLoader(conf, overwrite_output, Path(infolder), quiet_mode)
-#    for filename in file_loader:
-    for filename in sorted(Path(infolder).rglob(inwildcard)):
+    if output_netcdf:
+        output_writer_netcdf = NetCDFWriter(conf, overwrite_output, quiet_mode)
+        output_writer_netcdf.open(Path(outfile))
+    file_loader = KiwisLoader(conf, Path(infolder), overwrite_output, quiet_mode)
+    for filename in file_loader:
         file_timestamp = file_utils.get_timestamp_from_filename(filename) + timedelta(days=netcdf_offset_file_date)
-        if not file_utils.processable_file(file_timestamp, dates_to_process, conf.start_date, conf.end_date):
-            continue  # Skip processing file
         print_msg(f'Processing file: {filename}')
         if output_tiff:
             outfilepath = filename.with_suffix('.tiff')
             output_writer_tiff.open(outfilepath)
         grid_data = grid_utils.generate_grid(filename)
-        output_writer_netcdf.write(grid_data, file_timestamp)
+        if output_netcdf:
+            output_writer_netcdf.write(grid_data, file_timestamp)
         if output_tiff:
             output_writer_tiff.write(grid_data, file_timestamp)
             output_writer_tiff.close()
-    output_writer_netcdf.close()
+    if output_netcdf:
+        output_writer_netcdf.close()
     print_msg('Finished writing files')
 
 
@@ -136,6 +136,7 @@ def main(argv):
         # set defaults
         parser.set_defaults(quiet=False,
                             out_tiff=False,
+                            out_netcdf=False,
                             overwrite_output=False,
                             start_date='',
                             end_date=END_DATE_DEFAULT,
@@ -143,12 +144,12 @@ def main(argv):
                             use_broadcasting=False,
                             memory_save_mode='0')
 
-        parser.add_argument("-i", "--in", dest="infolder", required=True, type=FileUtils.folder_type,
-                            help="Set input folder path with kiwis/point files",
-                            metavar="input_folder")
-        parser.add_argument("-o", "--out", dest="output_file", required=True, type=FileUtils.file_or_folder,
+        parser.add_argument("-i", "--in", dest="in_file_or_folder", required=True, type=FileUtils.file_or_folder,
+                            help="Set a single input kiwis file or folder path containing all the kiwis files.",
+                            metavar="/path/to/pr200102150600_all.kiwis")
+        parser.add_argument("-o", "--out", dest="output_file", required=False, type=FileUtils.file_type,
                             help="Set the output netCDF file path containing all the timesteps between start and end dates.",
-                            metavar="output_netcdf_file")
+                            metavar="/path/to/pr2001.nc")
         parser.add_argument("-c", "--conf", dest="config_type", required=True,
                             help="Set the grid configuration type to use.",
                             metavar="{5x5km, 1arcmin,...}")
@@ -169,7 +170,9 @@ def main(argv):
                             metavar="YYYYMMDDHHMISS")
         parser.add_argument("-q", "--quiet", dest="quiet", action="store_true", help="Set script output into quiet mode [default: %(default)s]")
         parser.add_argument("-t", "--tiff", dest="out_tiff", action="store_true",
-                            help="Outputs a tiff file per timestep and also the single netCDF with all the timesteps [default: %(default)s]")
+                            help="Outputs a tiff file per timestep [default: %(default)s]")
+        parser.add_argument("-n", "--netcdf", dest="out_netcdf", action="store_true",
+                            help="Outputs a single netCDF with all the timesteps [default: %(default)s]")
         parser.add_argument("-f", "--force", dest="overwrite_output", action="store_true",
                             help="Force write to existing file. TIFF files will be overwritten and netCDF file will be appended. [default: %(default)s]")
         parser.add_argument("-m", "--mode", dest="interpolation_mode", required=False, type=interpolation_mode_type,
@@ -195,6 +198,22 @@ def main(argv):
 
         config_filename = file_utils.get_config_file(config_type_path)
 
+        if not args.out_tiff and not args.out_netcdf:
+            parser.error(f'You must choose at least one output format, TIFF (--tiff) and/or netCDF (--netcdf)')
+        if args.out_netcdf:
+            if args.output_file is None:
+                parser.error("--netcdf requires defining the output file with --out.")
+            else:
+                print_msg("Output Type: netCDF")
+                print_msg(f"Output File: {args.output_file}")
+        # TIFF output is written to the folder where each of the kiwis files exist
+        if args.out_tiff:
+            print_msg("Output Type: TIFF")
+            output_path = Path(args.in_file_or_folder)
+            if output_path.is_file():
+                output_path = output_path.parent
+            print_msg(f"Output Folder: {output_path}")
+
         start_date = None
         try:
             start_date = datetime.strptime(args.start_date, FileUtils.DATE_PATTERN_CONDENSED)
@@ -212,22 +231,17 @@ def main(argv):
         end_date_str =  end_date.strftime(FileUtils.DATE_PATTERN_SEPARATED)
         print_msg(f"End Date:  {end_date_str}")
 
-        print_msg(f"Input Folder:  {args.infolder}")
+        print_msg(f"Input Folder:  {args.in_file_or_folder}")
         print_msg(f"Overwrite Output: {args.overwrite_output}")
         print_msg(f"Interpolation Mode: {args.interpolation_mode}")
         print_msg(f"RAM Save Mode: {args.memory_save_mode}")
         print_msg(f"Broadcasting: {args.use_broadcasting}")
-        if args.out_tiff:
-            print_msg("Output Type: TIFF")
-            print_msg(f"Output Folder: {args.infolder}")
-        print_msg("Output Type: netCDF")
-        print_msg(f"Output File: {args.output_file}")
         print_msg(f"Processing Dates File: {args.processing_dates_file}")
         print_msg(f"Config File: {config_filename}")
 
-        run(config_filename, args.infolder, args.output_file, args.processing_dates_file, 
-            file_utils, args.out_tiff, args.overwrite_output, start_date, end_date, args.interpolation_mode,
-            args.use_broadcasting, args.memory_save_mode)
+        run(config_filename, args.in_file_or_folder, args.output_file, args.processing_dates_file, file_utils, args.out_tiff,
+            args.out_netcdf, args.overwrite_output, start_date, end_date, args.interpolation_mode, args.use_broadcasting,
+            args.memory_save_mode)
     except Exception as e:
         indent = len(program_name) * " "
         sys.stderr.write(program_name + ": " + repr(e) + "\n")

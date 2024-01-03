@@ -38,6 +38,26 @@ __DECIMAL_FORMAT = '{:.20f}'
 getcontext().prec = __DECIMAL_CASES
 
 
+class StackFIFO:
+    def __init__(self):
+        self.stack = []
+
+    def push(self, item):
+        self.stack.append(item)
+
+    def pop(self):
+        if self.is_empty():
+            return None
+        else:
+            return self.stack.pop(0)
+
+    def as_list(self) -> list:
+        return self.stack
+
+    def is_empty(self) -> bool:
+        return len(self.stack) == 0
+
+
 class Printable(Loggable):
 
     def __init__(self, quiet_mode: bool = True):
@@ -107,7 +127,7 @@ class FileUtils(Printable):
                         cur_date = self.get_timestamp_from_filename(Path(line))
                         dates_list.append(cur_date)
                     except Exception as e:
-                        raise ArgumentTypeError(f"Inside file {file_path}. The file name [ {line} ] is not valid")
+                        raise ArgumentTypeError(f'Inside file {file_path}. The file name [ {line} ] is not valid')
         if len(dates_list) > 0:
             return dict.fromkeys(dates_list)
         return {}
@@ -116,31 +136,34 @@ class FileUtils(Printable):
         search_path = os.path.join(base_path, config_type)
         self.print_msg(f'Config base path: {search_path}')
         if not config_type:
-            raise ArgumentTypeError("You must insert a valid grid configuration.")
+            raise ArgumentTypeError('You must insert a valid grid configuration.')
         if not os.path.isdir(search_path):
-            raise ArgumentTypeError("%s is not a valid grid configuration" % (config_type))
+            raise ArgumentTypeError(f'{config_type} is not a valid grid configuration')
         return search_path
 
     def get_config_file(self, base_path: str) -> str:
         if not self.var_code:
-            raise ArgumentTypeError("You must insert a valid variable.")
-        search_path = os.path.join(base_path, 'config_%s.txt' % self.var_code)
+            raise ArgumentTypeError('You must insert a valid variable.')
+        search_path = os.path.join(base_path, f'config_{self.var_code}.txt')
         if not os.path.isfile(search_path):
-            raise ArgumentTypeError("%s is not a valid variable code." % (self.var_code))
+            raise ArgumentTypeError(f'{self.var_code} is not a valid variable code.')
         return search_path
 
     def file_type(fname: str) -> str:
         if not fname:
-            raise ArgumentTypeError("You must insert a path.")
-        if not os.path.isfile(fname):
-            raise ArgumentTypeError("%s is not a valid path" % (fname))
+            raise ArgumentTypeError('You must insert a path.')
+        p = Path(fname)
+        if not (p.parent.is_dir() and os.access(p.parent, os.W_OK)):
+            raise ArgumentTypeError(f'Folder is not writable: {p.parent}')
+        if not FileUtils.is_file_path(p):
+            raise ArgumentTypeError(f'Invalid file path: {p}')
         return fname
 
     def folder_type(fname: str) -> str:
         if not fname:
-            raise ArgumentTypeError("You must insert a path.")
+            raise ArgumentTypeError('You must insert a path.')
         if not os.path.isdir(fname):
-            raise ArgumentTypeError("%s is not a valid path" % (fname))
+            raise ArgumentTypeError(f'{fname} is not a valid path')
         return fname
 
     def is_file_path(file_path: Path) -> bool:
@@ -148,10 +171,10 @@ class FileUtils(Printable):
 
     def file_or_folder(fname: str) -> str:
         if not fname:
-            raise ArgumentTypeError("You must insert a path.")
+            raise ArgumentTypeError('You must insert a path.')
         p = Path(fname)
         if not (p.is_dir() or (FileUtils.is_file_path(p) and p.parent.is_dir())):
-            raise ArgumentTypeError("%s is not a valid path" % (fname))
+            raise ArgumentTypeError(f'{fname} is not a valid path')
         return fname
 
 
@@ -339,6 +362,16 @@ class Config(Printable):
     def num_of_splits(self) -> int:
         return Config.MEMORY_SAVE_MODES[self.memory_save_mode]
 
+    @property
+    def input_wildcard(self) -> str:
+        default_wildcard = self.get_config_field('GENERIC', 'INPUT_WILDCARD')
+        return f'{self.var_code}{default_wildcard}'
+
+    @property
+    def input_timestamp_pattern(self) -> str:
+        default_pattern = self.get_config_field('GENERIC', 'INPUT_TIMESTAMP_PATTERN')
+        return f'{default_pattern}'
+
 
 class GriddingUtils(Printable):
 
@@ -446,104 +479,143 @@ class GriddingUtils(Printable):
         return grid_data
 
 
-# class KiwisLoader(Printable):
-#     DATE_PATTERN_CONDENSED = '%Y%m%d%H%M%S'
-#     DATE_PATTERN_SEPARATED = '%Y-%m-%d %H:%M:%S'
-#     CSV_DELIMITER = '\t'
-#     FILES_WILDCARD = '??????????00_all.kiwis'
-#
-#     def __init__(self, conf: Config, infolder: Path, overwrite_file: bool = False, quiet_mode: bool = False):
-#         super().__init__(quiet_mode)
-#         self.conf = conf
-#         self.overwrite_file = overwrite_file
-#         self.var_code = self.conf.var_code
-#         self.var_size = len(self.var_code)
-#         self.inwildcard = self.var_code + FILES_WILDCARD
-#         self.infolder = infolder
-#         # Frequency between timesteps in hours
-#         self.time_frequency = int(self.conf.get_config_field('VAR_TIME','FREQUENCY'))
-#         self.is_daily_var = (self.time_frequency == 1)
-#         # Number of files to be read/processed simultaneously. for non daily vars time frequency is in hours
-#         self.read_files_step = 1 if self.is_daily_var else int(24 / self.time_frequency)
-#         self.files_list = OrderedDict()
-#         self.file_groups = []
-#         self.filter_classes = self.__get_filter_classes()
-#
-#     def __iter__(self):
-#         self.__load_kiwis_paths()
-#         self.file_groups = iter(self.__get_file_groups())
-#         return self
-#
-#     def __next__(self):
-#         if self.is_daily_var:
-#             for filter_class in self.filter_classes:
-#                 df_kiwis_array = filter_class.filter(self.file_groups[self.file_group_read_idx])
-#                 self.file_group_read_idx += 1
-#         raise StopIteration
-#
-#     def __get_filter_classes(self) -> list:
-#         '''
-#         TODO: Implement the class.
-#         '''
-#         plugins_array = []
-#         # Load the class dynamically
-#         plugins = self.conf.get_config_field('PROPERTIES', 'KIWIS_FILTER_PLUGIN_CLASSES')
-#         module_name = 'lisfloodutilities.gridding.lib.filters'
-#         try:
-#             for plugin in plugins:
-#                 class_name = plugin
-#                 class_args = plugins[plugin]
-#                 module = importlib.import_module(module_name)
-#                 class_instance = getattr(module, class_name)(class_args)
-#                 plugins_array.append(class_instance)
-#         except ImportError:
-#             print(f"Error: Could not import module '{module_name}'")
-#         except AttributeError:
-#             print(f"Error: Could not find class '{class_name}' in module '{module_name}'")
-#         return plugins_array
-#
-#     def __filter_kiwis(self, filename_kiwis: Path) -> pd.DataFrame:
-#         return None
-#
-#     def __get_points_filename(self, kiwis_timestamp: str, filename_kiwis: Path) -> Path:
-#         '''
-#         Returns the points file path.
-#         If the mode is overwrite tries to get the first pointfile path it finds and if it does not find generates a new file path.
-#         Otherwise generates a new file path.
-#         '''
-#         if self.overwrite_file:
-#             for points_path in sorted(filename_kiwis.parent.rglob(f'{self.var_code}{kiwis_timestamp_str}_??????????????.txt')):
-#                 if points_path.is_file():
-#                     return points_path
-#         pointfile_timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-#         return Path(filename_kiwis.parent, f'{self.var_code}{kiwis_timestamp_str}_{pointfile_timestamp}.txt')
-#
-#     def __load_kiwis_paths(self):
-#         netcdf_offset_file_date = int(self.conf.get_config_field('VAR_TIME','OFFSET_FILE_DATE'))
-#         for filename_kiwis in sorted(self.infolder.rglob(self.inwildcard)):
-#             kiwis_timestamp = self.__get_timestamp_from_filename(filename_kiwis)
-#             file_timestamp = kiwis_timestamp + timedelta(days=netcdf_offset_file_date)
-#             if self.__processable_file(file_timestamp, self.conf.start_date, self.conf.end_date):
-#                 kiwis_timestamp_str = kiwis_timestamp.strftime(DATE_PATTERN_CONDENSED)
-#                 filename_points = self.__get_points_filename(kiwis_timestamp_str, filename_kiwis)
-#                 self.files_list[kiwis_timestamp_str] = (filename_kiwis, filename_points)
-#                 # print_msg(f'Processing file: {filename}')
-#
-#     def __get_next_file_group(self):
-#         '''
-#         TODO
-#         '''
-#         if self.is_daily_var:
-#             for kiwis_timestamp_str in self.files_list:
-#                 self.file_groups.append([kiwis_timestamp_str])
-#         else: # divide the files into groups of 4 and give exception if group is not complete
-#             for kiwis_timestamp_str in self.files_list:
-#                 self.file_groups.append([])
-#
-#     def __get_timestamp_from_filename(self, filename: Path) -> datetime:
-#         file_timestamp = filename.name[self.var_size:12+self.var_size] + '00'
-#         return datetime.strptime(file_timestamp, FileUtils.DATE_PATTERN_CONDENSED)
-#
-#     def __processable_file(self, file_timestamp: datetime, start_date: datetime = None, end_date: datetime = None) -> bool:
-#         return (start_date is not None and start_date <= file_timestamp and
-#                 end_date is not None and file_timestamp <= end_date)
+class KiwisLoader(Printable):
+
+    def __init__(self, conf: Config, infolder: Path, overwrite_file: bool = False, quiet_mode: bool = False):
+        super().__init__(quiet_mode)
+        self.conf = conf
+        self.overwrite_file = overwrite_file
+        self.var_code = self.conf.var_code
+        self.var_size = len(self.var_code)
+        self.inwildcard = self.conf.input_wildcard
+        self.infolder = infolder
+        # Frequency between timesteps in hours
+        self.time_frequency = int(self.conf.get_config_field('VAR_TIME','FREQUENCY'))
+        self.is_daily_var = (self.time_frequency == 1)
+        # Number of files to be read/processed simultaneously. for non daily vars time frequency is in hours
+        self.read_files_step = 1 if self.is_daily_var else int(24 / self.time_frequency)
+        self.files_list_dic = OrderedDict()
+        self.files_list = None
+        self.files_cache = StackFIFO()
+        self.filter_classes = self.__get_filter_classes()
+
+    def __iter__(self):
+        self.__load_kiwis_paths()
+        self.files_list = iter(self.files_list_dic)
+        return self
+
+    def __next__(self):
+        self.__load_next_batch_of_files()
+        self.__process_next_batch_of_files()
+        # Get next file
+        filepath_kiwis, filepath_points, kiwis_timestamps = self.files_cache.pop()
+        return filepath_points
+
+    def __load_next_batch_of_files(self):
+        """
+        Load next batch of files to be processed.
+        If there are sub daily files, they will be processed all at the same time grouped by 24h.
+        e.g.: 6 hourly var will process 4 consecutive files covering 24h period. 
+        """
+        # Loads cache if empty
+        if self.files_cache.is_empty():
+            next_key = next(self.files_list)
+            self.files_cache.push(self.files_list_dic[next_key])
+            if not self.is_daily_var:
+                # Read remaining 6hourly steps
+                try:
+                    for i in range(self.read_files_step - 1):
+                        next_key = next(self.files_list)
+                        self.files_cache.push(self.files_list_dic[next_key])
+                except StopIteration:
+                    pass
+        # At this point after loading the cache if it is empty means there are no more files to process
+        if self.files_cache.is_empty():
+            raise StopIteration
+
+    def __process_next_batch_of_files(self):
+        """
+        Create the point files by filtering the Kiwis using the filter classes.
+        Processing all files from the same group, to allow the filtering classes to filter
+        the same stations on all the files in the same 24h group.
+        """
+        files_group = self.files_cache.as_list()
+        filepath_kiwis = [pair[0] for pair in files_group]
+        filepath_points = [pair[1] for pair in files_group]
+        kiwis_timestamps = [pair[2] for pair in files_group]
+        df_kiwis_array = []
+        # At this point we need to process all the files nevertheless because even
+        # if 1 single file needs to be generated it might affect the results of the
+        # other existing ones, since one station that is filtered in one file might
+        # be filtered on the remaining files simultaneously.  
+        for filter_class in self.filter_classes:
+            df_kiwis_array = filter_class.filter(filepath_kiwis, kiwis_timestamps, df_kiwis_array)
+        i = 0
+        for df in df_kiwis_array:
+            filepath = filepath_points[i]
+            if self.overwrite_file or not filepath.is_file():
+                df.to_csv(
+                    filepath,
+                    index=False,
+                    header=False,
+                    sep="\t",
+                )
+            i += 1
+        
+
+    def __get_filter_classes(self) -> list:
+        '''
+        Create and instantiate the Filter classes to process the kiwis files
+        '''
+        plugins_array = []
+        # Load the class dynamically
+        plugins_config = self.conf.get_config_field('PROPERTIES', 'KIWIS_FILTER_PLUGIN_CLASSES')
+        plugins_dic = eval(plugins_config)
+        plugins = OrderedDict(plugins_dic)
+        plugins_columns_def = self.conf.get_config_field('PROPERTIES', 'KIWIS_FILTER_COLUMNS')
+        plugins_columns_dic = eval(plugins_columns_def)
+        plugins_columns = OrderedDict(plugins_columns_dic)
+        module_name = 'lisfloodutilities.gridding.lib.filters'
+        try:
+            for plugin in plugins:
+                class_name = plugin
+                class_args = plugins[plugin]
+                module = importlib.import_module(module_name)
+                class_instance = getattr(module, class_name)(plugins_columns, class_args)
+                plugins_array.append(class_instance)
+        except ImportError:
+            print(f"Error: Could not import module '{module_name}'")
+        except AttributeError:
+            print(f"Error: Could not find class '{class_name}' in module '{module_name}'")
+        return plugins_array
+
+    def __get_points_filename(self, kiwis_timestamp: str, filename_kiwis: Path) -> Path:
+        '''
+        Returns the points file path.
+        If the mode is overwrite tries to get the first pointfile path it finds and if it does not find generates a new file path.
+        Otherwise generates a new file path.
+        '''
+        if self.overwrite_file:
+            for points_path in sorted(filename_kiwis.parent.rglob(f'{self.var_code}{kiwis_timestamp}_??????????????.txt')):
+                if points_path.is_file():
+                    return points_path
+        pointfile_timestamp = datetime.now().strftime(FileUtils.DATE_PATTERN_CONDENSED)
+        return Path(filename_kiwis.parent, f'{self.var_code}{kiwis_timestamp}_{pointfile_timestamp}.txt')
+
+    def __load_kiwis_paths(self):
+        netcdf_offset_file_date = int(self.conf.get_config_field('VAR_TIME','OFFSET_FILE_DATE'))
+        for filename_kiwis in sorted(self.infolder.rglob(self.inwildcard)):
+            kiwis_timestamp = self.__get_timestamp_from_filename(filename_kiwis)
+            file_timestamp = kiwis_timestamp + timedelta(days=netcdf_offset_file_date)
+            if self.__processable_file(file_timestamp, self.conf.start_date, self.conf.end_date):
+                kiwis_timestamp_str = kiwis_timestamp.strftime(self.conf.input_timestamp_pattern)
+                filename_points = self.__get_points_filename(kiwis_timestamp_str, filename_kiwis)
+                self.files_list_dic[kiwis_timestamp_str] = (filename_kiwis, filename_points, kiwis_timestamp_str)
+
+    def __get_timestamp_from_filename(self, filename: Path) -> datetime:
+        file_timestamp = filename.name[self.var_size:12+self.var_size] + '00'
+        return datetime.strptime(file_timestamp, FileUtils.DATE_PATTERN_CONDENSED)
+
+    def __processable_file(self, file_timestamp: datetime, start_date: datetime = None, end_date: datetime = None) -> bool:
+        return (start_date is not None and start_date <= file_timestamp and
+                end_date is not None and file_timestamp <= end_date)
