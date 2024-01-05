@@ -481,7 +481,7 @@ class GriddingUtils(Printable):
 
 class KiwisLoader(Printable):
 
-    def __init__(self, conf: Config, infolder: Path, overwrite_file: bool = False, quiet_mode: bool = False):
+    def __init__(self, conf: Config, infolder: Path, dates_to_process: dict = {}, overwrite_file: bool = False, quiet_mode: bool = False):
         super().__init__(quiet_mode)
         self.conf = conf
         self.overwrite_file = overwrite_file
@@ -489,6 +489,7 @@ class KiwisLoader(Printable):
         self.var_size = len(self.var_code)
         self.inwildcard = self.conf.input_wildcard
         self.infolder = infolder
+        self.dates_to_process = dates_to_process
         # Frequency between timesteps in hours
         self.time_frequency = int(self.conf.get_config_field('VAR_TIME','FREQUENCY'))
         self.is_daily_var = (self.time_frequency == 1)
@@ -617,5 +618,9 @@ class KiwisLoader(Printable):
         return datetime.strptime(file_timestamp, FileUtils.DATE_PATTERN_CONDENSED)
 
     def __processable_file(self, file_timestamp: datetime, start_date: datetime = None, end_date: datetime = None) -> bool:
+        is_processable_date = True
+        if len(self.dates_to_process) > 0:
+            is_processable_date = file_timestamp in self.dates_to_process
         return (start_date is not None and start_date <= file_timestamp and
-                end_date is not None and file_timestamp <= end_date)
+                end_date is not None and file_timestamp <= end_date and is_processable_date)
+

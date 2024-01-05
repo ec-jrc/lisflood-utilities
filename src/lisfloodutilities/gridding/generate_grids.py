@@ -86,7 +86,7 @@ def run(config_filename: str, infolder: str, output_file: str, processing_dates_
     if output_netcdf:
         output_writer_netcdf = NetCDFWriter(conf, overwrite_output, quiet_mode)
         output_writer_netcdf.open(Path(outfile))
-    file_loader = KiwisLoader(conf, Path(infolder), overwrite_output, quiet_mode)
+    file_loader = KiwisLoader(conf, Path(infolder), dates_to_process, overwrite_output, quiet_mode)
     for filename in file_loader:
         file_timestamp = file_utils.get_timestamp_from_filename(filename) + timedelta(days=netcdf_offset_file_date)
         print_msg(f'Processing file: {filename}')

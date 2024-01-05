@@ -53,10 +53,14 @@ class TestGridding:
         start_date_str = '202303131200'
         end_date_str = '202303160000'
         out_tiff = False
+        out_netcdf = True
         infolder = input_folder
-        overwrite_output = False
+        overwrite_output = True
         outfolder_or_file = output_netcdf
         processing_dates_file = None
+        interpolation_mode = 'adw'
+        use_broadcasting = True
+        memory_save_mode = '5'
 
 
         configuration_base_folder = os.path.join(cur_folder, '../src/lisfloodutilities/gridding/configuration')
@@ -71,7 +75,8 @@ class TestGridding:
         end_date = datetime.strptime(end_date_str, FileUtils.DATE_PATTERN_CONDENSED)
 
         run(config_filename, infolder, outfolder_or_file, processing_dates_file,
-            file_utils, out_tiff, overwrite_output, start_date, end_date)
+            file_utils, out_tiff, out_netcdf, overwrite_output, start_date, end_date,
+            interpolation_mode=interpolation_mode, use_broadcasting=use_broadcasting, memory_save_mode=memory_save_mode)
 
         reference = Dataset(reference_output)
         out = Dataset(output_netcdf)
@@ -92,16 +97,19 @@ class TestGridding:
         # This is needed so we can test updating 1 timestep on an existing netCDF file.
         copy2(os.path.join(input_folder, 'pr6.nc'), output_netcdf)
 
-        use_broadcasting = False
         quiet_mode = True
         variable_code = 'pr6'
         config_type = '1arcmin'
         start_date_str = '202303131200'
         end_date_str = '202303160000'
         out_tiff = False
+        out_netcdf = True
         infolder = input_folder
         overwrite_output = True
         outfolder_or_file = output_netcdf
+        interpolation_mode = 'adw'
+        use_broadcasting = False
+        memory_save_mode = '5'
 
         configuration_base_folder = os.path.join(cur_folder, '../src/lisfloodutilities/gridding/configuration')
 
@@ -115,7 +123,8 @@ class TestGridding:
         end_date = datetime.strptime(end_date_str, FileUtils.DATE_PATTERN_CONDENSED)
 
         run(config_filename, infolder, outfolder_or_file, processing_dates_file,
-            file_utils, out_tiff, overwrite_output, start_date, end_date, use_broadcasting=use_broadcasting)
+            file_utils, out_tiff, out_netcdf, overwrite_output, start_date, end_date,
+            interpolation_mode=interpolation_mode, use_broadcasting=use_broadcasting, memory_save_mode=memory_save_mode)
 
         reference = Dataset(reference_output)
         out = Dataset(output_netcdf)
@@ -145,10 +154,14 @@ class TestGridding:
         start_date_str = '202303131200'
         end_date_str = '202303160000'
         out_tiff = True
+        out_netcdf = False
         infolder = input_folder
-        overwrite_output = False
+        overwrite_output = True
         outfolder_or_file = str(Path(output_folder, 'output.nc'))
         processing_dates_file = None
+        interpolation_mode = 'adw'
+        use_broadcasting = True
+        memory_save_mode = '5'
 
         configuration_base_folder = os.path.join(cur_folder, '../src/lisfloodutilities/gridding/configuration')
 
@@ -162,7 +175,8 @@ class TestGridding:
         end_date = datetime.strptime(end_date_str, FileUtils.DATE_PATTERN_CONDENSED)
 
         run(config_filename, infolder, outfolder_or_file, processing_dates_file,
-            file_utils, out_tiff, overwrite_output, start_date, end_date, use_broadcasting=use_broadcasting)
+            file_utils, out_tiff, out_netcdf, overwrite_output, start_date, end_date,
+            interpolation_mode=interpolation_mode, use_broadcasting=use_broadcasting, memory_save_mode=memory_save_mode)
 
         # Remove netcdf output file since we are only interested in the output tiffs
         if os.path.exists(outfolder_or_file):
