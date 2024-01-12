@@ -1,7 +1,7 @@
 [GENERIC]
 
 INPUT_WILDCARD = ??????????00_all.kiwis
-INPUT_TIMESTAMP_PATTERN = %%Y%%m%%d%%H%%M
+INPUT_TIMESTAMP_PATTERN = %%Y%%m%%d%%H%%M_all.kiwis
 
 NETCDF_REFERENCE=A European daily high-resolution gridded meteorological data set for 1990 - 2022
 NETCDF_TITLE = Lisflood meteo maps 1990-2023 for European setting Feb. 2023

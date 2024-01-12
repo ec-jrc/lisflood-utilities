@@ -11,6 +11,7 @@ VALUE_OFFSET = 0.0
 DATA_TYPE_PACKED = i2
 STANDARD_NAME = precipitation_amount
 LONG_NAME = Daily Accumulated Precipitation
+# 1303 - ERAinterim
 KIWIS_FILTER_PLUGIN_CLASSES = {'ObservationsKiwisFilter': {'1303': 100.0}}
 
 [VAR_TIME]

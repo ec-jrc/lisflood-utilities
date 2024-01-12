@@ -30,6 +30,9 @@ from pyg2p.main.readers.netcdf import NetCDFReader
 from pyg2p.main.interpolation.scipy_interpolation_lib import ScipyInterpolation
 from numpy import delete
 import importlib
+from lisfloodutilities.gridding.lib.filters import KiwisFilter
+
+from .filters import *
 
 
 __DECIMAL_CASES = 20
@@ -96,6 +99,7 @@ class Dem(Printable):
 
 class FileUtils(Printable):
     DATE_PATTERN_CONDENSED = '%Y%m%d%H%M%S'
+    DATE_PATTERN_CONDENSED_SHORT = '%Y%m%d%H%M'
     DATE_PATTERN_SEPARATED = '%Y-%m-%d %H:%M:%S'
     CSV_DELIMITER = '\t'
     FILES_WILDCARD = '??????????00_??????????????.txt'
@@ -370,7 +374,7 @@ class Config(Printable):
     @property
     def input_timestamp_pattern(self) -> str:
         default_pattern = self.get_config_field('GENERIC', 'INPUT_TIMESTAMP_PATTERN')
-        return f'{default_pattern}'
+        return f'{self.var_code}{default_pattern}'
 
 
 class GriddingUtils(Printable):
@@ -506,8 +510,10 @@ class KiwisLoader(Printable):
         return self
 
     def __next__(self):
-        self.__load_next_batch_of_files()
-        self.__process_next_batch_of_files()
+        # Loads cache if empty
+        if self.files_cache.is_empty():
+            self.__load_next_batch_of_files()
+            self.__process_next_batch_of_files()
         # Get next file
         filepath_kiwis, filepath_points, kiwis_timestamps = self.files_cache.pop()
         return filepath_points
@@ -518,18 +524,16 @@ class KiwisLoader(Printable):
         If there are sub daily files, they will be processed all at the same time grouped by 24h.
         e.g.: 6 hourly var will process 4 consecutive files covering 24h period. 
         """
-        # Loads cache if empty
-        if self.files_cache.is_empty():
-            next_key = next(self.files_list)
-            self.files_cache.push(self.files_list_dic[next_key])
-            if not self.is_daily_var:
-                # Read remaining 6hourly steps
-                try:
-                    for i in range(self.read_files_step - 1):
-                        next_key = next(self.files_list)
-                        self.files_cache.push(self.files_list_dic[next_key])
-                except StopIteration:
-                    pass
+        next_key = next(self.files_list)
+        self.files_cache.push(self.files_list_dic[next_key])
+        if not self.is_daily_var:
+            # Read remaining 6hourly steps
+            try:
+                for i in range(self.read_files_step - 1):
+                    next_key = next(self.files_list)
+                    self.files_cache.push(self.files_list_dic[next_key])
+            except StopIteration:
+                pass
         # At this point after loading the cache if it is empty means there are no more files to process
         if self.files_cache.is_empty():
             raise StopIteration
@@ -545,17 +549,22 @@ class KiwisLoader(Printable):
         filepath_points = [pair[1] for pair in files_group]
         kiwis_timestamps = [pair[2] for pair in files_group]
         df_kiwis_array = []
+        # Allow us to get the output columns out of the dataframe
+        last_filter_class = KiwisFilter()
         # At this point we need to process all the files nevertheless because even
         # if 1 single file needs to be generated it might affect the results of the
         # other existing ones, since one station that is filtered in one file might
-        # be filtered on the remaining files simultaneously.  
+        # be filtered on the remaining files simultaneously.
         for filter_class in self.filter_classes:
+            self.print_msg(f'{filter_class.get_class_description()}')
+            last_filter_class = filter_class
             df_kiwis_array = filter_class.filter(filepath_kiwis, kiwis_timestamps, df_kiwis_array)
         i = 0
         for df in df_kiwis_array:
+            df_output = last_filter_class.get_dataframe_output_columns(df)
             filepath = filepath_points[i]
             if self.overwrite_file or not filepath.is_file():
-                df.to_csv(
+                df_output.to_csv(
                     filepath,
                     index=False,
                     header=False,
@@ -609,13 +618,12 @@ class KiwisLoader(Printable):
             kiwis_timestamp = self.__get_timestamp_from_filename(filename_kiwis)
             file_timestamp = kiwis_timestamp + timedelta(days=netcdf_offset_file_date)
             if self.__processable_file(file_timestamp, self.conf.start_date, self.conf.end_date):
-                kiwis_timestamp_str = kiwis_timestamp.strftime(self.conf.input_timestamp_pattern)
+                kiwis_timestamp_str = kiwis_timestamp.strftime(FileUtils.DATE_PATTERN_CONDENSED_SHORT)
                 filename_points = self.__get_points_filename(kiwis_timestamp_str, filename_kiwis)
                 self.files_list_dic[kiwis_timestamp_str] = (filename_kiwis, filename_points, kiwis_timestamp_str)
 
     def __get_timestamp_from_filename(self, filename: Path) -> datetime:
-        file_timestamp = filename.name[self.var_size:12+self.var_size] + '00'
-        return datetime.strptime(file_timestamp, FileUtils.DATE_PATTERN_CONDENSED)
+        return datetime.strptime(filename.name, self.conf.input_timestamp_pattern)
 
     def __processable_file(self, file_timestamp: datetime, start_date: datetime = None, end_date: datetime = None) -> bool:
         is_processable_date = True

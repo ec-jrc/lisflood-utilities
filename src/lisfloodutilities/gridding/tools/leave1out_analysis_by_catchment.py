@@ -28,6 +28,7 @@ import rioxarray as rxr
 import xarray as xr
 from osgeo import gdal
 import netCDF4 as nc
+from typing import List, Tuple
 
 
 def unpack_data(data: np.ndarray, scale_factor: float = 1.0, offset: float = 0.0, no_data: float = -9999.0) -> np.ndarray:
@@ -47,7 +48,7 @@ def format_metadata(metadata: dict, value: str, key: str, default: float) -> flo
     return float(value)
 
 
-def get_unpacking_metadata(file_interpolated_values: Path) -> tuple[float, float, float]:
+def get_unpacking_metadata(file_interpolated_values: Path) -> Tuple[float, float, float]:
     ds=gdal.Open(file_interpolated_values.as_posix())
     gdal_nan = ds.GetRasterBand(1).GetNoDataValue()
     gdal_scale = ds.GetRasterBand(1).GetScale()
