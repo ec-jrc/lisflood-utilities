@@ -31,6 +31,7 @@ from scipy.stats import pearsonr
 from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from sklearn.feature_selection import r_regression
+from typing import List, Tuple
 
 
 def mean_bias_error(y_true: np.array, y_pred: np.array) -> float:
@@ -133,7 +134,7 @@ def format_metadata(metadata: dict, value: str, key: str, default: float) -> flo
     return float(value)
 
 
-def get_unpacking_metadata(file_interpolated_values: Path) -> tuple[float, float, float]:
+def get_unpacking_metadata(file_interpolated_values: Path) -> Tuple[float, float, float]:
     ds=gdal.Open(file_interpolated_values.as_posix())
     gdal_nan = ds.GetRasterBand(1).GetNoDataValue()
     gdal_scale = ds.GetRasterBand(1).GetScale()
