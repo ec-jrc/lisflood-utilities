@@ -1,3 +1,8 @@
+[GENERIC]
+
+INPUT_WILDCARD = ??????????.kiwis
+INPUT_TIMESTAMP_PATTERN = %%Y%%m%%d%%H.kiwis
+
 [PROPERTIES]
 
 VAR_CODE = tx
@@ -11,6 +16,9 @@ VALUE_OFFSET = 0.0
 DATA_TYPE_PACKED = i2
 STANDARD_NAME = air_temperature
 LONG_NAME = Daily Maximum Temperature
+
+# KIWIS_FILTER_COLUMNS = {'COL_LAT': 'station_local_y', 'COL_LON': 'station_local_x', 'COL_IS_IN_DOMAIN': 'EFAS-ADDATTR-ISINARCMINDOMAIN'}
+KIWIS_FILTER_COLUMNS = {'COL_LAT': 'lat', 'COL_LON': 'lon', 'COL_IS_IN_DOMAIN': 'EFAS-ADDATTR-ISINARCMINDOMAIN'}
 
 [VAR_TIME]
 

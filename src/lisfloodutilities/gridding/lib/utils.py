@@ -485,10 +485,12 @@ class GriddingUtils(Printable):
 
 class KiwisLoader(Printable):
 
-    def __init__(self, conf: Config, infolder: Path, dates_to_process: dict = {}, overwrite_file: bool = False, quiet_mode: bool = False):
+    def __init__(self, conf: Config, infolder: Path, dates_to_process: dict = {}, overwrite_file: bool = False,
+                 use_existing_file: bool = False, quiet_mode: bool = False):
         super().__init__(quiet_mode)
         self.conf = conf
         self.overwrite_file = overwrite_file
+        self.use_existing_file = use_existing_file
         self.var_code = self.conf.var_code
         self.var_size = len(self.var_code)
         self.inwildcard = self.conf.input_wildcard
@@ -548,30 +550,34 @@ class KiwisLoader(Printable):
         filepath_kiwis = [pair[0] for pair in files_group]
         filepath_points = [pair[1] for pair in files_group]
         kiwis_timestamps = [pair[2] for pair in files_group]
-        df_kiwis_array = []
-        # Allow us to get the output columns out of the dataframe
-        last_filter_class = KiwisFilter()
-        # At this point we need to process all the files nevertheless because even
-        # if 1 single file needs to be generated it might affect the results of the
-        # other existing ones, since one station that is filtered in one file might
-        # be filtered on the remaining files simultaneously.
-        for filter_class in self.filter_classes:
-            self.print_msg(f'{filter_class.get_class_description()}')
-            last_filter_class = filter_class
-            df_kiwis_array = filter_class.filter(filepath_kiwis, kiwis_timestamps, df_kiwis_array)
-        i = 0
-        for df in df_kiwis_array:
-            df_output = last_filter_class.get_dataframe_output_columns(df)
-            filepath = filepath_points[i]
-            if self.overwrite_file or not filepath.is_file():
+        # Skip regenerating files if not in overwriting mode and all files are already existing.
+        regenerate_files = False
+        for filepath in filepath_points:
+             if not filepath.is_file():
+                regenerate_files = True
+        if self.overwrite_file or regenerate_files:
+            df_kiwis_array = []
+            # Allow us to get the output columns out of the dataframe
+            last_filter_class = KiwisFilter()
+            # At this point we need to process all the files nevertheless because even
+            # if 1 single file needs to be generated it might affect the results of the
+            # other existing ones, since one station that is filtered in one file might
+            # be filtered on the remaining files simultaneously.
+            for filter_class in self.filter_classes:
+                self.print_msg(f'{filter_class.get_class_description()}')
+                last_filter_class = filter_class
+                df_kiwis_array = filter_class.filter(filepath_kiwis, kiwis_timestamps, df_kiwis_array)
+            i = 0
+            for df in df_kiwis_array:
+                df_output = last_filter_class.get_dataframe_output_columns(df)
+                filepath = filepath_points[i]
                 df_output.to_csv(
                     filepath,
                     index=False,
                     header=False,
                     sep="\t",
                 )
-            i += 1
-        
+                i += 1
 
     def __get_filter_classes(self) -> list:
         '''
@@ -605,7 +611,7 @@ class KiwisLoader(Printable):
         If the mode is overwrite tries to get the first pointfile path it finds and if it does not find generates a new file path.
         Otherwise generates a new file path.
         '''
-        if self.overwrite_file:
+        if self.use_existing_file:
             for points_path in sorted(filename_kiwis.parent.rglob(f'{self.var_code}{kiwis_timestamp}_??????????????.txt')):
                 if points_path.is_file():
                     return points_path
