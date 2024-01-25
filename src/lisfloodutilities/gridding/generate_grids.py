@@ -46,8 +46,9 @@ def memory_save_mode_type(mode: str) -> str:
     return mode
 
 def run(config_filename: str, infolder: str, output_file: str, processing_dates_file: str, file_utils: FileUtils,
-        output_tiff: bool, output_netcdf: bool, overwrite_output: bool, start_date: datetime = None, end_date: datetime = None,
-        interpolation_mode: str = 'adw', use_broadcasting: bool = False, memory_save_mode: str = None):
+        output_tiff: bool, output_netcdf: bool, overwrite_output: bool, use_existing_file: bool,
+        start_date: datetime = None, end_date: datetime = None, interpolation_mode: str = 'adw',
+        use_broadcasting: bool = False, memory_save_mode: str = None):
     """
     Interpolate text files containing (x, y, value) using inverse distance interpolation.
     Produces as output, either a netCDF file containing all the grids or one TIFF file per grid.
@@ -86,7 +87,7 @@ def run(config_filename: str, infolder: str, output_file: str, processing_dates_
     if output_netcdf:
         output_writer_netcdf = NetCDFWriter(conf, overwrite_output, quiet_mode)
         output_writer_netcdf.open(Path(outfile))
-    file_loader = KiwisLoader(conf, Path(infolder), dates_to_process, overwrite_output, quiet_mode)
+    file_loader = KiwisLoader(conf, Path(infolder), dates_to_process, overwrite_output, use_existing_file, quiet_mode)
     for filename in file_loader:
         file_timestamp = file_utils.get_timestamp_from_filename(filename) + timedelta(days=netcdf_offset_file_date)
         print_msg(f'Processing file: {filename}')
@@ -138,6 +139,7 @@ def main(argv):
                             out_tiff=False,
                             out_netcdf=False,
                             overwrite_output=False,
+                            use_existing_file=False,
                             start_date='',
                             end_date=END_DATE_DEFAULT,
                             interpolation_mode='adw',
@@ -175,6 +177,8 @@ def main(argv):
                             help="Outputs a single netCDF with all the timesteps [default: %(default)s]")
         parser.add_argument("-f", "--force", dest="overwrite_output", action="store_true",
                             help="Force write to existing file. TIFF files will be overwritten and netCDF file will be appended. [default: %(default)s]")
+        parser.add_argument("-u", "--useexisting", dest="use_existing_file", action="store_true",
+                            help="Force to use existing point/txt filenames, so these files will be used for gridding. [default: %(default)s]")
         parser.add_argument("-m", "--mode", dest="interpolation_mode", required=False, type=interpolation_mode_type,
                             help="Set interpolation mode. [default: %(default)s]",
                             metavar=f"{list(Config.INTERPOLATION_MODES.keys())}")
@@ -233,6 +237,7 @@ def main(argv):
 
         print_msg(f"Input Folder:  {args.in_file_or_folder}")
         print_msg(f"Overwrite Output: {args.overwrite_output}")
+        print_msg(f"Use Existing Point Files: {args.use_existing_file}")
         print_msg(f"Interpolation Mode: {args.interpolation_mode}")
         print_msg(f"RAM Save Mode: {args.memory_save_mode}")
         print_msg(f"Broadcasting: {args.use_broadcasting}")
@@ -240,8 +245,8 @@ def main(argv):
         print_msg(f"Config File: {config_filename}")
 
         run(config_filename, args.in_file_or_folder, args.output_file, args.processing_dates_file, file_utils, args.out_tiff,
-            args.out_netcdf, args.overwrite_output, start_date, end_date, args.interpolation_mode, args.use_broadcasting,
-            args.memory_save_mode)
+            args.out_netcdf, args.overwrite_output, args.use_existing_file, start_date, end_date, args.interpolation_mode,
+            args.use_broadcasting, args.memory_save_mode)
     except Exception as e:
         indent = len(program_name) * " "
         sys.stderr.write(program_name + ": " + repr(e) + "\n")
