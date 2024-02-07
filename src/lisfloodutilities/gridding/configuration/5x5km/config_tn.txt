@@ -17,3 +17,5 @@ LONG_NAME = Daily Minimum Temperature
 UNIT = days since 1990-01-01 06:00:00.0
 FREQUENCY = 1
 
+# Used to force the time value when it is not defined in the filename. Format: HHMM
+# FORCE_TIME = 0600

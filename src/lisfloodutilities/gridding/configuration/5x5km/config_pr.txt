@@ -19,6 +19,8 @@ KIWIS_FILTER_PLUGIN_CLASSES = {'ObservationsKiwisFilter': {'1303': 100.0}}
 # UNIT = days since 1990-01-02 06:00:00.0
 FREQUENCY = 1
 
+# Used to force the time value when it is not defined in the filename. Format: HHMM
+# FORCE_TIME = 0600
+
 # Used to allow moving the files 1 day forward for variables (WS, RG, PD, PR?)
 OFFSET_FILE_DATE = 0
-

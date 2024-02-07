@@ -1,7 +1,11 @@
 [GENERIC]
 
+# Wildcard used to load the input kiwis files
 INPUT_WILDCARD = ??????????00_all.kiwis
+# Datetime pattern used to extract the date and from the kiwis file name
 INPUT_TIMESTAMP_PATTERN = %%Y%%m%%d%%H%%M_all.kiwis
+# Datetime pattern used to extract the date and time from the point file name
+POINTS_TIMESTAMP_PATTERN = %%Y%%m%%d%%H%%M
 
 NETCDF_REFERENCE=A European daily high-resolution gridded meteorological data set for 1990 - 2022
 NETCDF_TITLE = Lisflood meteo maps 1990-2023 for European setting Feb. 2023
@@ -25,6 +29,7 @@ DATA_TYPE_PACKED = i2
 STANDARD_NAME = DUMMY_STANDARD_NAME
 LONG_NAME = DUMMY LONG NAME
 KIWIS_FILTER_COLUMNS = {'COL_LAT': 'station_local_y', 'COL_LON': 'station_local_x', 'COL_IS_IN_DOMAIN': 'EFAS_ADDATTR_ISINNEWDOMAIN'}
+# KIWIS_FILTER_COLUMNS = {}
 KIWIS_FILTER_PLUGIN_CLASSES = {'KiwisFilter': {}}
 
 [DIMENSION]
@@ -80,6 +85,9 @@ LONG_NAME = time
 UNIT_PATTERN = days since %%Y-%%m-%%d %%H:%%M:%%S.%%f
 UNIT = days since 1990-01-02 00:00:00.0
 FREQUENCY = 1
+
+# Used to force the time value when it is not defined in the filename. Format: HHMM
+# FORCE_TIME = 0600
 
 # Used to allow moving the files 1 day forward for variables (WS, RG, PD, PR?)
 OFFSET_FILE_DATE = 0

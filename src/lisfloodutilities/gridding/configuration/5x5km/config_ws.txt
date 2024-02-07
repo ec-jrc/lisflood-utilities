@@ -20,3 +20,6 @@ FREQUENCY = 1
 # Used to allow moving the files 1 day forward for variables (WS, RG, PD, PR?)
 OFFSET_FILE_DATE = 1
 
+# Used to force the time value when it is not defined in the filename. Format: HHMM
+# FORCE_TIME = 0000
+
