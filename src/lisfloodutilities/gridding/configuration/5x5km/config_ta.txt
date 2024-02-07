@@ -17,3 +17,6 @@ LONG_NAME = Daily Average Temperature
 UNIT = hours since 1990-01-01 00:00:00.0
 FREQUENCY = 6
 
+# Used to force the time value when it is not defined in the filename. Format: HHMM
+# FORCE_TIME = 0000
+

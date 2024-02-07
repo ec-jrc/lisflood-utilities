@@ -77,7 +77,7 @@ def run(config_filename: str, infolder: str, output_file: str, processing_dates_
         str(conf.dem_max_y)))
 
     print_msg('Start reading files')
-    inwildcard = conf.var_code + FileUtils.FILES_WILDCARD
+    # inwildcard = conf.var_code + FileUtils.FILES_WILDCARD
 
     netcdf_offset_file_date = int(conf.get_config_field('VAR_TIME','OFFSET_FILE_DATE'))
 
@@ -88,8 +88,10 @@ def run(config_filename: str, infolder: str, output_file: str, processing_dates_
         output_writer_netcdf = NetCDFWriter(conf, overwrite_output, quiet_mode)
         output_writer_netcdf.open(Path(outfile))
     file_loader = KiwisLoader(conf, Path(infolder), dates_to_process, overwrite_output, use_existing_file, quiet_mode)
-    for filename in file_loader:
-        file_timestamp = file_utils.get_timestamp_from_filename(filename) + timedelta(days=netcdf_offset_file_date)
+    for filename, kiwis_timestamp_str in file_loader:
+        # file_timestamp = file_utils.get_timestamp_from_filename(filename) + timedelta(days=netcdf_offset_file_date)
+        kiwis_timestamp = datetime.strptime(kiwis_timestamp_str, FileUtils.DATE_PATTERN_CONDENSED_SHORT)
+        file_timestamp = kiwis_timestamp + timedelta(days=netcdf_offset_file_date)
         print_msg(f'Processing file: {filename}')
         if output_tiff:
             outfilepath = filename.with_suffix('.tiff')

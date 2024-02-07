@@ -376,6 +376,21 @@ class Config(Printable):
         default_pattern = self.get_config_field('GENERIC', 'INPUT_TIMESTAMP_PATTERN')
         return f'{self.var_code}{default_pattern}'
 
+    @property
+    def points_timestamp_pattern(self) -> str:
+        return self.get_config_field('GENERIC', 'POINTS_TIMESTAMP_PATTERN')
+
+    @property
+    def force_time(self) -> str:
+        """
+        Gets the value of time to force when reading the filenames in case the input files cannot have the time component on their names.
+        This is a workaround only to allow operating with daily files provided without the time component. 
+        """
+        try:
+            return self.get_config_field('VAR_TIME', 'FORCE_TIME')
+        except Exception as e:
+            return None
+
 
 class GriddingUtils(Printable):
 
@@ -518,7 +533,7 @@ class KiwisLoader(Printable):
             self.__process_next_batch_of_files()
         # Get next file
         filepath_kiwis, filepath_points, kiwis_timestamps = self.files_cache.pop()
-        return filepath_points
+        return filepath_points, kiwis_timestamps
 
     def __load_next_batch_of_files(self):
         """
@@ -605,18 +620,19 @@ class KiwisLoader(Printable):
             print(f"Error: Could not find class '{class_name}' in module '{module_name}'")
         return plugins_array
 
-    def __get_points_filename(self, kiwis_timestamp: str, filename_kiwis: Path) -> Path:
+    def __get_points_filename(self, kiwis_timestamp: datetime, filename_kiwis: Path) -> Path:
         '''
         Returns the points file path.
         If the mode is overwrite tries to get the first pointfile path it finds and if it does not find generates a new file path.
         Otherwise generates a new file path.
         '''
+        points_input_timestamp = kiwis_timestamp.strftime(self.conf.points_timestamp_pattern)
         if self.use_existing_file:
-            for points_path in sorted(filename_kiwis.parent.rglob(f'{self.var_code}{kiwis_timestamp}_??????????????.txt')):
+            for points_path in sorted(filename_kiwis.parent.rglob(f'{self.var_code}{points_input_timestamp}_??????????????.txt')):
                 if points_path.is_file():
                     return points_path
         pointfile_timestamp = datetime.now().strftime(FileUtils.DATE_PATTERN_CONDENSED)
-        return Path(filename_kiwis.parent, f'{self.var_code}{kiwis_timestamp}_{pointfile_timestamp}.txt')
+        return Path(filename_kiwis.parent, f'{self.var_code}{points_input_timestamp}_{pointfile_timestamp}.txt')
 
     def __load_kiwis_paths(self):
         netcdf_offset_file_date = int(self.conf.get_config_field('VAR_TIME','OFFSET_FILE_DATE'))
@@ -625,11 +641,15 @@ class KiwisLoader(Printable):
             file_timestamp = kiwis_timestamp + timedelta(days=netcdf_offset_file_date)
             if self.__processable_file(file_timestamp, self.conf.start_date, self.conf.end_date):
                 kiwis_timestamp_str = kiwis_timestamp.strftime(FileUtils.DATE_PATTERN_CONDENSED_SHORT)
-                filename_points = self.__get_points_filename(kiwis_timestamp_str, filename_kiwis)
+                filename_points = self.__get_points_filename(kiwis_timestamp, filename_kiwis)
                 self.files_list_dic[kiwis_timestamp_str] = (filename_kiwis, filename_points, kiwis_timestamp_str)
 
     def __get_timestamp_from_filename(self, filename: Path) -> datetime:
-        return datetime.strptime(filename.name, self.conf.input_timestamp_pattern)
+        file_timestamp = datetime.strptime(filename.name, self.conf.input_timestamp_pattern)
+        if self.conf.force_time is not None:
+            new_time = datetime.strptime(self.conf.force_time, "%H%M").time()
+            file_timestamp = datetime.combine(file_timestamp.date(), new_time)
+        return file_timestamp
 
     def __processable_file(self, file_timestamp: datetime, start_date: datetime = None, end_date: datetime = None) -> bool:
         is_processable_date = True
