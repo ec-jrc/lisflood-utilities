@@ -4,6 +4,9 @@ VAR_CODE = pd
 CELL_METHODS = time: mean
 UNIT = hPa
 UNIT_CONVERSION = 1.0
+HEIGHT_CORRECTION_FACTOR = 0.00025
+# After the height correction allows removing negative values by setting them to zero
+TRUNCATE_NEGATIVE_VALUES = True
 VALUE_MIN = 0
 VALUE_MAX = 50
 VALUE_SCALE = 0.1

@@ -57,6 +57,7 @@ class TestGridding:
         infolder = input_folder
         overwrite_output = True
         use_existing_file = True
+        get_existing_tiff = False
         outfolder_or_file = output_netcdf
         processing_dates_file = None
         interpolation_mode = 'adw'
@@ -76,7 +77,7 @@ class TestGridding:
         end_date = datetime.strptime(end_date_str, FileUtils.DATE_PATTERN_CONDENSED)
 
         run(config_filename, infolder, outfolder_or_file, processing_dates_file,
-            file_utils, out_tiff, out_netcdf, overwrite_output, use_existing_file, start_date, end_date,
+            file_utils, out_tiff, out_netcdf, overwrite_output, use_existing_file, get_existing_tiff, start_date, end_date,
             interpolation_mode=interpolation_mode, use_broadcasting=use_broadcasting, memory_save_mode=memory_save_mode)
 
         reference = Dataset(reference_output)
@@ -108,6 +109,7 @@ class TestGridding:
         infolder = input_folder
         overwrite_output = True
         use_existing_file = True
+        get_existing_tiff = False
         outfolder_or_file = output_netcdf
         interpolation_mode = 'adw'
         use_broadcasting = False
@@ -125,7 +127,7 @@ class TestGridding:
         end_date = datetime.strptime(end_date_str, FileUtils.DATE_PATTERN_CONDENSED)
 
         run(config_filename, infolder, outfolder_or_file, processing_dates_file,
-            file_utils, out_tiff, out_netcdf, overwrite_output, use_existing_file, start_date, end_date,
+            file_utils, out_tiff, out_netcdf, overwrite_output, use_existing_file, get_existing_tiff, start_date, end_date,
             interpolation_mode=interpolation_mode, use_broadcasting=use_broadcasting, memory_save_mode=memory_save_mode)
 
         reference = Dataset(reference_output)
@@ -159,6 +161,7 @@ class TestGridding:
         infolder = input_folder
         overwrite_output = True
         use_existing_file = True
+        get_existing_tiff = False
         outfolder_or_file = str(Path(output_folder, 'output.nc'))
         processing_dates_file = None
         interpolation_mode = 'adw'
@@ -177,7 +180,7 @@ class TestGridding:
         end_date = datetime.strptime(end_date_str, FileUtils.DATE_PATTERN_CONDENSED)
 
         run(config_filename, infolder, outfolder_or_file, processing_dates_file,
-            file_utils, out_tiff, out_netcdf, overwrite_output, use_existing_file, start_date, end_date,
+            file_utils, out_tiff, out_netcdf, overwrite_output, use_existing_file, get_existing_tiff, start_date, end_date,
             interpolation_mode=interpolation_mode, use_broadcasting=use_broadcasting, memory_save_mode=memory_save_mode)
 
         # Remove netcdf output file since we are only interested in the output tiffs

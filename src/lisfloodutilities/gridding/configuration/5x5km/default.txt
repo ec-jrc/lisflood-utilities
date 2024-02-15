@@ -22,6 +22,10 @@ VAR_CODE = DUMMY_VAR
 CELL_METHODS = time: mean
 UNIT = DUMMY_UNIT
 UNIT_CONVERSION = 1.0
+# A value of 0.0 means no height correction will be done
+HEIGHT_CORRECTION_FACTOR = 0.0
+# After the height correction allows removing negative values by setting them to zero
+TRUNCATE_NEGATIVE_VALUES = False
 VALUE_MIN = 0
 VALUE_MAX = 35
 VALUE_SCALE = 0.1
