@@ -13,7 +13,7 @@ STANDARD_NAME = precipitation_amount
 LONG_NAME = Daily Accumulated Precipitation
 # 1303 - ERAinterim
 # 1329 - ERA5-land
-KIWIS_FILTER_PLUGIN_CLASSES = {'ObservationsKiwisFilter': {'1303': 100.0}}
+KIWIS_FILTER_PLUGIN_CLASSES = {'ObservationsKiwisFilter': {'1303': 100.0, '1329': 100.0}}
 
 [VAR_TIME]
 

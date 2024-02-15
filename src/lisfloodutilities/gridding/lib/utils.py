@@ -21,6 +21,7 @@ import configparser as ConfigParser
 import numpy as np
 import numpy.ma as ma
 import pandas as pd
+import rasterio
 from decimal import *
 from datetime import datetime, timedelta
 from collections import OrderedDict
@@ -199,7 +200,6 @@ class Config(Printable):
         self.interpolation_mode = interpolation_mode
         self.memory_save_mode = memory_save_mode
         self.__setup_variable_config(config_filename)
-        self.__HEIGHT_CORRECTION_FACTOR = {"tx": 0.006, "tn": 0.006, "ta": 0.006, "ta6": 0.006, "pd": 0.00025}
 
         self._dem_file = Path(self.config_path).joinpath('dem.nc')
         self._dem_interpolation_file = Path(self.config_path).joinpath('dem.wgs')
@@ -352,11 +352,15 @@ class Config(Printable):
 
     @property
     def do_height_correction(self) -> bool:
-        return self.var_code in self.__HEIGHT_CORRECTION_FACTOR
+        return self.height_correction_factor != 0.0
 
     @property
     def height_correction_factor(self) -> float:
-        return self.__HEIGHT_CORRECTION_FACTOR[self.var_code]
+        return float(self.get_config_field('PROPERTIES', 'HEIGHT_CORRECTION_FACTOR'))
+    
+    @property
+    def truncate_negative_values(self) -> bool:
+        return str(self.get_config_field('PROPERTIES', 'TRUNCATE_NEGATIVE_VALUES')).lower() in ('true', '1')
 
     @property
     def neighbours_near(self) -> int:
@@ -419,11 +423,11 @@ class GriddingUtils(Printable):
                                                 mask=self.conf.dem_mask,
                                                 fill_value=self.conf.VALUE_NAN)
             result -= grid_cells_height * self.conf.height_correction_factor
-            if self.conf.var_code == "pd":
-                # Eliminating the eventual negative values 
-                # from Vapor Pressure resulting from height correction
-                result[np.where(result<0)] = 0
             self.print_msg('Finish reseting height correction')
+        if self.conf.truncate_negative_values:
+            # Eliminating the eventual negative values like
+            # for Vapor Pressure resulting from height correction
+            result[np.where(result<0)] = 0
         result = result.filled()
         return result
 
@@ -452,6 +456,16 @@ class GriddingUtils(Printable):
         count_grid_nan = np.count_nonzero(np.isnan(current_grid))
         if count_dem_nan != count_grid_nan:
             print(f"WARNING: The grid interpolated from file {filename.name} contains different NaN values ({count_grid_nan}) than the DEM ({count_dem_nan}). diff: {count_grid_nan - count_dem_nan}")
+
+    def read_tiff(self, tiff_filepath: Path) -> np.ndarray:
+        # This method could be implemented on a GDALReader class
+        src = rasterio.open(tiff_filepath)
+        data = src.read(1)
+        scale = src.scales[0]
+        offset = src.offsets[0]
+        data = data * scale + offset
+        src.close()
+        return self.prepare_grid(data, self.conf.dem.lons.shape)
 
     def generate_grid(self, filename: Path) -> np.ndarray:
         mv_target = self.conf.dem.mv
