@@ -1,0 +1,19 @@
+[PROPERTIES]
+
+VAR_CODE = rg1
+CELL_METHODS = time: sum
+UNIT = J/m2
+UNIT_CONVERSION = 1.0
+VALUE_MIN = 0
+VALUE_MAX = 115000000
+VALUE_SCALE = 10000.0
+VALUE_OFFSET = 0.0
+DATA_TYPE_PACKED = i2
+STANDARD_NAME = integral_wrt_time_of_surface_downwelling_shortwave_flux_in_air
+LONG_NAME = Hourly Calculated Radiation
+
+[VAR_TIME]
+
+UNIT_PATTERN = hours since %%Y-%%m-%%d %%H:%%M:%%S.%%f
+UNIT = hours since 1990-01-01 01:00:00.0
+FREQUENCY = 1

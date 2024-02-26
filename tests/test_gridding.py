@@ -14,14 +14,19 @@ cur_folder = os.path.dirname(os.path.realpath(__file__))
 
 class TestGridding:
 
-    def compare_netcdfs(self, nc1: Dataset, nc2: Dataset):
-        assert nc1.variables['time'][:].size == nc2.variables['time'][:].size, 'Time axis do not have same size as reference.'
+    def compare_netcdfs(self, nc1: Dataset, nc2: Dataset, variable_name: str='pr6'):
+        time_list1 = nc1.variables['time'][:].tolist()
+        time_list2 = nc2.variables['time'][:].tolist()
+        assert len(time_list1) == len(time_list2), 'Time axis do not have same size as reference.'
+        nc1_idx = time_list1[0]
+        nc2_idx = time_list2[0]
+        assert nc1_idx == nc2_idx, f'Initial timestep is different. nc1.time[0]={nc1_idx} nc2.time[0]={nc2_idx}'
         coords_nc1_size = (nc1.variables['lat'][:].size, nc1.variables['lon'][:].size)
         coords_nc2_size = (nc2.variables['lat'][:].size, nc2.variables['lon'][:].size)
         assert coords_nc1_size == coords_nc2_size, 'Lat/Long axis do not have same size as reference.'
-        max_timesteps = nc1.variables['time'][:].size
+        max_timesteps = len(time_list1)
         for i in range(max_timesteps):
-            assert np.allclose(nc1.variables['pr6'][i, :, :], nc2.variables['pr6'][i, :, :], atol=0.0000001), f'Timestep {i} is not equal to reference.'
+            assert np.allclose(nc1.variables[variable_name][i, :, :], nc2.variables[variable_name][i, :, :], atol=0.0000001), f'Timestep {i} is not equal to reference.'
 
     def compare_tiffs(self, tiff_folder_path1: Path, tiff_folder_path2: Path):
         for tiff_file2 in sorted(tiff_folder_path2.rglob('*.tiff')):
@@ -55,7 +60,7 @@ class TestGridding:
         out_tiff = False
         out_netcdf = True
         infolder = input_folder
-        overwrite_output = True
+        overwrite_output = False
         use_existing_file = True
         get_existing_tiff = False
         outfolder_or_file = output_netcdf
@@ -63,7 +68,6 @@ class TestGridding:
         interpolation_mode = 'adw'
         use_broadcasting = True
         memory_save_mode = '5'
-
 
         configuration_base_folder = os.path.join(cur_folder, '../src/lisfloodutilities/gridding/configuration')
 
@@ -74,6 +78,57 @@ class TestGridding:
         config_filename = file_utils.get_config_file(config_type_path)
 
         start_date = datetime.strptime(start_date_str, FileUtils.DATE_PATTERN_CONDENSED)
+        end_date = datetime.strptime(end_date_str, FileUtils.DATE_PATTERN_CONDENSED)
+
+        run(config_filename, infolder, outfolder_or_file, processing_dates_file,
+            file_utils, out_tiff, out_netcdf, overwrite_output, use_existing_file, get_existing_tiff, start_date, end_date,
+            interpolation_mode=interpolation_mode, use_broadcasting=use_broadcasting, memory_save_mode=memory_save_mode)
+
+        reference = Dataset(reference_output)
+        out = Dataset(output_netcdf)
+
+        self.compare_netcdfs(out, reference)
+
+        out = None
+        reference = None
+
+    def test_generate_netcdf_without_start_date(self):
+        input_folder = 'tests/data/gridding/meteo_in/test1'
+        reference_output = 'tests/data/gridding/reference/test1/pr6_without_start_date.nc'
+        output_netcdf = 'tests/data/gridding/meteo_out/test1/pr6_without_start_date.nc'
+
+        Path('tests/data/gridding/meteo_out/test1').mkdir(parents=True, exist_ok=True)
+
+        if os.path.exists(output_netcdf):
+            os.remove(output_netcdf)
+
+        quiet_mode = True
+        variable_code = 'pr6'
+        config_type = '1arcmin'
+        # Not defining start_date it will use the netCDF timeunits
+        # start_date_str = '202303131200'
+        end_date_str = '202303160000'
+        out_tiff = False
+        out_netcdf = True
+        infolder = input_folder
+        overwrite_output = False
+        use_existing_file = True
+        get_existing_tiff = True
+        outfolder_or_file = output_netcdf
+        processing_dates_file = None
+        interpolation_mode = 'adw'
+        use_broadcasting = True
+        memory_save_mode = '5'
+
+        configuration_base_folder = os.path.join(cur_folder, '../src/lisfloodutilities/gridding/configuration')
+
+        file_utils = FileUtils(variable_code, quiet_mode)
+
+        config_type_path = file_utils.get_config_type_path(configuration_base_folder, config_type)
+
+        config_filename = file_utils.get_config_file(config_type_path)
+
+        start_date = None # datetime.strptime(start_date_str, FileUtils.DATE_PATTERN_CONDENSED)
         end_date = datetime.strptime(end_date_str, FileUtils.DATE_PATTERN_CONDENSED)
 
         run(config_filename, infolder, outfolder_or_file, processing_dates_file,
@@ -194,5 +249,56 @@ class TestGridding:
 
         self.compare_tiffs(output_folder_path, Path(reference_output))
         
+        out = None
+        reference = None
+
+    def test_generate_netcdf_hourly(self):
+        input_folder = 'tests/data/gridding/meteo_in/test4'
+        reference_output = 'tests/data/gridding/reference/test4/pr1.nc'
+        output_netcdf = 'tests/data/gridding/meteo_out/test4/pr1.nc'
+
+        Path('tests/data/gridding/meteo_out/test4').mkdir(parents=True, exist_ok=True)
+
+        if os.path.exists(output_netcdf):
+            os.remove(output_netcdf)
+
+        quiet_mode = True
+        variable_code = 'pr1'
+        config_type = '1arcmin'
+        # Not defining start_date it will use the netCDF timeunits
+        # start_date_str = '202303131200'
+        end_date_str = '202303160000'
+        out_tiff = False
+        out_netcdf = True
+        infolder = input_folder
+        overwrite_output = False
+        use_existing_file = True
+        get_existing_tiff = False
+        outfolder_or_file = output_netcdf
+        processing_dates_file = None
+        interpolation_mode = 'adw'
+        use_broadcasting = True
+        memory_save_mode = '5'
+
+        configuration_base_folder = os.path.join(cur_folder, '../src/lisfloodutilities/gridding/configuration')
+
+        file_utils = FileUtils(variable_code, quiet_mode)
+
+        config_type_path = file_utils.get_config_type_path(configuration_base_folder, config_type)
+
+        config_filename = file_utils.get_config_file(config_type_path)
+
+        start_date = None # datetime.strptime(start_date_str, FileUtils.DATE_PATTERN_CONDENSED)
+        end_date = datetime.strptime(end_date_str, FileUtils.DATE_PATTERN_CONDENSED)
+
+        run(config_filename, infolder, outfolder_or_file, processing_dates_file,
+            file_utils, out_tiff, out_netcdf, overwrite_output, use_existing_file, get_existing_tiff, start_date, end_date,
+            interpolation_mode=interpolation_mode, use_broadcasting=use_broadcasting, memory_save_mode=memory_save_mode)
+
+        reference = Dataset(reference_output)
+        out = Dataset(output_netcdf)
+
+        self.compare_netcdfs(out, reference, variable_name='pr1')
+
         out = None
         reference = None
