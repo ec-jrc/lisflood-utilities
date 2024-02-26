@@ -82,12 +82,17 @@ class NetCDFWriter(OutputWriter):
         self.time_frequency = int(self.conf.get_config_field('VAR_TIME','FREQUENCY'))
         self.calendar_type = self.NETCDF_VAR_TIME_CALENDAR_TYPE
         self.calendar_time_unit = self.conf.start_date.strftime(self.netcdf_var_time_unit_pattern)
+        # Write index not set yet
+        self.write_idx = -1
+        self.current_timestamp = None
+        self.is_new_file = False
 
     def open(self, out_filename: Path):
         super().open(out_filename)
         if not os.path.isfile(self.filepath):
             self.nf = Dataset(self.filepath, 'w', format=self.NETCDF_DATASET_FORMAT)
             self.__setup_netcdf_metadata()
+            self.is_new_file = True
         elif self.overwrite_file:
             self.nf = Dataset(self.filepath, 'r+', clobber=True, format=self.NETCDF_DATASET_FORMAT)
         else:
@@ -115,22 +120,35 @@ class NetCDFWriter(OutputWriter):
     def write(self, grid: np.ndarray, timestamp: datetime = None):
         timestep = -1
         if timestamp is not None:
+            self.current_timestamp = timestamp
             timestep = date2num(timestamp, self.calendar_time_unit, self.calendar_type)
+        else:
+            self.current_timestamp = None
         self.write_timestep(grid, timestep)
 
     def write_timestep(self, grid: np.ndarray, timestep: int = -1):
         if timestep >= 0:
             if not self.opened():
                 raise Exception("netCDF Dataset was not initialized. If file already exists, use --force flag to append.")
-            timestep_idx = int(timestep / self.time_frequency)
-            self.nf.variables[self.netcdf_var_time][timestep_idx] = timestep
+            self.__set_write_index(timestep)
+            self.nf.variables[self.netcdf_var_time][self.write_idx] = timestep
             values = self.setNaN(copy.deepcopy(grid))
             values[values < self.conf.value_min_packed] = np.nan
             values[values > self.conf.value_max_packed] = np.nan
             values[values != self.conf.VALUE_NAN] *= self.conf.scale_factor
             values[values != self.conf.VALUE_NAN] += self.conf.add_offset
             values[np.isnan(values)] = self.conf.VALUE_NAN * self.conf.scale_factor + self.conf.add_offset
-            self.nf.variables[self.var_code][timestep_idx, :, :] = values
+            self.nf.variables[self.var_code][self.write_idx, :, :] = values
+
+    def __set_write_index(self, timestep: int):
+        if not self.is_new_file:
+            # Writing into an existing file need to calculate write index
+            time_array = self.nf.variables[self.netcdf_var_time][:].tolist()
+            self.write_idx = time_array.index(timestep)
+        elif self.write_idx >= 0:
+            self.write_idx += 1
+        else:
+            self.write_idx = 0
 
     def opened(self) -> bool:
         return not self.nf is None
