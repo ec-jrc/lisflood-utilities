@@ -298,7 +298,7 @@ class TestGridding:
         reference = Dataset(reference_output)
         out = Dataset(output_netcdf)
 
-        self.compare_netcdfs(out, reference, variable_name='pr1')
+        self.compare_netcdfs(out, reference, variable_name=variable_code)
 
         out = None
         reference = None
