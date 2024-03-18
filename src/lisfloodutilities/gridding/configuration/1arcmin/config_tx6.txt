@@ -1,0 +1,20 @@
+[PROPERTIES]
+
+VAR_CODE = tx6
+CELL_METHODS = time: maximum
+UNIT = degree_Celsius
+UNIT_CONVERSION = 1.0
+HEIGHT_CORRECTION_FACTOR = 0.006
+VALUE_MIN = -55
+VALUE_MAX = 55
+VALUE_SCALE = 0.1
+VALUE_OFFSET = 0.0
+DATA_TYPE_PACKED = i2
+STANDARD_NAME = air_temperature
+LONG_NAME = 6 Hourly Maximum Temperature
+
+[VAR_TIME]
+
+UNIT_PATTERN = hours since %%Y-%%m-%%d %%H:%%M:%%S.%%f
+UNIT = hours since 1990-01-01 06:00:00.0
+FREQUENCY = 6
