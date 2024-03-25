@@ -21,30 +21,32 @@ Lisflood Utilities is a set of tools to help LISFLOOD users (or any users of PCR
 to execute some mundane tasks that are necessary to operate lisflood.
 Here's a list of utilities you can find in lisflood-utilities package.
 
-* __pcr2nc__ is a tool to convert PCRaster maps to netCDF4 files.
+* __[pcr2nc](#pcr2nc)__ is a tool to convert PCRaster maps to netCDF4 files.
   - convert a single map into a NetCDF4 file
   - convert a time series of maps into a NetCDF4 mapstack
   - support for WGS84 and ETRS89 (LAEA) reference systems
   - fine tuning of output files (compression, significant digits, etc.)
  
-* __nc2pcr__ is a tool to convert a netCDF file into PCRaster maps.
+* __[nc2pcr](#nc2pcr)__ is a tool to convert a netCDF file into PCRaster maps.
   - convert 2D variables in single PCRaster maps
   - netCDF4 mapstacks are not supported yet
 
-* __cutmaps__ is a tool to cut netcdf files in order to reduce size, using either
+* __[cutmaps](#cutmaps:-a-NetCDF-files-cookie-cutter)__ is a tool to cut netcdf files in order to reduce size, using either
   - a bounding box of coordinates
   - a bounding box of matrix indices
   - an existing boolean area mask
-  - a list of stations and a LDD (in netCDF or PCRaster format) **Note: PCRaster must be installed in the conda env**
+  - a list of stations and a LDD ("local drain direction" in netCDF or PCRaster format)
+  
+> **Note**: PCRaster must be installed in the Conda environment.
  
-* __thresholds__ is a tool to compute the discharge return period thresholds from netCDF4 file containing a discharge time series.
-
-* __compare__ is a package containing a set of simple Python classes that helps to compare 
+* __[compare](#compare-utility)__ is a package containing a set of simple Python classes that helps to compare 
 netCDF, PCRaster and TSS files.
 
-* __waterregions__ is a package containing two scripts that allow to create and verify a water regions map, respectively.
+* __[thresholds](#thresholds)__ is a tool to compute the discharge return period thresholds from netCDF4 file containing a discharge time series.
 
-* __gridding__ is a tool to interpolate meteo variables observations stored in text files containing (lon, lat, value) into grids.
+* __[waterregions](#waterregions)__ is a package containing two scripts that allow to create and verify a water regions map, respectively.
+
+* __[gridding](#gridding)__ is a tool to interpolate meteo variables observations stored in text files containing (lon, lat, value) into grids.
   - uses inverse distance interpolation
   - input file names must use format: \<var\>YYYYMMDDHHMI_YYYYMMDDHHMISS.txt
   - option to store all interpolated grids in a single NetCDF4 file
@@ -53,7 +55,9 @@ netCDF, PCRaster and TSS files.
   - grids are setup in the configuration folder and are defined by a dem.nc file
   - meteo variables parameters are defined in the same configuration folder
 
-* __cddmap__ is a tool to generate correlation decay distance (CDD) maps starting from station timeseries
+* __[cddmap](#cddmap)__ is a tool to generate correlation decay distance (CDD) maps starting from station timeseries
+
+* __[ncextract](#ncextract)__ is a tool to extract values from netCDF4 file at specific coordinates.
 
 The package contains convenient classes for reading/writing:
 
@@ -62,7 +66,6 @@ The package contains convenient classes for reading/writing:
 * NetCDFMap
 * NetCDFWriter
 
-* __ncextract__ is a tool to extract values from netCDF4 file at specific coordinates.
 
 ### Installation
 
@@ -236,78 +239,91 @@ If input file is a LDD map, you must add the `-l` flag:
 nc2pcr -i /path/to/input/ldd.nc -o /path/to/output/ldd.map  -l [-c /path/to/clone.map optional]
 ```
 
-## Cutmaps: a NetCDF files cookie-cutter
+## cutmaps: a NetCDF files cookie-cutter
 
-This tool cut netcdf files, using a mask, a bounding box or a list of stations along with a LDD map.  
+This tool cuts NetCDF files using either a mask, a bounding box, or a list of stations along with a LDD (local drain direction) map.  
 
-### Usage:
-The tool accepts as input:
+### Usage
 
-* a mask map (either PCRaster or netCDF format) using the -m argument or 
-  - alternatively, using the -i argument, matrix indices in the form `imin imax jmin jmax` (imin, imax, jmin, jmax  must be integer numbers)
-  - alternatively, using the -c argument, coordinates bounding box in the form `xmin xmax ymin ymax` (xmin, xmax, ymin, ymax can be integer or floating point numbers; x = longitude, y = latitude) 
-  - alternatively, using the -N and -l arguments, list of stations with coordinates and a LDD map.
-* a path to a netCDF file (-F argument), a folder containing netCDF files to cut (-f argument) or a static dataset path (-S argument) like LISFLOOD static files. 
-* a path to a folder where to write cut files (-o argument).
+The tool requires a series of arguments:
 
-The following command will cut all netcdf files inside _/workarea/Madeira/lai/_ folder 
-and produced files will be writte in current folder. 
-The cookie-cutter that will be used is _/workarea/Madeira/maps/MaskMap/Bacia_madeira.nc_. 
-This file is a mask (boolean map with 1 only in the area of interest) where cutmaps takes the bounding box from.
-The mask can also be in PCRaster format.
+* The area to be extracted can be defined in one of the following ways:
+    - A mask map (either PCRaster or NetCDF format) using the `-m` argument.
+    - A bounding box defined by matrix indices using the argument `-i imin imax jmin jmax` (the indices must be integers).
+    - A bounding box defined by coordinates using the argument `-c xmin xmax ymin ymax` (the coordinates can be integer or floating point numbers; x = longitude, y = latitude).
+    - A list of stations included in a tab separated text file using the argument `-N`. This approach requires a LDD (local drain direction) map as an extra input, defined with the argument `-l`.
+* The files to be cut may be defined in one of the following ways:
+    - A folder containing NetCDF files (`-f` argument).
+    - A static dataset path (`-S` argument) like LISFLOOD static files. 
+* The resulting files will be saved in the folder defined by the argument `-o`.
+
+There are additional optional arguments
+
+* Argument `-W` allows to overwrite results.
+* Argument `-C` can be used to define a clone map when the LDD input map (argument `-l`) is in NetCDF format.
+
+#### Examples 
+
+**Using a mask**
+
+The following command will cut all netcdf files inside a specific folder (argument `-f`) using a mask (àrgument `-m`). The mask is a boolean map (1 only in the area of interes) that `cutmaps` uses to create a bounding box. The resulting files will be written in the current folder (argument `-o`). 
 
 ```bash
 cutmaps -m /workarea/Madeira/maps/MaskMap/Bacia_madeira.nc -f /workarea/Madeira/lai/ -o ./
 ```
 
-The following command will cut a single netCDF file and produced file will be writte in current folder. 
+**Using indices**
 
-```bash
-cutmaps -m /workarea/Madeira/maps/MaskMap/Bacia_madeira.nc -F /workarea/Madeira/lai/tp.nc -o ./
-```
-
-**Indices can also be passed as an argument (using -i argument instead of -m). Knowing your area of interest from your netCDF files, 
-you can determine indices of the array and you can pass in the form `imin imax jmin jmax` (imin, imax, jmin, jmax  must be integer numbers).**
+The following command cuts all the maps in an input folder (argument `-f`) using a bounding box defined by matrix indices (argument `-i`). Knowing your area of interest from your NetCDF files, you can determine indices of the array and pass them in the form `-i imin imax jmin jmax` (integer numbers).
 
 ```bash
 cutmaps -i "150 350 80 180" -f /workarea/Madeira/lai/ -o ./
 ```
 
-**Example with coordinates (using -c argument) `xmin xmax ymin ymax` (xmin, xmax, ymin, ymax can be integer or floating point numbers; x = longitude, y = latitude) and path to EFAS/GloFAS static data (-S option), with -W to allow overwriting existing files in output directory:**
+**Using coordinates**
+
+The following command cuts all the static maps in an input folder (argument `-S`) using a bounding box defined by coordinates (argument `-c`). The argument `-W` allows to overwrite pre-existing files in the output directory (argument `-o`):
 
 ```bash
 cutmaps -S /home/projects/lisflood-eu -c "4078546.12 4463723.85 811206.57 1587655.50" -o /Work/Tunisia/cutmaps -W
 ```
 
-**Example with stations.txt and LDD**
+**Using station coordinates and a local drain direction map**
 
-Given a LDD map and a list of stations in a text file, each row having coordinates X/Y or lon/lat and an index, separated by tabs:
+The TXT file with stations must have a specific format as in the example below. Each row represents a stations, and it contains three columns separated by tabs that indicated the X and Y coordinates (or lon and lat) and the ID of the station.
 
 ```text
-4297500	1572500 1
-4292500	1557500 2
-4237500	1537500 3
-4312500	1482500 4
-4187500	1492500 5
+4297500	1572500	1
+4292500	1557500	2
+4237500	1537500	3
+4312500	1482500	4
+4187500	1492500	5
 ```
+
+The following command will cut all the static maps in a specific folder (`-S` argument) given a LDD map (`-l` argument) and the previous text file (`-N` argument), and save the results in a folder defined by the argument `-o`.
 
 ```bash
 cutmaps -S /home/projects/lisflood-eu -l ldd.map -N stations.txt -o /Work/Tunisia/cutmaps
 ```
 
-If ldd is in netCDF format, LDD will be converted to PCRaster format, first.
+If the LDD is in NetCDF format, it will be first converted into PCRaster format.
 
 ```bash
 cutmaps -S /home/projects/lisflood-eu -l ldd.nc -N stations.txt -o /Work/Tunisia/cutmaps
 ``` 
 
-If you experience problems, you can try to pass a path to a PCRaster clone map.
+If you experience problems, you can try to pass a path to a PCRaster clone map using the `-C` argument.
 
 ```bash
 cutmaps -S /home/projects/lisflood-eu -l ldd.nc -C area.map -N stations.txt -o /Work/Tunisia/cutmaps
 ```
-You will find the produced mask.map and mask.nc for your area in the same folder of ldd map; you will need it for lisflood/lisvap executions.
-You will also have outlets.map/outlets.nc based on stations.txt, which let you produce gauges TSS if configured in LISFLOOD.
+
+### Output
+
+Apart from the cut files in the output folder specified in the command prompt, `cutmaps` produces other outputs in the folder where the LDD map is stored:
+
+* _mask.map_ and _mask.nc_ for your area of interest, which may be needed in subsequent LISFLOOD/LISVAP executions
+* _outlets.map_ and _outlets.nc_ based on _stations.txt_, which will let you produce gauges TSS if configured in LISFLOOD.
 
 ## compare utility
 
@@ -589,11 +605,11 @@ cddmap /meteo/pr --parallel --maxdistance 500
 
 ## ncextract
 
-The ncextract tool extracts the time series of values from (multiple) netCDF file(s) at user defined coordinates.
+The `ncextract` tool extracts the time series of values from (multiple) NetCDF file(s) at user defined coordinates.
 
 ### Usage:
 The tool takes as input a CSV file containing point coordinates (structured in 3 columns: id, lat, lon) and a directory containing one or more netCDF files.
-The output is a CSV file (or optionally a netCDF file) containing the values at the  points corresponding to the provided coordinates, in chronological order.
+The output is a CSV file (or optionally a NetCDF file) containing the values at the  points corresponding to the provided coordinates, in chronological order.
 
 ```text
 usage: ncextract.py [-h] -i INPUT -d DIRECTORY -o OUTPUT [-nc]
@@ -611,9 +627,9 @@ options:
   -o OUTPUT, --output OUTPUT
                         Output file (default is CSV, use -nc for NetCDF)
   -nc, --nc             Output to NetCDF
+```
 
-
-## Using lisfloodutilities programmatically 
+## Using `lisfloodutilities` programmatically 
 
 You can use lisflood utilities in your python programs. As an example, the script below creates the mask map for a set of stations (stations.txt). The mask map is a boolean map with 1 and 0. 1 is used for all (and only) the pixels hydrologically connected to one of the stations. The resulting mask map is in pcraster format.
 
