@@ -248,19 +248,19 @@ This tool cuts NetCDF files using either a mask, a bounding box, or a list of st
 The tool requires a series of arguments:
 
 * The area to be extracted can be defined in one of the following ways:
-    - A mask map (either PCRaster or NetCDF format) using the `-m` argument.
-    - A bounding box defined by matrix indices using the argument `-i imin imax jmin jmax` (the indices must be integers).
-    - A bounding box defined by coordinates using the argument `-c xmin xmax ymin ymax` (the coordinates can be integer or floating point numbers; x = longitude, y = latitude).
-    - A list of stations included in a tab separated text file using the argument `-N`. This approach requires a LDD (local drain direction) map as an extra input, defined with the argument `-l`.
+    - `-m`, `--mask`: a mask map (either PCRaster or NetCDF format).
+    - `-i`, `--cuts_indices`: a bounding box defined by matrix indices in the form `-i imin imax jmin jmax` (the indices must be integers).
+    - `-c`, `--cuts`: a bounding box defined by coordinates in the form `-c xmin xmax ymin ymax` (the coordinates can be integer or floating point numbers; x = longitude, y = latitude).
+    - `-N`, `-stations`: a list of stations included in a tab separated text file. This approach requires a LDD (local drain direction) map as an extra input, defined with the argument `-l` (`-ldd`).
 * The files to be cut may be defined in one of the following ways:
-    - A folder containing NetCDF files (`-f` argument).
-    - A static dataset path (`-S` argument) like LISFLOOD static files. 
-* The resulting files will be saved in the folder defined by the argument `-o`.
+    - `-f`, `--folder`: a folder containing NetCDF files.
+    - `-S`, `--static-data`: a directory containint the LISFLOOD static maps. 
+* The resulting files will be saved in the folder defined by the argument `-o` ( `--outpath`).
 
 There are additional optional arguments
 
-* Argument `-W` allows to overwrite results.
-* Argument `-C` can be used to define a clone map when the LDD input map (argument `-l`) is in NetCDF format.
+* `-W`, `--overwrite`: it allows to overwrite results.
+* `-C`, `--clonemap`: it can be used to define a clone map when the LDD input map (argument `-l`) is in NetCDF format.
 
 #### Examples 
 
