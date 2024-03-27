@@ -57,7 +57,9 @@ netCDF, PCRaster and TSS files.
 
 * __[cddmap](#cddmap)__ is a tool to generate correlation decay distance (CDD) maps starting from station timeseries
 
-* __[ncextract](#ncextract)__ is a tool to extract values from netCDF4 file at specific coordinates.
+* __[ncextract](#ncextract)__ is a tool to extract values from NetCDF4 files at specific coordinates.
+
+* __[catchstats](#catchstats)__ calculates catchment statistics (mean, sum, std, min, max...) from NetCDF4 files given masks created with [`cutmaps`](#cutmaps:-a-NetCDF-files-cookie-cutter).
 
 The package contains convenient classes for reading/writing:
 
@@ -607,8 +609,10 @@ cddmap /meteo/pr --parallel --maxdistance 500
 
 The `ncextract` tool extracts the time series of values from (multiple) NetCDF file(s) at user defined coordinates.
 
-### Usage:
+### Usage
+
 The tool takes as input a CSV file containing point coordinates (structured in 3 columns: id, lat, lon) and a directory containing one or more netCDF files.
+
 The output is a CSV file (or optionally a NetCDF file) containing the values at the  points corresponding to the provided coordinates, in chronological order.
 
 ```text
@@ -627,6 +631,51 @@ options:
   -o OUTPUT, --output OUTPUT
                         Output file (default is CSV, use -nc for NetCDF)
   -nc, --nc             Output to NetCDF
+```
+
+
+## catchstats
+
+The `catchstats` tool calculates catchment statistics given a set of input NetCDF files and a set of mask NetCDF files.
+
+### Usage
+
+The tool takes as input a directory containing the NetCDF files from which the statistics will be computed, and another directory containing the NetCDF files that define the catchment boundaries, which can be any of the outputs of  `cutmaps` (not necessarily the file _my_mask.nc_). The input files can be the LISFLOOD static maps (no temporal dimension) or stacks of maps with a temporal dimension. The mask NetCDF files must be named after with the catchment ID, as this name will be used to identify the catchment in the output NetCDF; for instance: _0142.nc_ would correspond to the mask of catchment 142. Optionally, an extra NetCDF file can be passed to the tool to account for different pixel area; in this case, the statistics will be weighted by this pixel area map.
+
+Only some statistics are currently available: mean, sum, std (standard deviation), var (variance), min, max, median. The weighing based on pixel area does not affect the statistics min, max and median.
+
+The output are NetCDF files (as many as catchments in the mask directory) containing the resulting statistics.
+
+```text
+usage: catchstats.py [-h] -i INPUT -m MASK -s STATISTIC -o OUTPUT -a AREA [-W]
+
+Utility to compute catchment statistics from (multiple) NetCDF files.
+The mask map is a NetCDF file with values in the area of interest and NaN elsewhere.
+The area map is optional and accounts for varying pixel area with latitude.
+
+options:
+  -h, --help
+                          show this help message and exit
+  -i INPUT, --input INPUT
+                          directory containint the input NetCDF files
+  -m MASK, --mask MASK
+                          directory containing the mask NetCDF files
+  -s STATISTIC, --statistic STATISTIC
+                          list of statistics to be computed. Possible values: mean, sum, std, var, min, max, median
+  -o OUTPUT, --output OUTPUT
+                          directory where the output NetCDF files will be saved
+  -a AREA, --area AREA
+                          NetCDF file of pixel area used to weight the statistics
+  -W, --overwrite
+                          overwrite existing output files
+```
+
+#### Example
+
+The following command calculates the average and total precipitation for a set of catchemtns from the dataset EMO-1. The static map _pixarea.nc_ is used to account for varying pixel area.
+
+```bash
+catchstats -i ./EMO1/pr/ -m ./masks/ -s mean sum -o ./areal_precipitation/ -a ./EFAS5/static_maps/pixarea.nc
 ```
 
 ## Using `lisfloodutilities` programmatically 
