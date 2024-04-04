@@ -23,7 +23,7 @@ from tqdm.auto import tqdm
 
 def catchment_statistics(inputmaps: Union[str, Path],
                          mask: Union[str, Path],
-                         statistic: List[Literal['mean', 'sum', 'std', 'var', 'min', 'max', 'median']], 
+                         statistic: List[Literal['mean', 'sum', 'std', 'var', 'min', 'max', 'median', 'count']], 
                          output: Union[str, Path],
                          pixarea: Optional[str] = None,
                          overwrite: bool = False
@@ -38,7 +38,7 @@ def catchment_statistics(inputmaps: Union[str, Path],
     mask: str or pathlib.Path
         directory that contains the NetCDF files that define the catchment boundaries. These files can be the output of the `cutmaps` tool
     statistic: list of strings
-        statistics to be computed. Only some statistics are available: 'mean', 'sum', 'std', 'var', 'min', 'max', 'median'
+        statistics to be computed. Only some statistics are available: 'mean', 'sum', 'std', 'var', 'min', 'max', 'median', 'count'
     output: str or pathlib.Path
         directory where the resulting NetCDF files will be saved.
     pixarea: optional or str
@@ -58,7 +58,7 @@ def catchment_statistics(inputmaps: Union[str, Path],
     output.mkdir(parents=True, exist_ok=True)
     
     # check statistic
-    possible_stats = ['mean', 'sum', 'std', 'var', 'min', 'max', 'median']
+    possible_stats = ['mean', 'sum', 'std', 'var', 'min', 'max', 'median', 'count']
     assert all(stat in possible_stats for stat in statistic), "All values in 'statistic' should be one of these: {0}".format(', '.join(possible_stats))
     
     # input maps
@@ -160,7 +160,7 @@ def catchment_statistics(inputmaps: Union[str, Path],
                         x = getattr(weighted_ds, stat)(dim=[x_dim, y_dim])[var]
                     else:
                         x = getattr(masked_ds, stat)(dim=[x_dim, y_dim])[var]
-                elif stat in ['min', 'max', 'median']:
+                elif stat in ['min', 'max', 'median', 'count']:
                     x = getattr(masked_ds, stat)(dim=[x_dim, y_dim])[var]
                 ds_aoi[f'{var}_{stat}'].loc[{'id': ID}] = x
         
