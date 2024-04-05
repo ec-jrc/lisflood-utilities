@@ -31,7 +31,7 @@ Here's a list of utilities you can find in lisflood-utilities package.
   - convert 2D variables in single PCRaster maps
   - NetCDF4 mapstacks are not supported yet
 
-* __[cutmaps](#cutmaps:-a-NetCDF-files-cookie-cutter)__ is a tool to cut NetCDF files in order to reduce size, using either
+* __[cutmaps](#cutmaps)__ is a tool to cut NetCDF files in order to reduce size, using either
   - a bounding box of coordinates
   - a bounding box of matrix indices
   - an existing boolean area mask
@@ -241,7 +241,7 @@ If input file is a LDD map, you must add the `-l` flag:
 nc2pcr -i /path/to/input/ldd.nc -o /path/to/output/ldd.map  -l [-c /path/to/clone.map optional]
 ```
 
-## cutmaps: a NetCDF files cookie-cutter
+## cutmaps
 
 This tool cuts NetCDF files using either a mask, a bounding box, or a list of stations along with a LDD (local drain direction) map.  
 
