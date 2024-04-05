@@ -329,8 +329,7 @@ Apart from the cut files in the output folder specified in the command prompt, `
 
 ## compare
 
-This tool let you compare two NetCDF datasets. You can configure it with tolerances (`atol`, `rtol`, thresholds for percentage of tolerated different values).
-You can also set the option to write diff files, so that you can inspect maps and differences with a tool like Panoply.
+This tool compares two NetCDF datasets. You can configure it with tolerances (absolute `--atol`, relative `--rtol`, thresholds for percentage of tolerated different values `--max-diff-percentage`). You can also set the option `--save-diffs` to write files with the diffences, so that you can inspect maps and differences with tools like [Panoply](https://www.giss.nasa.gov/tools/panoply/).
 
 ```text
 usage: compare [-h] -a DATASET_A -b DATASET_B -m MASKAREA [-M SUBMASKAREA]
