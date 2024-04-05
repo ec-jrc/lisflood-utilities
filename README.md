@@ -17,32 +17,32 @@ Other useful resources
 
 ## Intro
 
-Lisflood Utilities is a set of tools to help LISFLOOD users (or any users of PCRaster/netCDF files)
+Lisflood Utilities is a set of tools to help LISFLOOD users (or any users of PCRaster/NetCDF files)
 to execute some mundane tasks that are necessary to operate lisflood.
 Here's a list of utilities you can find in lisflood-utilities package.
 
-* __[pcr2nc](#pcr2nc)__ is a tool to convert PCRaster maps to netCDF4 files.
+* __[pcr2nc](#pcr2nc)__ is a tool to convert PCRaster maps to NetCDF4 files.
   - convert a single map into a NetCDF4 file
   - convert a time series of maps into a NetCDF4 mapstack
   - support for WGS84 and ETRS89 (LAEA) reference systems
   - fine tuning of output files (compression, significant digits, etc.)
  
-* __[nc2pcr](#nc2pcr)__ is a tool to convert a netCDF file into PCRaster maps.
+* __[nc2pcr](#nc2pcr)__ is a tool to convert a NetCDF file into PCRaster maps.
   - convert 2D variables in single PCRaster maps
-  - netCDF4 mapstacks are not supported yet
+  - NetCDF4 mapstacks are not supported yet
 
-* __[cutmaps](#cutmaps:-a-NetCDF-files-cookie-cutter)__ is a tool to cut netcdf files in order to reduce size, using either
+* __[cutmaps](#cutmaps:-a-NetCDF-files-cookie-cutter)__ is a tool to cut NetCDF files in order to reduce size, using either
   - a bounding box of coordinates
   - a bounding box of matrix indices
   - an existing boolean area mask
-  - a list of stations and a LDD ("local drain direction" in netCDF or PCRaster format)
+  - a list of stations and a LDD ("local drain direction" in NetCDF or PCRaster format)
   
 > **Note**: PCRaster must be installed in the Conda environment.
  
 * __[compare](#compare-utility)__ is a package containing a set of simple Python classes that helps to compare 
-netCDF, PCRaster and TSS files.
+NetCDF, PCRaster and TSS files.
 
-* __[thresholds](#thresholds)__ is a tool to compute the discharge return period thresholds from netCDF4 file containing a discharge time series.
+* __[thresholds](#thresholds)__ is a tool to compute the discharge return period thresholds from NetCDF4 file containing a discharge time series.
 
 * __[waterregions](#waterregions)__ is a package containing two scripts that allow to create and verify a water regions map, respectively.
 
@@ -78,7 +78,7 @@ Otherwise, ensure you have properly installed the following software:
 
 - Python 3.5+
 - GDAL C library and software
-- netCDF4 C library
+- NetCDF4 C library
 
 #### Install
 If you use conda, create a new env (or use an existing one) and install gdal and lisflood-utilities:
@@ -227,7 +227,7 @@ In this section you have to configure `units` and `calendar`.
 
 ## nc2pcr
 
-This tool converts single maps netCDF (time dimension is not supported yet) to PCRaster format.
+This tool converts single maps NetCDF (time dimension is not supported yet) to PCRaster format.
 
 ### Usage
 
@@ -268,7 +268,7 @@ There are additional optional arguments
 
 **Using a mask**
 
-The following command will cut all netcdf files inside a specific folder (argument `-f`) using a mask (àrgument `-m`). The mask is a boolean map (1 only in the area of interes) that `cutmaps` uses to create a bounding box. The resulting files will be written in the current folder (argument `-o`). 
+The following command will cut all NetCDF files inside a specific folder (argument `-f`) using a mask (àrgument `-m`). The mask is a boolean map (1 only in the area of interes) that `cutmaps` uses to create a bounding box. The resulting files will be written in the current folder (argument `-o`). 
 
 ```bash
 cutmaps -m /workarea/Madeira/maps/MaskMap/Bacia_madeira.nc -f /workarea/Madeira/lai/ -o ./
@@ -327,17 +327,17 @@ Apart from the cut files in the output folder specified in the command prompt, `
 * _mask.map_ and _mask.nc_ for your area of interest, which may be needed in subsequent LISFLOOD/LISVAP executions
 * _outlets.map_ and _outlets.nc_ based on _stations.txt_, which will let you produce gauges TSS if configured in LISFLOOD.
 
-## compare utility
+## compare
 
-This tool let you compare two netcdf datasets. You can configure it with tolerances (atol, rtol, thresholds for percentage of tolerated different values).
-You can also set the option to write diff files, so that you can inspect maps and differences with a tool like Panoply
+This tool let you compare two NetCDF datasets. You can configure it with tolerances (`atol`, `rtol`, thresholds for percentage of tolerated different values).
+You can also set the option to write diff files, so that you can inspect maps and differences with a tool like Panoply.
 
 ```text
 usage: compare [-h] -a DATASET_A -b DATASET_B -m MASKAREA [-M SUBMASKAREA]
                [-e] [-s] [-D] [-r RTOL] [-t ATOL] [-p MAX_DIFF_PERCENTAGE]
                [-l MAX_LARGEDIFF_PERCENTAGE]
 
-Compare netCDF outputs: 0.12.12
+Compare NetCDF outputs: 0.12.12
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -349,7 +349,7 @@ optional arguments:
                         path to mask
   -e, --array-equal     flag to compare files to be identical
   -s, --skip-missing    flag to skip missing files in comparison
-  -D, --save-diffs      flag to save diffs in netcdf files for visual
+  -D, --save-diffs      flag to save diffs in NetCDF files for visual
                         comparisons. Files are saved in ./diffs folder of
                         current directory.For each file presenting
                         differences, you will find files diffs, original A and
@@ -404,17 +404,17 @@ This utility allows to create a  water region map which is consistent with a set
 
 #### Input 
 - List of the coordinates of the calibration points. This list must be provided in a .txt file with three columns: LONGITUDE(or x), LATITUDE(or y), point ID.
-- LDD map can be in netcdf format or pcraster format. When using pcraster format, the following condition must be satisfied: *PCRASTER_VALUESCALE=VS_LDD*. 
-- Countries map in netcdf format or pcraster format. When using pcraster format, the following condition must be satisfied: *PCRASTER_VALUESCALE=VS_NOMINAL*. This map shows the political boundaries of the Countries, each Coutry is identified by using a unique ID. This map is used to ensure that the water regions are not split accross different Countries.
-- Map of the initial definition of the water regions in netcdf format or pcraster format. When using pcraster format, the following condition must be satisfied: *PCRASTER_VALUESCALE=VS_NOMINAL*. This map is used to attribute a water region to areas not included in the calibration catchments. In order to create this map, the user can follow the guidelines provided [here](https://ec-jrc.github.io/lisflood-model/2_18_stdLISFLOOD_water-use/).
-- file *.yaml* or *.json* to define the metadata of the output water regions map in netcdf format. An example of the structure of these files is provided [here](https://github.com/ec-jrc/lisflood-utilities/tree/master/tests/data/waterregions)
+- LDD map can be in NetCDF format or pcraster format. When using pcraster format, the following condition must be satisfied: *PCRASTER_VALUESCALE=VS_LDD*. 
+- Countries map in NetCDF format or pcraster format. When using pcraster format, the following condition must be satisfied: *PCRASTER_VALUESCALE=VS_NOMINAL*. This map shows the political boundaries of the Countries, each Coutry is identified by using a unique ID. This map is used to ensure that the water regions are not split accross different Countries.
+- Map of the initial definition of the water regions in NetCDF format or pcraster format. When using pcraster format, the following condition must be satisfied: *PCRASTER_VALUESCALE=VS_NOMINAL*. This map is used to attribute a water region to areas not included in the calibration catchments. In order to create this map, the user can follow the guidelines provided [here](https://ec-jrc.github.io/lisflood-model/2_18_stdLISFLOOD_water-use/).
+- file *.yaml* or *.json* to define the metadata of the output water regions map in NetCDF format. An example of the structure of these files is provided [here](https://github.com/ec-jrc/lisflood-utilities/tree/master/tests/data/waterregions)
 
 ##### Input data provided by this utility:
 This utility provides three maps of [Countries IDs](https://github.com/ec-jrc/lisflood-utilities/tree/master/tests/data): 1arcmin map of Europe (EFAS computational domain), 0.1 degree and 3arcmin maps of the Globe . ACKNOWLEDGEMENTS: both the rasters were retrieved by upsampling the original of the World Borders Datase provided by  http://thematicmapping.org/ (the dataset is available under a Creative Commons Attribution-Share Alike License).
 
 #### Output
 Map of the water regions which is consistent with the calibration catchments. In other words, each water region is entirely included in one calibration catchment.  The test to check the consistency between the newly created water regions map and the calibration catchments is implemented internally by the code and the outcome of the test is printed on the screen. 
-In the output map, each water region is identified by a unique ID. The format of the output map can be netcdf or pcraster.
+In the output map, each water region is identified by a unique ID. The format of the output map can be NetCDF or pcraster.
 
 #### Usage
 The following command lines allow to produce a water region map which is consistent with the calibration points (only one commad line is required: each one of the command lines below shows a different combination of input files format):
@@ -426,9 +426,9 @@ The following command lines allow to produce a water region map which is consist
 *python define_waterregions.py -p calib_points_test.txt -l ldd_test.map -C countries_id_test.nc -w waterregions_initial_test.map -o my_new_waterregions.nc -m metadata.test.yaml* <br>
 
 
-The input maps can be in nectdf format or pcraster format (the same command line can accept a mix of pcraster and netcdf formats).It is imperative to write the file name in full, that is including the extension (which can be either ".nc" or ".map").<br>
-The utility can return either a pcraster file or a netcdf file. The users select their preferred format by specifying the extension of the file in the output option (i.e. either ".nc" or ".map"). <br>
-The metadata file in .yaml format must be provided only if the output file is in netcdf format.<br>
+The input maps can be in nectdf format or pcraster format (the same command line can accept a mix of pcraster and NetCDF formats).It is imperative to write the file name in full, that is including the extension (which can be either ".nc" or ".map").<br>
+The utility can return either a pcraster file or a NetCDF file. The users select their preferred format by specifying the extension of the file in the output option (i.e. either ".nc" or ".map"). <br>
+The metadata file in .yaml format must be provided only if the output file is in NetCDF format.<br>
 
 The code internally verifies that the each one of the newly created water regions is entirely included  within one calibration catchments. If this condition is satisfied, the follwing message in printed out: *“OK! Each water region is completely included inside one calibration catchment”*. If the condition is not satisfied, the error message is *“ERROR: The  water regions WR are included in more than one calibration catchment”*. Moreover, the code provides the list of the water regions WR and the calibration catchments that do not meet the requirment. This error highlight a problem in the input data: the user is recommended to check (and correct) the list of calibration points and the input maps.
 
@@ -463,8 +463,8 @@ optional arguments:
 This function allows to verify the consistency between a  water region map and a map of calibration catchments. This function must be used when the water region map and the map of calibration catchments have been defined in an independent manner (i.e. not using the utility **define_waterregions**). The function verify_waterregions verifies that each water region map is entirely included in one calibration catchment. If this condition is not satisfied, an error message is printed on the screen. 
 
 #### Input
-- Map of calibration catchments in netcdf format.
-- Water regions map in netcdf format.
+- Map of calibration catchments in NetCDF format.
+- Water regions map in NetCDF format.
 
 #### Output
 The output is a message on the screen. There are two options:
@@ -488,13 +488,13 @@ calibration catchments
 optional arguments:
   -h, --help            show this help message and exit
   -cc CALIB_CATCHMENTS, --calib_catchments CALIB_CATCHMENTS
-                        map of calibration catchments, netcdf format
+                        map of calibration catchments, NetCDF format
   -wr WATERREGIONS, --waterregions WATERREGIONS
-                        map of water regions, netcdf format
+                        map of water regions, NetCDF format
 ```
 
 NOTE:
-The utility **pcr2nc** can be used to convert a map in pcraster format into netcdf format.
+The utility **pcr2nc** can be used to convert a map in pcraster format into NetCDF format.
 
 
 ## gridding
@@ -513,7 +513,7 @@ python3, pyg2p
 The tool requires four mandatory command line input arguments:
 
 - -i, --in: Set input folder path with kiwis/point files
-- -o, --out: Set output folder base path for the tiff files or the netCDF file path.
+- -o, --out: Set output folder base path for the tiff files or the NetCDF file path.
 - -c, --conf: Set the grid configuration type to use. Right now only 5x5km, 1arcmin are available.
 - -v, --var: Set the variable to be processed. Right now only variables pr,pd,tn,tx,ws,rg,pr6,ta6 are available.
 
@@ -521,7 +521,7 @@ The input folder must contain the meteo observation in text files with file name
 The files must contain the columns longitude, latitude, observation_value is separated by TAB and without the header.
 Not mandatory but could help to store the files in a folder structure like: ./YYYY/MM/DD/\<var\>YYYYMMDDHHMI_YYYYMMDDHHMISS.txt
 
-Example of command that will generate a netCDF file containing the precipitation (pr) grids for March 2023:
+Example of command that will generate a NetCDF file containing the precipitation (pr) grids for March 2023:
 
 ```bash
 gridding -i /meteo/pr/2023/ -o /meteo/pr/pr_MARCH_2023.nc -c 1arcmin -v pr -s 202303010600 -e 202304010600
@@ -534,22 +534,22 @@ gridding --help
 ```
 
 ```text
-usage: gridding [-h] -i input_folder -o {output_folder, netcdf_file} -c
+usage: gridding [-h] -i input_folder -o {output_folder, NetCDF_file} -c
                 {5x5km, 1arcmin,...} -v {pr,pd,tn,tx,ws,rg,...}
                 [-d files2process.txt] [-s YYYYMMDDHHMISS] [-e YYYYMMDDHHMISS]
                 [-q] [-t] [-f]
 
 version v0.1 ($Mar 28, 2023 16:01:00$) This script interpolates meteo input
 variables data into either a single NETCDF4 file or one GEOTIFF file per
-timestep. The resulting netCDF is CF-1.6 compliant.
+timestep. The resulting NetCDF is CF-1.6 compliant.
 
 optional arguments:
   -h, --help            show this help message and exit
   -i input_folder, --in input_folder
                         Set input folder path with kiwis/point files
-  -o {output_folder, netcdf_file}, --out {output_folder, netcdf_file}
+  -o {output_folder, NetCDF_file}, --out {output_folder, NetCDF_file}
                         Set output folder base path for the tiff files or the
-                        netCDF file path.
+                        NetCDF file path.
   -c {5x5km, 1arcmin,...}, --conf {5x5km, 1arcmin,...}
                         Set the grid configuration type to use.
   -v {pr,pd,tn,tx,ws,rg,...}, --var {pr,pd,tn,tx,ws,rg,...}
@@ -567,9 +567,9 @@ optional arguments:
                         [default: 20230421060000]
   -q, --quiet           Set script output into quiet mode [default: False]
   -t, --tiff            Outputs a tiff file per timestep instead of the
-                        default single netCDF [default: False]
+                        default single NetCDF [default: False]
   -f, --force           Force write to existing file. TIFF files will be
-                        overwritten and netCDF file will be appended.
+                        overwritten and NetCDF file will be appended.
                         [default: False]
 ```
 
@@ -611,7 +611,7 @@ The `ncextract` tool extracts the time series of values from (multiple) NetCDF f
 
 ### Usage
 
-The tool takes as input a CSV file containing point coordinates (structured in 3 columns: id, lat, lon) and a directory containing one or more netCDF files.
+The tool takes as input a CSV file containing point coordinates (structured in 3 columns: id, lat, lon) and a directory containing one or more NetCDF files.
 
 The output is a CSV file (or optionally a NetCDF file) containing the values at the  points corresponding to the provided coordinates, in chronological order.
 
