@@ -39,7 +39,7 @@ Here's a list of utilities you can find in lisflood-utilities package.
   
 > **Note**: PCRaster must be installed in the Conda environment.
  
-* __[compare](#compare-utility)__ is a package containing a set of simple Python classes that helps to compare 
+* __[compare](#compare)__ is a package containing a set of simple Python classes that helps to compare 
 NetCDF, PCRaster and TSS files.
 
 * __[thresholds](#thresholds)__ is a tool to compute the discharge return period thresholds from NetCDF4 file containing a discharge time series.
