@@ -17,8 +17,8 @@ import pandas as pd
 import sys
 import time
 import xarray as xr
-from typing import Dict, List, Union, Optional, Literal
-from tqdm.auto import tqdm
+from typing import Dict, List, Union, Optional
+# from tqdm.auto import tqdm
 
 
 def _read_inputmaps(inputmaps: Union[str, Path]) -> xr.Dataset:
@@ -48,7 +48,7 @@ def _read_inputmaps(inputmaps: Union[str, Path]) -> xr.Dataset:
         
     try:
         # for dynamic maps
-        ds = xr.open_mfdataset(filepaths, chunks='auto', parallel=True) as ds:
+        ds = xr.open_mfdataset(filepaths, chunks='auto', parallel=True)
         # chunks is set to auto for general purpose processing
         # it could be optimized depending on input NetCDF
     except:
@@ -131,7 +131,7 @@ def _read_pixarea(pixarea: Union[str, Path]) -> xr.DataArray:
 
 def catchment_statistics(maps: Union[xr.DataArray, xr.Dataset],
                          masks: Dict[int, xr.DataArray],
-                         statistic: Union[Literal['mean', 'median', 'std', 'min', 'max', 'count'], List[Literal['mean', 'median', 'std', 'min', 'max', 'count']]], 
+                         statistic: Union[str, List[str]], 
                          weight: Optional[xr.DataArray] = None,
                          output: Optional[Union[str, Path]] = None,
                          overwrite: bool = False
@@ -142,21 +142,21 @@ def catchment_statistics(maps: Union[xr.DataArray, xr.Dataset],
     Parameters:
     -----------
     maps: xarray.DataArray or xarray.Dataset
-        map or set of maps from which catchment statistics will be computed. Library Rioxarray must have been used to define the coordinate reference system and the dimensions
+        map or set of maps from which catchment statistics will be computed
     masks: dictionary of xr.DataArray
-        a set of catchment masks. For isntance, the tool `cutmaps` in the library `lisflood-utilities` can be used
+        a set of catchment masks. The tool `cutmaps` in this repository can be used to generate them
     statistic: string or list of strings
         statistics to be computed. Only some statistics are available: 'mean', 'sum', 'std', 'var', 'min', 'max', 'median', 'count'
     weight: optional or xr.DataArray
-        map used to weight each pixel in "maps" before computing the statistics. It is meant to weight pixels by their different pixel area in geographic projections
+        map used to weight each pixel in "maps" before computing the statistics. It is meant to take into account the different pixel area in geographic projections
     output: optional, str or pathlib.Path
-        directory where the resulting NetCDF files will be saved. If not provided, the results are put out as a dictionary of xr.Dataset
+        directory where the resulting NetCDF files will be saved. If not provided, the results are put out as a xr.Dataset
     overwrite: boolean
         whether to overwrite or skip catchments whose output NetCDF file already exists. By default is False, so the catchment will be skipped
     
     Returns:
     --------
-    A NetCDF file will be created for each catchment in the directory "mask"
+    A xr.Dataset of all catchment statistics or a NetCDF file for each catchment in the "masks" dictionary
     """
 
     start_time = time.perf_counter()
@@ -191,7 +191,8 @@ def catchment_statistics(maps: Union[xr.DataArray, xr.Dataset],
     variables = [f'{var}_{stat}' for var, stats in stats_dict.items() for stat in stats]
     
     # compute statistics for each catchemnt
-    for ID in tqdm(masks.keys(), desc='processing catchments'):
+    # for ID in tqdm(masks.keys(), desc='processing catchments'):
+    for ID in masks.keys(): 
 
         if output is not None:
             fileout = output / f'{ID:04}.nc'
