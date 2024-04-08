@@ -639,6 +639,8 @@ The `catchstats` tool calculates catchment statistics given a set of input NetCD
 
 ### Usage
 
+### In the command prompt
+
 The tool takes as input a directory containing the NetCDF files from which the statistics will be computed, and another directory containing the NetCDF files that define the catchment boundaries, which can be any of the outputs of  `cutmaps` (not necessarily the file _my_mask.nc_). The input files can be the LISFLOOD static maps (no temporal dimension) or stacks of maps with a temporal dimension. The mask NetCDF files must be named after with the catchment ID, as this name will be used to identify the catchment in the output NetCDF; for instance: _0142.nc_ would correspond to the mask of catchment 142. Optionally, an extra NetCDF file can be passed to the tool to account for different pixel area; in this case, the statistics will be weighted by this pixel area map.
 
 Only some statistics are currently available: mean, sum, std (standard deviation), var (variance), min, max, median. The weighing based on pixel area does not affect the statistics min, max and median.
@@ -669,13 +671,31 @@ options:
                           overwrite existing output files
 ```
 
-#### Example
+**Example**
 
 The following command calculates the average and total precipitation for a set of catchemtns from the dataset EMO-1. The static map _pixarea.nc_ is used to account for varying pixel area.
 
 ```bash
 catchstats -i ./EMO1/pr/ -m ./masks/ -s mean sum -o ./areal_precipitation/ -a ./EFAS5/static_maps/pixarea.nc
 ```
+
+#### In a Python script
+
+The tool can be imported in a Python script to be able to save in memory the output. This function takes in an `xarray.Dataset` with the input maps from which statistics will be computed, a dictionary of `xarray.DataArray` with the catchment masks, and optionally the weighing map. By default, the result is a `xarray.Dataset`, but NetCDF files could be written, instead, if a directory is provided in the `output` attribute.
+
+```Python
+# import function
+from lisfloodutilities.catchstats import catchment_statistics
+
+# load desired input maps and catchment masks
+# maps: xarray.Dataset
+# masks: Dict[int, xarray.DataArray]
+
+# compute statistics and save in a xarray.Dataset
+ds = catchment_statistics(maps, masks, statistic=['mean'], weight=None, output=None)
+```
+
+
 
 ## Using `lisfloodutilities` programmatically 
 

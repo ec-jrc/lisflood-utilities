@@ -48,12 +48,12 @@ def _read_inputmaps(inputmaps: Union[str, Path]) -> xr.Dataset:
         
     try:
         # for dynamic maps
-        ds = xr.open_mfdataset(filepaths, chunks='auto', parallel=True)
+        ds = xr.open_mfdataset(filepaths, chunks='auto', parallel=True, engine='netcdf4')
         # chunks is set to auto for general purpose processing
         # it could be optimized depending on input NetCDF
     except:
         # for static maps
-        ds = xr.Dataset({file.stem.split('_')[0]: xr.open_dataset(file)['Band1'] for file in filepaths})
+        ds = xr.Dataset({file.stem.split('_')[0]: xr.open_dataset(file, engine='netcdf4')['Band1'] for file in filepaths})
     if 'wgs_1984' in ds:
         ds = ds.drop_vars('wgs_1984')
 
@@ -92,9 +92,9 @@ def _read_masks(mask: Union[str, Path]) -> Dict[int, xr.DataArray]:
         ID = int(maskpath.stem)
         try:
             try:
-                aoi = xr.open_dataset(maskpath)['Band1']
+                aoi = xr.open_dataset(maskpath, engine='netcdf4')['Band1']
             except:
-                aoi = xr.open_dataarray(maskpath)
+                aoi = xr.open_dataarray(maskpath, engine='netcdf4')
             aoi = xr.where(aoi.notnull(), 1, aoi)
             masks[ID] = aoi
         except Exception as e:
@@ -122,7 +122,7 @@ def _read_pixarea(pixarea: Union[str, Path]) -> xr.DataArray:
         sys.exit(1)
     
     try:
-        weight = xr.open_dataset(pixarea)['Band1']
+        weight = xr.open_dataset(pixarea, engine='netcdf4')['Band1']
     except Exception as e:
         print(f'ERROR: The weighing map "{pixarea}" could not be loaded: {e}')
         sys.exit(2)
