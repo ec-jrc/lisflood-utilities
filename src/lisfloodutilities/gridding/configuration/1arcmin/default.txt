@@ -1,0 +1,98 @@
+[GENERIC]
+
+# Wildcard used to load the input kiwis files
+INPUT_WILDCARD = ??????????00_all.kiwis
+# Datetime pattern used to extract the date and from the kiwis file name
+INPUT_TIMESTAMP_PATTERN = %%Y%%m%%d%%H%%M_all.kiwis
+# Datetime pattern used to extract the date and time from the point file name
+POINTS_TIMESTAMP_PATTERN = %%Y%%m%%d%%H%%M
+
+NETCDF_REFERENCE=A European daily high-resolution gridded meteorological data set for 1990 - 2022
+NETCDF_TITLE = Lisflood meteo maps 1990-2023 for European setting Feb. 2023
+NETCDF_KEYWORDS = Lisflood, Europe
+NETCDF_SOURCE = Lisflood Europe meteo maps - pb2015
+NETCDF_INSTITUTION = European Commission - Disaster Risk Management Unit (JRC.E.1) : https://ec.europa.eu/jrc/en/research-topic/floods
+NETCDF_COMMENT = The timestamp marks the end of the aggregation interval for a given map. e.g.: A daily map with the timestamp of 1990-01-02 06:00 represents the data aggregated from 1990-01-01 06:00:01 to 1990-01-02 06:00:00
+NETCDF_SPHEREMAP_VERSION = SPHEREMAP for EFAS SC9 (c) DWD-GPCC (08 March 2022)
+
+[PROPERTIES]
+
+VAR_CODE = DUMMY_VAR
+CELL_METHODS = time: mean
+UNIT = DUMMY_UNIT
+UNIT_CONVERSION = 1.0
+# A value of 0.0 means no height correction will be done
+HEIGHT_CORRECTION_FACTOR = 0.0
+# After the height correction allows removing negative values by setting them to zero
+TRUNCATE_NEGATIVE_VALUES = False
+VALUE_MIN = 0
+VALUE_MAX = 35
+VALUE_SCALE = 0.1
+VALUE_OFFSET = 0.0
+DATA_TYPE_PACKED = i2
+STANDARD_NAME = DUMMY_STANDARD_NAME
+LONG_NAME = DUMMY LONG NAME
+KIWIS_FILTER_COLUMNS = {'COL_LAT': 'station_local_y', 'COL_LON': 'station_local_x', 'COL_IS_IN_DOMAIN': 'EFAS_ADDATTR_ISINNEWDOMAIN'}
+# KIWIS_FILTER_COLUMNS = {}
+KIWIS_FILTER_PLUGIN_CLASSES = {'KiwisFilter': {}}
+
+[DIMENSION]
+
+TOP = 72.25000000000000000000
+BOTTOM = 22.75000000000000000000
+LEFT = -25.25000000000000000000
+RIGHT = 50.25000000000000000000
+
+CELL_SIZE_X = 0.01666666666666666297
+CELL_SIZE_Y = -0.0166666666666666699
+
+COLUMNS = 4530
+ROWS = 2970
+
+[PROJECTION]
+
+FALSE_EASTING = 
+FALSE_NORTHING = 
+ORIGIN_LONGITUDE =
+ORIGIN_LATITUDE =
+LONGITUDE_PRIME_MERIDIAN = 0.000000000000000000
+GEO_TRANSFORM = -25.25000000000000000000 0.01666666666666666667 0.00000000000000000000 72.25000000000000000000 0.00000000000000000000 -0.01666666666666666667
+SEMI_MAJOR_AXIS = 6378137.0
+INVERSE_FLATTENING = 298.257223563
+PARAMS = +proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs
+PARAMS2 = +proj=longlat +datum=WGS84 +no_defs
+EPSG_CODE = EPSG:4326
+GRID_MAPPING = wgs_1984
+STRING2 = GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.01745329251994328,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]]
+STRING = GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433],AUTHORITY["EPSG","4326"]]
+STRING0 = GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AXIS["Latitude",NORTH],AXIS["Longitude",EAST],AUTHORITY["EPSG","4326"]]
+
+[VAR_X]
+
+NAME = lon
+STANDARD_NAME = longitude
+LONG_NAME = Longitude
+UNIT = degree_east
+
+[VAR_Y]
+
+NAME = lat
+STANDARD_NAME = latitude
+LONG_NAME = Latitude
+UNIT = degree_north
+
+[VAR_TIME]
+
+NAME = time
+STANDARD_NAME = time
+LONG_NAME = time
+UNIT_PATTERN = days since %%Y-%%m-%%d %%H:%%M:%%S.%%f
+UNIT = days since 1990-01-02 00:00:00.0
+FREQUENCY = 1
+
+# Used to force the time value when it is not defined in the filename. Format: HHMM
+# FORCE_TIME = 0600
+
+# Used to allow moving the files 1 day forward for variables (WS, RG, PD, PR?)
+OFFSET_FILE_DATE = 0
+

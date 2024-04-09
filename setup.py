@@ -126,8 +126,9 @@ setup_args = dict(
     description='A set of utilities for lisflood users. '
                 'pcr2nc: Convert PCRaster files to netCDF CF 1.6; '
                 'nc2pcr: Convert netCDF files ot PCRaster format; '
-                'cutmaps: cut netCDF files;'
-                'compare: compare two set of netcdf files',
+                'cutmaps: cut netCDF files; '
+                'compare: compare two set of netCDF files; '
+                'ncextract: extract values from netCDF files; ',
     long_description=long_description,
     long_description_content_type='text/markdown',
     setup_requires=[
@@ -138,13 +139,13 @@ setup_args = dict(
                       # Better to install GDAL manually before to install lisflood-utilities package
                       # 'GDAL=={}'.format(gdal_version),
                       'netCDF4>=1.5.3', 'toolz', 'xarray>=0.15.1',
-                      'dask', 'pandas>=0.25.1', 'nine'],
+                      'dask', 'pandas>=0.25.1', 'nine', 'pyg2p'],
     author="Valerio Lorini, Stefania Grimaldi, Carlo Russo, Domenico Nappo, Lorenzo Alfieri",
     author_email="valerio.lorini@ec.europa.eu,stefania.grimaldi@ec.europa.eu,carlo.russo@ext.ec.europa.eu,domenico.nappo@gmail.com,lorenzo.alfieri@ec.europa.eu",
     keywords=['netCDF4', 'PCRaster', 'mapstack', 'lisflood', 'efas', 'glofas', 'ecmwf', 'copernicus'],
     license='EUPL 1.2',
     url='https://github.com/ec-jrc/lisflood-utilities',
-    scripts=['bin/pcr2nc', 'bin/cutmaps', 'bin/compare', 'bin/nc2pcr', 'bin/thresholds', ],
+    scripts=['bin/pcr2nc', 'bin/cutmaps', 'bin/compare', 'bin/nc2pcr', 'bin/thresholds', 'bin/gridding', 'bin/cddmap', 'bin/ncextract',],
     zip_safe=True,
     classifiers=[
           # complete classifier list: http://pypi.python.org/pypi?%3Aaction=list_classifiers

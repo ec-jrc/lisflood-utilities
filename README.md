@@ -46,12 +46,25 @@ netCDF, PCRaster and TSS files.
 
 * __waterregions__ is a package containing two scripts that allow to create and verify a water regions map, respectively.
 
+* __gridding__ is a tool to interpolate meteo variables observations stored in text files containing (lon, lat, value) into grids.
+  - uses inverse distance interpolation
+  - input file names must use format: \<var\>YYYYMMDDHHMI_YYYYMMDDHHMISS.txt
+  - option to store all interpolated grids in a single NetCDF4 file
+  - option to store each interpolated grid in a GeoTIFF file
+  - output files are compressed
+  - grids are setup in the configuration folder and are defined by a dem.nc file
+  - meteo variables parameters are defined in the same configuration folder
+
+* __cddmap__ is a tool to generate correlation decay distance (CDD) maps starting from station timeseries
+
 The package contains convenient classes for reading/writing:
 
 * PCRasterMap
 * PCRasterReader
 * NetCDFMap
 * NetCDFWriter
+
+* __ncextract__ is a tool to extract values from netCDF4 file at specific coordinates.
 
 ### Installation
 
@@ -70,7 +83,7 @@ If you use conda, create a new env (or use an existing one) and install gdal and
 ```bash
 conda create --name myenv python=3.7 -c conda-forge
 conda activate myenv
-conda install -c conda-forge pcraster gdal
+conda install -c conda-forge pcraster eccodes gdal
 pip install lisflood-utilities
 ```
 
@@ -236,8 +249,8 @@ The tool accepts as input:
   - alternatively, using the -i argument, matrix indices in the form `imin imax jmin jmax` (imin, imax, jmin, jmax  must be integer numbers)
   - alternatively, using the -c argument, coordinates bounding box in the form `xmin xmax ymin ymax` (xmin, xmax, ymin, ymax can be integer or floating point numbers; x = longitude, y = latitude) 
   - alternatively, using the -N and -l arguments, list of stations with coordinates and a LDD map.
-* a path to a folder containing netCDF files to cut or a static dataset path like LISFLOOD static files. 
-* a path to a folder where to write cut files.
+* a path to a netCDF file (-F argument), a folder containing netCDF files to cut (-f argument) or a static dataset path (-S argument) like LISFLOOD static files. 
+* a path to a folder where to write cut files (-o argument).
 
 The following command will cut all netcdf files inside _/workarea/Madeira/lai/_ folder 
 and produced files will be writte in current folder. 
@@ -247,6 +260,12 @@ The mask can also be in PCRaster format.
 
 ```bash
 cutmaps -m /workarea/Madeira/maps/MaskMap/Bacia_madeira.nc -f /workarea/Madeira/lai/ -o ./
+```
+
+The following command will cut a single netCDF file and produced file will be writte in current folder. 
+
+```bash
+cutmaps -m /workarea/Madeira/maps/MaskMap/Bacia_madeira.nc -F /workarea/Madeira/lai/tp.nc -o ./
 ```
 
 **Indices can also be passed as an argument (using -i argument instead of -m). Knowing your area of interest from your netCDF files, 
@@ -482,6 +501,138 @@ NOTE:
 The utility **pcr2nc** can be used to convert a map in pcraster format into netcdf format.
 
 
+## gridding
+
+This tool is used to interpolate meteo variables observations stored in text files containing (lon, lat, value) into grids.
+It uses inverse distance interpolation method from pyg2p.
+
+#### Requirements
+python3, pyg2p
+
+### Usage
+
+> __Note:__ This guide assumes you have installed the program with pip tool.
+> If you cloned the source code instead, just substitute the executable `gridding` with `python bin/gridding` that is in the root folder of the cloned project.
+
+The tool requires four mandatory command line input arguments:
+
+- -i, --in: Set input folder path with kiwis/point files
+- -o, --out: Set output folder base path for the tiff files or the netCDF file path.
+- -c, --conf: Set the grid configuration type to use. Right now only 5x5km, 1arcmin are available.
+- -v, --var: Set the variable to be processed. Right now only variables pr,pd,tn,tx,ws,rg,pr6,ta6 are available.
+
+The input folder must contain the meteo observation in text files with file name format:  \<var\>YYYYMMDDHHMI_YYYYMMDDHHMISS.txt
+The files must contain the columns longitude, latitude, observation_value is separated by TAB and without the header.
+Not mandatory but could help to store the files in a folder structure like: ./YYYY/MM/DD/\<var\>YYYYMMDDHHMI_YYYYMMDDHHMISS.txt
+
+Example of command that will generate a netCDF file containing the precipitation (pr) grids for March 2023:
+
+```bash
+gridding -i /meteo/pr/2023/ -o /meteo/pr/pr_MARCH_2023.nc -c 1arcmin -v pr -s 202303010600 -e 202304010600
+```
+
+The input and output arguments are listed below and can be seen by using the help flag.
+
+```bash
+gridding --help
+```
+
+```text
+usage: gridding [-h] -i input_folder -o {output_folder, netcdf_file} -c
+                {5x5km, 1arcmin,...} -v {pr,pd,tn,tx,ws,rg,...}
+                [-d files2process.txt] [-s YYYYMMDDHHMISS] [-e YYYYMMDDHHMISS]
+                [-q] [-t] [-f]
+
+version v0.1 ($Mar 28, 2023 16:01:00$) This script interpolates meteo input
+variables data into either a single NETCDF4 file or one GEOTIFF file per
+timestep. The resulting netCDF is CF-1.6 compliant.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -i input_folder, --in input_folder
+                        Set input folder path with kiwis/point files
+  -o {output_folder, netcdf_file}, --out {output_folder, netcdf_file}
+                        Set output folder base path for the tiff files or the
+                        netCDF file path.
+  -c {5x5km, 1arcmin,...}, --conf {5x5km, 1arcmin,...}
+                        Set the grid configuration type to use.
+  -v {pr,pd,tn,tx,ws,rg,...}, --var {pr,pd,tn,tx,ws,rg,...}
+                        Set the variable to be processed.
+  -d files2process.txt, --dates files2process.txt
+                        Set file containing a list of filenames to be
+                        processed in the form of
+                        <var>YYYYMMDDHHMI_YYYYMMDDHHMISS.txt
+  -s YYYYMMDDHHMISS, --start YYYYMMDDHHMISS
+                        Set the start date and time from which data is
+                        imported [default: date defining the time units inside
+                        the config file]
+  -e YYYYMMDDHHMISS, --end YYYYMMDDHHMISS
+                        Set the end date and time until which data is imported
+                        [default: 20230421060000]
+  -q, --quiet           Set script output into quiet mode [default: False]
+  -t, --tiff            Outputs a tiff file per timestep instead of the
+                        default single netCDF [default: False]
+  -f, --force           Force write to existing file. TIFF files will be
+                        overwritten and netCDF file will be appended.
+                        [default: False]
+```
+
+
+## cddmap
+
+This tool is used to generate correlation decay distance (CDD) maps starting from station timeseries
+
+#### Requirements
+python3, pyg2p
+
+### Usage
+
+cddmap [directory]/[--analyze]/[--merge-and-filter-jsons]/--generatemap] [--start first_station] [--end last_station] [--parallel] [--only-extract-timeseries timeseries_keys_file] [--maxdistance max_distance_in_km]
+
+The tool requires an input argument indicating the station timeseries main folder, and calculates the CDD for each stations as well as correlations and distances files. Outputs the results in a txt file containing station coordinates and CDD values.
+After creating the CDD txt file, it can be used with one of the following commands:
+
+- --analyze: read cdd file previously created for postprocessing  
+- --merge-and-filter-jsons: merge all cdd files in a folder and filters out a list of stations.
+- --generatemap: generate a NetCDF CDD map file using CDD txt file and angular distance weighted interpolation between station points
+- --start and --end arguments are used to split the task in many sub tesks, evaluating only the stations between "start" and "end", since the CDD evaluation can be very time-demanding. 
+- --only-extract-timeseries: in combination with path of the station's main folder, extracts the timeseries specified in the timeseries_keys_file txt list of keys
+- --parallel: enable CDD evaluation in parallel on multiple cores. It will require more memory
+- --maxdistance: evaluates only station that are clores then maxdistance in km
+
+The input folder must contain the meteo observation in text files
+
+Example of command that will generate txt files for the CDD of precipitation (pr), in parallel mode, for station that are closer then 500 kms:
+
+```bash
+cddmap /meteo/pr --parallel --maxdistance 500
+```
+
+
+## ncextract
+
+The ncextract tool extracts the time series of values from (multiple) netCDF file(s) at user defined coordinates.
+
+### Usage:
+The tool takes as input a CSV file containing point coordinates (structured in 3 columns: id, lat, lon) and a directory containing one or more netCDF files.
+The output is a CSV file (or optionally a netCDF file) containing the values at the  points corresponding to the provided coordinates, in chronological order.
+
+```text
+usage: ncextract.py [-h] -i INPUT -d DIRECTORY -o OUTPUT [-nc]
+
+Utility to extract time series of values from (multiple) NetCDF files at specific coordinates.
+Coordinates of points of interest must be included in a CSV file with at least 3 columns named id,
+lat, lon.
+
+options:
+  -h, --help            show this help message and exit
+  -i INPUT, --input INPUT
+                        Input CSV file (id, lat, lon)
+  -d DIRECTORY, --directory DIRECTORY
+                        Input directory with .nc files
+  -o OUTPUT, --output OUTPUT
+                        Output file (default is CSV, use -nc for NetCDF)
+  -nc, --nc             Output to NetCDF
 
 
 ## Using lisfloodutilities programmatically 

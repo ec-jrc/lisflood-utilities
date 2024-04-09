@@ -1,0 +1,22 @@
+[PROPERTIES]
+
+VAR_CODE = pd6
+CELL_METHODS = time: mean
+UNIT = hPa
+UNIT_CONVERSION = 1.0
+HEIGHT_CORRECTION_FACTOR = 0.00025
+# After the height correction allows removing negative values by setting them to zero
+TRUNCATE_NEGATIVE_VALUES = True
+VALUE_MIN = 0
+VALUE_MAX = 50
+VALUE_SCALE = 0.1
+VALUE_OFFSET = 0.0
+DATA_TYPE_PACKED = i2
+STANDARD_NAME = water_vapor_partial_pressure_in_air
+LONG_NAME = 6 Hourly Average Vapor Pressure
+
+[VAR_TIME]
+
+UNIT_PATTERN = hours since %%Y-%%m-%%d %%H:%%M:%%S.%%f
+UNIT = hours since 1990-01-01 06:00:00.0
+FREQUENCY = 6
