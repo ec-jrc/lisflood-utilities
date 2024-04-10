@@ -42,6 +42,8 @@ Here's a list of utilities you can find in lisflood-utilities package.
 * __compare__ is a package containing a set of simple Python classes that helps to compare 
 netCDF, PCRaster and TSS files.
 
+* __water-demand-historic__ is a package allowing to generate sectoral (domestic, livestock, industry, and thermoelectric) water demand maps with monthly to yearly temporal steps for a range of past years, at the users’ defined spatial resolution and geographical extent. These maps are required by the LISFLOOD OS [water use module](https://ec-jrc.github.io/lisflood-model/2_18_stdLISFLOOD_water-use)
+
 * __waterregions__ is a package containing two scripts that allow to create and verify a water regions map, respectively.
 
 * __gridding__ is a tool to interpolate meteo variables observations stored in text files containing (lon, lat, value) into grids.
@@ -368,6 +370,26 @@ options:
   -o OUTPUT, --output OUTPUT
                         Output thresholds file
 ```
+
+## water-demand-historic
+
+This utility allows to create water demand maps at the desired resolution and for the desired geographical areas. The maps indicate, for each pixel, the time-varying water demand map to supply for domestic, livestock, industrial, and thermoelectric water consumption. The temporal discretization is monthly for domestic and energy demand, yearly for industrial and livestock demand. The maps of sectoral water demand are required by the LISFLOOD OS [water use module](https://ec-jrc.github.io/lisflood-model/2_18_stdLISFLOOD_water-use/). Clearly, the sectoral water demand maps and the scripts of this utility can be used also for other applications, as well as for stand-alone analysis of historical water demand for anthropogenic use.
+
+#### Input
+The creation of the sectoral water demand maps requires a template map that defines the desired geographical area and spatial resolution. The generation of the maps relies on a number of external datasets (examples are the [Global Human Settlement - Datasets - European Commission (europa.eu)](https://ghsl.jrc.ec.europa.eu/datasets.php) and [FAO AQUASTAT Dissemination System](https://data.apps.fao.org/aquastat/?lang=en)). The locations of the template map, of the input datasets and files, of the output folder, and other users’ choices (e.g. start year and end year) are specified in a configuration file. The syntax of the configuration file is pre-defined and an example is provided to the users. The complete list of external datasets, the instructions on how to prepare (i) the external dataset, (ii) the template map, (iii) the input folder, (iv) the output folder, and (v) the configuration file are explained into details [here](src/lisfloodutilities/water-demand-historic/README.md)
+
+#### Output
+Four sectoral water demand maps in netCDF-4 format. The geographical extent and the spatial resolution are defined by the template map (users-defined input file). Each netCDF-4 file has 12 months, for each year included in the temporal time span identified by the user. Sectoral water demand data with lower (yearly) temporal resolution are repeated 12 times. 
+
+#### Usage
+The methodology includes five main steps. The instructions on how to retrieve the scrips, create the environment including all the required packages, and use the utility are provided [here](src/lisfloodutilities/water-demand-historic/README.md)
+
+#### Important notes on documentation and data availability
+The complete list of external datasets, the instructions on how to retrieve the external datasets, the methodology, and the usage of the scripts are explained into details [here](src/lisfloodutilities/water-demand-historic/README.md). The README file provides detailed technical information about the input datasets and the usage of this utility. The methodology is explained in the manuscript: Choulga, M., Moschini, F., Mazzetti, C., Grimaldi, S., Disperati, J., Beck, H., Salamon, P., and Prudhomme, C.: Technical note: Surface fields for global environmental modelling, EGUsphere, 2023 ([preprint](https://doi.org/10.5194/egusphere-2023-1306)).
+
+The global sectoral water demand maps at 3 arcmin (or 0.05 degrees) resolution, 1979-2019, produced using the scripts of this utility can be downloaded from [Joint Research Centre Data Catalogue - LISFLOOD static and parameter maps for GloFAS - European Commission (europa.eu)](https://data.jrc.ec.europa.eu/dataset/68050d73-9c06-499c-a441-dc5053cb0c86)
+
+
 
 ## waterregions
 
