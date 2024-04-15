@@ -162,7 +162,7 @@ def main(argv=sys.argv):
     )
     parser.add_argument("-i", "--input", required=True, help="Input CSV file (id, lat, lon)")
     parser.add_argument("-d", "--directory", required=True, help="Input directory with .nc files")
-    parser.add_argument("-o", "--output", required=True, help="Output file (default is CSV, use -nc for NetCDF)")
+    parser.add_argument("-o", "--output", required=True, help="Output file. Two extensions are supported: .csv or .nc")
 
     args = parser.parse_args()
     
