@@ -1,7 +1,9 @@
 import unittest
-from lisfloodutilities.compare.nc import NetCDFComparator
-
-from lisfloodutilities.ncextract import extract
+import sys
+# from lisfloodutilities.compare.nc import NetCDFComparator
+# from lisfloodutilities.ncextract import _read_points, _read_inputmpas, extract_timeseries
+sys.path.append('../src/lisfloodutilities/ncextract')
+from ncextract import _read_points, _read_inputmpas, extract_timeseries
 import csv
 
 class TestExtract(unittest.TestCase):
@@ -28,7 +30,9 @@ class TestExtract(unittest.TestCase):
         datasets = 'tests/data/ncextract/datasets'
         outputfile = 'tests/data/output.csv'
         expected = 'tests/data/ncextract/expected.csv'
-        extract(inputcsv, datasets, outputfile, nc=False)
+        poi = _read_points(inputcsv)
+        maps = _read_inputmpas(datasets)
+        extract_timeseries(poi, maps, outputfile)
         assert self.compare_csv_files(outputfile, expected)
         
     # def test_extract_nc(self):
