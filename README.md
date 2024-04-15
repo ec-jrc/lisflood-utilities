@@ -615,7 +615,7 @@ The `ncextract` tool extracts time series from (multiple) NetCDF or GRIB file(s)
 
 ### Usage
 
-The tool takes as input a CSV file containing point coordinates (structured in 3 columns: id, lat, lon) and a directory containing one or more NetCDF or GRIB files. The CSV files must contain only three columns: point identifier, and its two coordinates; the name of the coordinates must match those in the NetCDF or GRIB files. For example:
+The tool takes as input a CSV file containing point coordinates (structured in 3 columns: id, lat, lon) and a directory containing one or more NetCDF or GRIB files. The CSV files must contain only three columns: point identifier, and its two coordinates. The name of the coordinate fields must match those in the NetCDF or GRIB files. For example:
 
 ```text
 ID,lat,lon
@@ -640,7 +640,7 @@ options:
   -d DIRECTORY, --directory DIRECTORY
                         Input directory with .nc files
   -o OUTPUT, --output OUTPUT
-                        Output file (default is CSV, use -nc for NetCDF)
+                        Output file. Two extensions are supported: .csv or .nc
 ```
 
 
