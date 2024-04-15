@@ -64,7 +64,7 @@ The package contains convenient classes for reading/writing:
 * NetCDFMap
 * NetCDFWriter
 
-* __ncextract__ is a tool to extract values from netCDF4 file at specific coordinates.
+* __[ncextract](#ncextract)__ is a tool to extract values from NetCDF4 (or GRIB) file(s) at specific coordinates.
 
 ### Installation
 
@@ -611,11 +611,20 @@ cddmap /meteo/pr --parallel --maxdistance 500
 
 ## ncextract
 
-The ncextract tool extracts the time series of values from (multiple) netCDF file(s) at user defined coordinates.
+The `ncextract` tool extracts time series from (multiple) NetCDF or GRIB file(s) at user defined coordinates.
 
-### Usage:
-The tool takes as input a CSV file containing point coordinates (structured in 3 columns: id, lat, lon) and a directory containing one or more netCDF files.
-The output is a CSV file (or optionally a netCDF file) containing the values at the  points corresponding to the provided coordinates, in chronological order.
+### Usage
+
+The tool takes as input a CSV file containing point coordinates (structured in 3 columns: id, lat, lon) and a directory containing one or more NetCDF or GRIB files. The CSV files must contain only three columns: point identifier, and its two coordinates; the name of the coordinates must match those in the NetCDF or GRIB files. For example:
+
+```text
+ID,lat,lon
+0010,40.6083,-4.2250
+0025,37.5250,-6.2750
+0033,40.5257,-6.4753
+```
+
+The output is a file containing the time series at the pixels corresponding to the provided coordinates, in chronological order. The function supports two otput formats: CSV or NetCDF.
 
 ```text
 usage: ncextract.py [-h] -i INPUT -d DIRECTORY -o OUTPUT [-nc]
@@ -632,7 +641,7 @@ options:
                         Input directory with .nc files
   -o OUTPUT, --output OUTPUT
                         Output file (default is CSV, use -nc for NetCDF)
-  -nc, --nc             Output to NetCDF
+```
 
 
 ## Using lisfloodutilities programmatically 
