@@ -1,6 +1,6 @@
 import unittest
 # from lisfloodutilities.compare.nc import NetCDFComparator
-from lisfloodutilities.ncextract import read_points, read_inputmpas, extract_timeseries
+from lisfloodutilities.ncextract import read_points, read_inputmaps, extract_timeseries
 import csv
 
 class TestExtract(unittest.TestCase):
