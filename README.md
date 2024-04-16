@@ -643,6 +643,28 @@ options:
                         Output file. Two extensions are supported: .csv or .nc
 ```
 
+#### Use in the command prompt
+
+The following command extracts the discharge time series from EFAS simulations (NetCDF files in the directory _EFAS5/discharge/maps_) in a series of points where gauging stations are located (file _gauging_stations.csv_ in the current directory), and saves the extraction as a CSV file.
+
+```bash
+ncextract -i ./gauging_stations.csv -d ./EFAS5/discharge/maps/ -o ./EFAS5/discharge/timeseries/results_ncextract.csv
+```
+
+#### Use programmatically
+
+The function can be imported in a Python script. It takes as inputs two `xarray.Dataset`: one defining the input maps and the other the points of interest. The result of the extraction can be another `xarray.Dataset`, or saved as a file either in CSV or NetCDF format.
+
+```Python
+from lisfloodutilities.ncextract import extract_timeseries
+
+# load desired input maps and points
+# maps: xarray.Dataset
+# points: xarray.Dataset
+
+# extract time series and save in a xarray.Dataset
+ds = extract_timeseries(maps, points, output=None)
+```
 
 ## Using lisfloodutilities programmatically 
 
