@@ -69,7 +69,7 @@ def read_inputmaps(directory: Union[str, Path]) -> xr.Dataset:
 
     Returns:
     --------
-    ds: xarray.dataset
+    maps: xarray.dataset
         containing the concatenation of all the input maps
     """
 
@@ -96,24 +96,24 @@ def read_inputmaps(directory: Union[str, Path]) -> xr.Dataset:
 
     # chunks is set to auto for general purpose processing
     # it could be optimized depending on input NetCDF
-    ds = xr.open_mfdataset(filepaths, engine=engine, chunks='auto', parallel=True)
+    maps = xr.open_mfdataset(filepaths, engine=engine, chunks='auto', parallel=True)
 
-    return ds
+    return maps
 
 
 
-def extract_timeseries(poi: xr.Dataset,
-                       ds: xr.Dataset,
+def extract_timeseries(maps: xr.Dataset,
+                       poi: xr.Dataset,
                        outputfile: Optional[Union[str, Path]] = None
                       ) -> Optional[xr.Dataset]:
     """It extract from a series of input files (NetCDF or GRIB) the time series of a set of points
 
     Parameters:
     -----------
-    inputcsv: xarray.Dataset
-        a Dataset indicating the coordinates of the points of interest. It must have only two variables (the coordinates), and the names of this variables must be dimensions in "ds"
-    directory: xarray.Dataset
+    maps: xarray.Dataset
         the time stack of input maps from which the time series will be extracted
+    poi: xarray.Dataset
+        a Dataset indicating the coordinates of the points of interest. It must have only two variables (the coordinates), and the names of this variables must be dimensions in "maps"
     ouputfile: optional, string or pathlib.Path
         the file where the results will be saved. It can be either a CSV or a NetCDF file
 
@@ -123,22 +123,22 @@ def extract_timeseries(poi: xr.Dataset,
     """
 
     coord_1, coord_2 = list(poi)
-    if not all(coord in ds.coords for coord in [coord_1, coord_2]):
-        print(f'ERROR: The variables in "poi" (coordinates) are not coordinates in "ds"')
+    if not all(coord in maps.coords for coord in [coord_1, coord_2]):
+        print(f'ERROR: The variables in "poi" (coordinates) are not coordinates in "maps"')
         sys.exit(1)
 
     # extract time series
-    ds_poi = ds.sel({coord_1: poi[coord_1], coord_2: poi[coord_2]}, method='nearest')
+    maps_poi = maps.sel({coord_1: poi[coord_1], coord_2: poi[coord_2]}, method='nearest')
 
     if outputfile is None:
-        return ds_poi.compute()
+        return maps_poi.compute()
 
     else:
         outputfile = Path(outputfile)
         if outputfile.suffix == '.nc':
-            ds_poi.to_netcdf(outputfile)
+            maps_poi.to_netcdf(outputfile)
         elif outputfile.suffix == '.csv':
-            df = ds_poi.to_dataframe()
+            df = maps_poi.to_dataframe()
             df_reset = df.reset_index()
             df_reset.to_csv(outputfile, index=False)
         else:
@@ -175,7 +175,7 @@ def main(argv=sys.argv):
         maps = read_inputmaps(args.directory)
         print(maps)
         print('Processing...')
-        extract_timeseries(points, maps, args.output)
+        extract_timeseries(maps, points, args.output)
 
         elapsed_time = time.perf_counter() - start_time
         print(f"Time elapsed: {elapsed_time:0.2f} seconds")

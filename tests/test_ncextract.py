@@ -29,7 +29,7 @@ class TestExtract(unittest.TestCase):
         expected = 'tests/data/ncextract/expected.csv'
         poi = read_points(inputcsv)
         maps = read_inputmpas(datasets)
-        extract_timeseries(poi, maps, outputfile)
+        extract_timeseries(maps, poi, outputfile)
         assert self.compare_csv_files(outputfile, expected)
 
     # def test_extract_nc(self):
