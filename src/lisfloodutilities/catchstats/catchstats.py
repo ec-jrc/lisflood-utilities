@@ -21,7 +21,7 @@ from typing import Dict, List, Union, Optional
 # from tqdm.auto import tqdm
 
 
-def _read_inputmaps(inputmaps: Union[str, Path]) -> xr.Dataset:
+def read_inputmaps(inputmaps: Union[str, Path]) -> xr.Dataset:
     """It reads the input maps in NetCDF format from the input directory
 
     Parameters:
@@ -59,7 +59,7 @@ def _read_inputmaps(inputmaps: Union[str, Path]) -> xr.Dataset:
 
     return ds
 
-def _read_masks(mask: Union[str, Path]) -> Dict[int, xr.DataArray]:
+def read_masks(mask: Union[str, Path]) -> Dict[int, xr.DataArray]:
     """It loads the catchment masks in NetCDF formal from the input directory
 
     Parameters:
@@ -103,7 +103,7 @@ def _read_masks(mask: Union[str, Path]) -> Dict[int, xr.DataArray]:
 
     return masks
 
-def _read_pixarea(pixarea: Union[str, Path]) -> xr.DataArray:
+def read_pixarea(pixarea: Union[str, Path]) -> xr.DataArray:
     """It reads the LISFLOOD pixel area static map
     
     Parameters:
@@ -241,26 +241,25 @@ def main(argv=sys.argv):
     prog = os.path.basename(argv[0])
     parser = argparse.ArgumentParser(
         description="""
-        Utility to compute catchment statistics from
-        (multiple) NetCDF files.
-        The mask map is a NetCDF file with values in the
-        area of interest and NaN elsewhere.
+        Utility to compute catchment statistics from (multiple) NetCDF files.
+        The mask masp are NetCDF files with values in the area of interest and NaN elsewhere.
+        The area map is optional and accounts for varying pixel area with latitude.
         """,
         prog=prog,
     )
-    parser.add_argument("-i", "--input", required=True, help="Directory containint the input NetCDF files")
+    parser.add_argument("-i", "--input", required=True, help="Directory containing the input NetCDF files")
     parser.add_argument("-m", "--mask", required=True, help="Directory containing the mask NetCDF files")
-    parser.add_argument("-s", "--statistic", nargs='+', required=True, help='List of statistics to be computed')
+    parser.add_argument("-s", "--statistic", nargs='+', required=True, help='List of statistics to be computed. Possible values: mean, sum, std, var, min, max, median, count')
     parser.add_argument("-o", "--output", required=True, help="Directory where the output NetCDF files will be saved")
-    parser.add_argument("-a", "--area", required=False, default=None, help="NetCDF file of pixel area used to weight the statistics")
+    parser.add_argument("-a", "--area", required=False, default=None, help="NetCDF file of pixel area used to weigh the statistics")
     parser.add_argument("-W", "--overwrite", action="store_true", help="Overwrite existing output files")
     
     args = parser.parse_args()
 
     try:
-        maps = _read_inputmaps(args.input)
-        masks = _read_masks(args.mask)
-        weight = _read_pixarea(args.area) if args.area is not None else None
+        maps = read_inputmaps(args.input)
+        masks = read_masks(args.mask)
+        weight = read_pixarea(args.area) if args.area is not None else None
         catchment_statistics(maps, masks, args.statistic, weight=weight, output=args.output, overwrite=args.overwrite)
     except Exception as e:
         print(f'ERROR: {e}')
