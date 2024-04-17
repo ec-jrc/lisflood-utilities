@@ -2,9 +2,7 @@ import unittest
 from pathlib import Path
 import pandas as pd
 import pandas.testing as pdt
-import sys
-sys.path.append('../src/lisfloodutilities/catchstats')
-from catchstats import _read_inputmaps, _read_masks, _read_pixarea, catchment_statistics
+from lisfloodutilities.catchstats import read_inputmaps, read_masks, read_pixarea, catchment_statistics
 
 class TestCatchStats(unittest.TestCase):
 
@@ -13,9 +11,9 @@ class TestCatchStats(unittest.TestCase):
     def test_catchstats(self):
 
         # compute test values
-        maps = _read_inputmaps(path / 'maps')
-        masks = _read_masks(path / 'masks')
-        weight = _read_pixarea(path / 'pixarea_iberian_01min.nc')
+        maps = read_inputmaps(path / 'maps')
+        masks = read_masks(path / 'masks')
+        weight = read_pixarea(path / 'pixarea_iberian_01min.nc')
         test = catchment_statistics(maps, masks, ['mean', 'std', 'min', 'max', 'count'], weight=weight, output=None).to_pandas()
 
         # load expected values
