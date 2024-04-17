@@ -57,7 +57,7 @@ NetCDF, PCRaster and TSS files.
 
 * __[cddmap](#cddmap)__ is a tool to generate correlation decay distance (CDD) maps starting from station timeseries
 
-* __[ncextract](#ncextract)__ is a tool to extract values from NetCDF4 files at specific coordinates.
+* __[ncextract](#ncextract)__ is a tool to extract values from NetCDF4 (or GRIB) file(s) at specific coordinates.
 
 * __[catchstats](#catchstats)__ calculates catchment statistics (mean, sum, std, min, max...) from NetCDF4 files given masks created with [`cutmaps`](#cutmaps:-a-NetCDF-files-cookie-cutter).
 
@@ -606,13 +606,20 @@ cddmap /meteo/pr --parallel --maxdistance 500
 
 ## ncextract
 
-The `ncextract` tool extracts the time series of values from (multiple) NetCDF file(s) at user defined coordinates.
+The `ncextract` tool extracts time series from (multiple) NetCDF or GRIB file(s) at user defined coordinates.
 
 ### Usage
 
-The tool takes as input a CSV file containing point coordinates (structured in 3 columns: id, lat, lon) and a directory containing one or more NetCDF files.
+The tool takes as input a CSV file containing point coordinates and a directory containing one or more NetCDF or GRIB files. The CSV files must contain only three columns: point identifier, and its two coordinates. The name of the coordinate fields must match those in the NetCDF or GRIB files. For example:
 
-The output is a CSV file (or optionally a NetCDF file) containing the values at the  points corresponding to the provided coordinates, in chronological order.
+```text
+ID,lat,lon
+0010,40.6083,-4.2250
+0025,37.5250,-6.2750
+0033,40.5257,-6.4753
+```
+
+The output is a file containing the time series at the pixels corresponding to the provided coordinates, in chronological order. The function supports two otput formats: CSV or NetCDF.
 
 ```text
 usage: ncextract.py [-h] -i INPUT -d DIRECTORY -o OUTPUT [-nc]
@@ -628,8 +635,30 @@ options:
   -d DIRECTORY, --directory DIRECTORY
                         Input directory with .nc files
   -o OUTPUT, --output OUTPUT
-                        Output file (default is CSV, use -nc for NetCDF)
-  -nc, --nc             Output to NetCDF
+                        Output file. Two extensions are supported: .csv or .nc
+```
+
+#### Use in the command prompt
+
+The following command extracts the discharge time series from EFAS simulations (NetCDF files in the directory _EFAS5/discharge/maps_) in a series of points where gauging stations are located (file _gauging_stations.csv_), and saves the extraction as a CSV file.
+
+```bash
+ncextract -i ./gauging_stations.csv -d ./EFAS5/discharge/maps/ -o ./EFAS5/discharge/timeseries/results_ncextract.csv
+```
+
+#### Use programmatically
+
+The function can be imported in a Python script. It takes as inputs two `xarray.Dataset`: one defining the input maps and the other the points of interest. The result of the extraction can be another `xarray.Dataset`, or saved as a file either in CSV or NetCDF format.
+
+```Python
+from lisfloodutilities.ncextract import extract_timeseries
+
+# load desired input maps and points
+# maps: xarray.Dataset
+# points: xarray.Dataset
+
+# extract time series and save in a xarray.Dataset
+ds = extract_timeseries(maps, points, output=None)
 ```
 
 
@@ -641,9 +670,9 @@ The `catchstats` tool calculates catchment statistics given a set of input NetCD
 
 ### In the command prompt
 
-The tool takes as input a directory containing the NetCDF files from which the statistics will be computed, and another directory containing the NetCDF files that define the catchment boundaries, which can be any of the outputs of  `cutmaps` (not necessarily the file _my_mask.nc_). The input files can be the LISFLOOD static maps (no temporal dimension) or stacks of maps with a temporal dimension. The mask NetCDF files must be named after with the catchment ID, as this name will be used to identify the catchment in the output NetCDF; for instance: _0142.nc_ would correspond to the mask of catchment 142. Optionally, an extra NetCDF file can be passed to the tool to account for different pixel area; in this case, the statistics will be weighted by this pixel area map.
+The tool takes as input a directory containing the NetCDF files from which the statistics will be computed, and another directory containing the NetCDF files that define the catchment boundaries, which can be any of the outputs of  `cutmaps` (not necessarily the file _my_mask.nc_). The input files can be the LISFLOOD static maps (no temporal dimension) or stacks of maps with a temporal dimension. The mask NetCDF files must be named after the catchment ID, as this name will be used to identify the catchment in the output NetCDF. For instance, _0142.nc_ would correspond to the mask of catchment 142. Optionally, an extra NetCDF file can be passed to the tool to account for different pixel area; in this case, the statistics will be weighted by this pixel area map.
 
-Only some statistics are currently available: mean, sum, std (standard deviation), var (variance), min, max, median. The weighing based on pixel area does not affect the statistics min, max and median.
+Only some statistics are currently available: mean, sum, std (standard deviation), var (variance), min, max, median and count. The weighing based on pixel area does not affect the statistics min, max, median nor count.
 
 The output are NetCDF files (as many as catchments in the mask directory) containing the resulting statistics.
 
@@ -658,15 +687,15 @@ options:
   -h, --help
                           show this help message and exit
   -i INPUT, --input INPUT
-                          directory containint the input NetCDF files
+                          directory containing the input NetCDF files
   -m MASK, --mask MASK
                           directory containing the mask NetCDF files
   -s STATISTIC, --statistic STATISTIC
-                          list of statistics to be computed. Possible values: mean, sum, std, var, min, max, median
+                          list of statistics to be computed. Possible values: mean, sum, std, var, min, max, median, count
   -o OUTPUT, --output OUTPUT
                           directory where the output NetCDF files will be saved
   -a AREA, --area AREA
-                          NetCDF file of pixel area used to weight the statistics
+                          NetCDF file of pixel area used to weigh the statistics
   -W, --overwrite
                           overwrite existing output files
 ```
@@ -681,7 +710,7 @@ catchstats -i ./EMO1/pr/ -m ./masks/ -s mean sum -o ./areal_precipitation/ -a ./
 
 #### In a Python script
 
-The tool can be imported in a Python script to be able to save in memory the output. This function takes in an `xarray.Dataset` with the input maps from which statistics will be computed, a dictionary of `xarray.DataArray` with the catchment masks, and optionally the weighing map. By default, the result is a `xarray.Dataset`, but NetCDF files could be written, instead, if a directory is provided in the `output` attribute.
+The tool can be imported in a Python script to be able to save in memory the output. This function takes in a `xarray.Dataset` with the input maps from which statistics will be computed, a dictionary of `xarray.DataArray` with the catchment masks, and optionally the weighing map. By default, the result is a `xarray.Dataset`, but NetCDF files could be written, instead, if a directory is provided in the `output` attribute.
 
 ```Python
 # import function
@@ -694,7 +723,6 @@ from lisfloodutilities.catchstats import catchment_statistics
 # compute statistics and save in a xarray.Dataset
 ds = catchment_statistics(maps, masks, statistic=['mean'], weight=None, output=None)
 ```
-
 
 
 ## Using `lisfloodutilities` programmatically 
