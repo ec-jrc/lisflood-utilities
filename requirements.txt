@@ -1,5 +1,6 @@
 attrs>=19.3.0
 cffi>=1.15.1
+cfgrib>=0.9.11.0
 cftime>=1.0.4.2
 cloudpickle>=2.2.1
 coverage>=6.0
