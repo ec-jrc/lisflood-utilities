@@ -128,6 +128,8 @@ setup_args = dict(
                 'nc2pcr: Convert netCDF files ot PCRaster format; '
                 'cutmaps: cut netCDF files; '
                 'compare: compare two set of netCDF files; '
+                'thresholds: compute discharge return period thresholds; '
+                'gridding: interpolate meteo variables observations; '
                 'ncextract: extract values from netCDF files; '
                 'catchstats: calculates catchment statistics; ',
     long_description=long_description,
