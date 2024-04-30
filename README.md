@@ -111,7 +111,7 @@ gdal-config --version  # 3.0.1
 pip install GDAL==3.0.1
 ```
 
-Note: if you previously installed an older version of the lisflood-utilitiies, it is highly recommended to remove it before installing the newest version:
+Note: if you previously installed an older version of the lisflood-utilities, it is highly recommended to remove it before installing the newest version:
 
 ```bash
 pip uninstall lisflood-utilities
