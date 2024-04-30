@@ -256,6 +256,7 @@ The tool requires a series of arguments:
     - `-N`, `-stations`: a list of stations included in a tab separated text file. This approach requires a LDD (local drain direction) map as an extra input, defined with the argument `-l` (`-ldd`).
 * The files to be cut may be defined in one of the following ways:
     - `-f`, `--folder`: a folder containing NetCDF files.
+    - `-F`, `--file`: a single netCDF file to be cut.
     - `-S`, `--static-data`: a directory containint the LISFLOOD static maps. 
 * The resulting files will be saved in the folder defined by the argument `-o` ( `--outpath`).
 
