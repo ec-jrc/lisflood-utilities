@@ -690,7 +690,7 @@ The `catchstats` tool calculates catchment statistics given a set of input NetCD
 
 ### Usage
 
-### In the command prompt
+#### In the command prompt
 
 The tool takes as input a directory containing the NetCDF files from which the statistics will be computed, and another directory containing the NetCDF files that define the catchment boundaries, which can be any of the outputs of  `cutmaps` (not necessarily the file _my_mask.nc_). The input files can be the LISFLOOD static maps (no temporal dimension) or stacks of maps with a temporal dimension. The mask NetCDF files must be named after the catchment ID, as this name will be used to identify the catchment in the output NetCDF. For instance, _0142.nc_ would correspond to the mask of catchment 142. Optionally, an extra NetCDF file can be passed to the tool to account for different pixel area; in this case, the statistics will be weighted by this pixel area map.
 
@@ -743,8 +743,15 @@ from lisfloodutilities.catchstats import catchment_statistics
 # masks: Dict[int, xarray.DataArray]
 
 # compute statistics and save in a xarray.Dataset
-ds = catchment_statistics(maps, masks, statistic=['mean'], weight=None, output=None)
+ds = catchment_statistics(maps, masks, statistic=['mean', 'sum'], weight=None, output=None)
 ```
+
+### Ouput
+
+The structure of the output depends on whether the input files include a temporal dimension or not:
+
+* If the input files DO NOT have a time dimension, the output has a single dimension: the catchment ID. It contains as many variables as the combinations of input variables and statistics. For instance, if the input variables are "elevation" and "gradient" and three statistics are required ("mean", "max", "min"), the output will contain 6 variables: "elevation_mean", "elevation_max", "elevation_min", "gradient_mean", "gradient_max" and "gradient_min".
+* If the input files DO have a time dimension, the output has two dimensions: the catchment ID and time. The number of variables follows the same structure explained in the previous point. For instance, if the input files are daily maps of precipitation (variable name "pr") and we calculate the mean and total precipitation over the catchment, the output will contain two dimensions ("ID", "time") and two variables ("pr_mean", "pr_sum").
 
 ## Using `lisfloodutilities` programmatically 
 
