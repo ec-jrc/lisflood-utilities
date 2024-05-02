@@ -1,4 +1,4 @@
-# Lisflood Utilities
+f# Lisflood Utilities
 
 This repository hosts source code of LISFLOOD utilities.
 Go to [Lisflood OS page](https://ec-jrc.github.io/lisflood/) for more information.
@@ -258,7 +258,7 @@ The tool requires a series of arguments:
 * The files to be cut may be defined in one of the following ways:
     - `-f`, `--folder`: a folder containing NetCDF files.
     - `-F`, `--file`: a single netCDF file to be cut.
-    - `-S`, `--static-data`: a directory containing the LISFLOOD static maps. 
+    - `-S`, `--subdir`: a directory containing a number of folders
 * The resulting files will be saved in the folder defined by the argument `-o` ( `--outpath`).
 
 There are additional optional arguments
@@ -286,7 +286,7 @@ cutmaps -i "150 350 80 180" -f /workarea/Madeira/lai/ -o ./
 
 **Using coordinates**
 
-The following command cuts all the static maps in an input folder (argument `-S`) using a bounding box defined by coordinates (argument `-c`). The argument `-W` allows to overwrite pre-existing files in the output directory (argument `-o`):
+The following command cuts all the maps in an input directory containing several folders (argument `-S`) using a bounding box defined by coordinates (argument `-c`). The argument `-W` allows to overwrite pre-existing files in the output directory (argument `-o`):
 
 ```bash
 cutmaps -S /home/projects/lisflood-eu -c "4078546.12 4463723.85 811206.57 1587655.50" -o /Work/Tunisia/cutmaps -W
@@ -304,22 +304,22 @@ The TXT file with stations must have a specific format as in the example below. 
 4187500	1492500	5
 ```
 
-The following command will cut all the static maps in a specific folder (`-S` argument) given a LDD map (`-l` argument) and the previous text file (`-N` argument), and save the results in a folder defined by the argument `-o`.
+The following command will cut all the maps in a specific folder (`-F` argument) given a LDD map (`-l` argument) and the previous text file (`-N` argument), and save the results in a folder defined by the argument `-o`.
 
 ```bash
-cutmaps -S /home/projects/lisflood-eu -l ldd.map -N stations.txt -o /Work/Tunisia/cutmaps
+cutmaps -f /home/projects/lisflood-eu -l ldd.map -N stations.txt -o /Work/Tunisia/cutmaps
 ```
 
 If the LDD is in NetCDF format, it will be first converted into PCRaster format.
 
 ```bash
-cutmaps -S /home/projects/lisflood-eu -l ldd.nc -N stations.txt -o /Work/Tunisia/cutmaps
+cutmaps -f /home/projects/lisflood-eu -l ldd.nc -N stations.txt -o /Work/Tunisia/cutmaps
 ``` 
 
 If you experience problems, you can try to pass a path to a PCRaster clone map using the `-C` argument.
 
 ```bash
-cutmaps -S /home/projects/lisflood-eu -l ldd.nc -C area.map -N stations.txt -o /Work/Tunisia/cutmaps
+cutmaps -f /home/projects/lisflood-eu -l ldd.nc -C area.map -N stations.txt -o /Work/Tunisia/cutmaps
 ```
 
 ### Output
