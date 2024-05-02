@@ -326,7 +326,7 @@ cutmaps -S /home/projects/lisflood-eu -l ldd.nc -C area.map -N stations.txt -o /
 
 Apart from the cut files in the output folder specified in the command prompt, `cutmaps` produces other outputs in the folder where the LDD map is stored:
 
-* _mask.map_ and _mask.nc_ for your area of interest, which may be needed in subsequent LISFLOOD/LISVAP executions
+* _mask.map_ and _mask.nc_ for your area of interest, which may be needed in subsequent LISFLOOD/LISVAP executions.
 * _outlets.map_ and _outlets.nc_ based on _stations.txt_, which will let you produce gauges TSS if configured in LISFLOOD.
 
 ## compare
