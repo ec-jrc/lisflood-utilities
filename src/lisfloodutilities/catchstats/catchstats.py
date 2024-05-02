@@ -27,7 +27,7 @@ def read_inputmaps(inputmaps: Union[str, Path]) -> xr.Dataset:
     Parameters:
     -----------
     inputmaps: str or pathlib.Path
-        directory that contains the input NetCDF files whose statistics will be computed. These files can be static (withouth time dimenion) or dynamic (with time dimension)
+        directory that contains the input NetCDF files whose statistics will be computed. These files can be static (withouth time dimension) or dynamic (with time dimension)
 
     Returns:
     --------
