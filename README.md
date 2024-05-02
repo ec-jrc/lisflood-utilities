@@ -258,7 +258,7 @@ The tool requires a series of arguments:
 * The files to be cut may be defined in one of the following ways:
     - `-f`, `--folder`: a folder containing NetCDF files.
     - `-F`, `--file`: a single netCDF file to be cut.
-    - `-S`, `--static-data`: a directory containint the LISFLOOD static maps. 
+    - `-S`, `--static-data`: a directory containing the LISFLOOD static maps. 
 * The resulting files will be saved in the folder defined by the argument `-o` ( `--outpath`).
 
 There are additional optional arguments
