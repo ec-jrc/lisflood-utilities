@@ -270,7 +270,7 @@ There are additional optional arguments
 
 **Using a mask**
 
-The following command will cut all NetCDF files inside a specific folder (argument `-f`) using a mask (àrgument `-m`). The mask is a boolean map (1 only in the area of interes) that `cutmaps` uses to create a bounding box. The resulting files will be written in the current folder (argument `-o`). 
+The following command will cut all NetCDF files inside a specific folder (argument `-f`) using a mask (argument `-m`). The mask is a boolean map (1 only in the area of interes) that `cutmaps` uses to create a bounding box. The resulting files will be written in the current folder (argument `-o`). 
 
 ```bash
 cutmaps -m /workarea/Madeira/maps/MaskMap/Bacia_madeira.nc -f /workarea/Madeira/lai/ -o ./
