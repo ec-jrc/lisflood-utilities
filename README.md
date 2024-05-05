@@ -304,7 +304,7 @@ The TXT file with stations must have a specific format as in the example below. 
 4187500	1492500	5
 ```
 
-The following command will cut all the maps in a specific folder (`-F` argument) given a LDD map (`-l` argument) and the previous text file (`-N` argument), and save the results in a folder defined by the argument `-o`.
+The following command will cut all the maps in a specific folder (`-f` argument) given a LDD map (`-l` argument) and the previous text file (`-N` argument), and save the results in a folder defined by the argument `-o`.
 
 ```bash
 cutmaps -f /home/projects/lisflood-eu -l ldd.map -N stations.txt -o /Work/Tunisia/cutmaps
