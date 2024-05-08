@@ -56,3 +56,5 @@ tests/data/gridding/meteo_out/**/*.tiff
 .settings
 .project
 .pydevproject
+
+.ipynb_checkpoints/

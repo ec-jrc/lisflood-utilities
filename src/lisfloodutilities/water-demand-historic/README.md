@@ -76,23 +76,23 @@ The module consists of five scripts:
 The script can be run on a normal desktop PC, support is provided only for Linux. Physical memory requirements depend on the desired geographical extent and resolution of the maps dataset. For instance, the generation of  the sectoral water demand dataset for the global domain at 3arcmin (or 0.05 degrees) resolution required 32 GB.
 
 # Instructions
-
-Clone the repository:
+Install main lisflood-utilities package in a conda environment:
+```bash
+conda create --name <env> python=3.7 -c conda-forge
+conda activate <env>
+conda install -c conda-forge pcraster eccodes gdal
+pip install lisflood-utilities
 ```
-git clone https://github.com/ec-jrc/lisflood-utilities/water-demand-historic
-cd lisflood-utilities/water-demand-historic
+Then clone the repository:
+```
+git clone --single-branch --branch master https://github.com/ec-jrc/lisflood-utilities
+cd lisflood-utilities/src/lisfloodutilities/water-demand-historic
 ```
 Produce a configuration file with the correct paths and folders (based on the [included example](config_global_0p1deg.cfg)). 
 
-Create and activate a Conda environment and run the scripts as follows:
+Run the scripts as follows:
 ```
-conda create --name <env> --file requirements.txt
-conda activate <env>
 python step1_population_density.py <config file>
 python step2_domestic_demand.py <config file>
 ...
-```
-If the environment creation step fails, the following might work:
-```
-conda create -n <env> -c conda-forge geopandas h5py pandas numpy netcdf4 matplotlib rasterio scikit-image openpyxl geopy
 ```

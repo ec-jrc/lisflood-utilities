@@ -70,9 +70,9 @@ class ParserHelpOnError(argparse.ArgumentParser):
 
         group_filelist.add_argument("-f", "--folder", help='Directory with netCDF files to be cut')
         group_filelist.add_argument("-F", "--file", help='netCDF file to be cut')
-        group_filelist.add_argument("-S", "--static-data",
-                                    help='Directory with EFAS/GloFAS static maps. '
-                                         'Output files will have same directories structure')
+        group_filelist.add_argument("-S", "--subdir",
+                                    help='Directory containing folders '
+                                         'Output files will have same directory-folders structure')
 
         self.add_argument("-o", "--outpath", help='path where to save cut files',
                           default='./cutmaps_out', required=True)
@@ -93,7 +93,7 @@ def main(cliargs):
 
     input_folder = args.folder
     input_file = args.file
-    static_data_folder = args.static_data
+    static_data_folder = args.subdir
     overwrite = args.overwrite
     pathout = args.outpath
     if not os.path.exists(pathout):
