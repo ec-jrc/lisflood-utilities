@@ -89,9 +89,9 @@ def main(cliargs):
     cuts_indices = args.cuts_indices
 
     ldd = args.ldd
-    stations = args.stationsf
+    stations = args.stations
 
-    input_folder = args.folderf
+    input_folder = args.folder
     input_file = args.file
     static_data_folder = args.subdir
     overwrite = args.overwrite
