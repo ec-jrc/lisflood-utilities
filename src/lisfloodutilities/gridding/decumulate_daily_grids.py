@@ -118,10 +118,28 @@ def get_decumulated_dataframes(conf: Config, kiwis_filepaths: List[Path], kiwis_
     df_kiwis_array = filter_class.filter(kiwis_filepaths, kiwis_str_timestamps, kiwis_dataframes)
     return df_kiwis_array
 
+def processable_file(file_timestamp: datetime, start_date: datetime = None, end_date: datetime = None) -> bool:
+    return (start_date is not None and start_date <= file_timestamp and
+            end_date is not None and file_timestamp <= end_date)
 
-def run(config_filename_24h: str, config_filename_6h: str, file_utils_24h: FileUtils, file_utils_6h: FileUtils,
-        kiwis_24h_06am_path: Path, kiwis_6h_12pm_path: Path, kiwis_6h_18pm_path: Path, kiwis_6h_12am_path: Path, kiwis_6h_06am_path: Path,
-        output_path: Path = None):
+def get_timestamp_from_filename(conf: Config, filename: Path) -> datetime:
+    file_timestamp = datetime.strptime(filename.name, conf.input_timestamp_pattern)
+    if conf.force_time is not None:
+        new_time = datetime.strptime(conf.force_time, "%H%M").time()
+        file_timestamp = datetime.combine(file_timestamp.date(), new_time)
+    return file_timestamp
+
+def get_24h_kiwis_paths(conf: Config, infolder: Path):
+    kiwis_paths = []
+    for filename_kiwis in sorted(infolder.rglob(conf.input_wildcard)):
+        kiwis_timestamp = get_timestamp_from_filename(conf, filename_kiwis)
+        if processable_file(kiwis_timestamp, conf.start_date, conf.end_date):
+            kiwis_paths.append((filename_kiwis, kiwis_timestamp))
+    return kiwis_paths
+
+
+def run(conf_24h: Config, conf_6h: Config, kiwis_24h_06am_path: Path, kiwis_6h_12pm_path: Path,
+        kiwis_6h_18pm_path: Path, kiwis_6h_12am_path: Path, kiwis_6h_06am_path: Path, output_path: Path = None):
     """
     Interpolate text files containing (x, y, value) using inverse distance interpolation.
     Produces as output, either a netCDF file containing all the grids or one TIFF file per grid.
@@ -131,13 +149,6 @@ def run(config_filename_24h: str, config_filename_6h: str, file_utils_24h: FileU
     4. Write the resulting grids
     """
     global quiet_mode
-
-    interpolation_mode = 'adw'
-    memory_save_mode = 0
-    start_date = None
-    end_date = None
-    conf_24h = Config(config_filename_24h, start_date, end_date, quiet_mode, interpolation_mode, memory_save_mode)
-    conf_6h = Config(config_filename_6h, start_date, end_date, quiet_mode, interpolation_mode, memory_save_mode)
 
     print_msg('Start reading files')
     df_kiwis_array_24h, kiwis_timestamps_24h, kiwis_str_timestamps_24h = get_dataframes(conf_24h, [kiwis_24h_06am_path])
@@ -149,7 +160,7 @@ def run(config_filename_24h: str, config_filename_6h: str, file_utils_24h: FileU
             (kiwis_timestamps_24h[0] - timedelta(hours=12)) == kiwis_timestamps_6h[1] and
             (kiwis_timestamps_24h[0] - timedelta(hours=18)) == kiwis_timestamps_6h[0]):
         raise ArgumentTypeError("The input kiwis do not respect the expected timestamps.")
-    
+
     kiwis_dataframes = df_kiwis_array_24h
     kiwis_dataframes.extend(df_kiwis_array_6h)
     kiwis_timestamps = kiwis_str_timestamps_24h
@@ -174,6 +185,13 @@ def get_existing_file_path(parser: ArgumentParser, input_file_path: str) -> Path
     if not file_path.is_file():
         parser.error(f'Input file {file_path} does not exist or cannot be opened.')
     return file_path
+
+def get_6hourly_filepath(parser: ArgumentParser, conf: Config, kiwis_6h_folder_path: Path, kiwis_6h_timestamp: datetime) -> Path:
+    kiwis_6h_filename = kiwis_6h_timestamp.strftime(conf.input_timestamp_pattern)
+    for filename_kiwis in sorted(kiwis_6h_folder_path.rglob(kiwis_6h_filename)):
+        return filename_kiwis
+    parser.error(f'Input file {kiwis_6h_filename} does not exist in folder {kiwis_6h_folder_path}.')
+    return None
 
 def main(argv):
     '''Command line options.'''
@@ -208,21 +226,12 @@ def main(argv):
         parser.set_defaults(quiet=False,
                             out_folder=None)
 
-        parser.add_argument("-d", "--pr24h", dest="kiwis_24h_06am_path", required=True, type=FileUtils.file_type,
-                            help="Set the input kiwis file containing daily precipitation for a given day.",
-                            metavar="/path/to/pr200102150600_all.kiwis")
-        parser.add_argument("-1", "--pr6h12pm", dest="kiwis_6h_12pm_path", required=True, type=FileUtils.file_type,
-                            help="Set the input kiwis file containing the first 6hourly timestep of precipitation 12:00 of the previous day.",
-                            metavar="/path/to/pr6200102141200_all.kiwis")
-        parser.add_argument("-2", "--pr6h18pm", dest="kiwis_6h_18pm_path", required=True, type=FileUtils.file_type,
-                            help="Set the input kiwis file containing the second 6hourly timestep of precipitation 18:00 of the previous day.",
-                            metavar="/path/to/pr6200102141800_all.kiwis")
-        parser.add_argument("-3", "--pr6h12am", dest="kiwis_6h_12am_path", required=True, type=FileUtils.file_type,
-                            help="Set the input kiwis file containing the first 6hourly timestep of precipitation 00:00 of the daily precipitation day.",
-                            metavar="/path/to/pr6200102150000_all.kiwis")
-        parser.add_argument("-4", "--pr6h06am", dest="kiwis_6h_06am_path", required=True, type=FileUtils.file_type,
-                            help="Set the input kiwis file containing the first 6hourly timestep of precipitation 06:00 of the daily precipitation day.",
-                            metavar="/path/to/pr6200102150600_all.kiwis")
+        parser.add_argument("-d", "--pr24h", dest="kiwis_24h_folder_path", required=True, type=FileUtils.folder_type,
+                            help="Set the input kiwis file folder containing daily precipitation.",
+                            metavar="/path/to/pr")
+        parser.add_argument("-g", "--pr6h", dest="kiwis_6h_folder_path", required=True, type=FileUtils.folder_type,
+                            help="Set the input kiwis file folder containing 6 hourly precipitation.",
+                            metavar="/path/to/pr6")
         parser.add_argument("-o", "--out", dest="output_folder", required=False, type=FileUtils.folder_type,
                             help="Set the output folder where the resulting 6h kiwis will be stored. If this folder is not set, it will change the input kiwis.",
                             metavar="/path/to/output/folder")
@@ -238,6 +247,12 @@ def main(argv):
         parser.add_argument("-6", "--var6h", dest="variable_code_6h", required=True,
                             help="Set the 6hourly variable to be processed.",
                             metavar="{pr6,ta6,...}")
+        parser.add_argument("-s", "--start", dest="start_date",
+                            help="Set the start date and time from which data is imported [default: date defining the time units inside the config file]",
+                            metavar="YYYYMMDDHHMISS")
+        parser.add_argument("-e", "--end", dest="end_date",
+                            help="Set the end date and time until which data is imported [default: %(default)s]",
+                            metavar="YYYYMMDDHHMISS")
         parser.add_argument("-q", "--quiet", dest="quiet", action="store_true", help="Set script output into quiet mode [default: %(default)s]")
 
         # process options
@@ -245,6 +260,23 @@ def main(argv):
         quiet_mode = args.quiet
 
         configuration_base_folder = os.path.join(program_path, '../src/lisfloodutilities/gridding/configuration')
+
+        start_date = None
+        try:
+            start_date = datetime.strptime(args.start_date, FileUtils.DATE_PATTERN_CONDENSED)
+            start_date_str =  start_date.strftime(FileUtils.DATE_PATTERN_SEPARATED)
+            print_msg(f"Start Date:  {start_date_str}")
+        except Exception as t:
+            print_msg(f"Start Date: DEFAULT")
+
+        end_date = None
+        try:
+            end_date = datetime.strptime(args.end_date, FileUtils.DATE_PATTERN_CONDENSED)
+        except Exception as t:
+            print_msg(f"Warning: {args.end_date} does not seem a valid date. Setting up default end date")
+            end_date = datetime.strptime(END_DATE_DEFAULT, FileUtils.DATE_PATTERN_CONDENSED)
+        end_date_str =  end_date.strftime(FileUtils.DATE_PATTERN_SEPARATED)
+        print_msg(f"End Date:  {end_date_str}")
 
         if args.config_base_path is not None and len(args.config_base_path) > 0:
             configuration_base_folder = args.config_base_path
@@ -257,6 +289,13 @@ def main(argv):
         config_type_path_6h = file_utils_6h.get_config_type_path(configuration_base_folder, args.config_type)
         config_filename_6h = file_utils_6h.get_config_file(config_type_path_6h)
 
+        interpolation_mode = 'adw'
+        memory_save_mode = 5
+        conf_24h = Config(config_filename_24h, start_date, end_date, quiet_mode, interpolation_mode, memory_save_mode)
+        conf_6h = Config(config_filename_6h, start_date, end_date, quiet_mode, interpolation_mode, memory_save_mode)
+        print_msg(f"Config File 24h: {config_filename_24h}")
+        print_msg(f"Config File 6h: {config_filename_6h}")
+
         if args.output_folder is not None and len(args.output_folder) > 0:
             output_path = Path(args.output_folder)
             print_msg(f"Output Folder: {output_path}")
@@ -264,23 +303,29 @@ def main(argv):
             output_path = None
             print_msg(f"Output Folder: 6hourly kiwis files will be overwritten")
 
-        kiwis_24h_06am_path = get_existing_file_path(parser, args.kiwis_24h_06am_path)
-        kiwis_6h_12pm_path = get_existing_file_path(parser, args.kiwis_6h_12pm_path)
-        kiwis_6h_18pm_path = get_existing_file_path(parser, args.kiwis_6h_18pm_path)
-        kiwis_6h_12am_path = get_existing_file_path(parser, args.kiwis_6h_12am_path)
-        kiwis_6h_06am_path = get_existing_file_path(parser, args.kiwis_6h_06am_path)
-        
-        print_msg(f"Daily PR kiwis file:  {args.kiwis_24h_06am_path}")
-        print_msg(f"6hourly PR kiwis file 12:00:  {args.kiwis_6h_12pm_path}")
-        print_msg(f"6hourly PR kiwis file 18:00:  {args.kiwis_6h_18pm_path}")
-        print_msg(f"6hourly PR kiwis file 00:00:  {args.kiwis_6h_12am_path}")
-        print_msg(f"6hourly PR kiwis file 06:00:  {args.kiwis_6h_06am_path}")
-        print_msg(f"Config File 24h: {config_filename_24h}")
-        print_msg(f"Config File 6h: {config_filename_6h}")
+        kiwis_24h_paths = get_24h_kiwis_paths(conf_24h, Path(args.kiwis_24h_folder_path))
+        kiwis_6h_folder_path = Path(args.kiwis_6h_folder_path)
 
-        run(config_filename_24h, config_filename_6h, file_utils_24h, file_utils_6h,
-            kiwis_24h_06am_path, kiwis_6h_12pm_path, kiwis_6h_18pm_path,
-            kiwis_6h_12am_path, kiwis_6h_06am_path, output_path=output_path)
+        for filename_kiwis, kiwis_timestamp in kiwis_24h_paths:
+            kiwis_24h_06am_path = get_existing_file_path(parser, str(filename_kiwis))
+            kiwis_6h_06am_timestamp = kiwis_timestamp
+            kiwis_6h_12am_timestamp = kiwis_timestamp - timedelta(hours=6)
+            kiwis_6h_18pm_timestamp = kiwis_timestamp - timedelta(hours=12)
+            kiwis_6h_12pm_timestamp = kiwis_timestamp - timedelta(hours=18)
+
+            kiwis_6h_06am_path = get_6hourly_filepath(parser, conf_6h, kiwis_6h_folder_path, kiwis_6h_06am_timestamp)
+            kiwis_6h_12am_path = get_6hourly_filepath(parser, conf_6h, kiwis_6h_folder_path, kiwis_6h_12am_timestamp)
+            kiwis_6h_18pm_path = get_6hourly_filepath(parser, conf_6h, kiwis_6h_folder_path, kiwis_6h_18pm_timestamp)
+            kiwis_6h_12pm_path = get_6hourly_filepath(parser, conf_6h, kiwis_6h_folder_path, kiwis_6h_12pm_timestamp)
+
+            print_msg(f"Daily PR kiwis file:  {kiwis_24h_06am_path}")
+            print_msg(f"6hourly PR kiwis file 12:00:  {kiwis_6h_12pm_path}")
+            print_msg(f"6hourly PR kiwis file 18:00:  {kiwis_6h_18pm_path}")
+            print_msg(f"6hourly PR kiwis file 00:00:  {kiwis_6h_12am_path}")
+            print_msg(f"6hourly PR kiwis file 06:00:  {kiwis_6h_06am_path}")
+
+            run(conf_24h, conf_6h, kiwis_24h_06am_path, kiwis_6h_12pm_path,
+                kiwis_6h_18pm_path, kiwis_6h_12am_path, kiwis_6h_06am_path, output_path=output_path)
     except Exception as e:
         indent = len(program_name) * " "
         sys.stderr.write(program_name + ": " + repr(e) + "\n")
