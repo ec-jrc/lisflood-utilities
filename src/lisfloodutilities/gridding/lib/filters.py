@@ -414,8 +414,7 @@ class DowgradedDailyTo6HourlyObservationsKiwisFilter(ObservationsKiwisFilter):
             df_decumulated_24h = df_decumulated_24h[df_decumulated_24h['has_neighbor_within_radius'] == False]
             df_decumulated_24h.drop(columns=self.INTERNAL_COLUMNS, errors='ignore')
             # Append both decumulated 24h dataframes to the 6h slot
-            df_filtered = df.append(self.df_24h_without_neighbors)
-            df_filtered = df_filtered.append(df_decumulated_24h)
+            df_filtered = pd.concat([df, self.df_24h_without_neighbors, df_decumulated_24h])
             return_data_frames.append(df_filtered)
         return return_data_frames
 

@@ -35,6 +35,8 @@ pd.options.mode.chained_assignment = None
 
 quiet_mode = False
 
+TIMESTAMP_PATTERN = '%Y-%m-%d %H:%M:%S'
+
 
 def print_msg(msg: str = ''):
     global quiet_mode
@@ -59,7 +61,7 @@ def get_timestamp_from_filename(conf: Config, filename: Path) -> datetime:
     return file_timestamp
 
 
-def get_dataframes(conf: Config, kiwis_files: List[Path]) -> Tuple[List[pd.DataFrame], List[datetime], List[str]]:
+def get_dataframes(conf: Config, kiwis_files: List[Path]) -> Tuple[List[pd.DataFrame], List[datetime], List[str], str]:
     filter_class = get_filter_class(conf)
     print_msg(f'Filter class: {filter_class.get_class_description()}')
     filepath_kiwis = []
@@ -72,13 +74,12 @@ def get_dataframes(conf: Config, kiwis_files: List[Path]) -> Tuple[List[pd.DataF
         kiwis_str_timestamps.append(kiwis_timestamp_str)
         kiwis_timestamps.append(kiwis_timestamp)
     df_kiwis_array = filter_class.filter(filepath_kiwis, kiwis_str_timestamps, [])
-    return df_kiwis_array, kiwis_timestamps, kiwis_str_timestamps
+    return df_kiwis_array, kiwis_timestamps, kiwis_str_timestamps, filter_class.COL_PROVIDER_ID
 
 def get_providers_radius(conf: Config, kiwis_timestamp_24h: datetime) -> dict:
     """
     Get the configuration of providers and radius correspondent to the current daily date
     """
-    TIMESTAMP_PATTERN = '%Y-%m-%d %H:%M:%S'
     filter_args = {}
     plugin_decumulation_def = conf.get_config_field('PROPERTIES', 'KIWIS_FILTER_DECUMULATION_CONFIG')
     plugin_decumulation_config = eval(plugin_decumulation_def)
@@ -99,13 +100,11 @@ def get_providers_radius(conf: Config, kiwis_timestamp_24h: datetime) -> dict:
     return filter_args
 
 def get_decumulated_dataframes(conf: Config, kiwis_filepaths: List[Path], kiwis_str_timestamps: List[str],
-                               kiwis_dataframes: List[pd.DataFrame], kiwis_timestamp_24h: datetime) -> List[pd.DataFrame]:
+                               kiwis_dataframes: List[pd.DataFrame], filter_args: dict) -> List[pd.DataFrame]:
     """
     Applies the decumulation filter to the dataframes. The first dataframe in the array should be the Daily
     one and then the remaining 4 dataframes will be the 6 hourly ones.
     """
-
-    filter_args = get_providers_radius(conf, kiwis_timestamp_24h)
 
     # If there was no data interval defined for the current daily date, then no need to decumulate
     if not filter_args:
@@ -137,6 +136,43 @@ def get_24h_kiwis_paths(conf: Config, infolder: Path):
             kiwis_paths.append((filename_kiwis, kiwis_timestamp))
     return kiwis_paths
 
+def print_statistics(provider_ids: List[str], df_kiwis_24h: pd.DataFrame, df_kiwis_array_6h_before: List[pd.DataFrame],
+                     df_kiwis_array_6h_after: List[pd.DataFrame], column_provider_id_24h: str, column_provider_id_6h: str,
+                     kiwis_timestamps_6h: List[datetime]):
+    # Count the number of rows by provider_id daily data
+    df_24h_count = df_kiwis_24h.groupby(column_provider_id_24h).size().reset_index(name='count')
+    df_24h_count.rename(columns={column_provider_id_24h: 'provider_id'}, inplace=True)
+
+    i = 0
+    for df_kiwis_6h_before in df_kiwis_array_6h_before:
+        df_kiwis_6h_after = df_kiwis_array_6h_after[i]
+        # Count the number of rows by provider_id 6hourly data
+        df_6h_after_count = df_kiwis_6h_after.groupby(column_provider_id_6h).size().reset_index(name='count')
+        df_6h_after_count.rename(columns={column_provider_id_6h: 'provider_id'}, inplace=True)
+        # Merge both dataframes by provider_id
+        merged_df = df_24h_count.merge(df_6h_after_count, on='provider_id', how='outer')
+        merged_df.rename(columns={'count_x': 'count_24h', 'count_y': 'count_6h_after'}, inplace=True)
+        # Fill NaN values with 0 for the non matching count column
+        merged_df['count_24h'] = merged_df['count_24h'].fillna(0)
+        merged_df['count_6h_after'] = merged_df['count_6h_after'].fillna(0)
+        # Filter rows that are in the decumulated provider IDs
+        filtered_df = merged_df[merged_df['provider_id'].isin(provider_ids)]
+        TOTAL_6H_STATIONS = len(df_kiwis_6h_before)
+        TIMESTAMP = kiwis_timestamps_6h[i].strftime(TIMESTAMP_PATTERN)
+        for index, row in filtered_df.iterrows():
+            PROVIDER_ID = row['provider_id']
+            TOTAL_24H_STATIONS = row['count_24h']
+            DECUMULATED_24H_STATIONS = row['count_6h_after']
+            DECUMULATED_STATIONS_24H_PERCENT = 100.0 * DECUMULATED_24H_STATIONS / TOTAL_24H_STATIONS
+            DECUMULATED_STATIONS_RELATIVE_TO_6H_PERCENT = 100.0 * DECUMULATED_24H_STATIONS / TOTAL_6H_STATIONS
+            stats_string = (
+                f'#DECUMULATE_STATS: {{"TIMESTAMP": "{TIMESTAMP}", "PROVIDER_ID": {PROVIDER_ID}, '
+                f'"TOTAL_24H_STATIONS": {TOTAL_24H_STATIONS}, "DECUMULATED_24H_STATIONS": {DECUMULATED_24H_STATIONS}, '
+                f'"DECUMULATED_STATIONS_24H_PERCENT": {DECUMULATED_STATIONS_24H_PERCENT:.2f}, "TOTAL_6H_STATIONS": {TOTAL_6H_STATIONS}, '
+                f'"DECUMULATED_STATIONS_RELATIVE_TO_6H_PERCENT": {DECUMULATED_STATIONS_RELATIVE_TO_6H_PERCENT:.2f}}}'
+            )
+            print_msg(stats_string)
+        i += 1
 
 def run(conf_24h: Config, conf_6h: Config, kiwis_24h_06am_path: Path, kiwis_6h_12pm_path: Path,
         kiwis_6h_18pm_path: Path, kiwis_6h_12am_path: Path, kiwis_6h_06am_path: Path, output_path: Path = None):
@@ -151,9 +187,11 @@ def run(conf_24h: Config, conf_6h: Config, kiwis_24h_06am_path: Path, kiwis_6h_1
     global quiet_mode
 
     print_msg('Start reading files')
-    df_kiwis_array_24h, kiwis_timestamps_24h, kiwis_str_timestamps_24h = get_dataframes(conf_24h, [kiwis_24h_06am_path])
-    df_kiwis_array_6h, kiwis_timestamps_6h, kiwis_str_timestamps_6h = get_dataframes(conf_6h, [kiwis_6h_12pm_path, kiwis_6h_18pm_path,
-                                                                                               kiwis_6h_12am_path, kiwis_6h_06am_path])
+    df_kiwis_array_24h, kiwis_timestamps_24h, kiwis_str_timestamps_24h, column_provider_id_24h = get_dataframes(conf_24h, [kiwis_24h_06am_path])
+    df_kiwis_array_6h, kiwis_timestamps_6h, kiwis_str_timestamps_6h, column_provider_id_6h = get_dataframes(conf_6h, [kiwis_6h_12pm_path,
+                                                                                                                      kiwis_6h_18pm_path,
+                                                                                                                      kiwis_6h_12am_path,
+                                                                                                                      kiwis_6h_06am_path])
     # Check timestamps are correct
     if not (kiwis_timestamps_24h[0] == kiwis_timestamps_6h[3] and
             (kiwis_timestamps_24h[0] - timedelta(hours=6)) == kiwis_timestamps_6h[2] and
@@ -167,8 +205,14 @@ def run(conf_24h: Config, conf_6h: Config, kiwis_24h_06am_path: Path, kiwis_6h_1
     kiwis_timestamps.extend(kiwis_str_timestamps_6h)
     kiwis_filepaths = [kiwis_24h_06am_path, kiwis_6h_12pm_path, kiwis_6h_18pm_path, kiwis_6h_12am_path, kiwis_6h_06am_path]
 
-    df_kiwis_array = get_decumulated_dataframes(conf_24h, kiwis_filepaths, kiwis_timestamps, kiwis_dataframes, kiwis_timestamps_24h[0])
+    filter_args = get_providers_radius(conf_24h, kiwis_timestamps_24h[0])
+    df_kiwis_array = get_decumulated_dataframes(conf_24h, kiwis_filepaths, kiwis_timestamps, kiwis_dataframes, filter_args)
 
+    provider_ids = list(filter_args.keys())
+    print_statistics(provider_ids, df_kiwis_array_24h[0], df_kiwis_array_6h, df_kiwis_array[1:],
+                     column_provider_id_24h, column_provider_id_6h, kiwis_timestamps_6h)
+
+    # Write output files
     i = 0
     for kiwis_filepath in kiwis_filepaths[1:]:
         i += 1
