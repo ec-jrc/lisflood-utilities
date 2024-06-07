@@ -175,7 +175,7 @@ def print_statistics(provider_ids: List[str], df_kiwis_24h: pd.DataFrame, df_kiw
         i += 1
 
 def run(conf_24h: Config, conf_6h: Config, kiwis_24h_06am_path: Path, kiwis_6h_12pm_path: Path,
-        kiwis_6h_18pm_path: Path, kiwis_6h_12am_path: Path, kiwis_6h_06am_path: Path, output_path: Path = None):
+        kiwis_6h_18pm_path: Path, kiwis_6h_12am_path: Path, kiwis_6h_06am_path: Path, input_path_6h: Path, output_path: Path = None):
     """
     Interpolate text files containing (x, y, value) using inverse distance interpolation.
     Produces as output, either a netCDF file containing all the grids or one TIFF file per grid.
@@ -217,7 +217,10 @@ def run(conf_24h: Config, conf_6h: Config, kiwis_24h_06am_path: Path, kiwis_6h_1
     for kiwis_filepath in kiwis_filepaths[1:]:
         i += 1
         if output_path is not None:
-            filepath = Path.joinpath(output_path, kiwis_filepath.name)
+            outfile = str(kiwis_filepath).replace(str(input_path_6h), str(output_path))
+            filepath = Path(outfile)
+            # Create the output parent folders if not exist yet
+            Path(filepath.parent).mkdir(parents=True, exist_ok=True)
         else:
             filepath = kiwis_filepath
         df_kiwis_array[i].to_csv(filepath, index=False, header=True, sep="\t")
@@ -368,8 +371,8 @@ def main(argv):
             print_msg(f"6hourly PR kiwis file 00:00:  {kiwis_6h_12am_path}")
             print_msg(f"6hourly PR kiwis file 06:00:  {kiwis_6h_06am_path}")
 
-            run(conf_24h, conf_6h, kiwis_24h_06am_path, kiwis_6h_12pm_path,
-                kiwis_6h_18pm_path, kiwis_6h_12am_path, kiwis_6h_06am_path, output_path=output_path)
+            run(conf_24h, conf_6h, kiwis_24h_06am_path, kiwis_6h_12pm_path, kiwis_6h_18pm_path,
+                kiwis_6h_12am_path, kiwis_6h_06am_path, input_path_6h=kiwis_6h_folder_path, output_path=output_path)
     except Exception as e:
         indent = len(program_name) * " "
         sys.stderr.write(program_name + ": " + repr(e) + "\n")
