@@ -25,6 +25,8 @@ import pandas as pd
 import json
 from lisfloodutilities.gridding.lib.utils import FileUtils
 
+DELIMITER_INPUT = ';'
+DELIMITER_OUTPUT = '\t'
 
 COL_PROVIDER_ID = 'SITE'
 COL_STATION_NUM = 'STATION'
@@ -47,7 +49,11 @@ COL_INCIDENTS = 'incidents'
 COL_TOTAL_INCIDENTS = 'totalIncidents'
 
 
+incident_type_columns = {}
+
+
 def get_total_incidents(row: pd.Series) -> int:
+    global incident_type_columns
     incidents = row[COL_INCIDENTS]
     if incidents is None:
         return 0
@@ -59,6 +65,8 @@ def get_total_incidents(row: pd.Series) -> int:
         return 0
     total_incidents = 0
     for incident_key in incidents_dic:
+        # Used to store all the incident types available
+        incident_type_columns[incident_key] = ''
         try:
             total_incidents += int(incidents_dic[incident_key])
         except Exception as e:
@@ -66,7 +74,28 @@ def get_total_incidents(row: pd.Series) -> int:
     return total_incidents
 
 
+def get_total_incident_by_type(row: pd.Series, incident_type: str) -> int:
+    incidents = row[COL_INCIDENTS]
+    if incidents is None:
+        return 0
+    incidents = incidents.strip()
+    if len(incidents) == 0 or incidents == 'nan' or incidents == '{}':
+        return 0
+    incidents_dic = eval(incidents)
+    if not isinstance(incidents_dic, dict):
+        return 0
+    total_incidents = 0
+    for incident_key in incidents_dic:
+        if incident_key == incident_type:
+            try:
+                total_incidents = int(incidents_dic[incident_key])
+            except Exception as e:
+                print(f'ERROR evaluating row: {row}')
+    return total_incidents
+
+
 def run(infolder: str, outfolder: str):
+    global incident_type_columns
     inwildcard = '*.csv'
     
     for filename in sorted(Path(infolder).rglob(inwildcard)):
@@ -75,16 +104,40 @@ def run(infolder: str, outfolder: str):
         outfilepath = Path(outfile)
         # Create the output parent folders if not exist yet
         Path(outfilepath.parent).mkdir(parents=True, exist_ok=True)
-        df = pd.read_csv(filename, delimiter=';')
+        df = pd.read_csv(filename, delimiter=DELIMITER_INPUT)
         df = df.astype({COL_INCIDENTS: 'str'})
+        incident_type_columns = {}
         df[COL_TOTAL_INCIDENTS] = df.apply(get_total_incidents, axis=1)
 
-        df = df.groupby([COL_PROVIDER_ID])[COL_TOTAL_INCIDENTS].agg(['sum','count']).reset_index()
+        # define aggregation functions
+        agg_funcs = {COL_TOTAL_INCIDENTS: [('Total Incidents', 'sum'), ('Number of Stations', 'count')]}
 
-        if df is None or df.empty:
+        incident_types = list(incident_type_columns.keys())
+        for incident_type in incident_types:
+            agg_funcs[incident_type] = [(incident_type, 'sum')]
+            df[incident_type] = None
+            df[incident_type] = df.apply(get_total_incident_by_type, axis=1, incident_type=incident_type)
+
+        df = df.groupby(COL_PROVIDER_ID).agg(agg_funcs).reset_index()
+
+        # Eliminate the top level of column names since the new names are
+        # written on the bottom level and insert the name of the the
+        # aggregation column on the bottom level
+        df.columns = df.columns.droplevel(0)
+        df.reset_index(drop=True, inplace=True)
+        columns = list(df.columns)
+        columns[0] = 'Provider'
+        df.columns = columns
+        
+        df['Incidents per Station'] = df['Total Incidents'].div(df['Number of Stations'])
+        df['Incidents per Station'] = df['Incidents per Station'].round(2)
+        
+        df.sort_values(by=['Incidents per Station', 'Total Incidents', 'Number of Stations'], ascending=[False, False, False], inplace=True)
+
+        if df.empty:
             print(f'WARNING: No data was found in file {filename}')
         else:
-            df.to_csv(outfilepath, index=False, header=True, sep='\t')
+            df.to_csv(outfilepath, index=False, header=True, sep=DELIMITER_OUTPUT)
             print(f'Wrote file: {outfilepath}')
             # print(out_df)
 
