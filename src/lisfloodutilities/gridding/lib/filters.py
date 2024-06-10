@@ -91,9 +91,9 @@ class KiwisFilter:
                                                        column_quality_code=self.COL_QUALITY_CODE,
                                                        quality_code=self.QUALITY_CODE_WRONG)
         new_df.drop(columns=[self.COL_QUALITY_CODE, 'count'], inplace=True)
-        new_df = new_df.groupby(self.COL_PROVIDER_ID)[self.QUALITY_CODE_VALID,
-                                                      self.QUALITY_CODE_SUSPICIOUS,
-                                                      self.QUALITY_CODE_WRONG].sum()
+        new_df = new_df.groupby(self.COL_PROVIDER_ID)[[self.QUALITY_CODE_VALID,
+                                                       self.QUALITY_CODE_SUSPICIOUS,
+                                                       self.QUALITY_CODE_WRONG]].sum()
         new_df.reset_index(inplace=True)
         for index, row in new_df.iterrows():
             provider_id = row[self.COL_PROVIDER_ID]

@@ -53,6 +53,7 @@ tests/**/*aux.xml
 !src/lisfloodutilities/gridding/**/*.nc
 tests/data/gridding/meteo_out/**/*.nc
 tests/data/gridding/meteo_out/**/*.tiff
+tests/data/gridding/meteo_out/**/*.kiwis
 .settings
 .project
 .pydevproject

@@ -373,6 +373,7 @@ def main(argv):
 
             run(conf_24h, conf_6h, kiwis_24h_06am_path, kiwis_6h_12pm_path, kiwis_6h_18pm_path,
                 kiwis_6h_12am_path, kiwis_6h_06am_path, input_path_6h=kiwis_6h_folder_path, output_path=output_path)
+        return 0
     except Exception as e:
         indent = len(program_name) * " "
         sys.stderr.write(program_name + ": " + repr(e) + "\n")
