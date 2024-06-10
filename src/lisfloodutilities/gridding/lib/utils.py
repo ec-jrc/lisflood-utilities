@@ -626,7 +626,7 @@ class KiwisLoader(Printable):
                 class_name = plugin
                 class_args = plugins[plugin]
                 module = importlib.import_module(module_name)
-                class_instance = getattr(module, class_name)(plugins_columns, class_args)
+                class_instance = getattr(module, class_name)(plugins_columns, class_args, self.var_code, self.quiet_mode)
                 plugins_array.append(class_instance)
         except ImportError:
             print(f"Error: Could not import module '{module_name}'")

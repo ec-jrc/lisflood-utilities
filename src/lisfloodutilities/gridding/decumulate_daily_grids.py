@@ -49,7 +49,7 @@ def get_filter_class(conf: Config) -> KiwisFilter:
     plugins_columns_def = conf.get_config_field('PROPERTIES', 'KIWIS_FILTER_COLUMNS')
     plugins_columns_dic = eval(plugins_columns_def)
     plugins_columns = OrderedDict(plugins_columns_dic)
-    filter_class = KiwisFilter(filter_columns=plugins_columns)
+    filter_class = KiwisFilter(filter_columns=plugins_columns, var_code=conf.var_code, quiet_mode=quiet_mode)
     return filter_class
 
 
@@ -113,7 +113,7 @@ def get_decumulated_dataframes(conf: Config, kiwis_filepaths: List[Path], kiwis_
     plugins_columns_def = conf.get_config_field('PROPERTIES', 'KIWIS_FILTER_COLUMNS')
     plugins_columns_dic = eval(plugins_columns_def)
     filter_columns = OrderedDict(plugins_columns_dic)
-    filter_class = DowgradedDailyTo6HourlyObservationsKiwisFilter(filter_columns, filter_args)
+    filter_class = DowgradedDailyTo6HourlyObservationsKiwisFilter(filter_columns, filter_args, conf.var_code, quiet_mode)
     df_kiwis_array = filter_class.filter(kiwis_filepaths, kiwis_str_timestamps, kiwis_dataframes)
     return df_kiwis_array
 

@@ -14,9 +14,14 @@ class KiwisFilter:
     to be used for interpolation. 
     """
 
-    def __init__(self, filter_columns: dict = {}, filter_args: dict = {}):
+    def __init__(self, filter_columns: dict = {}, filter_args: dict = {}, var_code: str = '', quiet_mode: bool = False):
         self.args = filter_args
         self.filter_columns = filter_columns
+        self.var_code = var_code
+        self.quiet_mode = quiet_mode
+        self.QUALITY_CODE_VALID = '40'
+        self.QUALITY_CODE_SUSPICIOUS = '120'
+        self.QUALITY_CODE_WRONG = '160'
         self.stati = {"Active": 1, "Inactive": 0, "yes": 0, "no": 1, "Closed": 0, "Under construction": 0}
         self.defaultReturn = 1
         self.cur_timestamp = ''
@@ -52,12 +57,61 @@ class KiwisFilter:
         # Translate status columns
         df[f'{self.COL_STATION_DIARY_STATUS}_INTERNAL'] = df[self.COL_STATION_DIARY_STATUS].apply(self.__rewrite_column)
         df[f'{self.COL_INACTIVE_HISTORIC}_INTERNAL'] = df[self.COL_INACTIVE_HISTORIC].apply(self.__rewrite_column)
-        # Apply filtering rules
-        df = df.loc[((df[f'{self.COL_QUALITY_CODE}'] == '40') | (df[f'{self.COL_QUALITY_CODE}'] == '120')) & 
+        # Apply filtering rules but get all quality codes for the statistic
+        df = df.loc[((df[f'{self.COL_QUALITY_CODE}'] == self.QUALITY_CODE_VALID) |
+                     (df[f'{self.COL_QUALITY_CODE}'] == self.QUALITY_CODE_SUSPICIOUS) |
+                     (df[f'{self.COL_QUALITY_CODE}'] == self.QUALITY_CODE_WRONG)) & 
                     (df[f'{self.COL_NO_GRIDDING}'] == 'no') & (df[f'{self.COL_IS_IN_DOMAIN}'] == 'yes') &
                     (df[f'{self.COL_EXCLUDE}'] != 'yes') & (df[f'{self.COL_STATION_DIARY_STATUS}_INTERNAL'] == 1) &
                     (df[f'{self.COL_INACTIVE_HISTORIC}_INTERNAL'] == 1)]
+        self.print_statistics(df)
+        # Show only codes valid and suspicious
+        df = df.loc[((df[f'{self.COL_QUALITY_CODE}'] == self.QUALITY_CODE_VALID) |
+                     (df[f'{self.COL_QUALITY_CODE}'] == self.QUALITY_CODE_SUSPICIOUS))]
         return df
+
+    @staticmethod
+    def get_totals_by_quality_code(row: pd.Series, column_quality_code: str, quality_code: str) -> int:
+        cur_quality_code = row[column_quality_code]
+        if cur_quality_code == quality_code:
+            return row['count']
+        return 0
+
+    def print_statistics(self, df: pd.DataFrame):
+        timestamp = self.cur_timestamp.strftime('%Y-%m-%d %H:%M:%S')
+        new_df = df.groupby([self.COL_PROVIDER_ID, self.COL_QUALITY_CODE]).size().reset_index(name='count')
+        # Transpose the quality codes
+        new_df[self.QUALITY_CODE_VALID] = new_df.apply(KiwisFilter.get_totals_by_quality_code, axis=1,
+                                                       column_quality_code=self.COL_QUALITY_CODE,
+                                                       quality_code=self.QUALITY_CODE_VALID)
+        new_df[self.QUALITY_CODE_SUSPICIOUS] = new_df.apply(KiwisFilter.get_totals_by_quality_code, axis=1,
+                                                            column_quality_code=self.COL_QUALITY_CODE,
+                                                            quality_code=self.QUALITY_CODE_SUSPICIOUS)
+        new_df[self.QUALITY_CODE_WRONG] = new_df.apply(KiwisFilter.get_totals_by_quality_code, axis=1,
+                                                       column_quality_code=self.COL_QUALITY_CODE,
+                                                       quality_code=self.QUALITY_CODE_WRONG)
+        new_df.drop(columns=[self.COL_QUALITY_CODE, 'count'], inplace=True)
+        new_df = new_df.groupby(self.COL_PROVIDER_ID)[self.QUALITY_CODE_VALID,
+                                                      self.QUALITY_CODE_SUSPICIOUS,
+                                                      self.QUALITY_CODE_WRONG].sum()
+        new_df.reset_index(inplace=True)
+        for index, row in new_df.iterrows():
+            provider_id = row[self.COL_PROVIDER_ID]
+            quality_code_valid = row[self.QUALITY_CODE_VALID]
+            quality_code_suspicious = row[self.QUALITY_CODE_SUSPICIOUS]
+            quality_code_wrong = row[self.QUALITY_CODE_WRONG]
+            total = quality_code_valid + quality_code_suspicious + quality_code_wrong
+            stats_string = (
+                f'#KIWIS_STATS: {{"TIMESTAMP": "{timestamp}", "VAR_CODE": "{self.var_code}", '
+                f'"PROVIDER_ID": {provider_id}, "QUALITY_CODE_VALID": {quality_code_valid}, '
+                f'"QUALITY_CODE_SUSPICIOUS": {quality_code_suspicious}, "QUALITY_CODE_WRONG": {quality_code_wrong}, '
+                f'"TOTAL_OBSERVATIONS": {total}}}'
+            )
+            self.print_msg(stats_string)
+
+    def print_msg(self, msg: str = ''):
+        if not self.quiet_mode:
+            print(msg)
 
     def get_dataframe_output_columns(self, df: pd.DataFrame) -> pd.DataFrame:
         return df[self.OUTPUT_COLUMNS]
@@ -137,8 +191,8 @@ class ObservationsKiwisFilter(KiwisFilter):
     
     CLUSTER_COLLAPSE_RADIUS = 0.011582073434000193 # decimal degrees (1287 m)
     
-    def __init__(self, filter_columns: dict = {}, filter_args: dict = {}):
-        super().__init__(filter_columns, filter_args)
+    def __init__(self, filter_columns: dict = {}, filter_args: dict = {}, var_code: str = '', quiet_mode: bool = False):
+        super().__init__(filter_columns, filter_args, var_code, quiet_mode)
         self.INTERNAL_COLUMNS.append('has_neighbor_within_radius')
         # Calculating the radius in decimal degrees
         self.provider_radius = {}
@@ -187,8 +241,8 @@ class DowgradedObservationsKiwisFilter(ObservationsKiwisFilter):
     downgraded station from all the dataframes. 
     """
 
-    def __init__(self, filter_columns: dict = {}, filter_args: dict = {}):
-        super().__init__(filter_columns, filter_args)
+    def __init__(self, filter_columns: dict = {}, filter_args: dict = {}, var_code: str = '', quiet_mode: bool = False):
+        super().__init__(filter_columns, filter_args, var_code, quiet_mode)
         self.filtered_station_ids = {}
 
     def filter(self, kiwis_files: List[Path], kiwis_timestamps: List[str], kiwis_data_frames: List[pd.DataFrame]) -> List[pd.DataFrame]:
@@ -237,8 +291,8 @@ class DowgradedDailyTo6HourlyObservationsKiwisFilter(ObservationsKiwisFilter):
     downgraded station from all the dataframes. 
     """
 
-    def __init__(self, filter_columns: dict = {}, filter_args: dict = {}):
-        super().__init__(filter_columns, filter_args)
+    def __init__(self, filter_columns: dict = {}, filter_args: dict = {}, var_code: str = '', quiet_mode: bool = False):
+        super().__init__(filter_columns, filter_args, var_code, quiet_mode)
         self.INTERNAL_COLUMNS.append('has_neighbor_within_radius_complete_6h')
         self.kiwis_24h_dataframe = None
         self.df_24h_without_neighbors = None
@@ -338,9 +392,6 @@ class DowgradedDailyTo6HourlyObservationsKiwisFilter(ObservationsKiwisFilter):
         # Get all 6hourly slots aggregated
         self.all_6h_df = self.get_all_6hourly_station_values_df(filtered_data_frames)
 
-#        # TODO: Delete
-#        # self.all_6h_df.to_csv('/mnt/nahaUsers/gomesgo/EMDCC-1444/decumulation_output/all_6h_df.tsv', index=True, header=True, sep="\t")
-        
         # Select the daily stations from the providers that do not contain a 6hourly station within radius and decumulate
         # its value dividing by the number of 6hourly slots. These will be inserted directly in all the 6hourly slots
         tree_all_6h = cKDTree(self.all_6h_df[[self.COL_LON, self.COL_LAT]])
@@ -349,10 +400,7 @@ class DowgradedDailyTo6HourlyObservationsKiwisFilter(ObservationsKiwisFilter):
         self.kiwis_24h_dataframe = self.update_column_if_provider_stations_are_in_radius(df=self.kiwis_24h_dataframe, tree=tree_all_6h)
         df_24h_from_providers = self.kiwis_24h_dataframe[self.kiwis_24h_dataframe[self.COL_PROVIDER_ID].isin(providers_ids)]
         self.df_24h_without_neighbors = df_24h_from_providers[df_24h_from_providers['has_neighbor_within_radius'] == False]
-        
-#        # TODO: Delete
-#        self.df_24h_without_neighbors.to_csv('/mnt/nahaUsers/gomesgo/EMDCC-1444/decumulation_output/df_24h_without_neighbors1.tsv', index=True, header=True, sep="\t")
-        
+
         # From the station without neighbors remove MARS stations that have a DWDSynop with the same WMO Number because
         # they are actually the same station even though they might not be exactly within the defined radius.
         wmo_nums_of_6h_dwd_stations = self.all_6h_df.loc[self.all_6h_df[self.COL_PROVIDER_ID] == self.PROVIDER_DWD_SYNOP, self.COL_STATION_NUM].values
@@ -365,10 +413,7 @@ class DowgradedDailyTo6HourlyObservationsKiwisFilter(ObservationsKiwisFilter):
 
         # Decumulate the values of stations without neighbors
         self.df_24h_without_neighbors[self.COL_VALUE] /= self.num_6h_slots
-        
-#        # TODO: Delete
-#        self.df_24h_without_neighbors.to_csv('/mnt/nahaUsers/gomesgo/EMDCC-1444/decumulation_output/df_24h_without_neighbors2_and_without_dwdSynop_with_same_WMO_decumulated.tsv', index=True, header=True, sep="\t")
-        
+
         # Remove the daily rows that have a complete 6hourly station in the radius because there is no need to decumulate in these cases
         complete_6h_df = self.all_6h_df.loc[self.all_6h_df['count_6h_slots'] == self.num_6h_slots]
         self.df_24h_with_neighbors = df_24h_from_providers[df_24h_from_providers['has_neighbor_within_radius'] == True]
@@ -378,9 +423,6 @@ class DowgradedDailyTo6HourlyObservationsKiwisFilter(ObservationsKiwisFilter):
                                                                                            column_to_update='has_neighbor_within_radius_complete_6h')
         self.df_24h_with_neighbors = self.df_24h_with_neighbors[self.df_24h_with_neighbors['has_neighbor_within_radius_complete_6h'] == False]
 
-#        # TODO: Delete
-#        self.df_24h_with_neighbors.to_csv('/mnt/nahaUsers/gomesgo/EMDCC-1444/decumulation_output/df_24h_with_neighbors1_and_incomplete_6h_slots.tsv', index=True, header=True, sep="\t")
-        
         # Change the 24h stations corresponding with the 6h stations containing missing values by changing its value using the formula
         # (PR - Sum(PR6)) / (number of missing values), if and only if the resulting value is positive (>=0).
         missing_6h_slots_df = self.all_6h_df.loc[self.all_6h_df['count_6h_slots'] < self.num_6h_slots]
@@ -393,9 +435,6 @@ class DowgradedDailyTo6HourlyObservationsKiwisFilter(ObservationsKiwisFilter):
                                                                                               axis=1, tree=tree_missing_6h, provider_id=provider_id,
                                                                                               radius=radius, stations_6h_df=missing_6h_slots_df)
         self.df_24h_with_neighbors = self.df_24h_with_neighbors.loc[self.df_24h_with_neighbors[self.COL_VALUE] >= 0.0]
-        
-#        # TODO: Delete
-#        self.df_24h_with_neighbors.to_csv('/mnt/nahaUsers/gomesgo/EMDCC-1444/decumulation_output/df_24h_with_neighbors2_and_incomplete_6h_slots_decumulated.tsv', index=True, header=True, sep="\t")
 
         # Clean the dataframes of internal columns before merging them
         self.df_24h_without_neighbors = self.df_24h_without_neighbors.drop(columns=self.INTERNAL_COLUMNS, errors='ignore')

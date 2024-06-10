@@ -49,6 +49,25 @@ class OutputWriter(Printable):
         self.cell_methods = self.conf.get_config_field('PROPERTIES', 'CELL_METHODS')
         self.units = self.conf.get_config_field('PROPERTIES', 'UNIT')
 
+    def setNaN(self, value, defaultNaN=np.nan):
+        try:
+            value[value==1e31] = defaultNaN
+        except Exception as e:
+            self.print_msg(f"value==1e31 : {str(e)}")
+        try:
+            value[value==self.conf.VALUE_NAN] = defaultNaN
+        except Exception as e:
+            self.print_msg(f"value=={self.conf.VALUE_NAN} : {str(e)}")
+        try:
+            value[value==-32768.0] = defaultNaN
+        except Exception as e:
+            self.print_msg(f"value==-32768.0 : {str(e)}")
+        try:
+            value[value==31082] = defaultNaN
+        except Exception as e:
+            self.print_msg(f"value==31082 : {str(e)}")
+        return value
+
     def open(self, out_filename: Path):
         self.filepath = out_filename
         self.time_created = timex.ctime(timex.time())
@@ -97,25 +116,6 @@ class NetCDFWriter(OutputWriter):
             self.nf = Dataset(self.filepath, 'r+', clobber=True, format=self.NETCDF_DATASET_FORMAT)
         else:
             raise ArgumentTypeError(f'File {self.filepath} already exists. Use --force flag to append.')
-
-    def setNaN(self, value, defaultNaN=np.nan):
-        try:
-            value[value==1e31] = defaultNaN
-        except Exception as e:
-            self.print_msg(f"value==1e31 : {str(e)}")
-        try:
-            value[value==self.conf.VALUE_NAN] = defaultNaN
-        except Exception as e:
-            self.print_msg(f"value=={self.conf.VALUE_NAN} : {str(e)}")
-        try:
-            value[value==-32768.0] = defaultNaN
-        except Exception as e:
-            self.print_msg(f"value==-32768.0 : {str(e)}")
-        try:
-            value[value==31082] = defaultNaN
-        except Exception as e:
-            self.print_msg(f"value==31082 : {str(e)}")
-        return value
 
     def write(self, grid: np.ndarray, timestamp: datetime = None):
         timestep = -1

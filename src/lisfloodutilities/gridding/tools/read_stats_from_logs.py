@@ -25,11 +25,11 @@ import json
 from lisfloodutilities.gridding.lib.utils import FileUtils
 
 
-def run(infolder: str, outfile: str, search_string: str):
-    inwildcard = '*.log'
-    
+def have_the_same_columns(df1: pd.DataFrame, df2: pd.DataFrame):
+    return all(df1.columns.isin(df2.columns))
+
+def run(infolder: str, outfile: str, search_string: str, inwildcard: str = '*.log'):
     out_df = None
-    
     outfilepath = Path(outfile)
     # Create the output parent folders if not exist yet
     Path(outfilepath.parent).mkdir(parents=True, exist_ok=True)
@@ -43,12 +43,16 @@ def run(infolder: str, outfile: str, search_string: str):
         if len(stats_dictionaries) > 0:
             df = pd.DataFrame(stats_dictionaries)
             if out_df is None:
-                out_df = df
+                if not df.empty:
+                    out_df = df
+            elif not df.empty and have_the_same_columns(out_df, df):
+                out_df = pd.concat([out_df], df)
             else:
-                out_df = pd.concat(out_df, df)
+                print('ERROR: Both datasets do not have the same columns')
     if out_df is None or out_df.empty:
         print('WARNING: No lines containing statistics where found.')
     else:
+        out_df = out_df.drop_duplicates()
         out_df.to_csv(outfilepath, index=False, header=True, sep='\t')
         print(f'Wrote file: {outfilepath}')
         print(out_df)
@@ -83,7 +87,8 @@ def main(argv):
         parser = ArgumentParser(epilog=program_license, description=program_version_string+program_longdesc)
 
         # set defaults
-        parser.set_defaults(search_string='#APP_STATS: ')
+        parser.set_defaults(search_string='#APP_STATS: ',
+                            input_wildcard='*.log')
 
         parser.add_argument("-i", "--in", dest="infolder", required=True, type=FileUtils.folder_type,
                             help="Set input folder path with log files (*.log)",
@@ -91,6 +96,9 @@ def main(argv):
         parser.add_argument("-o", "--out", dest="outfile", required=True, type=FileUtils.file_type,
                             help="Set output file name (*.tsv).",
                             metavar="/path/to/output_file.tsv")
+        parser.add_argument("-w", "--wildcard", dest="input_wildcard", required=False, type=str,
+                            help=('Set the input wildcard to filter out the log files to be processed.'),
+                            metavar='*.log')
         parser.add_argument("-s", "--search", dest="search_string", required=False, type=str,
                             help=('Set line tag that identifies the statistics dictionary. '
                                   'It will be used to parse the line, so the space at the end is necessary.'),
@@ -101,9 +109,10 @@ def main(argv):
 
         print(f"Input Folder: {args.infolder}")
         print(f"Output Filer: {args.outfile}")
+        print(f"Input Wildcard: {args.input_wildcard}")
         print(f'Search String: [{args.search_string}]')
 
-        run(args.infolder, args.outfile, args.search_string)
+        run(args.infolder, args.outfile, args.search_string, args.input_wildcard)
         print("Finished.")
     except Exception as e:
         indent = len(program_name) * " "
