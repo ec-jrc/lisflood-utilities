@@ -177,13 +177,20 @@ def print_statistics(provider_ids: List[str], df_kiwis_24h: pd.DataFrame, df_kiw
 def run(conf_24h: Config, conf_6h: Config, kiwis_24h_06am_path: Path, kiwis_6h_12pm_path: Path,
         kiwis_6h_18pm_path: Path, kiwis_6h_12am_path: Path, kiwis_6h_06am_path: Path, input_path_6h: Path, output_path: Path = None):
     """
-    Interpolate text files containing (x, y, value) using inverse distance interpolation.
-    Produces as output, either a netCDF file containing all the grids or one TIFF file per grid.
-    1. Read the config files
-    2. Get the ordered list of files
-    3. Interpolate the grids performing height correction on some variables
-    4. Write the resulting grids
+    While processing the 4 grids of 6hourly precipitation Day1 12:00, 18:00 and Day2 00:00, 06:00 we will use the daily precipitation
+    of the corresponding period meaning Day2 06:00 to decumulate its values where there is missing 6hourly precipitation.
+    For each daily precipitation observation from one of the providers above, if there is no 6h observation in a radius of 1.5 km,
+    insert the daily value divided by 4 in all 4 6hourly datasets.
+    If there is one or more 6hourly stations in the radius and the station have less then 4 values, insert the missing values in the
+    corresponding 6hourly dataset by and changing its value using the formula (PR - Sum(PR6)) / (number of missing values),
+    if and only if the resulting value is positive (>=0).
+    Daily stations that have a real 6h station in the radius (1.5km) that is complete, meaning it has all four 6hourly values. The decumulation is NOT done.
+
+    - read 1 daily KiWIS-file and 4 corresponding 6-hourly KiWIS-files
+    - calculate decumulated values
+    - write 4 new 6-hourly KiWIS-files including decumulated values
     """
+
     global quiet_mode
 
     print_msg('Start reading files')
@@ -271,7 +278,7 @@ def main(argv):
 
         # set defaults
         parser.set_defaults(quiet=False,
-                            out_folder=None)
+                            output_folder=None)
 
         parser.add_argument("-d", "--pr24h", dest="kiwis_24h_folder_path", required=True, type=FileUtils.folder_type,
                             help="Set the input kiwis file folder containing daily precipitation.",

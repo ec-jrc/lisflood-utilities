@@ -49,13 +49,24 @@ NetCDF, PCRaster and TSS files.
 * __[waterregions](#waterregions)__ is a package containing two scripts that allow to create and verify a water regions map, respectively.
 
 * __[gridding](#gridding)__ is a tool to interpolate meteo variables observations stored in text files containing (lon, lat, value) into grids.
-  - uses inverse distance interpolation
-  - input file names must use format: \<var\>YYYYMMDDHHMI_YYYYMMDDHHMISS.txt
+  - uses by default angular distance weighting (ADW) interpolation with the option to use other interpolation schemes
+  - input file names should use format: \<var\>YYYYMMDDHHMI_YYYYMMDDHHMISS.txt but it can be changed in the configuration files
   - option to store all interpolated grids in a single NetCDF4 file
   - option to store each interpolated grid in a GeoTIFF file
   - output files are compressed
   - grids are setup in the configuration folder and are defined by a dem.nc file
   - meteo variables parameters are defined in the same configuration folder
+
+* __[decumulate](#decumulate)__ is a tool that performs the decumulation of daily kiwis files into the respective 4 grids of 6hourly precipitation kiwis files in order to increase the station density or to fill in 6hourly gaps.
+  - While processing the 4 grids of 6hourly precipitation Day1 12:00, 18:00 and Day2 00:00, 06:00 we will use the daily precipitation of the corresponding period meaning Day2 06:00 to decumulate its values where there is missing 6hourly precipitation.
+  - For each daily precipitation observation from one of the providers above, if there is no 6h observation in a radius of 1.5 km, insert the daily value divided by 4 in all 4 6hourly datasets.
+  - If there is one or more 6hourly stations in the radius and the station have less then 4 values, insert the missing values in the corresponding 6hourly dataset by and changing its value using the formula (PR - Sum(PR6)) / (number of missing values), if and only if the resulting value is positive (>=0).
+  - Daily stations that have a real 6h station in the radius (1.5km) that is complete, meaning it has all four 6hourly values. The decumulation is NOT done.
+  - Do NOT decumulate the MARS stations without neighbors that have in the grid, a DWDSynop station with the same WMO Number, because they are actually the same station even though they might not be exactly within the defined radius.
+  - If there are more than one 6h station in the radius, select according to the following rules by order:
+    1. get the one with the highest number of slots
+    2. get the one with the lowest positive difference to the 24h value
+    3. get the one on the top
 
 * __[cddmap](#cddmap)__ is a tool to generate correlation decay distance (CDD) maps starting from station timeseries
 
@@ -521,7 +532,7 @@ The utility **pcr2nc** can be used to convert a map in pcraster format into NetC
 ## gridding
 
 This tool is used to interpolate meteo variables observations stored in text files containing (lon, lat, value) into grids.
-It uses inverse distance interpolation method from pyg2p.
+It uses by default angular distance weighting interpolation method from pyg2p.
 
 #### Requirements
 python3, pyg2p
@@ -538,8 +549,8 @@ The tool requires four mandatory command line input arguments:
 - -c, --conf: Set the grid configuration type to use. Right now only 5x5km, 1arcmin are available.
 - -v, --var: Set the variable to be processed. Right now only variables pr,pd,tn,tx,ws,rg,pr6,ta6 are available.
 
-The input folder must contain the meteo observation in text files with file name format:  \<var\>YYYYMMDDHHMI_YYYYMMDDHHMISS.txt
-The files must contain the columns longitude, latitude, observation_value is separated by TAB and without the header.
+The input folder must contain the meteo observations in text files in KIWIS format that will be parsed, filtered and the tool will generate another text file in TSV format with name pattern:  \<var\>YYYYMMDDHHMI_YYYYMMDDHHMISS.txt
+These TSV files contain all the observation that will be used in the interpolation and have the columns longitude, latitude, observation_value separated by TAB and without the header.
 Not mandatory but could help to store the files in a folder structure like: ./YYYY/MM/DD/\<var\>YYYYMMDDHHMI_YYYYMMDDHHMISS.txt
 
 Example of command that will generate a NetCDF file containing the precipitation (pr) grids for March 2023:
@@ -555,24 +566,31 @@ gridding --help
 ```
 
 ```text
-usage: gridding [-h] -i input_folder -o {output_folder, NetCDF_file} -c
-                {5x5km, 1arcmin,...} -v {pr,pd,tn,tx,ws,rg,...}
+usage: gridding [-h] -i /path/to/pr200102150600_all.kiwis
+                [-o /path/to/pr2001.nc] -c {5x5km, 1arcmin,...}
+                [-p /path/to/config] -v {pr,pd,tn,tx,ws,rg,...}
                 [-d files2process.txt] [-s YYYYMMDDHHMISS] [-e YYYYMMDDHHMISS]
-                [-q] [-t] [-f]
+                [-q] [-t] [-n] [-f] [-u] [-g]
+                [-m ['nearest', 'invdist', 'adw', 'cdd', 'bilinear', 'triangulation', 'bilinear_delaunay']]
+                [-r ['0', '1', '2', '3', '4', '5']] [-b]
 
 version v0.1 ($Mar 28, 2023 16:01:00$) This script interpolates meteo input
-variables data into either a single NETCDF4 file or one GEOTIFF file per
-timestep. The resulting NetCDF is CF-1.6 compliant.
+variables data into a single NETCDF4 file and, if selected, generates also a
+GEOTIFF file per timestep. The resulting netCDF is CF-1.6 compliant.
 
 optional arguments:
   -h, --help            show this help message and exit
-  -i input_folder, --in input_folder
-                        Set input folder path with kiwis/point files
-  -o {output_folder, NetCDF_file}, --out {output_folder, NetCDF_file}
-                        Set output folder base path for the tiff files or the
-                        NetCDF file path.
+  -i /path/to/pr200102150600_all.kiwis, --in /path/to/pr200102150600_all.kiwis
+                        Set a single input kiwis file or folder path
+                        containing all the kiwis files.
+  -o /path/to/pr2001.nc, --out /path/to/pr2001.nc
+                        Set the output netCDF file path containing all the
+                        timesteps between start and end dates.
   -c {5x5km, 1arcmin,...}, --conf {5x5km, 1arcmin,...}
                         Set the grid configuration type to use.
+  -p /path/to/config, --pathconf /path/to/config
+                        Overrides the base path where the configurations are
+                        stored.
   -v {pr,pd,tn,tx,ws,rg,...}, --var {pr,pd,tn,tx,ws,rg,...}
                         Set the variable to be processed.
   -d files2process.txt, --dates files2process.txt
@@ -585,13 +603,108 @@ optional arguments:
                         the config file]
   -e YYYYMMDDHHMISS, --end YYYYMMDDHHMISS
                         Set the end date and time until which data is imported
-                        [default: 20230421060000]
+                        [default: 20240611060000]
   -q, --quiet           Set script output into quiet mode [default: False]
-  -t, --tiff            Outputs a tiff file per timestep instead of the
-                        default single NetCDF [default: False]
-  -f, --force           Force write to existing file. TIFF files will be
-                        overwritten and NetCDF file will be appended.
+  -t, --tiff            Outputs a tiff file per timestep [default: False]
+  -n, --netcdf          Outputs a single netCDF with all the timesteps
                         [default: False]
+  -f, --force           Force write to existing file. TIFF files will be
+                        overwritten and netCDF file will be appended.
+                        [default: False]
+  -u, --useexisting     Force to use existing point/txt filenames, so these
+                        files will be used for gridding. [default: False]
+  -g, --getexistingtiff
+                        Force to use existing tiff files instead of
+                        interpolating the values again. [default: False]
+  -m ['nearest', 'invdist', 'adw', 'cdd', 'bilinear', 'triangulation', 'bilinear_delaunay'], --mode ['nearest', 'invdist', 'adw', 'cdd', 'bilinear', 'triangulation', 'bilinear_delaunay']
+                        Set interpolation mode. [default: adw]
+  -r ['0', '1', '2', '3', '4', '5'], --ramsavemode ['0', '1', '2', '3', '4', '5']
+                        Set memory save mode level. Used to reduce memory
+                        usage [default: 0]
+  -b, --broadcast       When set, computations will run faster in full
+                        broadcasting mode but require more memory. [default:
+                        False]
+
+```
+
+
+## decumulate
+
+This tool performs the decumulation of daily kiwis files into the respective 4 slots of 6hourly precipitation KIWIS files in order to increase the station density or to fill in 6hourly gaps.
+
+#### Requirements
+python3, gridding
+
+### Usage
+
+> __Note:__ This guide assumes you have installed the program with pip tool.
+> If you cloned the source code instead, just substitute the executable `decumulate` with `python bin/decumulate` that is in the root folder of the cloned project.
+
+The tool requires five mandatory command line input arguments:
+
+- -d, --pr24h: Set the input kiwis file folder containing daily precipitation.
+- -g, --pr6h": Set the input kiwis file folder containing 6 hourly precipitation.
+- -c, --conf: Set the grid configuration type to use (5x5km, 1arcmin,...).
+- -v, --var24h: Set the daily variable to be processed (pr, ta,...).
+- -6, --var6h: Set the 6hourly variable to be processed (pr6, ta6,...).
+
+The input folder must contain the meteo observation in KIWIS files with file name format:  \<var\>YYYYMMDDHHMI_all.kiwis
+The file name pattern can be changed in the configuration files.
+Not mandatory but could help to store the files in a folder structure like: ./YYYY/MM/DD/\<var\>YYYYMMDDHHMI_all.kiwis
+
+Example of command that decumulates the daily precipitation (pr) grids for 2005-12-26 06:00 and inserts the decumulated values into the respective 6hourly files (pr6) (2005-12-25 12:00, 2005-12-25 18:00, 2005-12-26 00:00, 2005-12-26 06:00):
+
+```bash
+decumulate --conf 1arcmin --var24h pr --var6h pr6 --out /path/to/output/pr6 --pr24h /path/to/input/pr/ --pr6h /path/to/input/pr6/ -s 20051226000000 -e 20051226060001
+```
+
+The input and output arguments are listed below and can be seen by using the help flag.
+
+```bash
+decumulate --help
+```
+
+```text
+usage: decumulate [-h] -d /path/to/pr -g /path/to/pr6
+                  [-o /path/to/output/folder] -c {5x5km, 1arcmin,...}
+                  [-p /path/to/config] -v {pr,ta,...} -6 {pr6,ta6,...}
+                  [-s YYYYMMDDHHMISS] [-e YYYYMMDDHHMISS] [-q]
+
+version v0.1 ($Mar 14, 2024 16:01:00$) This script performs the decumulation
+of daily kiwis files into the respective 6hourly precipitation kiwis files in
+order to increase the station density or to fill in 6hourly gaps. JIRA Issue:
+EMDCC-1484
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -d /path/to/pr, --pr24h /path/to/pr
+                        Set the input kiwis file folder containing daily
+                        precipitation.
+  -g /path/to/pr6, --pr6h /path/to/pr6
+                        Set the input kiwis file folder containing 6 hourly
+                        precipitation.
+  -o /path/to/output/folder, --out /path/to/output/folder
+                        Set the output folder where the resulting 6h kiwis
+                        will be stored. If this folder is not set, it will
+                        change the input kiwis.
+  -c {5x5km, 1arcmin,...}, --conf {5x5km, 1arcmin,...}
+                        Set the grid configuration type to use.
+  -p /path/to/config, --pathconf /path/to/config
+                        Overrides the base path where the configurations are
+                        stored.
+  -v {pr,ta,...}, --var24h {pr,ta,...}
+                        Set the daily variable to be processed.
+  -6 {pr6,ta6,...}, --var6h {pr6,ta6,...}
+                        Set the 6hourly variable to be processed.
+  -s YYYYMMDDHHMISS, --start YYYYMMDDHHMISS
+                        Set the start date and time from which data is
+                        imported [default: date defining the time units inside
+                        the config file]
+  -e YYYYMMDDHHMISS, --end YYYYMMDDHHMISS
+                        Set the end date and time until which data is imported
+                        [default: None]
+  -q, --quiet           Set script output into quiet mode [default: False]
+
 ```
 
 
