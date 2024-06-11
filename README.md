@@ -72,7 +72,7 @@ NetCDF, PCRaster and TSS files.
 
 * __[ncextract](#ncextract)__ is a tool to extract values from NetCDF4 (or GRIB) file(s) at specific coordinates.
 
-* __[catchstats](#catchstats)__ calculates catchment statistics (mean, sum, std, min, max...) from NetCDF4 files given masks created with [`cutmaps`](#cutmaps:-a-NetCDF-files-cookie-cutter).
+* __[catchstats](#catchstats)__ calculates catchment statistics (mean, sum, std, min, max...) from NetCDF4 files given masks created with [cutmaps](#cutmaps).
 
 The package contains convenient classes for reading/writing:
 
@@ -556,7 +556,7 @@ Not mandatory but could help to store the files in a folder structure like: ./YY
 Example of command that will generate a NetCDF file containing the precipitation (pr) grids for March 2023:
 
 ```bash
-gridding -i /meteo/pr/2023/ -o /meteo/pr/pr_MARCH_2023.nc -c 1arcmin -v pr -s 202303010600 -e 202304010600
+gridding -i /meteo/pr/2023/ -o /meteo/pr/pr_MARCH_2023.nc --pathconf /path/to/configuration/ -c 1arcmin -v pr -s 202303010600 -e 202304010600
 ```
 
 The input and output arguments are listed below and can be seen by using the help flag.
@@ -655,7 +655,7 @@ Not mandatory but could help to store the files in a folder structure like: ./YY
 Example of command that decumulates the daily precipitation (pr) grids for 2005-12-26 06:00 and inserts the decumulated values into the respective 6hourly files (pr6) (2005-12-25 12:00, 2005-12-25 18:00, 2005-12-26 00:00, 2005-12-26 06:00):
 
 ```bash
-decumulate --conf 1arcmin --var24h pr --var6h pr6 --out /path/to/output/pr6 --pr24h /path/to/input/pr/ --pr6h /path/to/input/pr6/ -s 20051226000000 -e 20051226060001
+decumulate  --pathconf /path/to/configuration/ --conf 1arcmin --var24h pr --var6h pr6 --out /path/to/output/pr6 --pr24h /path/to/input/pr/ --pr6h /path/to/input/pr6/ -s 20051226000000 -e 20051226060001
 ```
 
 The input and output arguments are listed below and can be seen by using the help flag.
@@ -717,7 +717,11 @@ python3, pyg2p
 
 ### Usage
 
+```text
+
 cddmap [directory]/[--analyze]/[--merge-and-filter-jsons]/--generatemap] [--start first_station] [--end last_station] [--parallel] [--only-extract-timeseries timeseries_keys_file] [--maxdistance max_distance_in_km]
+
+```
 
 The tool requires an input argument indicating the station timeseries main folder, and calculates the CDD for each stations as well as correlations and distances files. Outputs the results in a txt file containing station coordinates and CDD values.
 After creating the CDD txt file, it can be used with one of the following commands:
