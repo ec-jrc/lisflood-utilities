@@ -118,7 +118,8 @@ def run(infolder: str, outfolder: str):
             df[incident_type] = None
             df[incident_type] = df.apply(get_total_incident_by_type, axis=1, incident_type=incident_type)
 
-        df = df.groupby(COL_PROVIDER_ID).agg(agg_funcs).reset_index()
+        groupy_cols = [COL_PROVIDER_ID, COL_PARAMETER, COL_TIMESERIES]
+        df = df.groupby(groupy_cols).agg(agg_funcs).reset_index()
 
         # Eliminate the top level of column names since the new names are
         # written on the bottom level and insert the name of the the
@@ -127,6 +128,8 @@ def run(infolder: str, outfolder: str):
         df.reset_index(drop=True, inplace=True)
         columns = list(df.columns)
         columns[0] = 'Provider'
+        columns[1] = COL_PARAMETER
+        columns[2] = COL_TIMESERIES
         df.columns = columns
         
         df['Incidents per Station'] = df['Total Incidents'].div(df['Number of Stations'])
