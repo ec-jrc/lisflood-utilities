@@ -28,6 +28,7 @@ class KiwisFilter:
         self.setup_column_names()
         self.OUTPUT_COLUMNS = [self.COL_LON, self.COL_LAT, self.COL_VALUE]
         self.INTERNAL_COLUMNS = [f'{self.COL_STATION_DIARY_STATUS}_INTERNAL', f'{self.COL_INACTIVE_HISTORIC}_INTERNAL']
+        self.print_stats = False
 
     def filter(self, kiwis_files: List[Path], kiwis_timestamps: List[str], kiwis_data_frames: List[pd.DataFrame]) -> List[pd.DataFrame]:
         """
@@ -39,8 +40,10 @@ class KiwisFilter:
         for file_path in kiwis_files:
             if len(kiwis_data_frames) > 0:
                 df_kiwis = kiwis_data_frames[i]
+                self.print_stats = False
             else:
                 df_kiwis = pd.read_csv(file_path, sep="\t")
+                self.print_stats = True
             self.cur_timestamp = dt.strptime(f'{kiwis_timestamps[i]}', "%Y%m%d%H%M")
             df_kiwis = self.apply_filter(df_kiwis)
             filtered_data_frames.append(df_kiwis)
@@ -64,7 +67,7 @@ class KiwisFilter:
                     (df[f'{self.COL_NO_GRIDDING}'] == 'no') & (df[f'{self.COL_IS_IN_DOMAIN}'] == 'yes') &
                     (df[f'{self.COL_EXCLUDE}'] != 'yes') & (df[f'{self.COL_STATION_DIARY_STATUS}_INTERNAL'] == 1) &
                     (df[f'{self.COL_INACTIVE_HISTORIC}_INTERNAL'] == 1)]
-        self.print_statistics(df)
+        self.print_statistics(df, force_print=self.print_stats)
         # Show only codes valid and suspicious
         df = df.loc[((df[f'{self.COL_QUALITY_CODE}'] == self.QUALITY_CODE_VALID) |
                      (df[f'{self.COL_QUALITY_CODE}'] == self.QUALITY_CODE_SUSPICIOUS))]
@@ -77,37 +80,39 @@ class KiwisFilter:
             return row['count']
         return 0
 
-    def print_statistics(self, df: pd.DataFrame):
-        timestamp = self.cur_timestamp.strftime('%Y-%m-%d %H:%M:%S')
-        new_df = df.groupby([self.COL_PROVIDER_ID, self.COL_QUALITY_CODE]).size().reset_index(name='count')
-        # Transpose the quality codes
-        new_df[self.QUALITY_CODE_VALID] = new_df.apply(KiwisFilter.get_totals_by_quality_code, axis=1,
-                                                       column_quality_code=self.COL_QUALITY_CODE,
-                                                       quality_code=self.QUALITY_CODE_VALID)
-        new_df[self.QUALITY_CODE_SUSPICIOUS] = new_df.apply(KiwisFilter.get_totals_by_quality_code, axis=1,
-                                                            column_quality_code=self.COL_QUALITY_CODE,
-                                                            quality_code=self.QUALITY_CODE_SUSPICIOUS)
-        new_df[self.QUALITY_CODE_WRONG] = new_df.apply(KiwisFilter.get_totals_by_quality_code, axis=1,
-                                                       column_quality_code=self.COL_QUALITY_CODE,
-                                                       quality_code=self.QUALITY_CODE_WRONG)
-        new_df.drop(columns=[self.COL_QUALITY_CODE, 'count'], inplace=True)
-        new_df = new_df.groupby(self.COL_PROVIDER_ID)[[self.QUALITY_CODE_VALID,
-                                                       self.QUALITY_CODE_SUSPICIOUS,
-                                                       self.QUALITY_CODE_WRONG]].sum()
-        new_df.reset_index(inplace=True)
-        for index, row in new_df.iterrows():
-            provider_id = row[self.COL_PROVIDER_ID]
-            quality_code_valid = row[self.QUALITY_CODE_VALID]
-            quality_code_suspicious = row[self.QUALITY_CODE_SUSPICIOUS]
-            quality_code_wrong = row[self.QUALITY_CODE_WRONG]
-            total = quality_code_valid + quality_code_suspicious + quality_code_wrong
-            stats_string = (
-                f'#KIWIS_STATS: {{"TIMESTAMP": "{timestamp}", "VAR_CODE": "{self.var_code}", '
-                f'"PROVIDER_ID": {provider_id}, "QUALITY_CODE_VALID": {quality_code_valid}, '
-                f'"QUALITY_CODE_SUSPICIOUS": {quality_code_suspicious}, "QUALITY_CODE_WRONG": {quality_code_wrong}, '
-                f'"TOTAL_OBSERVATIONS": {total}}}'
-            )
-            self.print_msg(stats_string)
+    def print_statistics(self, df: pd.DataFrame, stats_tag: str = 'KIWIS_STATS', force_print: bool = True):
+        # print only once when reading a file for the first time
+        if force_print:
+            timestamp = self.cur_timestamp.strftime('%Y-%m-%d %H:%M:%S')
+            new_df = df.groupby([self.COL_PROVIDER_ID, self.COL_QUALITY_CODE]).size().reset_index(name='count')
+            # Transpose the quality codes
+            new_df[self.QUALITY_CODE_VALID] = new_df.apply(KiwisFilter.get_totals_by_quality_code, axis=1,
+                                                           column_quality_code=self.COL_QUALITY_CODE,
+                                                           quality_code=self.QUALITY_CODE_VALID)
+            new_df[self.QUALITY_CODE_SUSPICIOUS] = new_df.apply(KiwisFilter.get_totals_by_quality_code, axis=1,
+                                                                column_quality_code=self.COL_QUALITY_CODE,
+                                                                quality_code=self.QUALITY_CODE_SUSPICIOUS)
+            new_df[self.QUALITY_CODE_WRONG] = new_df.apply(KiwisFilter.get_totals_by_quality_code, axis=1,
+                                                           column_quality_code=self.COL_QUALITY_CODE,
+                                                           quality_code=self.QUALITY_CODE_WRONG)
+            new_df.drop(columns=[self.COL_QUALITY_CODE, 'count'], inplace=True)
+            new_df = new_df.groupby(self.COL_PROVIDER_ID)[[self.QUALITY_CODE_VALID,
+                                                           self.QUALITY_CODE_SUSPICIOUS,
+                                                           self.QUALITY_CODE_WRONG]].sum()
+            new_df.reset_index(inplace=True)
+            for index, row in new_df.iterrows():
+                provider_id = row[self.COL_PROVIDER_ID]
+                quality_code_valid = row[self.QUALITY_CODE_VALID]
+                quality_code_suspicious = row[self.QUALITY_CODE_SUSPICIOUS]
+                quality_code_wrong = row[self.QUALITY_CODE_WRONG]
+                total = quality_code_valid + quality_code_suspicious + quality_code_wrong
+                stats_string = (
+                    f'#KIWIS_STATS: {{"TIMESTAMP": "{timestamp}", "VAR_CODE": "{self.var_code}", '
+                    f'"PROVIDER_ID": {provider_id}, "QUALITY_CODE_VALID": {quality_code_valid}, '
+                    f'"QUALITY_CODE_SUSPICIOUS": {quality_code_suspicious}, "QUALITY_CODE_WRONG": {quality_code_wrong}, '
+                    f'"TOTAL_OBSERVATIONS": {total}}}'
+                )
+                self.print_msg(stats_string)
 
     def print_msg(self, msg: str = ''):
         if not self.quiet_mode:
@@ -217,6 +222,7 @@ class ObservationsKiwisFilter(KiwisFilter):
             df['has_neighbor_within_radius'] = df.apply(self.has_neighbor_within_radius_from_other_providers,
                                                         axis=1, tree=tree, provider_id=provider_id, radius=radius)
             df = df.loc[~(df['has_neighbor_within_radius'])]
+        self.print_statistics(df)
         return df
     
     def has_neighbor_within_radius_from_other_providers(self, row: pd.Series, tree: cKDTree = None, provider_id: int = 0,
@@ -270,6 +276,7 @@ class DowgradedObservationsKiwisFilter(ObservationsKiwisFilter):
                                                         axis=1, tree=tree, provider_id=provider_id, radius=radius)
             self.set_filtered_stations(df)
             df = df.loc[~(df['has_neighbor_within_radius'])]
+        self.print_statistics(df)
         return df
     
     def set_filtered_stations(self, df: pd.DataFrame):
@@ -455,5 +462,6 @@ class DowgradedDailyTo6HourlyObservationsKiwisFilter(ObservationsKiwisFilter):
             # Append both decumulated 24h dataframes to the 6h slot
             df_filtered = pd.concat([df, self.df_24h_without_neighbors, df_decumulated_24h])
             return_data_frames.append(df_filtered)
+            self.print_statistics(df_filtered)
         return return_data_frames
 

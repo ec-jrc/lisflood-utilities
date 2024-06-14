@@ -1,4 +1,5 @@
 from dask.dataframe.io.tests.test_json import df
+from pandas.tests.io.test_fsspec import df1
 __author__="Goncalo Gomes"
 __date__="$Jun 06, 2024 10:45:00$"
 __version__="0.1"
@@ -28,6 +29,27 @@ from lisfloodutilities.gridding.lib.utils import FileUtils
 def have_the_same_columns(df1: pd.DataFrame, df2: pd.DataFrame):
     return all(df1.columns.isin(df2.columns))
 
+def merge_kiwis_stats(df: pd.DataFrame, search_string: str = ''):
+    '''
+    KIWIS Stats will contain several rows from different KiwisFilters each one filtering more and more observations.
+    That is why we need to get the minimum out of the VALID and SUSPICIOUS observations, but for the WRONG ones they
+    are filtered in the first interaction with the KiwisFilter class.
+    '''
+    KWIWS_SEARCH_STRING = '#KIWIS_STATS: '
+    result_df = df
+    if search_string == KWIWS_SEARCH_STRING:
+        group_cols = ['TIMESTAMP', 'VAR_CODE', 'PROVIDER_ID']
+        agg_dict = {'QUALITY_CODE_VALID': 'min', 'QUALITY_CODE_SUSPICIOUS': 'min',
+                    'QUALITY_CODE_WRONG': 'max', 'TOTAL_OBSERVATIONS': 'max'}
+        result_df = result_df.groupby(group_cols).agg(agg_dict).reset_index()
+        result_df.columns = ['TIMESTAMP', 'VAR_CODE', 'PROVIDER_ID', 'QUALITY_CODE_VALID',
+                             'QUALITY_CODE_SUSPICIOUS', 'QUALITY_CODE_WRONG', 'TOTAL_OBSERVATIONS']
+        result_df.reset_index(drop=True, inplace=True)
+        # Recalculate the total
+        result_df['TOTAL_OBSERVATIONS'] = result_df['QUALITY_CODE_VALID'] + result_df['QUALITY_CODE_SUSPICIOUS'] + result_df['QUALITY_CODE_WRONG']
+    return result_df
+    
+
 def run(infolder: str, outfile: str, search_string: str, inwildcard: str = '*.log'):
     out_df = None
     outfilepath = Path(outfile)
@@ -53,6 +75,7 @@ def run(infolder: str, outfile: str, search_string: str, inwildcard: str = '*.lo
         print('WARNING: No lines containing statistics where found.')
     else:
         out_df = out_df.drop_duplicates()
+        out_df = merge_kiwis_stats(out_df, search_string)
         out_df.to_csv(outfilepath, index=False, header=True, sep='\t')
         print(f'Wrote file: {outfilepath}')
         print(out_df)

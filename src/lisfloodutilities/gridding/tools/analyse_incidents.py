@@ -104,8 +104,8 @@ def run(infolder: str, outfolder: str):
         outfilepath = Path(outfile)
         # Create the output parent folders if not exist yet
         Path(outfilepath.parent).mkdir(parents=True, exist_ok=True)
-        df = pd.read_csv(filename, delimiter=DELIMITER_INPUT)
-        df = df.astype({COL_INCIDENTS: 'str'})
+        df = pd.read_csv(filename, delimiter=DELIMITER_INPUT, low_memory=False)
+        df = df.astype({COL_PROVIDER_ID: 'str', COL_INCIDENTS: 'str'})
         incident_type_columns = {}
         df[COL_TOTAL_INCIDENTS] = df.apply(get_total_incidents, axis=1)
 
@@ -166,8 +166,7 @@ def main(argv):
     See the Licence for the specific language governing permissions and limitations under the Licence.
     """
 
-    # try:
-    if True:
+    try:
         # setup option parser
         parser = ArgumentParser(epilog=program_license, description=program_version_string+program_longdesc)
 
@@ -189,11 +188,11 @@ def main(argv):
 
         run(args.infolder, args.outfolder)
         print("Finished.")
-    # except Exception as e:
-    #     indent = len(program_name) * " "
-    #     sys.stderr.write(program_name + ": " + repr(e) + "\n")
-    #     sys.stderr.write(indent + "  for help use --help")
-    #     return 2
+    except Exception as e:
+        indent = len(program_name) * " "
+        sys.stderr.write(program_name + ": " + repr(e) + "\n")
+        sys.stderr.write(indent + "  for help use --help")
+        return 2
 
 
 def main_script():
