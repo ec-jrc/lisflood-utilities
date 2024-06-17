@@ -362,6 +362,7 @@ def main(argv):
 
         for filename_kiwis, kiwis_timestamp in kiwis_24h_paths:
             kiwis_24h_06am_path = get_existing_file_path(parser, str(filename_kiwis))
+            print_msg(f"Daily PR kiwis file:  {kiwis_24h_06am_path}")
             kiwis_6h_06am_timestamp = kiwis_timestamp
             kiwis_6h_12am_timestamp = kiwis_timestamp - timedelta(hours=6)
             kiwis_6h_18pm_timestamp = kiwis_timestamp - timedelta(hours=12)
@@ -372,7 +373,6 @@ def main(argv):
             kiwis_6h_18pm_path = get_6hourly_filepath(parser, conf_6h, kiwis_6h_folder_path, kiwis_6h_18pm_timestamp)
             kiwis_6h_12pm_path = get_6hourly_filepath(parser, conf_6h, kiwis_6h_folder_path, kiwis_6h_12pm_timestamp)
 
-            print_msg(f"Daily PR kiwis file:  {kiwis_24h_06am_path}")
             print_msg(f"6hourly PR kiwis file 12:00:  {kiwis_6h_12pm_path}")
             print_msg(f"6hourly PR kiwis file 18:00:  {kiwis_6h_18pm_path}")
             print_msg(f"6hourly PR kiwis file 00:00:  {kiwis_6h_12am_path}")
