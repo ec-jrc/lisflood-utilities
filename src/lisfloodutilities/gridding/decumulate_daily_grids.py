@@ -373,10 +373,10 @@ def main(argv):
             kiwis_6h_18pm_path = get_6hourly_filepath(parser, conf_6h, kiwis_6h_folder_path, kiwis_6h_18pm_timestamp)
             kiwis_6h_12pm_path = get_6hourly_filepath(parser, conf_6h, kiwis_6h_folder_path, kiwis_6h_12pm_timestamp)
 
-            print_msg(f"6hourly PR kiwis file 12:00:  {kiwis_6h_12pm_path}")
-            print_msg(f"6hourly PR kiwis file 18:00:  {kiwis_6h_18pm_path}")
-            print_msg(f"6hourly PR kiwis file 00:00:  {kiwis_6h_12am_path}")
             print_msg(f"6hourly PR kiwis file 06:00:  {kiwis_6h_06am_path}")
+            print_msg(f"6hourly PR kiwis file 00:00:  {kiwis_6h_12am_path}")
+            print_msg(f"6hourly PR kiwis file 18:00:  {kiwis_6h_18pm_path}")
+            print_msg(f"6hourly PR kiwis file 12:00:  {kiwis_6h_12pm_path}")
 
             run(conf_24h, conf_6h, kiwis_24h_06am_path, kiwis_6h_12pm_path, kiwis_6h_18pm_path,
                 kiwis_6h_12am_path, kiwis_6h_06am_path, input_path_6h=kiwis_6h_folder_path, output_path=output_path)
