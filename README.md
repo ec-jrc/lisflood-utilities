@@ -1,4 +1,4 @@
-f# Lisflood Utilities
+# Lisflood Utilities
 
 This repository hosts source code of LISFLOOD utilities.
 Go to [Lisflood OS page](https://ec-jrc.github.io/lisflood/) for more information.
