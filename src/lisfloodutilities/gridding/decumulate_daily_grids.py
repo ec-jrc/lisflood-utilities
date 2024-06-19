@@ -174,7 +174,7 @@ def print_statistics(provider_ids: List[str], df_kiwis_24h: pd.DataFrame, df_kiw
             print_msg(stats_string)
         i += 1
 
-def run(conf_24h: Config, conf_6h: Config, kiwis_24h_06am_path: Path, kiwis_6h_12pm_path: Path,
+def run(conf_24h: Config, conf_6h: Config, beginning_of_interval_offset: int, kiwis_24h_06am_path: Path, kiwis_6h_12pm_path: Path,
         kiwis_6h_18pm_path: Path, kiwis_6h_12am_path: Path, kiwis_6h_06am_path: Path, input_path_6h: Path, output_path: Path = None):
     """
     While processing the 4 grids of 6hourly precipitation Day1 12:00, 18:00 and Day2 00:00, 06:00 we will use the daily precipitation
@@ -200,10 +200,10 @@ def run(conf_24h: Config, conf_6h: Config, kiwis_24h_06am_path: Path, kiwis_6h_1
                                                                                                                       kiwis_6h_12am_path,
                                                                                                                       kiwis_6h_06am_path])
     # Check timestamps are correct
-    if not (kiwis_timestamps_24h[0] == kiwis_timestamps_6h[3] and
-            (kiwis_timestamps_24h[0] - timedelta(hours=6)) == kiwis_timestamps_6h[2] and
-            (kiwis_timestamps_24h[0] - timedelta(hours=12)) == kiwis_timestamps_6h[1] and
-            (kiwis_timestamps_24h[0] - timedelta(hours=18)) == kiwis_timestamps_6h[0]):
+    if not ((kiwis_timestamps_24h[0] + timedelta(hours=beginning_of_interval_offset)) == kiwis_timestamps_6h[3] and
+            (kiwis_timestamps_24h[0] + timedelta(hours=beginning_of_interval_offset) - timedelta(hours=6)) == kiwis_timestamps_6h[2] and
+            (kiwis_timestamps_24h[0] + timedelta(hours=beginning_of_interval_offset) - timedelta(hours=12)) == kiwis_timestamps_6h[1] and
+            (kiwis_timestamps_24h[0] + timedelta(hours=beginning_of_interval_offset) - timedelta(hours=18)) == kiwis_timestamps_6h[0]):
         raise ArgumentTypeError("The input kiwis do not respect the expected timestamps.")
 
     kiwis_dataframes = df_kiwis_array_24h
@@ -278,7 +278,8 @@ def main(argv):
 
         # set defaults
         parser.set_defaults(quiet=False,
-                            output_folder=None)
+                            output_folder=None,
+                            use_beginning_of_interval=False)
 
         parser.add_argument("-d", "--pr24h", dest="kiwis_24h_folder_path", required=True, type=FileUtils.folder_type,
                             help="Set the input kiwis file folder containing daily precipitation.",
@@ -307,6 +308,8 @@ def main(argv):
         parser.add_argument("-e", "--end", dest="end_date",
                             help="Set the end date and time until which data is imported [default: %(default)s]",
                             metavar="YYYYMMDDHHMISS")
+        parser.add_argument("-b", "--boi", dest="use_beginning_of_interval", action="store_true",
+                            help="Indicate that the daily timesteps are at the beginning of the interval [default: %(default)s]")
         parser.add_argument("-q", "--quiet", dest="quiet", action="store_true", help="Set script output into quiet mode [default: %(default)s]")
 
         # process options
@@ -357,28 +360,36 @@ def main(argv):
             output_path = None
             print_msg(f"Output Folder: 6hourly kiwis files will be overwritten")
 
+        print_msg(f"Timesteps are beginning of the interval: {args.use_beginning_of_interval}")
+
         kiwis_24h_paths = get_24h_kiwis_paths(conf_24h, Path(args.kiwis_24h_folder_path))
         kiwis_6h_folder_path = Path(args.kiwis_6h_folder_path)
+        
+        # Defines the offset for the 6hourly data when the daily data is at
+        # the beginning of the interval while the 6hourly files should be at the end of the interval
+        beginning_of_interval_offset = 0
+        if args.use_beginning_of_interval:
+            beginning_of_interval_offset = 24
 
         for filename_kiwis, kiwis_timestamp in kiwis_24h_paths:
             kiwis_24h_06am_path = get_existing_file_path(parser, str(filename_kiwis))
-            print_msg(f"Daily PR kiwis file:  {kiwis_24h_06am_path}")
-            kiwis_6h_06am_timestamp = kiwis_timestamp
-            kiwis_6h_12am_timestamp = kiwis_timestamp - timedelta(hours=6)
-            kiwis_6h_18pm_timestamp = kiwis_timestamp - timedelta(hours=12)
-            kiwis_6h_12pm_timestamp = kiwis_timestamp - timedelta(hours=18)
+            print_msg(f"Daily {args.variable_code_24h} kiwis file:  {kiwis_24h_06am_path}")
+            kiwis_6h_06am_timestamp = kiwis_timestamp + timedelta(hours=beginning_of_interval_offset)
+            kiwis_6h_12am_timestamp = kiwis_timestamp + timedelta(hours=beginning_of_interval_offset) - timedelta(hours=6)
+            kiwis_6h_18pm_timestamp = kiwis_timestamp + timedelta(hours=beginning_of_interval_offset) - timedelta(hours=12)
+            kiwis_6h_12pm_timestamp = kiwis_timestamp + timedelta(hours=beginning_of_interval_offset) - timedelta(hours=18)
 
             kiwis_6h_06am_path = get_6hourly_filepath(parser, conf_6h, kiwis_6h_folder_path, kiwis_6h_06am_timestamp)
             kiwis_6h_12am_path = get_6hourly_filepath(parser, conf_6h, kiwis_6h_folder_path, kiwis_6h_12am_timestamp)
             kiwis_6h_18pm_path = get_6hourly_filepath(parser, conf_6h, kiwis_6h_folder_path, kiwis_6h_18pm_timestamp)
             kiwis_6h_12pm_path = get_6hourly_filepath(parser, conf_6h, kiwis_6h_folder_path, kiwis_6h_12pm_timestamp)
 
-            print_msg(f"6hourly PR kiwis file 06:00:  {kiwis_6h_06am_path}")
-            print_msg(f"6hourly PR kiwis file 00:00:  {kiwis_6h_12am_path}")
-            print_msg(f"6hourly PR kiwis file 18:00:  {kiwis_6h_18pm_path}")
-            print_msg(f"6hourly PR kiwis file 12:00:  {kiwis_6h_12pm_path}")
+            print_msg(f"6hourly {args.variable_code_6h} kiwis file 06:00:  {kiwis_6h_06am_path}")
+            print_msg(f"6hourly {args.variable_code_6h} kiwis file 00:00:  {kiwis_6h_12am_path}")
+            print_msg(f"6hourly {args.variable_code_6h} kiwis file 18:00:  {kiwis_6h_18pm_path}")
+            print_msg(f"6hourly {args.variable_code_6h} kiwis file 12:00:  {kiwis_6h_12pm_path}")
 
-            run(conf_24h, conf_6h, kiwis_24h_06am_path, kiwis_6h_12pm_path, kiwis_6h_18pm_path,
+            run(conf_24h, conf_6h, beginning_of_interval_offset, kiwis_24h_06am_path, kiwis_6h_12pm_path, kiwis_6h_18pm_path,
                 kiwis_6h_12am_path, kiwis_6h_06am_path, input_path_6h=kiwis_6h_folder_path, output_path=output_path)
         return 0
     except Exception as e:

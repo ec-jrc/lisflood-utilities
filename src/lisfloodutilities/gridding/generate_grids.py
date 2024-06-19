@@ -62,21 +62,6 @@ def get_grid(grid_utils: GriddingUtils, filename: Path, tiff_filepath: Path=None
         grid_data = grid_utils.generate_grid(filename)
     return grid_data
 
-def print_grid_statistics(var_code: str, grid_timestamp: datetime, grid: np.ndarray):
-    timestamp = grid_timestamp.strftime(FileUtils.DATE_PATTERN_SEPARATED)
-    grid_min = np.nanmin(grid)
-    grid_max = np.nanmax(grid)
-    grid_mean = np.nanmean(grid)
-    grid_percentile_10 = np.nanpercentile(grid, 10)
-    grid_percentile_90 = np.nanpercentile(grid, 90)
-    stats_string = (
-        f'#APP_STATS: {{"TIMESTAMP": "{timestamp}", "VAR_CODE": "{var_code}", '
-        f'"MINIMUM_VALUE": {grid_min:.2f}, "MAXIMUM_VALUE": {grid_max:.2f}, '
-        f'"MEAN_VALUE": {grid_mean:.2f}, "PERCENTILE_10": {grid_percentile_10:.2f}, '
-        f'"PERCENTILE_90": {grid_percentile_90:.2f}}}'
-    )
-    print_msg(stats_string)
-
 def run(config_filename: str, infolder: str, output_file: str, processing_dates_file: str, file_utils: FileUtils,
         output_tiff: bool, output_netcdf: bool, overwrite_output: bool, use_existing_file: bool, get_existing_tiff: bool,
         start_date: datetime = None, end_date: datetime = None, interpolation_mode: str = 'adw',
@@ -112,14 +97,11 @@ def run(config_filename: str, infolder: str, output_file: str, processing_dates_
 
     netcdf_offset_file_date = int(conf.get_config_field('VAR_TIME','OFFSET_FILE_DATE'))
 
-    cur_writer = None
     if output_tiff:
         output_writer_tiff = GDALWriter(conf, overwrite_output, quiet_mode)
-        cur_writer = output_writer_tiff
     if output_netcdf:
         output_writer_netcdf = NetCDFWriter(conf, overwrite_output, quiet_mode)
         output_writer_netcdf.open(Path(output_file))
-        cur_writer = output_writer_netcdf
     file_loader = KiwisLoader(conf, Path(infolder), dates_to_process, overwrite_output, use_existing_file, quiet_mode)
     for filename, kiwis_timestamp_str in file_loader:
         kiwis_timestamp = datetime.strptime(kiwis_timestamp_str, FileUtils.DATE_PATTERN_CONDENSED_SHORT)
@@ -129,13 +111,10 @@ def run(config_filename: str, infolder: str, output_file: str, processing_dates_
         if output_tiff:
             output_writer_tiff.open(tiff_filepath)
         grid_data = get_grid(grid_utils, filename, tiff_filepath, get_existing_tiff)
-        if cur_writer is not None:
-            cur_grid = cur_writer.setNaN(copy.deepcopy(grid_data))
-            print_grid_statistics(conf.var_code, file_timestamp, cur_grid)
         if output_netcdf:
             output_writer_netcdf.write(grid_data, file_timestamp)
         if output_tiff:
-            output_writer_tiff.write(grid_data, file_timestamp)
+            output_writer_tiff.write(grid_data, file_timestamp, print_stats=(not output_netcdf))
             output_writer_tiff.close()
     if output_netcdf:
         output_writer_netcdf.close()

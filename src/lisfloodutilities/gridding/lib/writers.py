@@ -72,7 +72,24 @@ class OutputWriter(Printable):
         self.filepath = out_filename
         self.time_created = timex.ctime(timex.time())
 
-    def write(self, grid: np.ndarray, timestamp: datetime = None):
+    def print_grid_statistics(self, grid: np.ndarray):
+        grid_min = np.nanmin(grid)
+        grid_max = np.nanmax(grid)
+        grid_mean = np.nanmean(grid)
+        grid_percentile_10 = np.nanpercentile(grid, 10)
+        grid_percentile_90 = np.nanpercentile(grid, 90)
+        stats_string = (
+            f'#APP_STATS: {{"TIMESTAMP": "{self.current_timestamp}", "VAR_CODE": "{self.conf.var_code}", '
+            f'"MINIMUM_VALUE": {grid_min:.2f}, "MAXIMUM_VALUE": {grid_max:.2f}, '
+            f'"MEAN_VALUE": {grid_mean:.2f}, "PERCENTILE_10": {grid_percentile_10:.2f}, '
+            f'"PERCENTILE_90": {grid_percentile_90:.2f}}}'
+        )
+        self.print_msg(stats_string)
+    
+    def setup_grid(self, grid: np.ndarray) -> np.ndarray:
+        raise NotImplementedError
+
+    def write(self, grid: np.ndarray, timestamp: datetime = None, print_stats: bool = True):
         raise NotImplementedError
 
     def write_timestep(self, grid: np.ndarray, timestep: int = -1):
@@ -117,14 +134,26 @@ class NetCDFWriter(OutputWriter):
         else:
             raise ArgumentTypeError(f'File {self.filepath} already exists. Use --force flag to append.')
 
-    def write(self, grid: np.ndarray, timestamp: datetime = None):
+    def setup_grid(self, grid: np.ndarray, print_stats: bool = True) -> np.ndarray:
+        values = self.setNaN(copy.deepcopy(grid))
+        values[values < self.conf.value_min_packed] = np.nan
+        values[values > self.conf.value_max_packed] = np.nan
+        values[values != self.conf.VALUE_NAN] *= self.conf.scale_factor
+        values[values != self.conf.VALUE_NAN] += self.conf.add_offset
+        if print_stats:
+            self.print_grid_statistics(values)
+        values[np.isnan(values)] = self.conf.VALUE_NAN * self.conf.scale_factor + self.conf.add_offset
+        return values   
+
+    def write(self, grid: np.ndarray, timestamp: datetime = None, print_stats: bool = True):
         timestep = -1
         if timestamp is not None:
-            self.current_timestamp = timestamp
+            self.current_timestamp = timestamp.strftime(FileUtils.DATE_PATTERN_SEPARATED)
             timestep = date2num(timestamp, self.calendar_time_unit, self.calendar_type)
         else:
             self.current_timestamp = None
-        self.write_timestep(grid, timestep)
+        cur_grid = self.setup_grid(grid, print_stats)
+        self.write_timestep(cur_grid, timestep)
 
     def write_timestep(self, grid: np.ndarray, timestep: int = -1):
         if timestep >= 0:
@@ -132,13 +161,7 @@ class NetCDFWriter(OutputWriter):
                 raise Exception("netCDF Dataset was not initialized. If file already exists, use --force flag to append.")
             self.__set_write_index(timestep)
             self.nf.variables[self.netcdf_var_time][self.write_idx] = timestep
-            values = self.setNaN(copy.deepcopy(grid))
-            values[values < self.conf.value_min_packed] = np.nan
-            values[values > self.conf.value_max_packed] = np.nan
-            values[values != self.conf.VALUE_NAN] *= self.conf.scale_factor
-            values[values != self.conf.VALUE_NAN] += self.conf.add_offset
-            values[np.isnan(values)] = self.conf.VALUE_NAN * self.conf.scale_factor + self.conf.add_offset
-            self.nf.variables[self.var_code][self.write_idx, :, :] = values
+            self.nf.variables[self.var_code][self.write_idx, :, :] = grid
 
     def __set_write_index(self, timestep: int):
         if not self.is_new_file:
@@ -281,11 +304,20 @@ class GDALWriter(OutputWriter):
         if self.current_timestamp is not None:
             ds.SetMetadataItem('Timestamp', f'{self.current_timestamp}')
         return ds
+    
+    def setup_grid(self, grid: np.ndarray, print_stats: bool = True) -> np.ndarray:
+        if print_stats:
+            values = self.setNaN(copy.deepcopy(grid))
+            self.print_grid_statistics(values)
+        return grid
 
-    def write(self, grid: np.ndarray, timestamp: datetime = None):
+    def write(self, grid: np.ndarray, timestamp: datetime = None, print_stats: bool = True):
         if timestamp is not None:
             self.current_timestamp = timestamp.strftime(FileUtils.DATE_PATTERN_SEPARATED)
-        self.write_timestep(grid)
+        else:
+            self.current_timestamp = None
+        cur_grid = self.setup_grid(grid, print_stats)
+        self.write_timestep(cur_grid)
         self.current_timestamp = None
 
     def write_timestep(self, grid: np.ndarray, timestep: int = -1):
