@@ -444,12 +444,12 @@ class DowgradedDailyTo6HourlyObservationsKiwisFilter(ObservationsKiwisFilter):
         self.df_24h_with_neighbors = self.df_24h_with_neighbors.loc[self.df_24h_with_neighbors[self.COL_VALUE] >= 0.0]
 
         # Clean the dataframes of internal columns before merging them
-        self.df_24h_without_neighbors = self.df_24h_without_neighbors.drop(columns=self.INTERNAL_COLUMNS, errors='ignore')
+        self.df_24h_without_neighbors = self.df_24h_without_neighbors.drop(columns=self.INTERNAL_COLUMNS, axis=1, errors='ignore')
 
         # Insert the decumulated stations in the respective 6h slots
         return_data_frames = [self.kiwis_24h_dataframe]
         for df in filtered_data_frames:
-            df = df.drop(columns=self.INTERNAL_COLUMNS, errors='ignore')
+            df = df.drop(columns=self.INTERNAL_COLUMNS, axis=1, errors='ignore')
             # Now we need to eliminate the stations that have neighbors on this 6h slot,
             # which means the slot of 6h have already a 6h value in the radius and no
             # decumulation is needed in this slot.
@@ -458,7 +458,7 @@ class DowgradedDailyTo6HourlyObservationsKiwisFilter(ObservationsKiwisFilter):
             tree = cKDTree(df[[self.COL_LON, self.COL_LAT]])
             df_decumulated_24h = self.update_column_if_provider_stations_are_in_radius(df=df_decumulated_24h, tree=tree)
             df_decumulated_24h = df_decumulated_24h[df_decumulated_24h['has_neighbor_within_radius'] == False]
-            df_decumulated_24h.drop(columns=self.INTERNAL_COLUMNS, errors='ignore')
+            df_decumulated_24h = df_decumulated_24h.drop(columns=self.INTERNAL_COLUMNS, axis=1, errors='ignore')
             # Append both decumulated 24h dataframes to the 6h slot
             df_filtered = pd.concat([df, self.df_24h_without_neighbors, df_decumulated_24h])
             return_data_frames.append(df_filtered)
