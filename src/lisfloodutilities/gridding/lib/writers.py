@@ -66,6 +66,8 @@ class OutputWriter(Printable):
             value[value==31082] = defaultNaN
         except Exception as e:
             self.print_msg(f"value==31082 : {str(e)}")
+        value[value < self.conf.value_min_packed] = defaultNaN
+        value[value > self.conf.value_max_packed] = defaultNaN
         return value
 
     def open(self, out_filename: Path):
@@ -136,14 +138,13 @@ class NetCDFWriter(OutputWriter):
 
     def setup_grid(self, grid: np.ndarray, print_stats: bool = True) -> np.ndarray:
         values = self.setNaN(copy.deepcopy(grid))
-        values[values < self.conf.value_min_packed] = np.nan
-        values[values > self.conf.value_max_packed] = np.nan
-        values[values != self.conf.VALUE_NAN] *= self.conf.scale_factor
-        values[values != self.conf.VALUE_NAN] += self.conf.add_offset
+        values = np.trunc(values)
+        values[~np.isnan(values)] *= self.conf.scale_factor
+        values[~np.isnan(values)] += self.conf.add_offset
         if print_stats:
             self.print_grid_statistics(values)
         values[np.isnan(values)] = self.conf.VALUE_NAN * self.conf.scale_factor + self.conf.add_offset
-        return values   
+        return values
 
     def write(self, grid: np.ndarray, timestamp: datetime = None, print_stats: bool = True):
         timestep = -1

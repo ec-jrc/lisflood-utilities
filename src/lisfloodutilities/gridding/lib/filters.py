@@ -286,6 +286,37 @@ class DowgradedObservationsKiwisFilter(ObservationsKiwisFilter):
             self.filtered_station_ids[station_id] = ''
 
 
+class SolarRadiationLimitsKiwisFilter(KiwisFilter):
+    """
+    Class to filter Solar Radiation Kiwis files whose data coordinates are both less equal a defined latitude
+    and values less equal a defined threshold.
+    This was developed to avoid wrong values of zero daily solar radiation in EFAS domain bellow 66 degrees Latitude (empirical).
+    
+    Expects to have in filter_args a dictionary containing the definition of the limits using the
+    keys EXCLUDE_BELLOW_LATITUDE and EXCLUDE_BELLOW_VALUE
+    """
+    
+    def __init__(self, filter_columns: dict = {}, filter_args: dict = {}, var_code: str = '', quiet_mode: bool = False):
+        super().__init__(filter_columns, filter_args, var_code, quiet_mode)
+        # Calculating the radius in decimal degrees
+        self.threshold_max_latitude = 72.0
+        if 'EXCLUDE_BELLOW_LATITUDE' in self.args:
+            self.threshold_max_latitude = self.args['EXCLUDE_BELLOW_LATITUDE']
+        self.threshold_min_value = 0.0
+        if 'EXCLUDE_BELLOW_VALUE' in self.args:
+            self.threshold_min_value = self.args['EXCLUDE_BELLOW_VALUE']
+
+    def apply_filter(self, df: pd.DataFrame) -> pd.DataFrame:
+        df = super().apply_filter(df)
+        # Convert to float so it can be compared to the thresholds
+        df[self.COL_LAT] = df[self.COL_LAT].astype(float)
+        df[self.COL_VALUE] = df[self.COL_VALUE].astype(float)
+        # Filter values
+        df = df[~((df[self.COL_LAT] <= self.threshold_max_latitude) & (df[self.COL_VALUE] <= self.threshold_min_value))]
+        self.print_statistics(df)
+        return df
+
+
 class DowgradedDailyTo6HourlyObservationsKiwisFilter(ObservationsKiwisFilter):
     """
     Class to filter Kiwis files metadata for stations whose daily data was down graded to 6hourly data

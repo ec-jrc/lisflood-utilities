@@ -355,8 +355,8 @@ class Config(Printable):
         return self.height_correction_factor != 0.0
 
     @property
-    def height_correction_factor(self) -> float:
-        return float(self.get_config_field('PROPERTIES', 'HEIGHT_CORRECTION_FACTOR'))
+    def height_correction_factor(self) -> np.float32:
+        return np.float32(self.get_config_field('PROPERTIES', 'HEIGHT_CORRECTION_FACTOR'))
     
     @property
     def truncate_negative_values(self) -> bool:
@@ -402,8 +402,7 @@ class GriddingUtils(Printable):
         super().__init__(quiet_mode)
         self.conf = conf
         self.use_broadcasting = use_broadcasting
-        self.unit_conversion = float(self.conf.get_config_field('PROPERTIES', 'UNIT_CONVERSION'))
-        # self.compressed_NaN = (self.conf.VALUE_NAN - self.conf.add_offset) / self.conf.scale_factor
+        self.unit_conversion = np.float32(self.conf.get_config_field('PROPERTIES', 'UNIT_CONVERSION'))
 
     def correct_height(self, df: pd.DataFrame) -> pd.DataFrame:
         if self.conf.do_height_correction:
@@ -432,16 +431,17 @@ class GriddingUtils(Printable):
         return result
 
     def prepare_grid(self, result: np.ndarray, grid_shape: np.ndarray) -> np.ndarray:
-        # Compress data
+        # Pack data
         if self.unit_conversion != 1.0:
             result = result * self.unit_conversion
         result[np.where(result == self.conf.VALUE_NAN)] = np.nan
         result[np.where(result < self.conf.value_min)] = np.nan
         result[np.where(result > self.conf.value_max)] = np.nan
-        result = np.round(result.astype(float), 1)
-        result = (result - self.conf.add_offset) / self.conf.scale_factor
+        result = result.astype(np.float32)
+        result = np.round(result, 1)
+        result[~np.isnan(result)] -= self.conf.add_offset
+        result[~np.isnan(result)] /= self.conf.scale_factor
         result[np.isnan(result)] = self.conf.VALUE_NAN
-        # Reshape grid
         grid_data = result.reshape(grid_shape)
         return grid_data
 
@@ -455,7 +455,7 @@ class GriddingUtils(Printable):
         current_grid[np.where(current_grid > self.conf.value_max)] = np.nan
         count_grid_nan = np.count_nonzero(np.isnan(current_grid))
         if count_dem_nan != count_grid_nan:
-            print(f"WARNING: The grid interpolated from file {filename.name} contains different NaN values ({count_grid_nan}) than the DEM ({count_dem_nan}). diff: {count_grid_nan - count_dem_nan}")
+            self.print_msg(f"WARNING: The grid interpolated from file {filename.name} contains different NaN values ({count_grid_nan}) than the DEM ({count_dem_nan}). diff: {count_grid_nan - count_dem_nan}")
 
     def read_tiff(self, tiff_filepath: Path) -> np.ndarray:
         # This method could be implemented on a GDALReader class
@@ -463,7 +463,8 @@ class GriddingUtils(Printable):
         data = src.read(1)
         scale = src.scales[0]
         offset = src.offsets[0]
-        data = data * scale + offset
+        # data = data * scale + offset
+        data = data.astype(np.float32) * np.float32(scale) + np.float32(offset)
         src.close()
         return self.prepare_grid(data, self.conf.dem.lons.shape)
 
