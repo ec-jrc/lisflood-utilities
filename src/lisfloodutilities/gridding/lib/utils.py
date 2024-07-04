@@ -463,8 +463,7 @@ class GriddingUtils(Printable):
         data = src.read(1)
         scale = src.scales[0]
         offset = src.offsets[0]
-        # data = data * scale + offset
-        data = data.astype(np.float32) * np.float32(scale) + np.float32(offset)
+        data = data * scale + offset
         src.close()
         return self.prepare_grid(data, self.conf.dem.lons.shape)
 

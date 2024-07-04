@@ -309,6 +309,7 @@ class GDALWriter(OutputWriter):
     def setup_grid(self, grid: np.ndarray, print_stats: bool = True) -> np.ndarray:
         if print_stats:
             values = self.setNaN(copy.deepcopy(grid))
+            values = values * self.conf.scale_factor + self.conf.add_offset
             self.print_grid_statistics(values)
         return grid
 

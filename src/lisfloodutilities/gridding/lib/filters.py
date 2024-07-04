@@ -288,23 +288,31 @@ class DowgradedObservationsKiwisFilter(ObservationsKiwisFilter):
 
 class SolarRadiationLimitsKiwisFilter(KiwisFilter):
     """
-    Class to filter Solar Radiation Kiwis files whose data coordinates are both less equal a defined latitude
-    and values less equal a defined threshold.
-    This was developed to avoid wrong values of zero daily solar radiation in EFAS domain bellow 66 degrees Latitude (empirical).
+    Class to filter Solar Radiation Kiwis files whose data coordinates are both
+    less equal a defined latitude and values less equal a defined threshold.
+    This was developed to avoid wrong values of zero daily solar radiation in
+    EFAS domain bellow 66 degrees Latitude (empirical).
     
-    Expects to have in filter_args a dictionary containing the definition of the limits using the
-    keys EXCLUDE_BELLOW_LATITUDE and EXCLUDE_BELLOW_VALUE
+    Expects to have in filter_args a dictionary containing the definition of the
+    limits using the keys EXCLUDE_BELLOW_LATITUDE and EXCLUDE_BELLOW_VALUE.
+    In case any of the exclude values are not present or empty it will use the
+    default values of 70.0 Latitude and 0.0 Daily Solar Radiation.
     """
     
     def __init__(self, filter_columns: dict = {}, filter_args: dict = {}, var_code: str = '', quiet_mode: bool = False):
         super().__init__(filter_columns, filter_args, var_code, quiet_mode)
-        # Calculating the radius in decimal degrees
         self.threshold_max_latitude = 72.0
-        if 'EXCLUDE_BELLOW_LATITUDE' in self.args:
-            self.threshold_max_latitude = self.args['EXCLUDE_BELLOW_LATITUDE']
+        try:
+            if 'EXCLUDE_BELLOW_LATITUDE' in self.args:
+                self.threshold_max_latitude = float(self.args['EXCLUDE_BELLOW_LATITUDE'])
+        except Exception as e:
+            print_msg(f'WARNING: SolarRadiationLimitsKiwisFilter using default max Latitude {self.threshold_max_latitude}')
         self.threshold_min_value = 0.0
-        if 'EXCLUDE_BELLOW_VALUE' in self.args:
-            self.threshold_min_value = self.args['EXCLUDE_BELLOW_VALUE']
+        try:
+            if 'EXCLUDE_BELLOW_VALUE' in self.args:
+                self.threshold_min_value = float(self.args['EXCLUDE_BELLOW_VALUE'])
+        except Exception as e:
+            print_msg(f'WARNING: SolarRadiationLimitsKiwisFilter using default min RG value {self.threshold_min_value}')
 
     def apply_filter(self, df: pd.DataFrame) -> pd.DataFrame:
         df = super().apply_filter(df)
