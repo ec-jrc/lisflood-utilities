@@ -194,7 +194,7 @@ class ObservationsKiwisFilter(KiwisFilter):
     filter (as key) and the radius (in decimal degrees) to find the vicinity station from other providers (as value).
     """
     
-    CLUSTER_COLLAPSE_RADIUS = 0.011582073434000193 # decimal degrees (1287 m)
+    CLUSTER_COLLAPSE_RADIUS = np.float64(0.011582073434000193) # decimal degrees (1287 m)
     
     def __init__(self, filter_columns: dict = {}, filter_args: dict = {}, var_code: str = '', quiet_mode: bool = False):
         super().__init__(filter_columns, filter_args, var_code, quiet_mode)
@@ -207,9 +207,9 @@ class ObservationsKiwisFilter(KiwisFilter):
             self.provider_radius[provider_id] = radius
     
     @staticmethod
-    def kilometers2degrees(km: float) -> float:
+    def kilometers2degrees(km: np.float64) -> np.float64:
         # Convert km to degrees of latitude
-        delta_lat = km * 0.00899928005
+        delta_lat = km * np.float64(0.00899928005)
         return delta_lat
 
     def apply_filter(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -226,7 +226,7 @@ class ObservationsKiwisFilter(KiwisFilter):
         return df
     
     def has_neighbor_within_radius_from_other_providers(self, row: pd.Series, tree: cKDTree = None, provider_id: int = 0,
-                                                        radius: float = CLUSTER_COLLAPSE_RADIUS) -> bool:
+                                                        radius: np.float64 = CLUSTER_COLLAPSE_RADIUS) -> bool:
         cur_provider_id = row[self.COL_PROVIDER_ID]
         if cur_provider_id == provider_id:
             location = (row[self.COL_LON], row[self.COL_LAT])

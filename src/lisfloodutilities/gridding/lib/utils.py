@@ -82,11 +82,11 @@ class Dem(Printable):
         reader = NetCDFReader(self._dem_map)
         self.nrows = reader._rows
         self.ncols = reader._cols
-        self.mv = reader.mv.astype(np.float32)
-        self.values = reader.values.astype(np.float32)
+        self.mv = reader.mv.astype(np.float64)
+        self.values = reader.values.astype(np.float64)
         self.lats, self.lons = reader.get_lat_lon_values()
-        self.lats = self.lats.astype(np.float32)
-        self.lons = self.lons.astype(np.float32) 
+        self.lats = self.lats.astype(np.float64)
+        self.lons = self.lons.astype(np.float64) 
         self.lat_values = reader.get_lat_values()
         self.lon_values = reader.get_lon_values()
         self.cell_size_x = reader._pxlW
@@ -319,12 +319,12 @@ class Config(Printable):
         return self.__configFile.get(config_group, config_property)
 
     @property
-    def scale_factor(self) -> float:
-        return float(self.get_config_field('PROPERTIES', 'VALUE_SCALE'))
+    def scale_factor(self) -> np.float64:
+        return np.float64(self.get_config_field('PROPERTIES', 'VALUE_SCALE'))
 
     @property
-    def add_offset(self) -> float:
-        return float(self.get_config_field('PROPERTIES', 'VALUE_OFFSET'))
+    def add_offset(self) -> np.float64:
+        return np.float64(self.get_config_field('PROPERTIES', 'VALUE_OFFSET'))
 
     @property
     def value_min(self) -> int:
@@ -343,8 +343,8 @@ class Config(Printable):
         return int((self.value_max - self.add_offset) / self.scale_factor)
 
     @property
-    def value_nan_packed(self) -> float:
-        return float((self.VALUE_NAN - self.add_offset) / self.scale_factor)
+    def value_nan_packed(self) -> np.float64:
+        return np.float64((self.VALUE_NAN - self.add_offset) / self.scale_factor)
 
     @property
     def var_code(self) -> str:
@@ -355,8 +355,8 @@ class Config(Printable):
         return self.height_correction_factor != 0.0
 
     @property
-    def height_correction_factor(self) -> np.float32:
-        return np.float32(self.get_config_field('PROPERTIES', 'HEIGHT_CORRECTION_FACTOR'))
+    def height_correction_factor(self) -> np.float64:
+        return np.float64(self.get_config_field('PROPERTIES', 'HEIGHT_CORRECTION_FACTOR'))
     
     @property
     def truncate_negative_values(self) -> bool:
@@ -402,7 +402,7 @@ class GriddingUtils(Printable):
         super().__init__(quiet_mode)
         self.conf = conf
         self.use_broadcasting = use_broadcasting
-        self.unit_conversion = np.float32(self.conf.get_config_field('PROPERTIES', 'UNIT_CONVERSION'))
+        self.unit_conversion = np.float64(self.conf.get_config_field('PROPERTIES', 'UNIT_CONVERSION'))
 
     def correct_height(self, df: pd.DataFrame) -> pd.DataFrame:
         if self.conf.do_height_correction:
@@ -437,7 +437,7 @@ class GriddingUtils(Printable):
         result[np.where(result == self.conf.VALUE_NAN)] = np.nan
         result[np.where(result < self.conf.value_min)] = np.nan
         result[np.where(result > self.conf.value_max)] = np.nan
-        result = result.astype(np.float32)
+        result = result.astype(np.float64)
         result = np.round(result, 1)
         result[~np.isnan(result)] -= self.conf.add_offset
         result[~np.isnan(result)] /= self.conf.scale_factor
@@ -479,9 +479,9 @@ class GriddingUtils(Printable):
         x = df[self.conf.COLUMN_LON].values
         y = df[self.conf.COLUMN_LAT].values
         z = df[self.conf.COLUMN_VALUE].values
-        xp = np.array(x).astype(np.float32)
-        yp = np.array(y).astype(np.float32)
-        values = np.array(z).astype(np.float32)
+        xp = np.array(x).astype(np.float64)
+        yp = np.array(y).astype(np.float64)
+        values = np.array(z).astype(np.float64)
         df = None
         if self.conf.interpolation_mode == 'cdd':
             scipy_interpolation = ScipyInterpolation(xp, yp, self.conf.grid_details, values,
