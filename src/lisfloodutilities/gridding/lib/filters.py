@@ -194,7 +194,7 @@ class ObservationsKiwisFilter(KiwisFilter):
     filter (as key) and the radius (in decimal degrees) to find the vicinity station from other providers (as value).
     """
     
-    CLUSTER_COLLAPSE_RADIUS = np.float64(0.011582073434000193) # decimal degrees (1287 m)
+    CLUSTER_COLLAPSE_RADIUS = np.float32(0.011582073434000193) # decimal degrees (1287 m)
     
     def __init__(self, filter_columns: dict = {}, filter_args: dict = {}, var_code: str = '', quiet_mode: bool = False):
         super().__init__(filter_columns, filter_args, var_code, quiet_mode)
@@ -207,9 +207,9 @@ class ObservationsKiwisFilter(KiwisFilter):
             self.provider_radius[provider_id] = radius
     
     @staticmethod
-    def kilometers2degrees(km: np.float64) -> np.float64:
+    def kilometers2degrees(km: np.float32) -> np.float32:
         # Convert km to degrees of latitude
-        delta_lat = km * np.float64(0.00899928005)
+        delta_lat = km * np.float32(0.00899928005)
         return delta_lat
 
     def apply_filter(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -226,7 +226,7 @@ class ObservationsKiwisFilter(KiwisFilter):
         return df
     
     def has_neighbor_within_radius_from_other_providers(self, row: pd.Series, tree: cKDTree = None, provider_id: int = 0,
-                                                        radius: np.float64 = CLUSTER_COLLAPSE_RADIUS) -> bool:
+                                                        radius: np.float32 = CLUSTER_COLLAPSE_RADIUS) -> bool:
         cur_provider_id = row[self.COL_PROVIDER_ID]
         if cur_provider_id == provider_id:
             location = (row[self.COL_LON], row[self.COL_LAT])
@@ -304,21 +304,21 @@ class SolarRadiationLimitsKiwisFilter(KiwisFilter):
         self.threshold_max_latitude = 72.0
         try:
             if 'EXCLUDE_BELLOW_LATITUDE' in self.args:
-                self.threshold_max_latitude = float(self.args['EXCLUDE_BELLOW_LATITUDE'])
+                self.threshold_max_latitude = np.float32(self.args['EXCLUDE_BELLOW_LATITUDE'])
         except Exception as e:
             print_msg(f'WARNING: SolarRadiationLimitsKiwisFilter using default max Latitude {self.threshold_max_latitude}')
         self.threshold_min_value = 0.0
         try:
             if 'EXCLUDE_BELLOW_VALUE' in self.args:
-                self.threshold_min_value = float(self.args['EXCLUDE_BELLOW_VALUE'])
+                self.threshold_min_value = np.float32(self.args['EXCLUDE_BELLOW_VALUE'])
         except Exception as e:
             print_msg(f'WARNING: SolarRadiationLimitsKiwisFilter using default min RG value {self.threshold_min_value}')
 
     def apply_filter(self, df: pd.DataFrame) -> pd.DataFrame:
         df = super().apply_filter(df)
         # Convert to float so it can be compared to the thresholds
-        df[self.COL_LAT] = df[self.COL_LAT].astype(float)
-        df[self.COL_VALUE] = df[self.COL_VALUE].astype(float)
+        df[self.COL_LAT] = df[self.COL_LAT].astype(np.float32)
+        df[self.COL_VALUE] = df[self.COL_VALUE].astype(np.float32)
         # Filter values
         df = df[~((df[self.COL_LAT] <= self.threshold_max_latitude) & (df[self.COL_VALUE] <= self.threshold_min_value))]
         self.print_statistics(df)
@@ -352,11 +352,13 @@ class DowgradedDailyTo6HourlyObservationsKiwisFilter(ObservationsKiwisFilter):
         merged_df = pd.concat(kiwis_data_frames)
         merged_df = merged_df[[self.COL_LON, self.COL_LAT, self.COL_PROVIDER_ID, self.COL_STATION_NUM, self.COL_STATION_ID, self.COL_VALUE]]
         merged_df.reset_index(drop=True, inplace=True)
-        result_df = merged_df.astype({self.COL_VALUE: 'float'}).groupby([self.COL_LON, self.COL_LAT,
-                                                                         self.COL_PROVIDER_ID,
-                                                                         self.COL_STATION_NUM,
-                                                                         self.COL_STATION_ID])[self.COL_VALUE].agg(['sum','count']).reset_index()
-        result_df.columns = [self.COL_LON, self.COL_LAT, self.COL_PROVIDER_ID, self.COL_STATION_NUM, self.COL_STATION_ID, 'sum_6h_values', 'count_6h_slots']
+        result_df = merged_df.astype({self.COL_VALUE: 'np.float32'}).groupby([self.COL_LON, self.COL_LAT,
+                                                                              self.COL_PROVIDER_ID,
+                                                                              self.COL_STATION_NUM,
+                                                                              self.COL_STATION_ID])[self.COL_VALUE].agg(
+                                                                                  ['sum','count']).reset_index()
+        result_df.columns = [self.COL_LON, self.COL_LAT, self.COL_PROVIDER_ID, self.COL_STATION_NUM,
+                             self.COL_STATION_ID, 'sum_6h_values', 'count_6h_slots']
         result_df.reset_index(drop=True, inplace=True)
         return result_df
 
@@ -371,8 +373,8 @@ class DowgradedDailyTo6HourlyObservationsKiwisFilter(ObservationsKiwisFilter):
             return station_num
     
     def get_decumulated_24h_value_for_missing_6h_values(self, row: pd.Series, tree: cKDTree = None, provider_id: int = 0,
-                                                        radius: float = ObservationsKiwisFilter.CLUSTER_COLLAPSE_RADIUS,
-                                                        stations_6h_df: pd.DataFrame = None) -> float:
+                                                        radius: np.float32 = ObservationsKiwisFilter.CLUSTER_COLLAPSE_RADIUS,
+                                                        stations_6h_df: pd.DataFrame = None) -> np.float32:
         """
         DECUMULATED_PR = (PR - Sum(PR6)) / (number of missing values)
         If there are more than one 6h station in the radius, select according to the following rules by order:
@@ -421,11 +423,11 @@ class DowgradedDailyTo6HourlyObservationsKiwisFilter(ObservationsKiwisFilter):
         # Guarantee datatype of value column
         for i in range(len(kiwis_data_frames)):
             kiwis_data_frames[i] = kiwis_data_frames[i].astype({
-                                                                # self.COL_LON: 'float',
-                                                                # self.COL_LAT: 'float',
+                                                                # self.COL_LON: 'np.float32',
+                                                                # self.COL_LAT: 'np.float32',
                                                                 # self.COL_PROVIDER_ID: 'int',
                                                                 # self.COL_STATION_ID: 'int',
-                                                                self.COL_VALUE: 'float'})
+                                                                self.COL_VALUE: 'np.float32'})
 
         self.kiwis_24h_dataframe = kiwis_data_frames[0]
         kiwis_6h_dataframes = kiwis_data_frames[1:]

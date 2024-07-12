@@ -107,7 +107,7 @@ class OutputWriter(Printable):
 class NetCDFWriter(OutputWriter):
     NETCDF_DATASET_FORMAT = 'NETCDF4_CLASSIC'
     NETCDF_CONVENTIONS = 'CF-1.6'
-    NETCDF_VAR_DATA_TYPE = 'f8' # np.float64
+    NETCDF_VAR_DATA_TYPE = 'f4' # np.float64
     NETCDF_COORDINATES_DATA_TYPE = 'i4' # np.int32
     NETCDF_VAR_TIME_CALENDAR_TYPE = 'proleptic_gregorian'
     COMPRESSION_LEVEL = 4
@@ -231,16 +231,16 @@ class NetCDFWriter(OutputWriter):
 
         proj = self.nf.createVariable(self.conf.get_config_field('PROJECTION','GRID_MAPPING'), self.NETCDF_COORDINATES_DATA_TYPE)
         self.__set_property(proj, 'grid_mapping_name', 'PROJECTION', 'GRID_MAPPING')
-        self.__set_property(proj, 'false_easting', 'PROJECTION', 'FALSE_EASTING', np.float64)
-        self.__set_property(proj, 'false_northing', 'PROJECTION', 'FALSE_NORTHING', np.float64)
-        self.__set_property(proj, 'longitude_of_projection_origin', 'PROJECTION', 'ORIGIN_LONGITUDE', np.float64)
-        self.__set_property(proj, 'latitude_of_projection_origin', 'PROJECTION', 'ORIGIN_LATITUDE', np.float64)
-        self.__set_property(proj, 'semi_major_axis', 'PROJECTION', 'SEMI_MAJOR_AXIS', np.float64)
-        self.__set_property(proj, 'inverse_flattening', 'PROJECTION', 'INVERSE_FLATTENING', np.float64)
+        self.__set_property(proj, 'false_easting', 'PROJECTION', 'FALSE_EASTING', np.float32)
+        self.__set_property(proj, 'false_northing', 'PROJECTION', 'FALSE_NORTHING', np.float32)
+        self.__set_property(proj, 'longitude_of_projection_origin', 'PROJECTION', 'ORIGIN_LONGITUDE', np.float32)
+        self.__set_property(proj, 'latitude_of_projection_origin', 'PROJECTION', 'ORIGIN_LATITUDE', np.float32)
+        self.__set_property(proj, 'semi_major_axis', 'PROJECTION', 'SEMI_MAJOR_AXIS', np.float32)
+        self.__set_property(proj, 'inverse_flattening', 'PROJECTION', 'INVERSE_FLATTENING', np.float32)
         self.__set_property(proj, 'proj4_params', 'PROJECTION', 'PARAMS')
         self.__set_property(proj, 'EPSG_code', 'PROJECTION', 'EPSG_CODE')
         self.__set_property(proj, 'spatial_ref', 'PROJECTION', 'STRING')
-        # self.__set_property(proj, 'longitude_of_prime_meridian', 'PROJECTION', 'LONGITUDE_PRIME_MERIDIAN', np.float64)
+        # self.__set_property(proj, 'longitude_of_prime_meridian', 'PROJECTION', 'LONGITUDE_PRIME_MERIDIAN', np.float32)
         # self.__set_property(proj, 'GeoTransform', 'PROJECTION', 'GEO_TRANSFORM', self.__get_tuple)
 
         var_data_type_packed = self.conf.get_config_field('PROPERTIES', 'DATA_TYPE_PACKED')
