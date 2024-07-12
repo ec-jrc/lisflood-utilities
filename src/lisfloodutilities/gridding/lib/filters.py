@@ -352,11 +352,11 @@ class DowgradedDailyTo6HourlyObservationsKiwisFilter(ObservationsKiwisFilter):
         merged_df = pd.concat(kiwis_data_frames)
         merged_df = merged_df[[self.COL_LON, self.COL_LAT, self.COL_PROVIDER_ID, self.COL_STATION_NUM, self.COL_STATION_ID, self.COL_VALUE]]
         merged_df.reset_index(drop=True, inplace=True)
-        result_df = merged_df.astype({self.COL_VALUE: 'np.float32'}).groupby([self.COL_LON, self.COL_LAT,
-                                                                              self.COL_PROVIDER_ID,
-                                                                              self.COL_STATION_NUM,
-                                                                              self.COL_STATION_ID])[self.COL_VALUE].agg(
-                                                                                  ['sum','count']).reset_index()
+        result_df = merged_df.astype({self.COL_VALUE: 'float'}).groupby([self.COL_LON, self.COL_LAT,
+                                                                         self.COL_PROVIDER_ID,
+                                                                         self.COL_STATION_NUM,
+                                                                         self.COL_STATION_ID])[self.COL_VALUE].agg(
+                                                                             ['sum','count']).reset_index()
         result_df.columns = [self.COL_LON, self.COL_LAT, self.COL_PROVIDER_ID, self.COL_STATION_NUM,
                              self.COL_STATION_ID, 'sum_6h_values', 'count_6h_slots']
         result_df.reset_index(drop=True, inplace=True)
@@ -427,7 +427,7 @@ class DowgradedDailyTo6HourlyObservationsKiwisFilter(ObservationsKiwisFilter):
                                                                 # self.COL_LAT: 'np.float32',
                                                                 # self.COL_PROVIDER_ID: 'int',
                                                                 # self.COL_STATION_ID: 'int',
-                                                                self.COL_VALUE: 'np.float32'})
+                                                                self.COL_VALUE: 'float'})
 
         self.kiwis_24h_dataframe = kiwis_data_frames[0]
         kiwis_6h_dataframes = kiwis_data_frames[1:]
