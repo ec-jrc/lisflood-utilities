@@ -124,14 +124,15 @@ setup_args = dict(
     version=version,
     packages=find_packages('src'),
     description='A set of utilities for lisflood users. '
-                'pcr2nc: Convert PCRaster files to netCDF CF 1.6; '
-                'nc2pcr: Convert netCDF files ot PCRaster format; '
-                'cutmaps: cut netCDF files; '
+                'catchstats: calculates catchment statistics; '
                 'compare: compare two set of netCDF files; '
-                'thresholds: compute discharge return period thresholds; '
+                'cutmaps: cut netCDF files; '
                 'gridding: interpolate meteo variables observations; '
+                'lfcoords: finds coordinates in the LISFLOOD grid'
+                'nc2pcr: Convert netCDF files ot PCRaster format; '
                 'ncextract: extract values from netCDF files; '
-                'catchstats: calculates catchment statistics; ',
+                'pcr2nc: Convert PCRaster files to netCDF CF 1.6; '
+                'thresholds: compute discharge return period thresholds; ',
     long_description=long_description,
     long_description_content_type='text/markdown',
     setup_requires=[
@@ -143,12 +144,12 @@ setup_args = dict(
                       # 'GDAL=={}'.format(gdal_version),
                       'netCDF4>=1.5.3', 'toolz', 'xarray>=0.15.1',
                       'dask', 'pandas>=0.25.1', 'nine', 'pyg2p'],
-    author="Valerio Lorini, Stefania Grimaldi, Carlo Russo, Domenico Nappo, Lorenzo Alfieri",
-    author_email="valerio.lorini@ec.europa.eu,stefania.grimaldi@ec.europa.eu,carlo.russo@ext.ec.europa.eu,domenico.nappo@gmail.com,lorenzo.alfieri@ec.europa.eu",
+    author="Valerio Lorini, Stefania Grimaldi, Carlo Russo, Domenico Nappo, Lorenzo Alfieri, Jesús Casado Rodríguez",
+    author_email="valerio.lorini@ec.europa.eu,stefania.grimaldi@ec.europa.eu,carlo.russo@ext.ec.europa.eu,domenico.nappo@gmail.com,lorenzo.alfieri@ec.europa.eu,jesus.casado-rodriguez@ec.europa.eu",
     keywords=['netCDF4', 'PCRaster', 'mapstack', 'lisflood', 'efas', 'glofas', 'ecmwf', 'copernicus'],
     license='EUPL 1.2',
     url='https://github.com/ec-jrc/lisflood-utilities',
-    scripts=['bin/pcr2nc', 'bin/cutmaps', 'bin/compare', 'bin/nc2pcr', 'bin/thresholds', 'bin/gridding', 'bin/cddmap', 'bin/ncextract','bin/catchstats',],
+    scripts=['bin/pcr2nc', 'bin/cutmaps', 'bin/compare', 'bin/nc2pcr', 'bin/thresholds', 'bin/gridding', 'bin/cddmap', 'bin/ncextract','bin/catchstats','bin/lfcoords'],
     zip_safe=True,
     classifiers=[
           # complete classifier list: http://pypi.python.org/pypi?%3Aaction=list_classifiers
