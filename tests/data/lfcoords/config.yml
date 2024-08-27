@@ -1,0 +1,13 @@
+input:
+    stations: ./points.csv
+    ldd_fine: ./ldd_MERIT.tif
+    upstream_fine: ./uparea_MERIT.tif
+    ldd_coarse: ./ldd_EFAS.nc
+    upstream_coarse: ./uparea_EFAS.nc
+
+output_folder:
+
+conditions:
+    min_area: 25 # km2
+    abs_error: 50 # km2
+    pct_error: 5 # %
