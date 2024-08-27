@@ -1,0 +1,13 @@
+input:
+    stations:        # CSV file defining four station attributes: 'ID', 'lat', 'lon', 'area' in km2
+    ldd_fine:        # TIFF or NetCDF file of the local direction drainage in the high resolution grid
+    upstream_fine:   # TIFF or NetCDF file of the upstream area (km2) in the high resolution grid
+    ldd_coarse:      # TIFF or NetCDF file of the local direction drainage in the low resolution grid
+    upstream_coarse: # TIFF or NetCDF file of the upstream area (km2) in the low resolution grid
+            
+output_folder:       # folder where catchment shapefiles will be saved. By default, './shapefiles/'
+
+conditions:
+    min_area:        # minimum catchment area (km2) to consider a station. By default, 10 km2
+    abs_error:       # maximum absolute error (km2) allowed between the fine and coarse resolution catchments. By default, 50 km2
+    pct_error:       # maximum percentage error (%) allowed between the fine and coarse resolution catchments. By default, 1%
