@@ -1,9 +1,9 @@
 input:
     stations: data/lfcoords/points.csv
-    ldd_fine: data/lfcoords/MERIT/n40w010_dir.tif
-    upstream_fine: data/lfcoords/MERIT/n40w010_upa.tif
-    ldd_coarse: data/lfcoords/ldd_EFAS.nc
-    upstream_coarse: data/lfcoords/uparea_EFAS.nc
+    ldd_fine: data/lfcoords/MERIT/ldd_3sec.tif
+    upstream_fine: data/lfcoords/MERIT/uparea_3sec.tif
+    ldd_coarse: data/lfcoords/EFAS/ldd_1min.nc
+    upstream_coarse: data/lfcoords/EFAS/uparea_1min.nc
 
 output_folder: data/lfcoor/shapefiles/
 
