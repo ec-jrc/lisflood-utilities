@@ -1,11 +1,11 @@
 input:
-    stations: ./points.csv
-    ldd_fine: ./ldd_MERIT.tif
-    upstream_fine: ./uparea_MERIT.tif
-    ldd_coarse: ./ldd_EFAS.nc
-    upstream_coarse: ./uparea_EFAS.nc
+    stations: data/lfcoords/points.csv
+    ldd_fine: data/lfcoords/MERIT/n40w010_dir.tif
+    upstream_fine: data/lfcoords/MERIT/n40w010_upa.tif
+    ldd_coarse: data/lfcoords/ldd_EFAS.nc
+    upstream_coarse: data/lfcoords/uparea_EFAS.nc
 
-output_folder:
+output_folder: data/lfcoor/shapefiles/
 
 conditions:
     min_area: 25 # km2
