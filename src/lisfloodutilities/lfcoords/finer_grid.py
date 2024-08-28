@@ -9,8 +9,8 @@ import logging
 import warnings
 warnings.filterwarnings("ignore")
 
-from lisfloodpreprocessing import Config
-from lisfloodpreprocessing.utils import find_pixel, catchment_polygon 
+from lisfloodutilities.lfcoords import Config
+from lisfloodutilities.lfcoords.utils import find_pixel, catchment_polygon 
 
 # set logger
 logging.basicConfig(level=logging.INFO,
