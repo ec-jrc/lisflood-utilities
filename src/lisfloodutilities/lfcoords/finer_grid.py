@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import rioxarray
 import pyflwdir
-from tqdm.auto import tqdm
+from tqdm import tqdm
 from pathlib import Path
 from typing import Optional
 import logging

@@ -6,7 +6,7 @@ import geopandas as gpd
 import rioxarray
 import pyflwdir
 from pathlib import Path
-from tqdm.auto import tqdm
+from tqdm import tqdm
 from typing import Optional
 import logging
 import warnings
