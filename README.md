@@ -1,4 +1,4 @@
-f# Lisflood Utilities
+# Lisflood Utilities
 
 This repository hosts source code of LISFLOOD utilities.
 Go to [Lisflood OS page](https://ec-jrc.github.io/lisflood/) for more information.
@@ -248,6 +248,8 @@ This tool cuts NetCDF files using either a mask, a bounding box, or a list of st
 
 ### Usage
 
+#### In the command prompt
+
 The tool requires a series of arguments:
 
 * The area to be extracted can be defined in one of the following ways:
@@ -266,7 +268,7 @@ There are additional optional arguments
 * `-W`, `--overwrite`: it allows to overwrite results.
 * `-C`, `--clonemap`: it can be used to define a clone map when the LDD input map (argument `-l`) is in NetCDF format.
 
-#### Examples 
+##### Examples 
 
 **Using a mask**
 
@@ -322,12 +324,25 @@ If you experience problems, you can try to pass a path to a PCRaster clone map u
 cutmaps -f /home/projects/lisflood-eu -l ldd.nc -C area.map -N stations.txt -o /Work/Tunisia/cutmaps
 ```
 
+#### In a Python script
+
+You can use the `cutmaps` tool programmatically from a Python code. You just need to import the tool and then run the following command:
+
+```Python
+from lisfloodutilities.cutmaps.cutlib import cutmap
+
+cutmap(file_to_cut, file_out, x_min, x_max, y_min, y_max, use_coords=True)
+```
+
+Where `use_coords=True` means that it will cut the map using coordinates, while `use_coords=False` will use indices.
+
 ### Output
 
 Apart from the cut files in the output folder specified in the command prompt, `cutmaps` produces other outputs in the folder where the LDD map is stored:
 
 * _mask.map_ and _mask.nc_ for your area of interest, which may be needed in subsequent LISFLOOD/LISVAP executions.
 * _outlets.map_ and _outlets.nc_ based on _stations.txt_, which will let you produce gauges TSS if configured in LISFLOOD.
+
 
 ## compare
 
