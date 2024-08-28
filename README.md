@@ -21,32 +21,18 @@ Lisflood Utilities is a set of tools to help LISFLOOD users (or any users of PCR
 to execute some mundane tasks that are necessary to operate lisflood.
 Here's a list of utilities you can find in lisflood-utilities package.
 
-* __[pcr2nc](#pcr2nc)__ is a tool to convert PCRaster maps to NetCDF4 files.
-  - convert a single map into a NetCDF4 file
-  - convert a time series of maps into a NetCDF4 mapstack
-  - support for WGS84 and ETRS89 (LAEA) reference systems
-  - fine tuning of output files (compression, significant digits, etc.)
- 
-* __[nc2pcr](#nc2pcr)__ is a tool to convert a NetCDF file into PCRaster maps.
-  - convert 2D variables in single PCRaster maps
-  - NetCDF4 mapstacks are not supported yet
+* __[catchstats](#catchstats)__ calculates catchment statistics (mean, sum, std, min, max...) from NetCDF4 files given masks created with [`cutmaps`](#cutmaps:-a-NetCDF-files-cookie-cutter).
+
+* __[cddmap](#cddmap)__ is a tool to generate correlation decay distance (CDD) maps starting from station timeseries
+
+* __[compare](#compare)__ is a package containing a set of simple Python classes that helps to compare 
+NetCDF, PCRaster and TSS files.
 
 * __[cutmaps](#cutmaps)__ is a tool to cut NetCDF files in order to reduce size, using either
   - a bounding box of coordinates
   - a bounding box of matrix indices
   - an existing boolean area mask
   - a list of stations and a LDD ("local drain direction" in NetCDF or PCRaster format)
-  
-> **Note**: PCRaster must be installed in the Conda environment.
- 
-* __[compare](#compare)__ is a package containing a set of simple Python classes that helps to compare 
-NetCDF, PCRaster and TSS files.
-
-* __[thresholds](#thresholds)__ is a tool to compute the discharge return period thresholds from NetCDF4 file containing a discharge time series.
-
-* __[water-demand-historic](#water-demand-historic)__ is a package allowing to generate sectoral (domestic, livestock, industry, and thermoelectric) water demand maps with monthly to yearly temporal steps for a range of past years, at the users’ defined spatial resolution and geographical extent. These maps are required by the LISFLOOD OS [water use module](https://ec-jrc.github.io/lisflood-model/2_18_stdLISFLOOD_water-use)
-
-* __[waterregions](#waterregions)__ is a package containing two scripts that allow to create and verify a water regions map, respectively.
 
 * __[gridding](#gridding)__ is a tool to interpolate meteo variables observations stored in text files containing (lon, lat, value) into grids.
   - uses inverse distance interpolation
@@ -57,11 +43,25 @@ NetCDF, PCRaster and TSS files.
   - grids are setup in the configuration folder and are defined by a dem.nc file
   - meteo variables parameters are defined in the same configuration folder
 
-* __[cddmap](#cddmap)__ is a tool to generate correlation decay distance (CDD) maps starting from station timeseries
+* __[nc2pcr](#nc2pcr)__ is a tool to convert a NetCDF file into PCRaster maps.
+  - convert 2D variables in single PCRaster maps
+  - NetCDF4 mapstacks are not supported yet
 
 * __[ncextract](#ncextract)__ is a tool to extract values from NetCDF4 (or GRIB) file(s) at specific coordinates.
 
-* __[catchstats](#catchstats)__ calculates catchment statistics (mean, sum, std, min, max...) from NetCDF4 files given masks created with [`cutmaps`](#cutmaps:-a-NetCDF-files-cookie-cutter).
+* __[pcr2nc](#pcr2nc)__ is a tool to convert PCRaster maps to NetCDF4 files.
+  - convert a single map into a NetCDF4 file
+  - convert a time series of maps into a NetCDF4 mapstack
+  - support for WGS84 and ETRS89 (LAEA) reference systems
+  - fine tuning of output files (compression, significant digits, etc.)
+  
+> **Note**: PCRaster must be installed in the Conda environment.
+
+* __[thresholds](#thresholds)__ is a tool to compute the discharge return period thresholds from NetCDF4 file containing a discharge time series.
+
+* __[water-demand-historic](#water-demand-historic)__ is a package allowing to generate sectoral (domestic, livestock, industry, and thermoelectric) water demand maps with monthly to yearly temporal steps for a range of past years, at the users’ defined spatial resolution and geographical extent. These maps are required by the LISFLOOD OS [water use module](https://ec-jrc.github.io/lisflood-model/2_18_stdLISFLOOD_water-use)
+
+* __[waterregions](#waterregions)__ is a package containing two scripts that allow to create and verify a water regions map, respectively.
 
 The package contains convenient classes for reading/writing:
 
@@ -768,6 +768,117 @@ The structure of the output depends on whether the input files include a tempora
 * If the input files DO NOT have a time dimension, the output has a single dimension: the catchment ID. It contains as many variables as the combinations of input variables and statistics. For instance, if the input variables are "elevation" and "gradient" and three statistics are required ("mean", "max", "min"), the output will contain 6 variables: "elevation_mean", "elevation_max", "elevation_min", "gradient_mean", "gradient_max" and "gradient_min".
 * If the input files DO have a time dimension, the output has two dimensions: the catchment ID and time. The number of variables follows the same structure explained in the previous point. For instance, if the input files are daily maps of precipitation (variable name "pr") and we calculate the mean and total precipitation over the catchment, the output will contain two dimensions ("ID", "time") and two variables ("pr_mean", "pr_sum").
 
+
+## lfcoords
+
+This tool finds the appropriate coordinates in the LISFLOOD river network of any point, provided that the catchment area is known. A thourough explanation of the method can be found in [Burek and Smilovic (2023)](https://essd.copernicus.org/articles/15/5617/2023/).
+
+First, it uses the original coordinates and catchment area to find the most accurate pixel in a high-resolution map. [Burek and Smilovic (2023)](https://essd.copernicus.org/articles/15/5617/2023/) use MERIT [(Yamazaki et al., 2019)](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2019WR024873), which has a spatial resolution of 3 arc-seconds. The result of this first step is, for every point, a new value of coordinates and area, and a shapefile of the catchment polygon in high-resolution.
+
+Second, it finds the pixel in the low-resolution grid (LISFLOOD static maps) that better matches the catchment shape derived in the previous step. As a result, for each point we obtained a new value of coordinates and area, and a new shapefile of the catchment polygon in low-resolution.
+
+### Usage
+
+#### In the command prompt
+
+The tool can be executed from the command prompt by indicating a configuration file.
+
+```text
+usage: lfcoords.py [-h] -c CONFIG_FILE
+
+Correct the coordinates of a set of stations to match the river network in the
+LISFLOOD static map.
+First, it uses a reference value of catchment area to find the most accurate
+pixel in a high-resolution map.
+Second, it finds the pixel in the low-resolution map that better matches the
+catchment shape derived from the high-resolution map.
+
+options:
+  -h, --help
+                          show this help message and exit
+  -c CONFIG_FILE, --config-file CONFIG FILE
+                          path to the YML configuration file
+```
+
+**Example**
+
+```bash
+lfcoords --config-file config.yml
+```
+
+##### Configuration file
+
+The configuration file defines the input files, the folder where the resulting shapefiles will be saved, and some thresholds used in the process. A template of the configuration file can be found [here](./src/lisfloodutilities/lfcoords/config.yml). Below you find an example:
+
+```yml
+input:
+    stations: points.csv # ID, lat, lon, area
+    ldd_fine: ldd_MERIT.tif
+    upstream_fine: uparea_MERIT.tif # km2
+    ldd_coarse: ldd_LISFLOOD.tif
+    upstream_coarse: uparea_LISFLOOD.nc # m2
+            
+output_folder: ./shapefiles/
+
+conditions:
+    min_area: 25 # km2
+    abs_error: 50 # km2
+    pct_error: 1 # %
+```
+
+##### Inputs
+
+The tool requires 5 inputs:
+
+* A CSV file of the stations to be located in the LISFLOOD grid. This file must contain four columns with four specific names: 'ID', 'area' in km2, 'lat', 'lon'. Below you find an example of the stations CSV file:
+
+```csv
+ID,area,lat,lon
+429,35399,49.018,12.144
+436,26448,48.947,12.015
+439,37687,48.88,12.747
+```
+
+* A map of the local drainage directions in high-resolution, e.g., MERIT.
+* A map of the upstream area in high-resolution, e.g., MERIT. The units of this map must be km2, same units as the _area_ field in the CSV file.
+* A map of the local drainage directions in low-resolution, i.e., the LISFLOOD static map.
+* A map of the upstream area in low-resolution, i.e., the LISFLOOD static map. The units of this map are m2 (instead of km2), as these are the units used in LISFLOOD; the code converts internally this map into km2.
+
+All maps can be provided either in TIFF or NetCDF format.
+
+##### Outputs
+
+The main output is a new **CSV file** saved in the same directory as the input CSV file and named similarly, but with a suffix indicating the resolution of the LISFLOOD grid. For instance, in the configuration file above the input CSV file is named _stations.csv_ and the resolution of the LISFLOOD grid is 3 arcmin, so the output CSV files will be named _stations_3min.csv_. The CSV contains 6 new columns defining the coordinates and catchment area in both the high-resolution (`3sec` in the example) and low-resolution grids (`3min` in the example). Example:
+
+```csv
+ID,area,area_3min,area_3sec,lat,lat_3min,lat_3sec,lon,lon_3min,lon_3sec
+429,35399,35216,35344,49.018,49.025,49.022083,12.144,12.125,12.14375
+436,26448,26334,26394,48.947,48.925,48.94625,12.015,12.025,12.014583
+439,37687,37540,37605,48.88,48.925,48.879583,12.747,12.675,12.74625
+```
+
+Besides, the tool creates **shapefiles** of the catchment polygons derived for both the high and low resolution grids. The shapefiles are saved in two subdirectories inside the `output_folder` directory defined in the configuration file. In each of these subdirectories, there will be one file for each station.
+
+#### In a Python script
+
+The functions that compose the `lfcoords` tool can be imported in a Python script to be able to save in memory the output:
+
+```Python
+# import function
+from lisfloodutilities.lfcoords import Config
+from lisfloodutilities.lfcoords.finer_grid import coordinates_fine
+from lisfloodutilities.lfcoords.coarser_grid import coordinates_coarse
+
+# read the configuration file
+cfg = Config(CONFIG_FILE)
+
+# find coordinates in high-resolution (HR) grid
+points_HR = coordinates_fine(cfg, save=False)
+
+# find coordinates in LISFLOOD
+points_LF = coordinates_coarse(cfg, points_HR, save=False)
+```
+
 ## Using `lisfloodutilities` programmatically 
 
 You can use lisflood utilities in your python programs. As an example, the script below creates the mask map for a set of stations (stations.txt). The mask map is a boolean map with 1 and 0. 1 is used for all (and only) the pixels hydrologically connected to one of the stations. The resulting mask map is in pcraster format.
@@ -786,5 +897,3 @@ mask, outlets_nc, maskmap_nc = mask_from_ldd(ldd_pcr, stations)
 mask_map = PCRasterMap(mask)
 print(mask_map.data)
 ```
-
-
