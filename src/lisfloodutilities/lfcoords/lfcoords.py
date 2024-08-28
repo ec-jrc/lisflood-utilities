@@ -33,7 +33,7 @@ def main(argv=sys.argv):
         """,
         prog=prog
     )
-    parser.add_argument('-c', '--config-file', type=str, required=True, help='Path to the configuration file')
+    parser.add_argument('-c', '--config-file', type=str, required=True, help='Path to the YML configuration file')
     args = parser.parse_args()
 
     # create logger
