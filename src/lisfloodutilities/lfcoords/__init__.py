@@ -19,7 +19,7 @@ class Config:
             config = yaml.load(ymlfile, Loader=yaml.FullLoader)
             
         # input
-        self.STATIONS = Path(config['input']['stations'])
+        self.POINTS = Path(config['input']['points'])
         self.LDD_FINE = Path(config['input']['ldd_fine'])
         self.UPSTREAM_FINE = Path(config['input']['upstream_fine'])
         self.LDD_COARSE = Path(config['input']['ldd_coarse'])

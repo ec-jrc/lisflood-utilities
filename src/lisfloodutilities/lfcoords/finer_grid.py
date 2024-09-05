@@ -22,15 +22,15 @@ def coordinates_fine(
     save: bool = True
 ) -> Optional[pd.DataFrame]:
     """
-    Processes station coordinates to find the most accurate pixel in a high-resolution map, 
-    based on a reference value of catchment area. It updates the station coordinates and 
+    Processes point coordinates to find the most accurate pixel in a high-resolution map, 
+    based on a reference value of catchment area. It updates the point coordinates and 
     exports the catchment areas as shapefiles.
 
     The function reads the upstream area map and local drainage direction (LDD) map in 
-    fine resolution, as well as the station coordinates with their reference upstream areas.
+    fine resolution, as well as the point coordinates with their reference upstream areas.
     It then iteratively searches for the best-matching pixel within an increasing search 
     range and applies penalties and factors to determine the closest match. The function 
-    creates a boolean map of each station's catchment area and vectorizes it into a 
+    creates a boolean map of each point's catchment area and vectorizes it into a 
     GeoDataFrame for export as a shapefile.
 
     Parameters:
@@ -38,12 +38,12 @@ def coordinates_fine(
     cfg: Config
         Configuration object containing file paths and parameters specified in  the configuration file.
     save: bool
-        If True, the updated stations table is saved to a CSV file. If False, the updated stations DataFrame is returned without saving.
+        If True, the updated points table is saved to a CSV file. If False, the updated points DataFrame is returned without saving.
         
     Returns:
     --------
-    stations: pandas.DataFrame
-        If save is False, returns a pandas DataFrame with updated station coordinates and upstream areas in the finer grid. Otherwise, the function returns None, and the results are saved directly to a CSV file.
+    points: pandas.DataFrame
+        If save is False, returns a pandas DataFrame with updated point coordinates and upstream areas in the finer grid. Otherwise, the function returns None, and the results are saved directly to a CSV file.
     """
     
     # READ INPUTS
@@ -56,9 +56,9 @@ def coordinates_fine(
     ldd_fine = rioxarray.open_rasterio(cfg.LDD_FINE).squeeze(dim='band')
     logger.info(f'Map of local drainage directions corretly read: {cfg.LDD_FINE}')
 
-    # read stations text file
-    stations = pd.read_csv(cfg.STATIONS, index_col='ID')
-    logger.info(f'Table of stations correctly read: {cfg.STATIONS}')
+    # read points text file
+    points = pd.read_csv(cfg.POINTS, index_col='ID')
+    logger.info(f'Table of points correctly read: {cfg.POINTS}')
     
 
     # PROCESSING
@@ -69,9 +69,9 @@ def coordinates_fine(
     suffix_fine = f'{cellsize_arcsec}sec'
     logger.info(f'The resolution of the finer grid is {cellsize_arcsec} arcseconds')
     
-    # add columns to the table of stations
-    new_cols = sorted([f'{col}_{suffix_fine}' for col in stations.columns])
-    stations[new_cols] = np.nan
+    # add columns to the table of points
+    new_cols = sorted([f'{col}_{suffix_fine}' for col in points.columns])
+    points[new_cols] = np.nan
 
     # create river network
     fdir_fine = pyflwdir.from_array(ldd_fine.data,
@@ -84,7 +84,7 @@ def coordinates_fine(
     SHAPE_FOLDER_FINE = cfg.SHAPE_FOLDER / suffix_fine
     SHAPE_FOLDER_FINE.mkdir(parents=True, exist_ok=True)
 
-    for ID, attrs in tqdm(stations.iterrows(), total=stations.shape[0], desc='stations'):  
+    for ID, attrs in tqdm(points.iterrows(), total=points.shape[0], desc='points'):  
 
         # reference coordinates and upstream area
         lat_ref, lon_ref, area_ref = attrs[['lat', 'lon', 'area']]
@@ -100,8 +100,8 @@ def coordinates_fine(
             if error <= max_error:
                 break
 
-        # update new columns in 'stations'
-        stations.loc[ID, new_cols] = [int(upstream_fine.sel(y=lat, x=lon).item()), round(lat, 6), round(lon, 6)]
+        # update new columns in 'points'
+        points.loc[ID, new_cols] = [int(upstream_fine.sel(y=lat, x=lon).item()), round(lat, 6), round(lon, 6)]
 
         # boolean map of the catchment associated to the corrected coordinates
         basin_arr = fdir_fine.basins(xy=(lon, lat)).astype(np.int32)
@@ -121,10 +121,10 @@ def coordinates_fine(
         logger.info(f'Catchment {ID} exported as shapefile: {output_file}')
     
     # return/save
-    stations.sort_index(axis=1, inplace=True)
+    points.sort_index(axis=1, inplace=True)
     if save:
-        output_csv = cfg.STATIONS.parent / f'{cfg.STATIONS.stem}_{suffix_fine}.csv'
-        stations.to_csv(output_csv)
-        logger.info(f'The updated stations table in the finer grid has been exported to: {output_csv}')
+        output_csv = cfg.POINTS.parent / f'{cfg.POINTS.stem}_{suffix_fine}.csv'
+        points.to_csv(output_csv)
+        logger.info(f'The updated points table in the finer grid has been exported to: {output_csv}')
     else: 
-        return stations
+        return points

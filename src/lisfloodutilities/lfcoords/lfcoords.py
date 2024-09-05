@@ -17,14 +17,14 @@ import pandas as pd
 import logging
 
 from lisfloodutilities.lfcoords import Config
-from lilisfloodutilities.lfcoords.finer_grid import coordinates_fine
-from llisfloodutilities.lfcoords.coarser_grid import coordinates_coarse
+from lisfloodutilities.lfcoords.finer_grid import coordinates_fine
+from lisfloodutilities.lfcoords.coarser_grid import coordinates_coarse
 
 def main(argv=sys.argv):
     prog = os.path.basename(argv[0])
     parser = argparse.ArgumentParser(
         description="""
-        Correct the coordinates of a set of stations to match the river network in the
+        Correct the coordinates of a set of points to match the river network in the
         LISFLOOD static map.
         First, it uses a reference value of catchment area to find the most accurate
         pixel in a high-resolution map.
@@ -33,11 +33,14 @@ def main(argv=sys.argv):
         """,
         prog=prog
     )
-    parser.add_argument('-c', '--config-file', type=str, required=True, help='Path to the YML configuration file')
+    parser.add_argument('-c', '--config-file', type=str, required=True,
+                        help='Path to the YML configuration file')
+    parser.add_argument('-r', '--reservoirs', action='store_true', default=False,
+                        help='The input points are reservoirs')
     args = parser.parse_args()
 
     # create logger
-    logger = logging.getLogger('correct-coordinates')
+    logger = logging.getLogger('lfcoords')
     logger.setLevel(logging.INFO)
     logger.propagate = False
     log_format = logging.Formatter('%(asctime)s | %(levelname)s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
@@ -55,20 +58,20 @@ def main(argv=sys.argv):
 
     # find coordinates in high resolution
     try:
-        stations_HR = coordinates_fine(cfg, save=False)
+        points_HR = coordinates_fine(cfg, save=False)
     except Exception as e:
         logger.error(f'Locating the points in the finer grid: {e}')
         sys.exit(2)
 
     # find coordinates in LISFLOOD
     try:
-        coordinates_coarse(cfg, stations_HR, save=True)
+        coordinates_coarse(cfg, points_HR, reservoirs=args.reservoirs, save=True)
     except Exception as e:
         logger.error(f'Locating the points in the finer grid: {e}')
         sys.exit(3)
 
 def main_script():
-    sys.exist(main())
+    sys.exit(main())
 
 if __name__ == "__main__":
     main_script()

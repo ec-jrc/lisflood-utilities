@@ -1,5 +1,5 @@
 input:
-    stations: data/lfcoords/points.csv
+    points: data/lfcoords/points.csv
     ldd_fine: data/lfcoords/MERIT/ldd_3sec.tif
     upstream_fine: data/lfcoords/MERIT/uparea_3sec.tif
     ldd_coarse: data/lfcoords/EFAS/ldd_1min.nc

@@ -87,6 +87,50 @@ def find_pixel(
 
 
 
+def downstream_pixel(
+    lat: float,
+    lon: float,
+    upArea: xr.DataArray
+) -> (float, float):
+    """It finds the downstream coordinates of a given point
+    
+    Parameteres:
+    ------------
+    lat: float
+        latitude of the input point
+    lon: float
+        longitued of the input point
+    upArea: xarray.DataArray
+        map of upstream area
+        
+    Returns:
+    --------
+    lat: float
+        latitude of the inmediate downstream pixel
+    lon: float
+        longitued of the inmediate downstream pixel
+    """
+    
+    # upstream area of the input coordinates
+    area = upArea.sel(x=lon, y=lat, method='nearest').item()
+    
+    # spatial resolution of the input map
+    resolution = np.mean(np.diff(upArea.x.values))
+    
+    # window around the input pixel
+    window = np.array([-1.5 * resolution, 1.5 * resolution])
+    upArea_ = upArea.sel(y=slice(*window[::-1] + lat)).sel(x=slice(*window + lon))
+    
+    # remove pixels with area equal or smaller than the input pixel
+    mask = upArea_.where(upArea_ > area, np.nan)
+    
+    # from the remaining, find pixel with the smallest upstream area
+    pixel = upArea_.where(upArea_ == mask.min(), drop=True)
+    
+    return round(pixel.y.item(), 6), round(pixel.x.item(), 6)
+    
+
+
 def catchment_polygon(
     data: np.ndarray,
     transform: Affine,

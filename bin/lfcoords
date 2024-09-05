@@ -8,7 +8,7 @@ src_dir = os.path.normpath(os.path.join(current_dir, '../src/'))
 if os.path.exists(src_dir):
     sys.path.append(src_dir)
 
-from lisfloodutilities.lfcoords import main_script
+from lisfloodutilities.lfcoords.lfcoords import main_script
 
 if __name__ == '__main__':
     main_script()
