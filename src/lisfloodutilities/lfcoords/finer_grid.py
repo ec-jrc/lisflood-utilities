@@ -1,16 +1,21 @@
+import os
+os.environ['USE_PYGEOS'] = '0'
 import numpy as np
 import pandas as pd
+import geopandas as gpd
+from shapely.geometry import Point
+import xarray as xr
 import rioxarray
 import pyflwdir
 from tqdm import tqdm
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 import logging
 import warnings
 warnings.filterwarnings("ignore")
 
-from lisfloodutilities.lfcoords import Config
-from lisfloodutilities.lfcoords.utils import find_pixel, catchment_polygon 
+from lisfloodpreprocessing import Config
+from lisfloodpreprocessing.utils import find_pixel, catchment_polygon 
 
 # set logger
 logging.basicConfig(level=logging.INFO,
@@ -19,58 +24,52 @@ logger = logging.getLogger(__name__)
 
 def coordinates_fine(
     cfg: Config,
-    save: bool = True
-) -> Optional[pd.DataFrame]:
+    points: pd.DataFrame,
+    ldd_fine: xr.DataArray,
+    upstream_fine: xr.DataArray,
+    save: bool = False
+) -> Optional[gpd.GeoDataFrame]:
     """
     Processes point coordinates to find the most accurate pixel in a high-resolution map, 
-    based on a reference value of catchment area. It updates the point coordinates and 
+    based on a reference value of catchment area. It updates the station coordinates and 
     exports the catchment areas as shapefiles.
 
     The function reads the upstream area map and local drainage direction (LDD) map in 
-    fine resolution, as well as the point coordinates with their reference upstream areas.
+    fine resolution, as well as the station coordinates with their reference upstream areas.
     It then iteratively searches for the best-matching pixel within an increasing search 
     range and applies penalties and factors to determine the closest match. The function 
-    creates a boolean map of each point's catchment area and vectorizes it into a 
+    creates a boolean map of each station's catchment area and vectorizes it into a 
     GeoDataFrame for export as a shapefile.
 
     Parameters:
     -----------
     cfg: Config
         Configuration object containing file paths and parameters specified in  the configuration file.
-    save: bool
-        If True, the updated points table is saved to a CSV file. If False, the updated points DataFrame is returned without saving.
+    points: pandas.DataFrame
+        DataFrame containing reference point coordinates and upstream areas
+    ldd_fine: xarray.DataArray
+        Map of local drainaige directions in the fine grid
+    upstream_fine: xarray.DataArray
+        Map of upstream area (km2) in the fine grid
+    save: boolean
+        If True, the updated table of points is exported as a shapefile.
         
     Returns:
     --------
-    points: pandas.DataFrame
-        If save is False, returns a pandas DataFrame with updated point coordinates and upstream areas in the finer grid. Otherwise, the function returns None, and the results are saved directly to a CSV file.
+    points: geopandas.GeoDataFrame
+        A table with updated station coordinates and upstream areas in the finer grid.
+    polygons: geopandas.GeoDataFrame
+        A table with the catchment polygons in the finer grid.
     """
-    
-    # READ INPUTS
-    
-    # read upstream map with fine resolution
-    upstream_fine = rioxarray.open_rasterio(cfg.UPSTREAM_FINE).squeeze(dim='band')
-    logger.info(f'Map of upstream area corretly read: {cfg.UPSTREAM_FINE}')
-
-    # read local drainage direction map
-    ldd_fine = rioxarray.open_rasterio(cfg.LDD_FINE).squeeze(dim='band')
-    logger.info(f'Map of local drainage directions corretly read: {cfg.LDD_FINE}')
-
-    # read points text file
-    points = pd.read_csv(cfg.POINTS, index_col='ID')
-    logger.info(f'Table of points correctly read: {cfg.POINTS}')
-    
-
-    # PROCESSING
     
     # resolution of the input map
     cellsize = np.mean(np.diff(upstream_fine.x)) # degrees
     cellsize_arcsec = int(np.round(cellsize * 3600, 0)) # arcsec
-    suffix_fine = f'{cellsize_arcsec}sec'
-    logger.info(f'The resolution of the finer grid is {cellsize_arcsec} arcseconds')
+    # cfg.FINE_RESOLUTION = f'{cellsize_arcsec}sec'
+    fine_resolution = f'{cellsize_arcsec}sec'
     
     # add columns to the table of points
-    new_cols = sorted([f'{col}_{suffix_fine}' for col in points.columns])
+    new_cols = sorted([f'{col}_{fine_resolution}' for col in ['lat', 'lon', 'area']])
     points[new_cols] = np.nan
 
     # create river network
@@ -79,11 +78,8 @@ def coordinates_fine(
                                     transform=ldd_fine.rio.transform(),
                                     check_ftype=False,
                                     latlon=True)
-
-    # output path
-    SHAPE_FOLDER_FINE = cfg.SHAPE_FOLDER / suffix_fine
-    SHAPE_FOLDER_FINE.mkdir(parents=True, exist_ok=True)
-
+    
+    polygons = []
     for ID, attrs in tqdm(points.iterrows(), total=points.shape[0], desc='points'):  
 
         # reference coordinates and upstream area
@@ -114,17 +110,26 @@ def coordinates_fine(
         basin_gdf['ID'] = ID
         basin_gdf.set_index('ID', inplace=True)
         basin_gdf[attrs.index] = attrs.values
-
-        # export shape file
-        output_file = SHAPE_FOLDER_FINE / f'{ID}.shp'
-        basin_gdf.to_file(output_file)
-        logger.info(f'Catchment {ID} exported as shapefile: {output_file}')
+        
+        # save polygon
+        polygons.append(basin_gdf)
+        
+    # concatenate polygons shapefile
+    polygons = pd.concat(polygons)
     
-    # return/save
+    # convert points to geopandas
+    geometry = [Point(xy) for xy in zip(points[f'lon_{fine_resolution}'], points[f'lat_{fine_resolution}'])]
+    points = gpd.GeoDataFrame(points, geometry=geometry, crs=4326)
     points.sort_index(axis=1, inplace=True)
-    if save:
-        output_csv = cfg.POINTS.parent / f'{cfg.POINTS.stem}_{suffix_fine}.csv'
-        points.to_csv(output_csv)
-        logger.info(f'The updated points table in the finer grid has been exported to: {output_csv}')
-    else: 
-        return points
+    
+    if save is True:
+        # polygons
+        polygon_shp = cfg.OUTPUT_FOLDER / f'catchments_{fine_resolution}.shp'
+        polygons.to_file(polygon_shp)
+        logger.info(f'Catchments in the finer grid have been exported to: {polygon_shp}')
+        # points
+        point_shp = cfg.OUTPUT_FOLDER / f'{cfg.POINTS.stem}_{fine_resolution}.shp'
+        points.to_file(point_shp)
+        logger.info(f'The updated points table in the finer grid has been exported to: {point_shp}')
+        
+    return points, polygons

@@ -55,20 +55,55 @@ def main(argv=sys.argv):
     except Exception as e:
         logger.error(f'Reading the config file: {e}')
         sys.exit(1)
+    
+    # read input files
+    try:
+        inputs = read_input_files(cfg)
+    except Exception as e:
+        logger.error(f'Reading the input files: {e}')
+        sys.exit(2)       
 
     # find coordinates in high resolution
     try:
-        points_HR = coordinates_fine(cfg, save=False)
-    except Exception as e:
-        logger.error(f'Locating the points in the finer grid: {e}')
-        sys.exit(2)
-
-    # find coordinates in LISFLOOD
-    try:
-        coordinates_coarse(cfg, points_HR, reservoirs=args.reservoirs, save=True)
+        points_HR, polygons_HR = coordinates_fine(cfg,
+                                                  points=inputs['points'],
+                                                  ldd_fine=inputs['ldd_fine'],
+                                                  upstream_fine=inputs['upstream_fine'],
+                                                  save=True)
     except Exception as e:
         logger.error(f'Locating the points in the finer grid: {e}')
         sys.exit(3)
+    
+    # find conflicts in high resolution
+    try:
+        find_conflicts(points_HR,
+                       columns=[f'{var}_{cfg.FINE_RESOLUTION}' for var in ['lat', 'lon']],
+                       save=cfg.OUTPUT_FOLDER / f'conflicts_{cfg.FINE_RESOLUTION}.shp')
+    except Exception as e:
+        logger.error(f'Finding conflicts in the finer grid: {e}')
+        sys.exit(4)
+
+    # find coordinates in LISFLOOD
+    try:
+        points_LR, polygons_LR = coordinates_coarse(cfg,
+                                                    points_fine=points_HR,
+                                                    polygons_fine=polygons_HR,
+                                                    ldd_coarse=inputs['ldd_coarse'],
+                                                    upstream_coarse=inputs['upstream_coarse'],
+                                                    reservoirs=args.reservoirs,
+                                                    save=True)
+    except Exception as e:
+        logger.error(f'Locating the points in the finer grid: {e}')
+        sys.exit(5)
+        
+    # find conflicts in LISFLOOD
+    try:
+        find_conflicts(points_LR,
+                       columns=[f'{var}_{cfg.COARSE_RESOLUTION}' for var in ['lat', 'lon']],
+                       save=cfg.OUTPUT_FOLDER / f'conflicts_{cfg.COARSE_RESOLUTION}.shp')
+    except Exception as e:
+        logger.error(f'Finding conflicts in the coarser grid: {e}')
+        sys.exit(6)
 
 def main_script():
     sys.exit(main())
