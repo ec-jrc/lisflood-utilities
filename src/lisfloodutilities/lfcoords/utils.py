@@ -6,8 +6,12 @@ import xarray as xr
 from affine import Affine
 from rasterio import features
 from pyproj.crs import CRS
-from typing import Tuple
+from typing import Tuple, List, Optional, Union
+from pathlib import Path
+import logging
 
+# set logger
+logger = logging.getLogger('lfcoords')
 
 
 def find_pixel(
@@ -86,11 +90,10 @@ def find_pixel(
     return lat_new, lon_new, min_error.item()
 
 
-
 def downstream_pixel(
     lat: float,
     lon: float,
-    upArea: xr.DataArray
+    ldd: xr.DataArray
 ) -> (float, float):
     """It finds the downstream coordinates of a given point
     
@@ -100,8 +103,8 @@ def downstream_pixel(
         latitude of the input point
     lon: float
         longitued of the input point
-    upArea: xarray.DataArray
-        map of upstream area
+    ldd: xarray.DataArray
+        map of local drainage direction
         
     Returns:
     --------
@@ -111,24 +114,30 @@ def downstream_pixel(
         longitued of the inmediate downstream pixel
     """
     
-    # upstream area of the input coordinates
-    area = upArea.sel(x=lon, y=lat, method='nearest').item()
+    # drainage direction of the input point
+    pixel = ldd.sel(x=lon, y=lat, method='nearest')
+    direction = pixel.item()
+    lat, lon = pixel.y.item(), pixel.x.item()
     
     # spatial resolution of the input map
-    resolution = np.mean(np.diff(upArea.x.values))
+    resolution = np.mean(np.diff(ldd.x.values))
     
-    # window around the input pixel
-    window = np.array([-1.5 * resolution, 1.5 * resolution])
-    upArea_ = upArea.sel(y=slice(*window[::-1] + lat)).sel(x=slice(*window + lon))
+    # correct latitude
+    if direction in [1, 2, 3]:
+        lat -= resolution
+    elif direction in [7, 8, 9]:
+        lat += resolution
     
-    # remove pixels with area equal or smaller than the input pixel
-    mask = upArea_.where(upArea_ > area, np.nan)
+    # correct longitude
+    if direction in [1, 4, 7]:
+        lon -= resolution
+    elif direction in [3, 6, 9]:
+        lon += resolution
+        
+    # pixel downstream in the LDD
+    new_pixel = ldd.sel(x=lon, y=lat, method='nearest')
     
-    # from the remaining, find pixel with the smallest upstream area
-    pixel = upArea_.where(upArea_ == mask.min(), drop=True)
-    
-    return round(pixel.y.item(), 6), round(pixel.x.item(), 6)
-    
+    return round(new_pixel.y.item(), 6), round(new_pixel.x.item(), 6)
 
 
 def catchment_polygon(
@@ -181,3 +190,39 @@ def catchment_polygon(
     gdf[name] = gdf[name].astype(data.dtype)
     
     return gdf
+
+
+def find_conflicts(
+    gdf: gpd.GeoDataFrame,
+    columns: List,
+    save: Optional[Union[Path, str]] = None
+) -> gpd.GeoDataFrame:
+    """Find duplicates in the new point layer
+    
+    Parameters:
+    -----------
+    gdf: geopandas.GeoDataFrame
+        Point layer resulting from `coordinates_fine` or `coordinates_coarse`
+    columns: list
+        List of columns in "gdf" to test for duplicates
+    save: pathlib.Path or string (optional)
+        If provided, file name of the shapefile of conflicting points
+        
+    Returns:
+    --------
+    duplicates: geopandas.GeoDataFrame (optional)
+        Subset of "gdf" with duplicates. Only if "save" is None.
+    """
+    
+    mask = gdf.duplicated(subset=columns, keep=False)
+    duplicates = gdf[mask]
+    
+    if duplicates.shape[0] > 0:
+        n_conflicts = len(duplicates[columns[0]].unique())
+        logger.warning(f'There are {n_conflicts} conflicts in which reservoirs are located at the same pixel in the finer grid')
+        
+        if save is not None:
+            duplicates.to_file(save)
+            logger.info(f'The conflicting points were saved in {save}')
+        else:
+            return duplicates

@@ -18,9 +18,8 @@ from lisfloodpreprocessing import Config
 from lisfloodpreprocessing.utils import catchment_polygon, downstream_pixel
 
 # set logger
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s | %(levelname)s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('lfcoords')
+
 
 def coordinates_coarse(
     cfg: Config,
@@ -62,6 +61,7 @@ def coordinates_coarse(
     """
     
     points = points_fine.copy()
+    n_points = points.shape[0]
     
     # create river network
     fdir_coarse = pyflwdir.from_array(ldd_coarse.data,
@@ -71,7 +71,7 @@ def coordinates_coarse(
                                       latlon=True)
 
     # boundaries and resolution of the input maps
-    lon_min, lat_min, lon_max, lat_max = np.round(ldd_coarse.rio.bounds(), 6)
+    # lon_min, lat_min, lon_max, lat_max = np.round(ldd_coarse.rio.bounds(), 6)
     cellsize = np.round(np.mean(np.diff(ldd_coarse.x)), 6) # degrees
 
     # extract resolution of the finer grid from 'points'
@@ -84,16 +84,16 @@ def coordinates_coarse(
     # search range of 5x5 array -> this is where the best point can be found in the coarse grid
     rangexy = np.linspace(-2, 2, 5) * cellsize # arcmin
     polygons_coarse = []
-    for ID, attrs in tqdm(points.iterrows(), total=points.shape[0], desc='points'):
+    pbar = tqdm(points.iterrows(), total=n_points, desc='points')
+    for n, (ID, attrs) in enumerate(pbar, start=1):
 
         # real upstream area
         area_ref = attrs['area']
-
+            
         # coordinates and upstream area in the fine grid
         lat_fine, lon_fine, area_fine = attrs[[f'{col}_{cfg.FINE_RESOLUTION}' for col in ['lat', 'lon', 'area']]]
-
-        if (area_ref < cfg.MIN_AREA) or (area_fine < cfg.MIN_AREA):
-            logger.warning(f'The catchment area of station {ID} is smaller than the minimum of {cfg.MIN_AREA} km2')
+        if area_fine < cfg.MIN_AREA:
+            logger.warning(f'Skipping point {ID} because its catchment area in the finer grid is smaller than {cfg.MIN_AREA} km2')
             continue
 
         # find ratio
@@ -169,6 +169,8 @@ def coordinates_coarse(
             
         # update new columns in 'points'
         points.loc[ID, cols_coarse] = [int(area_coarse), round(lat_coarse, 6), round(lon_coarse, 6)]
+        
+        logger.info(f'Point {ID} ({n}/{n_points}) located in the coarser grid')
         
     # concatenate polygons shapefile
     polygons_coarse = pd.concat(polygons_coarse)

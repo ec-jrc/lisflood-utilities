@@ -15,10 +15,12 @@ import sys
 import argparse
 import pandas as pd
 import logging
+from datetime import datetime
 
-from lisfloodutilities.lfcoords import Config
-from lisfloodutilities.lfcoords.finer_grid import coordinates_fine
-from lisfloodutilities.lfcoords.coarser_grid import coordinates_coarse
+from lisfloodpreprocessing import Config, read_input_files
+from lisfloodpreprocessing.utils import find_conflicts
+from lisfloodpreprocessing.finer_grid import coordinates_fine
+from lisfloodpreprocessing.coarser_grid import coordinates_coarse
 
 def main(argv=sys.argv):
     prog = os.path.basename(argv[0])
@@ -44,10 +46,16 @@ def main(argv=sys.argv):
     logger.setLevel(logging.INFO)
     logger.propagate = False
     log_format = logging.Formatter('%(asctime)s | %(levelname)s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+    # console handler
     c_handler = logging.StreamHandler()
     c_handler.setFormatter(log_format)
     c_handler.setLevel(logging.INFO)
     logger.addHandler(c_handler)
+    # File handler
+    f_handler = logging.FileHandler(f'lfcoords_{datetime.now():%Y%m%d%H%M}.log')
+    f_handler.setFormatter(log_format)
+    f_handler.setLevel(logging.INFO)
+    logger.addHandler(f_handler)
 
     # read configuration
     try:

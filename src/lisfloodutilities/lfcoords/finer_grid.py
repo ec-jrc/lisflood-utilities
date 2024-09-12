@@ -18,9 +18,8 @@ from lisfloodpreprocessing import Config
 from lisfloodpreprocessing.utils import find_pixel, catchment_polygon 
 
 # set logger
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s | %(levelname)s | %(name)s | %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('lfcoords')
+
 
 def coordinates_fine(
     cfg: Config,
@@ -62,15 +61,12 @@ def coordinates_fine(
         A table with the catchment polygons in the finer grid.
     """
     
-    # resolution of the input map
-    cellsize = np.mean(np.diff(upstream_fine.x)) # degrees
-    cellsize_arcsec = int(np.round(cellsize * 3600, 0)) # arcsec
-    # cfg.FINE_RESOLUTION = f'{cellsize_arcsec}sec'
-    fine_resolution = f'{cellsize_arcsec}sec'
-    
     # add columns to the table of points
-    new_cols = sorted([f'{col}_{fine_resolution}' for col in ['lat', 'lon', 'area']])
-    points[new_cols] = np.nan
+    points_fine = points.copy()
+    n_points = points.shape[0]
+    cols = ['lat', 'lon', 'area']
+    new_cols = sorted([f'{col}_{cfg.FINE_RESOLUTION}' for col in cols])
+    points_fine[new_cols] = np.nan
 
     # create river network
     fdir_fine = pyflwdir.from_array(ldd_fine.data,
@@ -79,11 +75,12 @@ def coordinates_fine(
                                     check_ftype=False,
                                     latlon=True)
     
-    polygons = []
-    for ID, attrs in tqdm(points.iterrows(), total=points.shape[0], desc='points'):  
+    polygons_fine = []
+    pbar = tqdm(points.iterrows(), total=points.shape[0], desc='points')
+    for n, (ID, attrs) in enumerate(pbar, start=1):  
 
         # reference coordinates and upstream area
-        lat_ref, lon_ref, area_ref = attrs[['lat', 'lon', 'area']]
+        lat_ref, lon_ref, area_ref = attrs[cols]
 
         # search new coordinates in an increasing range
         ranges = [55, 101, 151]
@@ -96,8 +93,8 @@ def coordinates_fine(
             if error <= max_error:
                 break
 
-        # update new columns in 'points'
-        points.loc[ID, new_cols] = [int(upstream_fine.sel(y=lat, x=lon).item()), round(lat, 6), round(lon, 6)]
+        # update new columns in 'points_fine'
+        points_fine.loc[ID, new_cols] = [int(upstream_fine.sel(y=lat, x=lon).item()), round(lat, 6), round(lon, 6)]
 
         # boolean map of the catchment associated to the corrected coordinates
         basin_arr = fdir_fine.basins(xy=(lon, lat)).astype(np.int32)
@@ -108,28 +105,30 @@ def coordinates_fine(
                                       crs=ldd_fine.rio.crs,
                                       name='ID')
         basin_gdf['ID'] = ID
+        basin_gdf[cols] = attrs[cols]
         basin_gdf.set_index('ID', inplace=True)
-        basin_gdf[attrs.index] = attrs.values
         
         # save polygon
-        polygons.append(basin_gdf)
+        polygons_fine.append(basin_gdf)
+        
+        logger.info(f'Point {ID} ({n}/{n_points}) located in the finer grid')
         
     # concatenate polygons shapefile
-    polygons = pd.concat(polygons)
+    polygons_fine = pd.concat(polygons_fine)
     
     # convert points to geopandas
-    geometry = [Point(xy) for xy in zip(points[f'lon_{fine_resolution}'], points[f'lat_{fine_resolution}'])]
-    points = gpd.GeoDataFrame(points, geometry=geometry, crs=4326)
-    points.sort_index(axis=1, inplace=True)
+    geometry = [Point(xy) for xy in zip(points_fine[f'lon_{cfg.FINE_RESOLUTION}'], points_fine[f'lat_{cfg.FINE_RESOLUTION}'])]
+    points_fine = gpd.GeoDataFrame(points_fine, geometry=geometry, crs=4326)
+    points_fine.sort_index(axis=1, inplace=True)
     
     if save is True:
         # polygons
-        polygon_shp = cfg.OUTPUT_FOLDER / f'catchments_{fine_resolution}.shp'
-        polygons.to_file(polygon_shp)
+        polygon_shp = cfg.OUTPUT_FOLDER / f'catchments_{cfg.FINE_RESOLUTION}.shp'
+        polygons_fine.to_file(polygon_shp)
         logger.info(f'Catchments in the finer grid have been exported to: {polygon_shp}')
         # points
-        point_shp = cfg.OUTPUT_FOLDER / f'{cfg.POINTS.stem}_{fine_resolution}.shp'
-        points.to_file(point_shp)
+        point_shp = cfg.OUTPUT_FOLDER / f'{cfg.POINTS.stem}_{cfg.FINE_RESOLUTION}.shp'
+        points_fine.to_file(point_shp)
         logger.info(f'The updated points table in the finer grid has been exported to: {point_shp}')
         
-    return points, polygons
+    return points_fine, polygons_fine
