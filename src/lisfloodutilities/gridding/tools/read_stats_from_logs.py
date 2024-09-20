@@ -1,5 +1,3 @@
-from dask.dataframe.io.tests.test_json import df
-from pandas.tests.io.test_fsspec import df1
 __author__="Goncalo Gomes"
 __date__="$Jun 06, 2024 10:45:00$"
 __version__="0.1"
@@ -38,10 +36,20 @@ def merge_kiwis_stats(df: pd.DataFrame, search_string: str = ''):
     KWIWS_SEARCH_STRING = '#KIWIS_STATS: '
     result_df = df
     if search_string == KWIWS_SEARCH_STRING:
+        result_df['COUNT_ROWS'] = 0
         group_cols = ['TIMESTAMP', 'VAR_CODE', 'PROVIDER_ID']
         agg_dict = {'QUALITY_CODE_VALID': 'min', 'QUALITY_CODE_SUSPICIOUS': 'min',
-                    'QUALITY_CODE_WRONG': 'max', 'TOTAL_OBSERVATIONS': 'max'}
+                    'QUALITY_CODE_WRONG': 'max', 'TOTAL_OBSERVATIONS': 'max', 'COUNT_ROWS': 'count'}
         result_df = result_df.groupby(group_cols).agg(agg_dict).reset_index()
+        # At every application of a filter (gridding.lib.filters.py) an entry in the log is
+        # written for each provider that was not filtered. Therefore, all providers should have
+        # the same number of rows and if a provider have less means it was completely filtered out
+        # and needs to be removed from this df.
+        result_df = result_df.loc[result_df['COUNT_ROWS'] == result_df['COUNT_ROWS'].max()]
+        result_df.reset_index(drop=True, inplace=True)
+        result_df = result_df.drop('COUNT_ROWS', axis=1)
+        result_df.reset_index(drop=True, inplace=True)
+        # Getting only the necessary columns
         result_df.columns = ['TIMESTAMP', 'VAR_CODE', 'PROVIDER_ID', 'QUALITY_CODE_VALID',
                              'QUALITY_CODE_SUSPICIOUS', 'QUALITY_CODE_WRONG', 'TOTAL_OBSERVATIONS']
         result_df.reset_index(drop=True, inplace=True)
@@ -68,14 +76,14 @@ def run(infolder: str, outfile: str, search_string: str, inwildcard: str = '*.lo
                 if not df.empty:
                     out_df = df
             elif not df.empty and have_the_same_columns(out_df, df):
-                out_df = pd.concat([out_df], df)
+                out_df = pd.concat([out_df, df])
             else:
                 print('ERROR: Both datasets do not have the same columns')
     if out_df is None or out_df.empty:
         print('WARNING: No lines containing statistics where found.')
     else:
-        out_df = out_df.drop_duplicates()
         out_df = merge_kiwis_stats(out_df, search_string)
+        out_df = out_df.drop_duplicates()
         out_df.to_csv(outfilepath, index=False, header=True, sep='\t')
         print(f'Wrote file: {outfilepath}')
         print(out_df)
@@ -131,7 +139,7 @@ def main(argv):
         args = parser.parse_args(argv)
 
         print(f"Input Folder: {args.infolder}")
-        print(f"Output Filer: {args.outfile}")
+        print(f"Output File: {args.outfile}")
         print(f"Input Wildcard: {args.input_wildcard}")
         print(f'Search String: [{args.search_string}]')
 

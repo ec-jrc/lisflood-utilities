@@ -19,7 +19,7 @@ LONG_NAME = 6 Hourly Accumulated Precipitation
 # 1304 - EURO4M-APGD
 # 1310 - HNMS
 # 1329 - ERA5-land
-KIWIS_FILTER_PLUGIN_CLASSES = {'DowgradedObservationsKiwisFilter': {'1304': 1.0, '1302': 1.0, '1295': 1.0}, 'ObservationsKiwisFilter': {'1303': 100.0, '1329': 100.0}}
+# KIWIS_FILTER_PLUGIN_CLASSES = {'DowgradedObservationsKiwisFilter': {'1304': 1.0, '1302': 1.0, '1295': 1.0}, 'ObservationsKiwisFilter': {'1303': 100.0, '1329': 100.0}}
 
 
 [VAR_TIME]

@@ -235,6 +235,43 @@ class ObservationsKiwisFilter(KiwisFilter):
         return False
 
 
+class ProvidersKiwisFilter(KiwisFilter):
+    """
+    Class to filter Kiwis files metadata for stations that belong to a list of providers and inside a defined list of time intervals.
+    Expects to have in filter_args a dictionary containing the provider ID whose stations we want to
+    filter (as key) and an array of pairs of start and end dates defining the intervals to filter the station from.
+    filter_args = {1121: [('1992-01-02 06:00:00', '1993-01-01 06:00:00'), ('1995-01-02 06:00:00', '1996-01-01 06:00:00')]}
+    """
+    
+    def __init__(self, filter_columns: dict = {}, filter_args: dict = {}, var_code: str = '', quiet_mode: bool = False):
+        super().__init__(filter_columns, filter_args, var_code, quiet_mode)
+        # Getting the intervals and providers. {(start1, end2): [provider_id1, provider_id2]}
+        print('args:', self.args)
+        self.provider_intervals = {}
+        for provider_id in self.args:
+            time_intervals = self.args[provider_id]
+            for time_interval in time_intervals:
+                start, end = time_interval
+                start = dt.strptime(start, "%Y-%m-%d %H:%M:%S")
+                end = dt.strptime(end, "%Y-%m-%d %H:%M:%S")
+                cur_interval = (start, end)
+                if cur_interval not in self.provider_intervals:
+                    self.provider_intervals[cur_interval] = []
+                self.provider_intervals[cur_interval].append(provider_id)
+        print('provider_intervals:', self.provider_intervals)
+
+    def apply_filter(self, df: pd.DataFrame) -> pd.DataFrame:
+        df = super().apply_filter(df)
+        # Filter providers only if current file datetime belongs to any of the intervals 
+        for time_interval in self.provider_intervals:
+            start, end = time_interval
+            if start <= self.cur_timestamp and end >= self.cur_timestamp:
+                providers_to_remove = self.provider_intervals[time_interval]
+                df = df[~df[self.COL_PROVIDER_ID].isin(providers_to_remove)]
+        self.print_statistics(df)
+        return df
+
+
 class DowgradedObservationsKiwisFilter(ObservationsKiwisFilter):
     """
     Class to filter Kiwis files metadata for stations whose daily data was down graded to 6hourly data
