@@ -107,7 +107,7 @@ class OutputWriter(Printable):
 class NetCDFWriter(OutputWriter):
     NETCDF_DATASET_FORMAT = 'NETCDF4_CLASSIC'
     NETCDF_CONVENTIONS = 'CF-1.6'
-    NETCDF_VAR_DATA_TYPE = 'f4' # np.float64
+    NETCDF_VAR_DATA_TYPE = 'f8' # np.float64
     NETCDF_COORDINATES_DATA_TYPE = 'i4' # np.int32
     NETCDF_VAR_TIME_CALENDAR_TYPE = 'proleptic_gregorian'
     COMPRESSION_LEVEL = 4

@@ -1,5 +1,4 @@
-from dask.dataframe.io.tests.test_json import df
-from pandas.tests.io.test_fsspec import df1
+
 __author__="Goncalo Gomes"
 __date__="$Jun 06, 2024 10:45:00$"
 __version__="0.1"

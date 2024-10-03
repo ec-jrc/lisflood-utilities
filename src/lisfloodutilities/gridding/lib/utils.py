@@ -85,10 +85,10 @@ class Dem(Printable):
         self.mv = reader.mv.astype(np.float32)
         self.values = reader.values.astype(np.float32)
         self.lats, self.lons = reader.get_lat_lon_values()
-        self.lats = self.lats.astype(np.float32)
-        self.lons = self.lons.astype(np.float32) 
-        self.lat_values = reader.get_lat_values()
-        self.lon_values = reader.get_lon_values()
+        self.lats = self.lats.astype(np.float64)
+        self.lons = self.lons.astype(np.float64)
+        self.lat_values = reader.get_lat_values().astype(np.float64)
+        self.lon_values = reader.get_lon_values().astype(np.float64)
         self.cell_size_x = reader._pxlW
         self.cell_size_y = reader._pxlH
         self.lat_min = reader.lat_min
