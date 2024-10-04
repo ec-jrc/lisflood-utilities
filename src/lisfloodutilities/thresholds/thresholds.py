@@ -16,7 +16,7 @@ import sys
 
 import numpy as np
 import xarray as xr
-from typing import Tuple
+from typing import Tuple, Union
 
 
 def lmoments(values: np.ndarray) -> np.ndarray:
@@ -128,7 +128,7 @@ def gumbel_function(
     sigma: Union[np.ndarray, float],
     mu: Union[np.ndarray, float]
 ) -> Union[np.ndarray, float]:
-    """Compute the value of a Gumbel distribution associated to a return periods.
+    """Compute the value of a Gumbel distribution associated to certain return periods.
 
     This function is equivalent to scipy.stats.gumbel_r.ppf(1 - 1 / return_period, loc=mu, scale=sigma)
 
