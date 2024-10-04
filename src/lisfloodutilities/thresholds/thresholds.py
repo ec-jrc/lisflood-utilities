@@ -16,6 +16,7 @@ import sys
 
 import numpy as np
 import xarray as xr
+from typing import Tuple
 
 
 def lmoments(values: np.ndarray) -> np.ndarray:
@@ -78,21 +79,74 @@ def lmoments(values: np.ndarray) -> np.ndarray:
     return lmoments
 
 
-def gumbel_parameters_moments(dis):
-    sigma = np.sqrt(6) * np.nanstd(dis, ddof=1, axis=0) / np.pi
-    mu = np.nanmean(dis, axis=0) - 0.5772 * sigma
+def gumbel_parameters_moments(dis: xr.DataArray, dim: str = 'time') -> Tuple[xr.DataArray, xr.DataArray]:
+    """Calculate the scale (sigma) and location (mu) parameters of the Gumbel distribution using method of moments.
+
+    The method of moments is a statistical technique used to estimate the parameters of a distribution by equating
+    the theoretical moments of the distribution to the sample moments.
+
+    Parameters:
+    -----------
+    dis: xarray.DataArray
+        An xarray DataArray containing the data over which to calculate the Gumbel parameters.
+        The function computes the parameters along the dimension 'dim', typically time.
+    dim: string
+        Dimention in 'dis' over which statistics will be computed
+
+    Returns:
+    --------
+    Tuple[xarray.DataArray, xarray.DataArray]
+        A tuple containing two xarray.DataArray. The first array corresponds to the estimated scale parameters (sigma)
+        of the Gumbel distribution, and the second array corresponds to the estimated location parameters (mu).
+    """
+    sigma = np.sqrt(6) / np.pi * dis.std(dim=dim, ddof=1, skipna=True)
+    mu = dis.mean(dim=dim, skipna=True) - np.euler_gamma * sigma
     return sigma, mu
 
 
-def gumbel_parameters_lmoments(dis):
+def gumbel_parameters_lmoments(dis: xr.DataArray) -> Tuple[np.ndarray, np.ndarray]:
+    """Calculate the scale (sigma) and location (mu) parameters of the Gumbel distribution using the method of L-moments.
+
+    Parameters:
+    -----------
+    dis: xarray.DataArray
+        An xarray DataArray containing the data over which to calculate the Gumbel parameters.
+
+    Returns:
+    --------
+    Tuple[xarray.DataArray, xarray.DataArray]
+        A tuple containing two xarray.DataArray. The first array corresponds to the estimated scale parameters (sigma)
+    """
     lambda_coef = lmoments(dis)
     sigma = lambda_coef[1] / np.log(2)
-    mu = lambda_coef[0] - sigma * 0.5772
+    mu = lambda_coef[0] - sigma * np.euler_gamma
     return sigma, mu
 
 
-def gumbel_function(y, sigma, mu):
-    return mu - sigma * np.log(np.log(y / (y - 1)))
+def gumbel_function(
+    return_period: Union[np.ndarray, int],
+    sigma: Union[np.ndarray, float],
+    mu: Union[np.ndarray, float]
+) -> Union[np.ndarray, float]:
+    """Compute the value of a Gumbel distribution associated to a return periods.
+
+    This function is equivalent to scipy.stats.gumbel_r.ppf(1 - 1 / return_period, loc=mu, scale=sigma)
+
+    Parameters:
+    -----------
+    return_period: integer or numpy.ndarray
+        return period
+    sigma: float or numpy.ndarray
+        scale parameter of the Gumbel distribution
+    mu: float or numpy.ndarray
+        location parameter of  the Gumbel distribution
+
+    Returns:
+    --------
+    float or numpy.ndarray
+        Value of the Gumbel distribution associated to the return period
+    """
+    return mu - sigma * np.log(np.log(return_period / (return_period - 1)))
 
 
 def find_main_var(ds, path):
