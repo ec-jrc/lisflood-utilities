@@ -236,6 +236,7 @@ def create_dataset(dis_max, return_periods, mask, thresholds, sigma, mu):
 def compute_thresholds_gumbel(
     dis_max: xr.DataArray,
     return_periods: List,
+    method: Literal['l-moments', 'moments']
     dim: str = 'time'
 ) -> xr.Dataset:
     """Fits the parameters of the Gumbel right function using the method of L-moments and estimates the discharge associated with the return periods
@@ -246,6 +247,8 @@ def compute_thresholds_gumbel(
         An xarray DataArray containing the annual maximum series over which to calculate the Gumbel parameters
     return_periods: List
         Return periods for which the associated discharge will be calculated
+    method: string
+        Method used to estimate the parameters of the Gumbel distribution
     dim: string
         Temporal dimension in 'dis_max'
 
@@ -264,7 +267,12 @@ def compute_thresholds_gumbel(
     dis_max_masked = dis_max.where(mask, drop=True)
 
     print("Computing Gumbel coefficients")
-    parameters = gumbel_parameters_lmoments(dis_max_masked, dim=dim)
+    if method == 'l-moments':
+        parameters = gumbel_parameters_lmoments(dis_max_masked, dim=dim)
+    elif method == 'moments':
+        parameters = gumbel_parameters_moments(dis_max_masked, dim=dim)
+    else:
+        raise ValueError(f"Invalid method '{method}'. Expected 'l-moments' or 'moments'.")
 
     print("Computing return periods")
     thresholds = xr.Dataset({f'rp_{rp}': gumbel_function(rp, parameters.sigma, parameters.mu) for rp in return_periods})
