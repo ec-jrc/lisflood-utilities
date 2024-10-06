@@ -16,7 +16,7 @@ import sys
 
 import numpy as np
 import xarray as xr
-from typing import Tuple, Union
+from typing import Tuple, Union, List
 
 
 def lmoments(values: np.ndarray) -> np.ndarray:
@@ -79,7 +79,10 @@ def lmoments(values: np.ndarray) -> np.ndarray:
     return lmoments
 
 
-def gumbel_parameters_moments(dis: xr.DataArray, dim: str = 'time') -> Tuple[xr.DataArray, xr.DataArray]:
+def gumbel_parameters_moments(
+    dis: xr.DataArray,
+    dim: str = 'time'
+) -> xr.Dataset:
     """Calculate the scale (sigma) and location (mu) parameters of the Gumbel distribution using method of moments.
 
     The method of moments is a statistical technique used to estimate the parameters of a distribution by equating
@@ -91,36 +94,71 @@ def gumbel_parameters_moments(dis: xr.DataArray, dim: str = 'time') -> Tuple[xr.
         An xarray DataArray containing the data over which to calculate the Gumbel parameters.
         The function computes the parameters along the dimension 'dim', typically time.
     dim: string
-        Dimention in 'dis' over which statistics will be computed
+        Dimension in 'dis' over which statistics will be computed
 
     Returns:
     --------
-    Tuple[xarray.DataArray, xarray.DataArray]
-        A tuple containing two xarray.DataArray. The first array corresponds to the estimated scale parameters (sigma)
-        of the Gumbel distribution, and the second array corresponds to the estimated location parameters (mu).
+    parameters: xarray.Dataset
+        An xarray Dataset containing the estimated scale (sigma) and location (mu) parameters of the Gumbel distribution.
+        The dataset includes two data variables:
+        - 'sigma': xarray DataArray of the estimated scale parameters
+        - 'mu': xarray DataArray of the estimated location parameters
     """
+
+    # estimate parameters
     sigma = np.sqrt(6) / np.pi * dis.std(dim=dim, ddof=1, skipna=True)
     mu = dis.mean(dim=dim, skipna=True) - np.euler_gamma * sigma
-    return sigma, mu
+
+    # create dataset
+    coords = {coord: values for coord, values in dis_max.coords.items() if coord != dim}
+    try:
+        dims = [dim for dim in list(coords) if dim not in ['lat', 'lon']]
+    except:
+        dims = [dim for dim in list(coords) if dim not in ['y', 'x']]
+    parameters = xr.Dataset({
+        'sigma': xr.DataArray(sigma, dims=dims, coords=coords),
+        'mu': xr.DataArray(mu, dims=dims, coords=coords)
+    })
+
+    return parameters
 
 
-def gumbel_parameters_lmoments(dis: xr.DataArray) -> Tuple[np.ndarray, np.ndarray]:
+def gumbel_parameters_lmoments(dis_max: xr.DataArray, dim: str = 'time') -> xr.Dataset:
     """Calculate the scale (sigma) and location (mu) parameters of the Gumbel distribution using the method of L-moments.
 
     Parameters:
     -----------
-    dis: xarray.DataArray
-        An xarray DataArray containing the data over which to calculate the Gumbel parameters.
+    dis_max: xarray.DataArray
+        An xarray DataArray containing the annual maximum series over which to calculate the Gumbel parameters.
+    dim: string
+        Temporal dimension in 'dis_max'
 
     Returns:
     --------
-    Tuple[xarray.DataArray, xarray.DataArray]
-        A tuple containing two xarray.DataArray. The first array corresponds to the estimated scale parameters (sigma)
+    parameters: xarray.Dataset
+        An xarray Dataset containing the estimated scale (sigma) and location (mu) parameters of the Gumbel distribution.
+        The dataset includes two data variables:
+        - 'sigma': xarray DataArray of the estimated scale parameters
+        - 'mu': xarray DataArray of the estimated location parameters
     """
-    lambda_coef = lmoments(dis)
+
+    # estimate parameters
+    lambda_coef = lmoments(dis_max)
     sigma = lambda_coef[1] / np.log(2)
     mu = lambda_coef[0] - sigma * np.euler_gamma
-    return sigma, mu
+
+    # create dataset
+    coords = {coord: values for coord, values in dis_max.coords.items() if coord != dim}
+    try:
+        dims = [dim for dim in list(coords) if dim not in ['lat', 'lon']]
+    except:
+        dims = [dim for dim in list(coords) if dim not in ['y', 'x']]
+    parameters = xr.Dataset({
+        'sigma': xr.DataArray(sigma, dims=dims, coords=coords),
+        'mu': xr.DataArray(mu, dims=dims, coords=coords)
+    })
+
+    return parameters
 
 
 def gumbel_function(
@@ -195,22 +233,43 @@ def create_dataset(dis_max, return_periods, mask, thresholds, sigma, mu):
     return ds_rp
 
 
-def compute_thresholds_gumbel(dis_max, return_periods):
-    mask = np.isfinite(dis_max.isel(time=0).values)
-    dis_max_masked = dis_max.values[:, mask]
+def compute_thresholds_gumbel(
+    dis_max: xr.DataArray,
+    return_periods: List,
+    dim: str = 'time'
+) -> xr.Dataset:
+    """Fits the parameters of the Gumbel right function using the method of L-moments and estimates the discharge associated with the return periods
+
+    Parameters:
+    -----------
+    dis_max: xarray.DataArray
+        An xarray DataArray containing the annual maximum series over which to calculate the Gumbel parameters
+    return_periods: List
+        Return periods for which the associated discharge will be calculated
+    dim: string
+        Temporal dimension in 'dis_max'
+
+    Returns:
+    --------
+    xr.Dataset
+        An xarray Dataset containing the estimated Gumbel distribution parameters and discharge levels for the specified return periods.
+        The dataset includes:
+        - 'sigma': xarray DataArray of the estimated scale parameter of the Gumbel distribution.
+        - 'mu': xarray DataArray of the estimated location parameter of the Gumbel distribution.
+        - 'rp_X': xarray DataArray(s) of the discharge levels corresponding to each specified return period X.
+    """
+
+    # filter points with NaN in the first value
+    mask = np.isfinite(dis_max.isel({dim: 0}))
+    dis_max_masked = dis_max.where(mask, drop=True)
 
     print("Computing Gumbel coefficients")
-    sigma, mu = gumbel_parameters_lmoments(dis_max_masked)
+    parameters = gumbel_parameters_lmoments(dis_max_masked, dim=dim)
 
     print("Computing return periods")
-    thresholds = []
-    for y in return_periods:
-        dis = gumbel_function(y, sigma, mu)
-        thresholds.append(dis)
+    thresholds = xr.Dataset({f'rp_{rp}': gumbel_function(rp, parameters.sigma, parameters.mu) for rp in return_periods})
 
-    ds_rp = create_dataset(dis_max, return_periods, mask, thresholds, sigma, mu)
-
-    return ds_rp
+    return xr.merge([parameters, thresholds])
 
 
 def main(argv=sys.argv):
