@@ -16,7 +16,7 @@ import sys
 
 import numpy as np
 import xarray as xr
-from typing import Tuple, Union, List
+from typing import Tuple, Union, List, Literal
 
 
 def lmoments(values: np.ndarray) -> np.ndarray:
@@ -236,7 +236,7 @@ def create_dataset(dis_max, return_periods, mask, thresholds, sigma, mu):
 def compute_thresholds_gumbel(
     dis_max: xr.DataArray,
     return_periods: List,
-    method: Literal['l-moments', 'moments']
+    method: Literal['l-moments', 'moments'] = 'l-moments',
     dim: str = 'time'
 ) -> xr.Dataset:
     """Fits the parameters of the Gumbel right function using the method of L-moments and estimates the discharge associated with the return periods
@@ -267,9 +267,9 @@ def compute_thresholds_gumbel(
     dis_max_masked = dis_max.where(mask, drop=True)
 
     print("Computing Gumbel coefficients")
-    if method == 'l-moments':
+    if method.lower() == 'l-moments':
         parameters = gumbel_parameters_lmoments(dis_max_masked, dim=dim)
-    elif method == 'moments':
+    elif method.lower() == 'moments':
         parameters = gumbel_parameters_moments(dis_max_masked, dim=dim)
     else:
         raise ValueError(f"Invalid method '{method}'. Expected 'l-moments' or 'moments'.")
