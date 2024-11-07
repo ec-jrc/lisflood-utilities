@@ -68,9 +68,9 @@ def main(cliargs):
     errors+=errors2
     errors+=errors3    
 
-    if errors!=None:
+    if len(errors)!=0:
         for i, e in enumerate(errors):
-            logger.error('%d - %s', i, e)
+            logger.info('%d - %s', i, e)
     else:
         logger.info('No differences in Datasets %s and %s', dataset_a, dataset_b)
 
