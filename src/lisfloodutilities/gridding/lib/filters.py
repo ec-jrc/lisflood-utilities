@@ -5,7 +5,8 @@ import re
 from datetime import datetime as dt
 from typing import List, Tuple
 from scipy.spatial import cKDTree
-import geopy.distance
+from geopy.distance import geodesic
+import math
 
 
 class KiwisFilter:
@@ -195,6 +196,8 @@ class ObservationsKiwisFilter(KiwisFilter):
     """
     
     CLUSTER_COLLAPSE_RADIUS = np.float32(0.011582073434000193) # decimal degrees (1287 m)
+    EARTH_RADIUS_IN_METERS = 6371000
+    EARTH_RADIUS_IN_KILOMETERS = 6371
     
     def __init__(self, filter_columns: dict = {}, filter_args: dict = {}, var_code: str = '', quiet_mode: bool = False):
         super().__init__(filter_columns, filter_args, var_code, quiet_mode)
@@ -203,14 +206,41 @@ class ObservationsKiwisFilter(KiwisFilter):
         self.provider_radius = {}
         for provider_id in self.args:
             radius_km = self.args[provider_id]
-            radius = self.kilometers2degrees(radius_km)
-            self.provider_radius[provider_id] = radius
+            # radius = self.kilometers2degrees(radius_km)
+            self.provider_radius[provider_id] = radius_km
     
     @staticmethod
-    def kilometers2degrees(km: np.float32) -> np.float32:
+    def kilometers2degrees_approximated(radius_km: np.float32) -> np.float32:
         # Convert km to degrees of latitude
-        delta_lat = km * np.float32(0.00899928005)
+        delta_lat = radius_km * np.float32(0.00899928005)
         return delta_lat
+    
+    @staticmethod
+    def kilometers2degrees(radius_km: np.float32) -> np.float32:
+        # Convert the radius from km to radians (using the Haversine formula)
+        radius_rad = geodesic(kilometers=radius_km).meters / ObservationsKiwisFilter.EARTH_RADIUS_IN_METERS
+        return np.float32(radius_rad)
+    
+    @staticmethod
+    def calculate_radius(lat: np.float32, lon: np.float32, radius_km: np.float32) -> Tuple[np.float32, np.float32]:
+        """
+        Calculate the radius around a point in decimal degrees.
+        
+        Args:
+            lat (float): Latitude of the point in decimal degrees.
+            lon (float): Longitude of the point in decimal degrees.
+            km (float): Radius in kilometers.
+        
+        Returns:
+            tuple: Radius in decimal degrees for latitude and longitude.
+        """
+        # Convert kilometers to radians
+        km_to_rad = radius_km / ObservationsKiwisFilter.EARTH_RADIUS_IN_KILOMETERS
+        # Calculate the radius in decimal degrees for latitude
+        lat_degrees = km_to_rad * (180 / math.pi)
+        # Calculate the radius in decimal degrees for longitude at the given latitude
+        lon_degrees = km_to_rad * (180 / math.pi) / math.cos(math.radians(lat))
+        return abs(lat_degrees), abs(lon_degrees)
 
     def apply_filter(self, df: pd.DataFrame) -> pd.DataFrame:
         df = super().apply_filter(df)
@@ -230,7 +260,10 @@ class ObservationsKiwisFilter(KiwisFilter):
         cur_provider_id = row[self.COL_PROVIDER_ID]
         if cur_provider_id == provider_id:
             location = (row[self.COL_LON], row[self.COL_LAT])
-            nearby_points = tree.query_ball_point(location, radius)
+            radius_lat_degrees, radius_lon_degrees = self.calculate_radius(lat=np.float32(row[self.COL_LAT]),
+                                                                           lon=np.float32(row[self.COL_LON]),
+                                                                           radius_km=radius)
+            nearby_points = tree.query_ball_point(location, radius_lon_degrees)
             return len(nearby_points) > 0
         return False
 
@@ -424,7 +457,10 @@ class DowgradedDailyTo6HourlyObservationsKiwisFilter(ObservationsKiwisFilter):
         decumulated_value = cur_24h_value
         if cur_provider_id == provider_id:
             location = (row[self.COL_LON], row[self.COL_LAT])
-            nearby_points = tree.query_ball_point(location, radius)
+            radius_lat_degrees, radius_lon_degrees = self.calculate_radius(lat=np.float32(row[self.COL_LAT]),
+                                                                           lon=np.float32(row[self.COL_LON]),
+                                                                           radius_km=radius)
+            nearby_points = tree.query_ball_point(location, radius_lon_degrees)
             stations_6h = stations_6h_df.loc[stations_6h_df.index.isin(nearby_points)][['sum_6h_values', 'count_6h_slots']]
             if stations_6h.empty:
                 return decumulated_value
