@@ -18,7 +18,7 @@ import os, sys, glob, time, pdb
 import pandas as pd
 import numpy as np
 from netCDF4 import Dataset
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from tools import *
 import rasterio
 
@@ -74,9 +74,9 @@ def main():
         print('Loading and upscaling '+str(pop_years[ii])+' population data')
 
         # Load raw data (total population per grid-cell)
-        # Factor 16 to account for resampling from 0.0025 to 0.01 degrees
-        src = rasterio.open(os.path.join(config['ghsl_folder'],'GHS_POP_E'+str(pop_years[ii])+'_GLOBE_R2019A_4326_9ss_V1_0','GHS_POP_E'+str(pop_years[ii])+'_GLOBE_R2019A_4326_9ss_V1_0_reprojected.tif'))
-        pop_data = src.read(1).astype(np.single)*16
+        # Factor ghsl_folder_factor = 144 to account for resampling from 0.000833 (3 arcsec) to 0.01 degrees
+        src = rasterio.open(os.path.join(config['ghsl_folder'],'GHS_POP_E'+str(pop_years[ii])+'_GLOBE_R2023A_4326_3ss_V1_0','GHS_POP_E'+str(pop_years[ii])+'_GLOBE_R2023A_4326_3ss_V1_0_reprojected.tif'))
+        pop_data = src.read(1).astype(np.single)*config['ghsl_folder_factor']
         pop_data[pop_data<0] = 0
         refmatrix = src.get_transform()
         src.close()

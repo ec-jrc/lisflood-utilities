@@ -71,7 +71,7 @@ def main():
     print('-------------------------------------------------------------------------------')
     print('Loading and resampling country border raster')
     t0 = time.time()
-    country_code_map = load_country_code_map(os.path.join(config['world_borders_folder'],'TM_WORLD_BORDERS_UN_rasterized.tif'),mapsize_global)
+    country_code_map = load_country_code_map(os.path.join(config['world_borders_folder'],'CNTR_RG_01M_2024_4326_rasterized.tif'),mapsize_global)
     country_code_map_360x720 = resize(country_code_map,(360,720),order=0,mode='edge',anti_aliasing=False)
     print("Time elapsed is "+str(time.time()-t0)+" sec")
 
