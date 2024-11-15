@@ -18,7 +18,7 @@ import os, sys, glob, time, pdb
 import pandas as pd
 import numpy as np
 from netCDF4 import Dataset
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from skimage.transform import resize
 from tools import *
 import rasterio
@@ -666,39 +666,39 @@ def main():
         #   Plot figure
         #--------------------------------------------------------------------------
 
-        # Initialize figure
-        f, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True)
+        # # Initialize figure
+        # f, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True)
         
-        # Subpanel 1
-        ax1.plot(years,table_aquastat_industry_withdrawal[jj,:],'*',label='FAO industry withdrawal',color=(0.5,0.5,0.5))
-        ax1.plot(years,table_gcam_withdrawal_industry[jj,:],'+',label='GCAM industry withdrawal',color=(0,0.5,0))
-        ax1.plot(years,table_gcam_withdrawal_industry[jj,:]-table_gcam_withdrawal_thermoelectric[jj,:],'+',label='GCAM manufacturing withdrawal',color=(0,1,0))
-        ax1.plot(years,table_withdrawal_industry[jj,:],label='Beck industry withdrawal',color=(0.5,0,0))
-        ax1.plot(years,table_withdrawal_manufacturing[jj,:],label='Beck manufacturing withdrawal',color=(1,0,0))
-        ax1.legend()
-        ax1.set_ylabel('Withdrawal (km^3/year)')
-        ax1.set_title(country_name)
+        # # Subpanel 1
+        # ax1.plot(years,table_aquastat_industry_withdrawal[jj,:],'*',label='FAO industry withdrawal',color=(0.5,0.5,0.5))
+        # ax1.plot(years,table_gcam_withdrawal_industry[jj,:],'+',label='GCAM industry withdrawal',color=(0,0.5,0))
+        # ax1.plot(years,table_gcam_withdrawal_industry[jj,:]-table_gcam_withdrawal_thermoelectric[jj,:],'+',label='GCAM manufacturing withdrawal',color=(0,1,0))
+        # ax1.plot(years,table_withdrawal_industry[jj,:],label='Beck industry withdrawal',color=(0.5,0,0))
+        # ax1.plot(years,table_withdrawal_manufacturing[jj,:],label='Beck manufacturing withdrawal',color=(1,0,0))
+        # ax1.legend()
+        # ax1.set_ylabel('Withdrawal (km^3/year)')
+        # ax1.set_title(country_name)
         
-        # Subpanel 2
-        ax2.plot(years,table_Huang_withdrawal_industry[jj,:],label='Huang industry withdrawal',color=(0,0,0.5))
-        ax2.plot(years,table_Huang_withdrawal_manufacturing[jj,:],label='Huang manufacturing withdrawal',color=(0,0,1))
-        ax2.plot(years,table_withdrawal_industry[jj,:],label='Beck industry withdrawal',color=(0.5,0,0))
-        ax2.plot(years,table_withdrawal_manufacturing[jj,:],label='Beck manufacturing withdrawal',color=(1,0,0))
-        ax2.legend()
-        ax2.set_ylabel('Withdrawal (km^3/year)')
-        ax2.set_title(country_name)
+        # # Subpanel 2
+        # ax2.plot(years,table_Huang_withdrawal_industry[jj,:],label='Huang industry withdrawal',color=(0,0,0.5))
+        # ax2.plot(years,table_Huang_withdrawal_manufacturing[jj,:],label='Huang manufacturing withdrawal',color=(0,0,1))
+        # ax2.plot(years,table_withdrawal_industry[jj,:],label='Beck industry withdrawal',color=(0.5,0,0))
+        # ax2.plot(years,table_withdrawal_manufacturing[jj,:],label='Beck manufacturing withdrawal',color=(1,0,0))
+        # ax2.legend()
+        # ax2.set_ylabel('Withdrawal (km^3/year)')
+        # ax2.set_title(country_name)
             
-        # Subpanel 3
-        ax3.plot(years,table_worldbank_gdp[jj,:],label='GDP',color='g')
-        ax3.plot(years,table_worldbank_mva[jj,:],label='MVA',color='b')
-        ax3.legend()
-        ax3.set_ylabel('Constant 2010 US$')
-        ax3.set_title(country_name)    
+        # # Subpanel 3
+        # ax3.plot(years,table_worldbank_gdp[jj,:],label='GDP',color='g')
+        # ax3.plot(years,table_worldbank_mva[jj,:],label='MVA',color='b')
+        # ax3.legend()
+        # ax3.set_ylabel('Constant 2010 US$')
+        # ax3.set_title(country_name)    
         
-        # Save figure
-        f.set_size_inches(10, 10)
-        plt.savefig(os.path.join(config['output_folder'],'step3a_industrial_demand','figures',str(jj).zfill(3)+'_'+country_name+'.png'),dpi=150)
-        plt.close()
+        # # Save figure
+        # f.set_size_inches(10, 10)
+        # plt.savefig(os.path.join(config['output_folder'],'step3a_industrial_demand','figures',str(jj).zfill(3)+'_'+country_name+'.png'),dpi=150)
+        # plt.close()
             
     # Save to csv
     pd.DataFrame(table_withdrawal_data_source,index=country_codes['name'],columns=['Withdrawal data source']).to_csv(os.path.join(config['output_folder'],'step3a_industrial_demand','tables','withdrawal_data_source.csv'))

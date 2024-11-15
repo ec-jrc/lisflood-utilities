@@ -18,7 +18,7 @@ import os, sys, glob, time, pdb
 import pandas as pd
 import numpy as np
 from netCDF4 import Dataset
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from skimage.transform import resize
 from tools import *
 import rasterio
@@ -106,10 +106,10 @@ def main():
     for jj in np.arange(country_codes.shape[0]):
         country_code = country_codes.iloc[jj]['country-code']    
         for ii in np.arange(len(years)):
-            sel_ir = (aquastat['m49']==country_code) & (aquastat['Variable Name']=='Irrigation water withdrawal') & (aquastat['Year']==years[ii])
+            sel_ir = (aquastat['m49']==country_code) & (aquastat['Variable']=='Irrigation water withdrawal') & (aquastat['Year']==years[ii])
             if np.sum(sel_ir)>0:
                 table_aquastat_irrigation_withdrawal[jj,ii] = aquastat['Value'][sel_ir].values # km3/year
-            sel_ag = (aquastat['m49']==country_code) & (aquastat['Variable Name']=='Agricultural water withdrawal') & (aquastat['Year']==years[ii])
+            sel_ag = (aquastat['m49']==country_code) & (aquastat['Variable']=='Agricultural water withdrawal') & (aquastat['Year']==years[ii])
             if np.sum(sel_ag)>0:
                 table_aquastat_agriculture_withdrawal[jj,ii] = aquastat['Value'][sel_ag].values # km3/year
     
@@ -291,13 +291,13 @@ def main():
     stats.spearmanr(aquastat[sel], huang[sel])
     stats.spearmanr(gcam[sel], huang[sel])
     
-    # What do the different distributions look like?
-    plt.figure(figsize=(8,6))
-    plt.hist(aquastat[sel], bins=300, alpha=0.5, range=(0,15), label="aquastat")
-    plt.hist(gcam[sel], bins=300, alpha=0.5, range=(0,15), label="gcam")
-    plt.hist(huang[sel], bins=300, alpha=0.5, range=(0,15), label="huang")
-    plt.legend()
-    plt.show(block=False)    
+    # # What do the different distributions look like?
+    # plt.figure(figsize=(8,6))
+    # plt.hist(aquastat[sel], bins=300, alpha=0.5, range=(0,15), label="aquastat")
+    # plt.hist(gcam[sel], bins=300, alpha=0.5, range=(0,15), label="gcam")
+    # plt.hist(huang[sel], bins=300, alpha=0.5, range=(0,15), label="huang")
+    # plt.legend()
+    # plt.show(block=False)    
         
     # Can we derive a simple correction factor to improve the GCAM+GLW estimates? Not really because mean and median give opposite results...
     np.mean(aquastat[sel])/np.mean(gcam[sel])
@@ -449,26 +449,26 @@ def main():
         #   Plot figure
         #--------------------------------------------------------------------------
     
-        # Initialize figure
-        f, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
+        # # Initialize figure
+        # f, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
         
-        # Subpanel 1
-        ax1.imshow(np.sqrt(imresize_mean(data_annual_map,(360,720))),vmin=0,vmax=15,cmap=plt.get_cmap('YlGnBu'))
-        ax1.set_title('Beck et al. (2022) withdrawal (mm/month)')
+        # # Subpanel 1
+        # ax1.imshow(np.sqrt(imresize_mean(data_annual_map,(360,720))),vmin=0,vmax=15,cmap=plt.get_cmap('YlGnBu'))
+        # ax1.set_title('Beck et al. (2022) withdrawal (mm/month)')
 
-        # Subpanel 2
-        try:
-            varindex = 0
-            timeindex = year-1971
-            ax2.imshow(np.sqrt(np.sum(Huang_withdrawal[varindex,:,:,np.arange(timeindex*12,timeindex*12+12)],axis=0)),vmin=0,vmax=15,cmap=plt.get_cmap('YlGnBu'))
-            ax2.set_title('Huang et al. (2018) withdrawal (mm/month)')
-        except:
-            pass
+        # # Subpanel 2
+        # try:
+        #     varindex = 0
+        #     timeindex = year-1971
+        #     ax2.imshow(np.sqrt(np.sum(Huang_withdrawal[varindex,:,:,np.arange(timeindex*12,timeindex*12+12)],axis=0)),vmin=0,vmax=15,cmap=plt.get_cmap('YlGnBu'))
+        #     ax2.set_title('Huang et al. (2018) withdrawal (mm/month)')
+        # except:
+        #     pass
     
-        # Save figure
-        f.set_size_inches(10, 10)
-        plt.savefig(os.path.join(config['output_folder'],'step4_livestock_demand','figures',varname+'_'+str(year)+'.png'),dpi=150)
-        plt.close()
+        # # Save figure
+        # f.set_size_inches(10, 10)
+        # plt.savefig(os.path.join(config['output_folder'],'step4_livestock_demand','figures',varname+'_'+str(year)+'.png'),dpi=150)
+        # plt.close()
             
         
         #--------------------------------------------------------------------------

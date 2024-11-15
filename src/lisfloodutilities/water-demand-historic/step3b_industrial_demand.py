@@ -18,7 +18,7 @@ import os, sys, glob, time, pdb
 import pandas as pd
 import numpy as np
 from netCDF4 import Dataset
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from skimage.transform import resize
 from tools import *
 import rasterio
@@ -298,27 +298,27 @@ def main():
             #   Plot figure
             #--------------------------------------------------------------------------
         
-            # Initialize figure
-            f, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
+            # # Initialize figure
+            # f, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
             
-            # Subpanel 1
-            ax1.imshow(np.sqrt(imresize_mean(data_annual_map,(360,720))),vmin=0,vmax=15,cmap=plt.get_cmap('YlGnBu'))
-            ax1.set_title('Beck et al. (2022) withdrawal (mm/month)')
+            # # Subpanel 1
+            # ax1.imshow(np.sqrt(imresize_mean(data_annual_map,(360,720))),vmin=0,vmax=15,cmap=plt.get_cmap('YlGnBu'))
+            # ax1.set_title('Beck et al. (2022) withdrawal (mm/month)')
 
-            # Subpanel 2
-            try:
-                if varname=='ene': varindex = 0
-                if varname=='ind': varindex = 1
-                timeindex = year-1971
-                ax2.imshow(np.sqrt(np.sum(Huang_withdrawal[varindex,:,:,np.arange(timeindex*12,timeindex*12+12)],axis=0)),vmin=0,vmax=15,cmap=plt.get_cmap('YlGnBu'))
-                ax2.set_title('Huang et al. (2018) withdrawal (mm/month)')
-            except:
-                pass
+            # # Subpanel 2
+            # try:
+            #     if varname=='ene': varindex = 0
+            #     if varname=='ind': varindex = 1
+            #     timeindex = year-1971
+            #     ax2.imshow(np.sqrt(np.sum(Huang_withdrawal[varindex,:,:,np.arange(timeindex*12,timeindex*12+12)],axis=0)),vmin=0,vmax=15,cmap=plt.get_cmap('YlGnBu'))
+            #     ax2.set_title('Huang et al. (2018) withdrawal (mm/month)')
+            # except:
+            #     pass
         
-            # Save figure
-            f.set_size_inches(10, 10)
-            plt.savefig(os.path.join(config['output_folder'],'step3b_industrial_demand','figures',varname+'_'+str(year)+'.png'),dpi=150)
-            plt.close()
+            # # Save figure
+            # f.set_size_inches(10, 10)
+            # plt.savefig(os.path.join(config['output_folder'],'step3b_industrial_demand','figures',varname+'_'+str(year)+'.png'),dpi=150)
+            # plt.close()
                 
             
             #--------------------------------------------------------------------------

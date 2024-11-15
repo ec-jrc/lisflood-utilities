@@ -401,25 +401,25 @@ def main():
         #   Plot figure
         #--------------------------------------------------------------------------
     
-        # Initialize figure
-        f, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
+        # # Initialize figure
+        # f, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
         
-        # Subpanel 1
-        ax1.imshow(np.sqrt(imresize_mean(data_annual_map,(360,720))),vmin=0,vmax=12,cmap=plt.get_cmap('YlGnBu'))
-        ax1.set_title('Beck et al. (2022) withdrawal (mm/month)')
+        # # Subpanel 1
+        # ax1.imshow(np.sqrt(imresize_mean(data_annual_map,(360,720))),vmin=0,vmax=12,cmap=plt.get_cmap('YlGnBu'))
+        # ax1.set_title('Beck et al. (2022) withdrawal (mm/month)')
 
-        # Subpanel 2
-        try:
-            timeindex = year-1971
-            ax2.imshow(np.sqrt(np.sum(Huang_withdrawal[:,:,np.arange(timeindex*12,timeindex*12+12)],axis=2)),vmin=0,vmax=12,cmap=plt.get_cmap('YlGnBu'))
-            ax2.set_title('Huang et al. (2018) withdrawal (mm/month)')
-        except:
-            pass
+        # # Subpanel 2
+        # try:
+        #     timeindex = year-1971
+        #     ax2.imshow(np.sqrt(np.sum(Huang_withdrawal[:,:,np.arange(timeindex*12,timeindex*12+12)],axis=2)),vmin=0,vmax=12,cmap=plt.get_cmap('YlGnBu'))
+        #     ax2.set_title('Huang et al. (2018) withdrawal (mm/month)')
+        # except:
+        #     pass
     
-        # Save figure
-        f.set_size_inches(10, 10)
-        plt.savefig(os.path.join(config['output_folder'],'step2_domestic_demand','figures','dom_'+str(year)+'.png'),dpi=150)
-        plt.close()
+        # # Save figure
+        # f.set_size_inches(10, 10)
+        # plt.savefig(os.path.join(config['output_folder'],'step2_domestic_demand','figures','dom_'+str(year)+'.png'),dpi=150)
+        # plt.close()
         
         print("Time elapsed is "+str(time.time()-t0)+" sec")
 
