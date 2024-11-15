@@ -90,7 +90,7 @@ def main():
     print('-------------------------------------------------------------------------------')
     print('Loading and resampling US state border raster')
     t0 = time.time()
-    state_code_map = load_us_state_code_map(os.path.join(config['us_states_folder'],'cb_2018_us_state_500k_rasterized.tif'),mapsize_global)
+    state_code_map = load_us_state_code_map(os.path.join(config['us_states_folder'],'cb_2023_us_state_500k_rasterized.tif'),mapsize_global)
     print("Time elapsed is "+str(time.time()-t0)+" sec")
 
 
