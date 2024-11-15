@@ -368,7 +368,7 @@ def main():
     for jj in np.arange(country_codes.shape[0]):
         country_code = country_codes.iloc[jj]['country-code']    
         for ii in np.arange(len(years)):
-            sel = (aquastat['Area Id']==country_code) & (aquastat['Variable Name']=='Industrial water withdrawal') & (aquastat['Year']==years[ii])
+            sel = (aquastat['M49']==country_code) & (aquastat['Variable Name']=='Industrial water withdrawal') & (aquastat['Year']==years[ii])
             if np.sum(sel)==0: continue
             table_aquastat_industry_withdrawal[jj,ii] = aquastat['Value'][sel].values # km3/year
 
