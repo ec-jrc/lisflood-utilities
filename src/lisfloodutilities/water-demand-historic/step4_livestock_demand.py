@@ -106,10 +106,10 @@ def main():
     for jj in np.arange(country_codes.shape[0]):
         country_code = country_codes.iloc[jj]['country-code']    
         for ii in np.arange(len(years)):
-            sel_ir = (aquastat['M49']==country_code) & (aquastat['Variable Name']=='Irrigation water withdrawal') & (aquastat['Year']==years[ii])
+            sel_ir = (aquastat['m49']==country_code) & (aquastat['Variable Name']=='Irrigation water withdrawal') & (aquastat['Year']==years[ii])
             if np.sum(sel_ir)>0:
                 table_aquastat_irrigation_withdrawal[jj,ii] = aquastat['Value'][sel_ir].values # km3/year
-            sel_ag = (aquastat['M49']==country_code) & (aquastat['Variable Name']=='Agricultural water withdrawal') & (aquastat['Year']==years[ii])
+            sel_ag = (aquastat['m49']==country_code) & (aquastat['Variable Name']=='Agricultural water withdrawal') & (aquastat['Year']==years[ii])
             if np.sum(sel_ag)>0:
                 table_aquastat_agriculture_withdrawal[jj,ii] = aquastat['Value'][sel_ag].values # km3/year
     
