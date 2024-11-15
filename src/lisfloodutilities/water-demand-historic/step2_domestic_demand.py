@@ -174,7 +174,7 @@ def main():
         country_code = country_codes.iloc[jj]['country-code']
 
         # Find location of data in AQUASTAT table
-        sel = np.where((aquastat['m49']==country_code) & (aquastat['Variable Name']=='Municipal water withdrawal'))[0]
+        sel = np.where((aquastat['m49']==country_code) & (aquastat['Variable']=='Municipal water withdrawal'))[0]
         if len(sel)==0: 
             continue
             
