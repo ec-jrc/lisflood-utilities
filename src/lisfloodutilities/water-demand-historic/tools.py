@@ -35,8 +35,8 @@ def load_country_code_map(filepath,mapsize):
     assert (country_code_map_refmatrix[0]==-180) & (country_code_map_refmatrix[3]==90)
 
     country_code_map = resize(country_code_map,mapsize,order=0,mode='edge',anti_aliasing=False)
-    country_code_map[country_code_map==158] = 156 # Add Taiwan to China
-    country_code_map[country_code_map==736] = 729 # South Sudan missing from map
+    # apply the fill algorithm to fill the gaps of the Disputed Territories (code>1000), so that the fill algorithm will set each pixel value to their nearest neighbour
+    country_code_map = fill(country_code_map, country_code_map>1000) # CR: check here: the fill algorithm includes also zero as a neighbour country code, so that isles and some land area will be replaced by ocean
     country_code_map[country_code_map==0] = np.NaN
     
     return country_code_map

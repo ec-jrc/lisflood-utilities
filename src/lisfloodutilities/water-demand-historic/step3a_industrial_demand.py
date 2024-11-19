@@ -731,7 +731,10 @@ def main():
             ndays = monthrange(year,month)[1]
             mswx_month = np.zeros((1800,3600,ndays),dtype=np.single)*np.NaN
             for day in np.arange(1,ndays+1):
-                filepath = os.path.join(config['mswx_folder'],'Past','Temp','Daily',datetime(year,month,day).strftime('%Y%j')+'.nc')
+                if year<1979:   #MSWX dataset starts from 1979
+                    filepath = os.path.join(config['mswx_folder'],'Past','Temp','Daily',datetime(1979,month,day).strftime('%Y%j')+'.nc')
+                else:
+                    filepath = os.path.join(config['mswx_folder'],'Past','Temp','Daily',datetime(year,month,day).strftime('%Y%j')+'.nc')
                 if os.path.isfile(filepath):
                     dset = Dataset(filepath)
                     mswx_month[:,:,day-1] = np.squeeze(np.array(dset.variables['air_temperature']))

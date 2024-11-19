@@ -340,7 +340,10 @@ def main():
         # Load MSWX air temperature data
         mswx_monthly = np.zeros((mapsize_global[0],mapsize_global[1],12),dtype=np.single)*np.NaN
         for month in np.arange(1,13):
-            dset = Dataset(os.path.join(config['mswx_folder'],'Past','Temp','Monthly',str(year)+str(month).zfill(2)+'.nc'))
+            if year<1979:  #MSWX dataset starts from 1979
+                dset = Dataset(os.path.join(config['mswx_folder'],'Past','Temp','Monthly',str(1979)+str(month).zfill(2)+'.nc'))
+            else:
+                dset = Dataset(os.path.join(config['mswx_folder'],'Past','Temp','Monthly',str(year)+str(month).zfill(2)+'.nc'))
             data = np.squeeze(np.array(dset.variables['air_temperature']))
             mswx_monthly[:,:,month-1] = imresize_mean(data,mapsize_global)
         mswx_avg = np.mean(mswx_monthly,axis=2)
