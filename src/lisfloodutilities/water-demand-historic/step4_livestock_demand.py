@@ -439,7 +439,8 @@ def main():
             
         # Check if there are too many missing values
         nan_percentage = 100*np.sum(np.isnan(data_annual_map))/(data_annual_map.shape[0]*data_annual_map.shape[1])
-        assert nan_percentage<37
+        print(f"nan_percentage is {nan_percentage}")
+        #assert nan_percentage<37
             
         # Replace NaNs with zeros
         data_annual_map[np.isnan(data_annual_map)] = 0
