@@ -732,7 +732,11 @@ def main():
             mswx_month = np.zeros((1800,3600,ndays),dtype=np.single)*np.NaN
             for day in np.arange(1,ndays+1):
                 if year<1979:   #MSWX dataset starts from 1979
-                    filepath = os.path.join(config['mswx_folder'],'Past','Temp','Daily',datetime(1979,month,day).strftime('%Y%j')+'.nc')
+                    try:
+                        date=datetime(1979,month,day)
+                    except: # fix for Leap years < 1979
+                        date=datetime(1979,month,day-1)
+                    filepath = os.path.join(config['mswx_folder'],'Past','Temp','Daily',date.strftime('%Y%j')+'.nc')
                 else:
                     filepath = os.path.join(config['mswx_folder'],'Past','Temp','Daily',datetime(year,month,day).strftime('%Y%j')+'.nc')
                 if os.path.isfile(filepath):
