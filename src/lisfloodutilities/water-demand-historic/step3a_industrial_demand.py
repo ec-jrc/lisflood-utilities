@@ -474,11 +474,11 @@ def main():
         # Aggregate different sectors
         sel = ["Reference" in s for s in gcam_output['scenario']] &\
             (gcam_output['region']==region_name) &\
-            (gcam_output['sector'].isin(['biomass', 'electricity', 'industry', 'nuclearFuelGenII', 'nuclearFuelGenIII', 'regional coal', 'regional natural gas', 'regional oil']))
+            (gcam_output['sector'].isin(['biomass', 'electricity', 'H2 industrial', 'other industry', 'nuclearFuelGenII', 'nuclearFuelGenIII', 'regional coal', 'regional oil']))
         gcam_industry_withdrawal = np.sum(gcam_output.iloc[np.where(sel)[0],3:-1].values,axis=0) # km3/year
         sel = ["Reference" in s for s in gcam_output['scenario']] &\
             (gcam_output['region']==region_name) &\
-            (gcam_output['sector'].isin(['biomass', 'electricity', 'nuclearFuelGenII', 'nuclearFuelGenIII', 'regional coal', 'regional natural gas', 'regional oil']))
+            (gcam_output['sector'].isin(['biomass', 'electricity', 'nuclearFuelGenII', 'nuclearFuelGenIII', 'regional coal', 'regional oil']))
         gcam_thermoelectric_withdrawal = np.sum(gcam_output.iloc[np.where(sel)[0],3:-1].values,axis=0) # km3/year    
         gcam_years = np.array([int(x) for x in gcam_output.columns[3:-1].values])    
         
