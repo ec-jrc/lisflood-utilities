@@ -169,6 +169,9 @@ def main():
 
     aquastat = pd.read_csv(os.path.join(config['aquastat_folder'],'aquastat_clean.csv'),index_col=False)
 
+    # sort the dataframe by year to allow fao_years extrapolations
+    aquastat.sort_values(by=['Area', 'm49', 'Variable', 'Year'], ignore_index=True, inplace=True)
+
     table_aquastat_domestic_withdrawal_interp = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.NaN
     for jj in np.arange(country_codes.shape[0]):
         country_code = country_codes.iloc[jj]['country-code']
@@ -282,18 +285,19 @@ def main():
         '''
         
         # Load withdrawal estimates for 1985 from USGS table
-        ii = years.tolist().index(1985)
-        row = USGS_1985_data_table.iloc[:,0].tolist().index(state_acr)
-        col1 = USGS_1985_data_table.columns.tolist().index('do-sstot')
-        col2 = USGS_1985_data_table.columns.tolist().index('do-total')        
-        table_usgs_domestic_withdrawal[jj,ii] = 365.25*(USGS_1985_data_table.iloc[row,col1]+USGS_1985_data_table.iloc[row,col2])*4.54609*10**-6 # Mgal/d to km3/yr
-        col = USGS_1985_data_table.columns.tolist().index('in-wtofr')
-        table_usgs_manufacturing_withdrawal[jj,ii] = 365.25*USGS_1985_data_table.iloc[row,col]*4.54609*10**-6 # Mgal/d to km3/yr
-        col = USGS_1985_data_table.columns.tolist().index('pt-frtot')
-        table_usgs_thermoelectric_withdrawal[jj,ii] = 365.25*USGS_1985_data_table.iloc[row,col]*4.54609*10**-6 # Mgal/d to km3/yr
-        col = USGS_1985_data_table.columns.tolist().index('lv-total')
-        table_usgs_livestock_withdrawal[jj,ii] = 365.25*USGS_1985_data_table.iloc[row,col]*4.54609*10**-6 # Mgal/d to km3/yr
-        
+        if (1985 in years):
+            ii = years.tolist().index(1985)
+            row = USGS_1985_data_table.iloc[:,0].tolist().index(state_acr)
+            col1 = USGS_1985_data_table.columns.tolist().index('do-sstot')
+            col2 = USGS_1985_data_table.columns.tolist().index('do-total')        
+            table_usgs_domestic_withdrawal[jj,ii] = 365.25*(USGS_1985_data_table.iloc[row,col1]+USGS_1985_data_table.iloc[row,col2])*4.54609*10**-6 # Mgal/d to km3/yr
+            col = USGS_1985_data_table.columns.tolist().index('in-wtofr')
+            table_usgs_manufacturing_withdrawal[jj,ii] = 365.25*USGS_1985_data_table.iloc[row,col]*4.54609*10**-6 # Mgal/d to km3/yr
+            col = USGS_1985_data_table.columns.tolist().index('pt-frtot')
+            table_usgs_thermoelectric_withdrawal[jj,ii] = 365.25*USGS_1985_data_table.iloc[row,col]*4.54609*10**-6 # Mgal/d to km3/yr
+            col = USGS_1985_data_table.columns.tolist().index('lv-total')
+            table_usgs_livestock_withdrawal[jj,ii] = 365.25*USGS_1985_data_table.iloc[row,col]*4.54609*10**-6 # Mgal/d to km3/yr
+                
         # Load withdrawal estimates for 1990 from USGS table
         ii = years.tolist().index(1990)
         row = USGS_1990_data_table.iloc[:,0].tolist().index(state_acr)
