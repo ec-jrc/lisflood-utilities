@@ -97,9 +97,9 @@ def load_config(filepath):
     df = pd.read_csv(filepath,header=None,index_col=False)
     config = {}
     for ii in np.arange(len(df)): 
-        string = df.iloc[ii,0].replace(" ","")
-        varname = string.rpartition('=')[0]
-        varcontents = string.rpartition('=')[2]
+        string = df.iloc[ii,0]
+        varname = string.rpartition('=')[0].strip()
+        varcontents = string.rpartition('=')[2].strip()
         try:
             varcontents = float(varcontents)
         except:

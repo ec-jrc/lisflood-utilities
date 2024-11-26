@@ -459,7 +459,7 @@ def main():
     ncfile.variables['lat'].long_name = 'latitude'
 
     ncfile.createVariable('time', 'f8', 'time')
-    ncfile.variables['time'].units = 'days since 1979-01-02 00:00:00'
+    ncfile.variables['time'].units = 'days since {}'.format(pd.to_datetime(datetime(int(config['year_start']), 1, int(1+config['shift_hours_units_start']/24), int(config['shift_hours_units_start']%24))))
     ncfile.variables['time'].long_name = 'time'
     ncfile.variables['time'].calendar = 'proleptic_gregorian'
 
@@ -479,7 +479,7 @@ def main():
             
             index = (year-config['year_start'])*12+month-1
              
-            ncfile.variables['time'][index] = (pd.to_datetime(datetime(year,month,1))-pd.to_datetime(datetime(1979, 1, 1))).total_seconds()/86400    
+            ncfile.variables['time'][index] = (pd.to_datetime(datetime(year,month,1))-pd.to_datetime(datetime(config['year_start'], 1, 1))).total_seconds()/86400    
             ncfile.variables[varname][index,:,:] = data
             
             print("Time elapsed is "+str(time.time()-t0)+" sec")
