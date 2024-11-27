@@ -208,7 +208,7 @@ def main():
         for month in np.arange(1,13):
             
             index = (year-config['year_start'])*12+month-1
-            ncfile.variables['time'][index] = (pd.to_datetime(datetime(year,month,1))-pd.to_datetime(datetime(config['year_start'], 1, 1))).total_seconds()/86400    
+            ncfile.variables['time'][index] = (pd.to_datetime(datetime(year,month,1))-pd.to_datetime(datetime(int(config['year_start']), 1, 1))).total_seconds()/86400    
             ncfile.variables[varname][index,:,:] = data
             
     print("Time elapsed is "+str(time.time()-t0)+" sec")
