@@ -1,13 +1,11 @@
-#!/usr/local/apps/python3/3.10.10-01/bin/python3.10
-
-#   This is a script to create a mask of pixels with mild channel slopes
-#   It takes the channel slopes map (changrad.nc), the LDD (ldd.nc) and the threshold for the channels slope.
-#   Pixels where river slope < threshold are added to the mask
-#   Only pixels that have a minimum number of consecutive mild sloping downstream pixels are added to the mask.
+#   This is a script to create a mask with mild sloping river pixels.
+#   It takes LISFLOOD channels slope map (changrad.nc), the LDD (ldd.nc) and mask of the catchment/domain.
+#   Pixels where river slope < threshold are added to the mask, if drainage area is large enough.
+#   A minimum number of consecutive mild sloping downstream pixels is required for a pixel to be added to the mask.
 #   It requires PCRaster.
 #   
 #   Usage:
-#   make_MCT_slope_mask.py -i changrad.nc -l ec_ldd.nc -m mask.nc -S 0.001 -N 5 -E y x -u upArea.nc -U 500  -O chanmct.nc
+#   mctrivers.py -i changrad.nc -l ec_ldd.nc -m mask.nc -u upArea.nc -E y x -S 0.001 -N 5 -U 500 -O chanmct.nc
 
 
 import xarray as xr
@@ -23,9 +21,9 @@ def getarg():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--changradfile', type=str, required=True,
-                        help='Changrad file with channel bed slope (chagrad.nc)')
+                        help='Changrad file with channels riverbed bed slope (chagrad.nc)')
     parser.add_argument('-l', '--LDDfile', type=str, required=True,
-                        help='LDD file (ldd.nc)')
+                        help='LISFLOOD LDD file (ldd.nc)')
     parser.add_argument('-u', '--uparea', type=str, required=True,
                         help='Upstream area file (upArea.nc)')
     parser.add_argument('-m', '--maskfile', type=str, required=True,
@@ -39,7 +37,7 @@ def getarg():
     parser.add_argument('-E', '--coordsnames', type=str, nargs='+', required=False, default="None",
                         help='Coords names for lat, lon (in this order with space!) from the netcdf files used')
     parser.add_argument('-O', '--outputfilename', type=str, required=False, default="chanmct.nc",
-                        help='Output file (cahnmct.nc)')
+                        help='Output file (chanmct.nc)')
     args = parser.parse_args()  # assign namespace to args
     return args
 
@@ -70,7 +68,7 @@ def main():
     
         if len(x_proj)!=1 or len(y_proj)!=1:
             print('Input dataset coords names for lat/lon are not as expected.')
-            print(f'The available coords are: {list(CH.coords)}')
+            print(f'The available coords are: {list(LD.coords)}')
             print(f'The checked names are {y_checks} and {x_checks} for lat and lon respectively.')
             print('Please use -E argument and give the coords names !with space in between! in order: lan lon')
             exit(1)
