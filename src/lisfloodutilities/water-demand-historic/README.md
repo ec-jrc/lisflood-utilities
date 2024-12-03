@@ -32,7 +32,7 @@ Rasterize to 0.01° using `gdal_rasterize -l CNTR_RG_01M_2024_4326 -a country-co
 -->
 
 The locations of the datasets and files are specified in the configuration file (see the `config.cfg` example). The script also requires a template map which defines the output resolution and area. The template map should be in netCDF-4 format and contain `lat` and `lon` variables and a data variable (any name). The location of the template map is specified using `templatemap_path` in the configuration file. The data are produced for the period spanning `year_start` to `year_end` and saved in netCDF-4 format to `output_folder` (all specified in the configuration file). 
-The option `shift_hours_units_start = 24` indicates the number of hours to shift the time reference unit when producing the maps to be used in Lisflood EFAS (12 hours) and GloFAS (24 hours). It will affect the reference units field (e.g. "days since 1979-01-01 12:00:00") in the NetCDF output file.
+The option `shift_hours_units_start = 24` indicates the number of hours to shift the time reference unit for consistency with [end-of-the-timestep convention](https://ec-jrc.github.io/lisflood-code/2_ESSENTIAL_time-management) within OS Lisflood. It will affect the reference units field (e.g. "days since 1979-01-01 12:00:00") in the NetCDF output file.
 
 # Methods
 
