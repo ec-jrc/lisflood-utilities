@@ -26,7 +26,7 @@ def getarg():
                         help='LISFLOOD LDD file (ldd.nc)')
     parser.add_argument('-u', '--uparea', type=str, required=True,
                         help='Upstream area file (upArea.nc)')
-    parser.add_argument('-m', '--maskfile', type=str, required=True,
+    parser.add_argument('-m', '--maskfile', type=str, required=False, default='',
                         help='Mask or domain file (mask.nc)')
     parser.add_argument('-S', '--slope', type=float, required=False, default=0.001,
                         help='Slope threshold to use MCT (default slp < 0.001)')
@@ -41,21 +41,37 @@ def getarg():
     args = parser.parse_args()  # assign namespace to args
     return args
 
+    
+def mct_mask(channels_slope_file, ldd_file, uparea_file, mask_file='', 
+             slp_threshold=0.001, nloops=5, minuparea=0, coords_names='None', 
+             outputfile='chanmct.nc'):
+    """
+    
+    Builds a mask of mild sloping rivers for use in LISFLOOD with MCT diffusive river routing. It takes LISFLOOD channels slope map (changrad.nc), the LDD (ldd.nc), 
+    the upstream drained area map (upArea.nc) and the catchment/domain mask (mask.nc), and outputs a bolean mask (chanmct.nc). Pixels where riverbed gradient < threshold 
+    (slp_threshold) are added to the mask if their drainage area is large enough (minuparea) and they also have at least nloops consecutive downstream pixels that meet
+    the same condition for slope (drainage area will be met as downstream the area increases).
 
-def main():
-
-    # ---------------- Read settings
-    args = getarg()
-    channels_slope_file = args.changradfile
-    ldd_file = args.LDDfile
-    uparea_file = args.uparea
-    mask_file = args.maskfile
-    slp_threshold = args.slope
-    nloops = args.nloops
-    minuparea = args.minuparea
-    coords_names = args.coordsnames
-    outputfile = args.outputfilename
-
+    Usage:
+    The tool requires the following input arguments:
+    
+    channels_slope_file: LISFLOOD channels gradient map (changrad.nc)
+    ldd_file: LISFLOOD local drain direction file (ldd.nc)
+    uparea_file: LISFLOOD Uustream area file (upArea.nc)
+    mask_file: a mask nc file; if not given (default) all cells are considered valid.
+    slp_threshold: Riverbed slope threshold to use MCT diffusive wave routing (default: 0.001)
+    nloops: Number of consecutive downstream grid cells that also need to comply with the slope requirement for including a grid cell in the MCT rivers mask (default: 5)
+    minuparea: Minimum upstream drainage area for a pixel to be included in the MCT rivers mask (uses the same units as in the -u file) (default: 0)
+    coords_names: Coordinates names for lat, lon (in this order as list) used in the the netcdf files (default: 'None': checks for commonly used names)
+    outputfile: Output file containing the rivers mask where LISFLOOD can use the MCT diffusive wave routing (default: chanmct.nc)
+    
+    Example for generating an MCT rivers mask with pixels where riverbed slope < 0.001, drainage area > 500 kms and at least 5 downstream pixels meet the same 
+    two conditions, considering the units of the upArea.nc file are given in kms:
+    
+    mct_mask(channels_slope_file='changrad.nc', ldd_file='ldd.nc', uparea_file='upArea.nc', mask_file='mask.nc', 
+             slp_threshold=0.001, nloops=5, minuparea=0, coords_names=['y' , 'x'], 
+             outputfile='chanmct.nc')
+    """
     # ---------------- Read LDD (Note that for EFAS5 there is small shift of values for CH)
     LD = xr.open_dataset(ldd_file)
     
@@ -90,9 +106,11 @@ def main():
     rows, cols = CH.sizes[y_proj], CH.sizes[x_proj]
 
     # get coords of map corners
-    x1 = CH.variables[x_proj][0]
-    x2 = CH.variables[x_proj][-1]
-    y1 = CH.variables[y_proj][0]
+    x_all = CH.variables[x_proj]
+    y_all = CH.variables[y_proj]
+    x1 = x_all[0]
+    x2 = x_all[-1]
+    y1 = y_all[0]
 
     # calc cell size
     cell_size = np.abs(x2 - x1) / (cols - 1)
@@ -126,7 +144,7 @@ def main():
 
     # repair the ldd; needed in case ldd is created from cutmaps, so outlet is not flagged with 5 (pit) 
     ldd_pcr = pcr.lddrepair(ldd_pcr)
-    LD.close()
+    
 
     # ---------------- Read upstream area
     UA = xr.open_dataset(uparea_file)
@@ -139,10 +157,19 @@ def main():
     UA.close()
     
     # ---------------- Read domain/basin (mask) area
-    MX = xr.open_dataset(mask_file)
-    old_name = [i for i in list(MX.data_vars) if sorted(MX[i].dims)==sorted([x_proj, y_proj])]
-    MX = MX.rename({old_name[0]: "domain"})['domain']  # only 1 variable complies with above if
+    try:
+        MX = xr.open_dataset(mask_file)
+        old_name = [i for i in list(MX.data_vars) if sorted(MX[i].dims)==sorted([x_proj, y_proj])]
+        MX = MX.rename({old_name[0]: "domain"})['domain']  # only 1 variable complies with above if
+    except:
+        print(f'The given mask path {mask_file} is not a valid path. All domain read from LDD file {ldd_file} is considered vaid.')
+        MX = LD.copy(deep=True)
+        MX = MX.fillna(0)*0+1
 
+    # use the exact same coords from channel slope file, just in case there are precision differences
+    MX = MX.assign_coords(x_proj=x_all, y_proj=y_all)
+    LD.close()  # close ther LD file, after the check of mask availability
+    
     # ---------------- Loop on the basin pixels to find how many MCT pixels they have downstream
     # initiate a counter with 1 in cells that fit the slope criteria and 0 elsewhere
     sum_rivers_pcr = rivers_mask_pcr
@@ -184,6 +211,27 @@ def main():
     
     # lisflood does not read NaNs so the data are saved as boolean 0-1, with 0 being flagged as NaN for python reading
     MCT.to_netcdf(outputfile, encoding={"mct_mask": {'_FillValue': 0, 'dtype': 'int8'}})
+    return MCT
 
+
+def main():
+    'function for runnign from command line'
+    # ---------------- Read settings
+    args = getarg()
+    channels_slope_file_arg = args.changradfile
+    ldd_file_arg = args.LDDfile
+    uparea_file_arg = args.uparea
+    mask_file_arg = args.maskfile
+    slp_threshold_arg = args.slope
+    nloops_arg = args.nloops
+    minuparea_arg = args.minuparea
+    coords_names_arg = args.coordsnames
+    outputfile_arg = args.outputfilename
+
+    mct_mask(channels_slope_file=channels_slope_file_arg, ldd_file=ldd_file_arg, uparea_file=uparea_file_arg, mask_file=mask_file_arg, 
+             slp_threshold=slp_threshold_arg, nloops=nloops_arg, minuparea=minuparea_arg, coords_names=coords_names_arg, 
+             outputfile=outputfile_arg)
+
+    
 if __name__ == "__main__":
     main()
