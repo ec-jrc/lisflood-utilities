@@ -760,34 +760,32 @@ The structure of the output depends on whether the input files include a tempora
 ## mctrivers
 
 This tool builds a mask of mild sloping rivers for use in LISFLOOD with MCT diffusive river routing. It takes LISFLOOD channels slope map (changrad.nc), the LDD (ldd.nc), the upstream drained area map (upArea.nc) and the catchment/domain mask (mask.nc), and outputs a bolean mask (chanmct.nc).
-Pixels where riverbed gradient < threshold (--slope) are added to the mask if their drainage area is large enough (--minuparea) and they have a set number of downstream pixels (--nloops) that meet the same condition.
+Pixels where riverbed gradient < threshold (--slope) are added to the mask if their drainage area is large enough (--minuparea) and they also have at least --nloops consecutive downstream pixels that meet the same condition for slope (drainage area will be met as downstream the area increases).
 
 ### Usage
 
 The tool requires the following mandatory input arguments:
 
- - `-m`, `--mask`: a mask map (either PCRaster or NetCDF format).
-
 - `-i`, `--changradfile`: LISFLOOD channels gradient map (changrad.nc)
-- `-m`, `--maskfile`: LISFLOOD mask or domain file (mask.nc)
 - `-l`, `--LDDfile`: LISFLOOD local drain direction file (ldd.nc)
 - `-u`, `--uparea`: LISFLOOD Uustream area file (upArea.nc)
 
 The tool can take the following additional input arguments:
 
+- `-m`, `--maskfile`: LISFLOOD mask or domain file (mask.nc; if not given, all domain is considered valid)
 - `-S`, `--slope`: Riverbed slope threshold to use MCT diffusive wave routing (default:  0.001)
-- `-N`, `--nloops`: Number of consecutive downstream MCT grid cells to be included in the MCT rivers mask (default: 5)
+- `-N`, `--nloops`: Number of consecutive downstream grid cells that also need to comply with the slope requirement for including a grid cell in the MCT rivers mask (default: 5)
 - `-U`, `--minuparea`: Minimum upstream drainage area for a pixel to be included in the MCT rivers mask (uses the same units as in the -u file) (default: 0)
-- `-E`, `--coordsnames`: Coordinates names for lat, lon (in this order with space!) used in the the netcdf files
+- `-E`, `--coordsnames`: Coordinates names for lat, lon (in this order with space!) used in the netcdf files
 
 The tool generates the following outputs:
 
 - `-O`, `--outputfilename`: Output file containing the rivers mask where LISFLOOD can use the MCT diffusive wave routing  (default: chanmct.nc)
 
-Example of command that will generate an MCT rivers mask with pixels where riverbed slope < 0.001, drainage area > 500 kms and at least 5 downstream pixels meet the same conditions:
+Example of command that will generate an MCT rivers mask with pixels where riverbed slope < 0.001, drainage area > 500 kms and at least 5 downstream pixels meet the same two conditions, considering the units of the upArea.nc file are given in kms:
 
 ```bash
-mctrivers -i changrad.nc -l ldd.nc -m mask.nc -u upArea.nc -O chanmct.nc [-E y x -S 0.001 -N 5 -U 500 optional] 
+mctrivers -i changrad.nc -l ldd.nc -u upArea.nc -O chanmct.nc [-m mask.nc -E y x -S 0.001 -N 5 -U 500 optional] 
 ```
 
 
