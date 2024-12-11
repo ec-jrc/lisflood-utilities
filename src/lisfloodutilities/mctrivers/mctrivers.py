@@ -62,14 +62,14 @@ def mct_mask(channels_slope_file, ldd_file, uparea_file, mask_file='',
     slp_threshold: Riverbed slope threshold to use MCT diffusive wave routing (default: 0.001)
     nloops: Number of consecutive downstream grid cells that also need to comply with the slope requirement for including a grid cell in the MCT rivers mask (default: 5)
     minuparea: Minimum upstream drainage area for a pixel to be included in the MCT rivers mask (uses the same units as in the -u file) (default: 0)
-    coords_names: Coordinates names for lat, lon (in this order as list) used in the the netcdf files (default: 'None': checks for commonly used names)
+    coords_names: Coordinates names for lat, lon (in this order as list) used in the the netcdf files (default: 'None'; checks for commonly used names ['x', 'lon', 'rlon'], similar for lat names)
     outputfile: Output file containing the rivers mask where LISFLOOD can use the MCT diffusive wave routing (default: chanmct.nc)
     
     Example for generating an MCT rivers mask with pixels where riverbed slope < 0.001, drainage area > 500 kms and at least 5 downstream pixels meet the same 
     two conditions, considering the units of the upArea.nc file are given in kms:
     
     mct_mask(channels_slope_file='changrad.nc', ldd_file='ldd.nc', uparea_file='upArea.nc', mask_file='mask.nc', 
-             slp_threshold=0.001, nloops=5, minuparea=0, coords_names=['y' , 'x'], 
+             slp_threshold=0.001, nloops=5, minuparea=500, coords_names=['y' , 'x'], 
              outputfile='chanmct.nc')
     """
     # ---------------- Read LDD (Note that for EFAS5 there is small shift of values for CH)
@@ -78,7 +78,7 @@ def mct_mask(channels_slope_file, ldd_file, uparea_file, mask_file='',
     # ---------------- Auxiliary variables
     x_checks = ['lon', 'x', 'rlon']
     y_checks = ['lat', 'y', 'rlat']
-    if coords_names[0] == "None":
+    if coords_names == "None":
         x_proj = set(list(LD.coords)) & set(x_checks)
         y_proj = set(list(LD.coords)) & set(y_checks)
     
@@ -167,7 +167,7 @@ def mct_mask(channels_slope_file, ldd_file, uparea_file, mask_file='',
         MX = MX.fillna(0)*0+1
 
     # use the exact same coords from channel slope file, just in case there are precision differences
-    MX = MX.assign_coords(x_proj=x_all, y_proj=y_all)
+    MX = MX.assign_coords({x_proj: x_all, y_proj: y_all})
     LD.close()  # close ther LD file, after the check of mask availability
     
     # ---------------- Loop on the basin pixels to find how many MCT pixels they have downstream
