@@ -78,7 +78,7 @@ def mct_mask(channels_slope_file, ldd_file, uparea_file, mask_file='',
     # ---------------- Auxiliary variables
     x_checks = ['lon', 'x', 'rlon']
     y_checks = ['lat', 'y', 'rlat']
-    if coords_names == "None":
+    if coords_names[0] == "None":
         x_proj = set(list(LD.coords)) & set(x_checks)
         y_proj = set(list(LD.coords)) & set(y_checks)
     
