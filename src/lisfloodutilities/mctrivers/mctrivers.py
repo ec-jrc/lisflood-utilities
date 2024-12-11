@@ -167,7 +167,7 @@ def mct_mask(channels_slope_file, ldd_file, uparea_file, mask_file='',
         MX = MX.fillna(0)*0+1
 
     # use the exact same coords from channel slope file, just in case there are precision differences
-    MX = MX.assign_coords(x_proj=x_all, y_proj=y_all)
+    MX = MX.assign_coords({x_proj: x_all, y_proj: y_all})
     LD.close()  # close ther LD file, after the check of mask availability
     
     # ---------------- Loop on the basin pixels to find how many MCT pixels they have downstream

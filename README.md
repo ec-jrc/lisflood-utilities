@@ -776,16 +776,34 @@ The tool can take the following additional input arguments:
 - `-S`, `--slope`: Riverbed slope threshold to use MCT diffusive wave routing (default:  0.001)
 - `-N`, `--nloops`: Number of consecutive downstream grid cells that also need to comply with the slope requirement for including a grid cell in the MCT rivers mask (default: 5)
 - `-U`, `--minuparea`: Minimum upstream drainage area for a pixel to be included in the MCT rivers mask (uses the same units as in the -u file) (default: 0)
-- `-E`, `--coordsnames`: Coordinates names for lat, lon (in this order with space!) used in the netcdf files
+- `-E`, `--coordsnames`: Coordinates names for lat, lon (in this order with space!) used in the netcdf files. The function checks for 3 commonly used names (x, lon, rlon for longitudes, and y, lat, rlat for latitudes). Therefere, it is recommended to keep the default value.
 
 The tool generates the following outputs:
 
 - `-O`, `--outputfilename`: Output file containing the rivers mask where LISFLOOD can use the MCT diffusive wave routing  (default: chanmct.nc)
 
-Example of command that will generate an MCT rivers mask with pixels where riverbed slope < 0.001, drainage area > 500 kms and at least 5 downstream pixels meet the same two conditions, considering the units of the upArea.nc file are given in kms:
+It can be used either from command line, or also as a python function. Below follow some examples:
+
+Example of command that will generate an MCT rivers mask with pixels where riverbed slope < 0.001 (same as default), drainage area > 500 kms and at least 5 (same as default) downstream pixels meet the same two conditions, considering the units of the upArea.nc file are given in kms:
 
 ```bash
-mctrivers -i changrad.nc -l ldd.nc -u upArea.nc -O chanmct.nc [-m mask.nc -E y x -S 0.001 -N 5 -U 500 optional] 
+mctrivers -i changrad.nc -l ldd.nc -u upArea.nc -O chanmct.nc -U 500
+```
+
+```python
+from lisfloodutilities.mctrivers.mctrivers import mct_mask
+mct_mask(channels_slope_file='changrad.nc', ldd_file='ldd.nc', uparea_file='upArea.nc', minuparea=500, outputfile='chanmct.nc')
+```
+
+Example of command that will generate an MCT rivers mask with pixels where riverbed slope < 0.0005, drainage area > 0 (same as default) kms and at least 3 downstream pixels meet the same two conditions. Also a mask (mask.nc) will be used, and the coords names in the nc files are "Lat1", "Lon1" for lat, lon respectively:
+
+```bash
+mctrivers -i changrad.nc -l ldd.nc -u upArea.nc -O chanmct.nc -m mask.nc -E Lat1 Lon1 -S 0.0005 -N 3 
+```
+
+```python
+from lisfloodutilities.mctrivers.mctrivers import mct_mask
+mct_mask(channels_slope_file='changrad.nc', ldd_file='ldd.nc', uparea_file='upArea.nc', mask_file='mask.nc', slp_threshold=0.0005, nloops=3, coords=["Lat1", "Lon1"], outputfile='chanmct.nc')
 ```
 
 
