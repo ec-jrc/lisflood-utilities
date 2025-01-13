@@ -808,6 +808,42 @@ mct_mask_ds = mct_mask(channels_slope_file='changrad.nc', ldd_file='ldd.nc', upa
 ```
 
 
+## profiler
+
+This tool extracts for all downstream cells from a user-defined point, all values for a selected spatial variable, and saves a csv file with the extracted points, their coordinates, the values of the variable, and the order of the points in the river flow.
+
+### Usage
+
+The tool requires the following mandatory input arguments:
+
+- `-i`, `--inputfile`: Input nc file from where the values of the downstream areas will be extracted (e.g., changrad.nc)
+- `-l`, `--LDDfile`: LISFLOOD local drain direction file (ldd.nc)
+- `-X`, `--Location_x`: Longitude of the initial point (use the same projection system as the input nc files!)
+- `-Y`, `--Location_y`: Longitude of the initial point (use the same projection system as the input nc files!)
+
+The tool can take the following additional input arguments:
+
+- `-E`, `--coordsnames`: Coordinates names for lat, lon (in this order with space!) used in the netcdf files. The function checks for 3 commonly used names (x, lon, rlon for longitudes, and y, lat, rlat for latitudes). Therefere, it is recommended to keep the default value.
+
+The tool generates the following outputs (when called from command line as main script):
+
+- `-O`, `--outputfilename`: Output file with the points, their location and order in the river flow, and the values of the variable of interest  (default: profiler.csv)
+
+It can be used either from command line, or also as a python function. Below follow some examples:
+
+Example of command that will generate a profiler csv file for a point with coordinates 10.01, 24.01 lon lat, with coordinates names in the nc being 'x' and 'y' respectively:
+
+```bash
+profiler.py -i changrad.nc -l ec_ldd.nc -m mask.nc -u upArea.nc -X 10.01 -Y 24.01 -O profiler.csv [-E y x]
+```
+
+```python
+# no data are saved when called inside python
+from lisfloodutilities.profiler.profiler import profiler
+data_df = profiler(input_file='changrad.nc', ldd_file='ldd.nc', Location_x=10.01, Location_y=24.01, coords_names=['y' , 'x'])
+```
+
+
 ## Using `lisfloodutilities` programmatically 
 
 You can use lisflood utilities in your python programs. As an example, the script below creates the mask map for a set of stations (stations.txt). The mask map is a boolean map with 1 and 0. 1 is used for all (and only) the pixels hydrologically connected to one of the stations. The resulting mask map is in pcraster format.
