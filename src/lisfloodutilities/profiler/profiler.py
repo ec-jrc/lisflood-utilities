@@ -141,6 +141,7 @@ def profiler(input_file, ldd_file, x_coord, y_coord, coords_names='None'):
 
     rivers_mask_pcr = pcr.numpy2pcr(pcr.Scalar, ProfPath.values, 0)
     ldd_pcr = pcr.numpy2pcr(pcr.Ldd, LDD.values, -1)
+    ldd_pcr = pcr.lddrepair(ldd_pcr)  # need to repair again, because the outlet is (possible) lost due to subsetting
     
     # ---------------- Find the order of the points in the river network 
     # generate initial data with the river mask
