@@ -43,8 +43,7 @@ def getarg():
 
     
 def mct_mask(channels_slope_file, ldd_file, uparea_file, mask_file='', 
-             slp_threshold=0.001, nloops=5, minuparea=0, coords_names='None', 
-             outputfile='chanmct.nc'):
+             slp_threshold=0.001, nloops=5, minuparea=0, coords_names='None'):
     """
     
     Builds a mask of mild sloping rivers for use in LISFLOOD with MCT diffusive river routing. It takes LISFLOOD channels slope map (changrad.nc), the LDD (ldd.nc), 
@@ -57,7 +56,7 @@ def mct_mask(channels_slope_file, ldd_file, uparea_file, mask_file='',
     
     channels_slope_file: LISFLOOD channels gradient map (changrad.nc)
     ldd_file: LISFLOOD local drain direction file (ldd.nc)
-    uparea_file: LISFLOOD Uustream area file (upArea.nc)
+    uparea_file: LISFLOOD Upstream area file (upArea.nc)
     mask_file: a mask nc file; if not given (default) all cells are considered valid.
     slp_threshold: Riverbed slope threshold to use MCT diffusive wave routing (default: 0.001)
     nloops: Number of consecutive downstream grid cells that also need to comply with the slope requirement for including a grid cell in the MCT rivers mask (default: 5)
@@ -209,13 +208,11 @@ def mct_mask(channels_slope_file, ldd_file, uparea_file, mask_file='',
     # mask final data with the mask_file
     MCT = MCT.where(MX==1)
     
-    # lisflood does not read NaNs so the data are saved as boolean 0-1, with 0 being flagged as NaN for python reading
-    MCT.to_netcdf(outputfile, encoding={"mct_mask": {'_FillValue': 0, 'dtype': 'int8'}})
     return MCT
 
 
 def main():
-    'function for runnign from command line'
+    'function for running from command line'
     # ---------------- Read settings
     args = getarg()
     channels_slope_file_arg = args.changradfile
@@ -228,10 +225,11 @@ def main():
     coords_names_arg = args.coordsnames
     outputfile_arg = args.outputfilename
 
-    mct_mask(channels_slope_file=channels_slope_file_arg, ldd_file=ldd_file_arg, uparea_file=uparea_file_arg, mask_file=mask_file_arg, 
-             slp_threshold=slp_threshold_arg, nloops=nloops_arg, minuparea=minuparea_arg, coords_names=coords_names_arg, 
-             outputfile=outputfile_arg)
-
+    mct_final = mct_mask(channels_slope_file=channels_slope_file_arg, ldd_file=ldd_file_arg, uparea_file=uparea_file_arg, mask_file=mask_file_arg, 
+                         slp_threshold=slp_threshold_arg, nloops=nloops_arg, minuparea=minuparea_arg, coords_names=coords_names_arg)
+    # lisflood does not read NaNs so the data are saved as boolean 0-1, with 0 being flagged as NaN for python reading
+    mct_final.to_netcdf(outputfile_arg, encoding={"mct_mask": {'_FillValue': 0, 'dtype': 'int8'}})
+    
     
 if __name__ == "__main__":
     main()
