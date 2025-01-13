@@ -68,8 +68,7 @@ def mct_mask(channels_slope_file, ldd_file, uparea_file, mask_file='',
     two conditions, considering the units of the upArea.nc file are given in kms:
     
     mct_mask(channels_slope_file='changrad.nc', ldd_file='ldd.nc', uparea_file='upArea.nc', mask_file='mask.nc', 
-             slp_threshold=0.001, nloops=5, minuparea=500, coords_names=['y' , 'x'], 
-             outputfile='chanmct.nc')
+             slp_threshold=0.001, nloops=5, minuparea=500, coords_names=['y' , 'x'])
     """
     # ---------------- Read LDD (Note that for EFAS5 there is small shift of values for CH)
     LD = xr.open_dataset(ldd_file)

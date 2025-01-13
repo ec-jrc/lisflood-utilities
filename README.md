@@ -778,7 +778,7 @@ The tool can take the following additional input arguments:
 - `-U`, `--minuparea`: Minimum upstream drainage area for a pixel to be included in the MCT rivers mask (uses the same units as in the -u file) (default: 0)
 - `-E`, `--coordsnames`: Coordinates names for lat, lon (in this order with space!) used in the netcdf files. The function checks for 3 commonly used names (x, lon, rlon for longitudes, and y, lat, rlat for latitudes). Therefere, it is recommended to keep the default value.
 
-The tool generates the following outputs:
+The tool generates the following outputs (when called from command line as main script):
 
 - `-O`, `--outputfilename`: Output file containing the rivers mask where LISFLOOD can use the MCT diffusive wave routing  (default: chanmct.nc)
 
@@ -791,8 +791,9 @@ mctrivers -i changrad.nc -l ldd.nc -u upArea.nc -O chanmct.nc -U 500
 ```
 
 ```python
+# no data are saved when called inside python
 from lisfloodutilities.mctrivers.mctrivers import mct_mask
-mct_mask(channels_slope_file='changrad.nc', ldd_file='ldd.nc', uparea_file='upArea.nc', minuparea=500, outputfile='chanmct.nc')
+mct_mask_ds = mct_mask(channels_slope_file='changrad.nc', ldd_file='ldd.nc', uparea_file='upArea.nc', minuparea=500)
 ```
 
 Example of command that will generate an MCT rivers mask with pixels where riverbed slope < 0.0005, drainage area > 0 (same as default) kms and at least 3 downstream pixels meet the same two conditions. Also a mask (mask.nc) will be used, and the coords names in the nc files are "Lat1", "Lon1" for lat, lon respectively:
@@ -803,7 +804,7 @@ mctrivers -i changrad.nc -l ldd.nc -u upArea.nc -O chanmct.nc -m mask.nc -E Lat1
 
 ```python
 from lisfloodutilities.mctrivers.mctrivers import mct_mask
-mct_mask(channels_slope_file='changrad.nc', ldd_file='ldd.nc', uparea_file='upArea.nc', mask_file='mask.nc', slp_threshold=0.0005, nloops=3, coords=["Lat1", "Lon1"], outputfile='chanmct.nc')
+mct_mask_ds = mct_mask(channels_slope_file='changrad.nc', ldd_file='ldd.nc', uparea_file='upArea.nc', mask_file='mask.nc', slp_threshold=0.0005, nloops=3, coords=["Lat1", "Lon1"])
 ```
 
 
