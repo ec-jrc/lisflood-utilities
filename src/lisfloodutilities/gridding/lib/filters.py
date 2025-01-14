@@ -47,6 +47,8 @@ class KiwisFilter:
                 self.print_stats = True
             self.cur_timestamp = dt.strptime(f'{kiwis_timestamps[i]}', "%Y%m%d%H%M")
             df_kiwis = self.apply_filter(df_kiwis)
+            # Drop internal columns to clean the dataframe
+            df_kiwis = df_kiwis.drop(columns=self.INTERNAL_COLUMNS, axis=1, errors='ignore')
             filtered_data_frames.append(df_kiwis)
             i += 1
         return filtered_data_frames
@@ -376,13 +378,13 @@ class SolarRadiationLimitsKiwisFilter(KiwisFilter):
             if 'EXCLUDE_BELLOW_LATITUDE' in self.args:
                 self.threshold_max_latitude = np.float32(self.args['EXCLUDE_BELLOW_LATITUDE'])
         except Exception as e:
-            print_msg(f'WARNING: SolarRadiationLimitsKiwisFilter using default max Latitude {self.threshold_max_latitude}')
+            self.print_msg(f'WARNING: SolarRadiationLimitsKiwisFilter using default max Latitude {self.threshold_max_latitude}')
         self.threshold_min_value = 0.0
         try:
             if 'EXCLUDE_BELLOW_VALUE' in self.args:
                 self.threshold_min_value = np.float32(self.args['EXCLUDE_BELLOW_VALUE'])
         except Exception as e:
-            print_msg(f'WARNING: SolarRadiationLimitsKiwisFilter using default min RG value {self.threshold_min_value}')
+            self.print_msg(f'WARNING: SolarRadiationLimitsKiwisFilter using default min RG value {self.threshold_min_value}')
 
     def apply_filter(self, df: pd.DataFrame) -> pd.DataFrame:
         df = super().apply_filter(df)
@@ -417,7 +419,7 @@ class DowgradedDailyTo6HourlyObservationsKiwisFilter(ObservationsKiwisFilter):
         self.num_6h_slots = 0
         self.PROVIDER_DWD_SYNOP = '1121'
         self.PROVIDER_MARS = '1295'
-    
+
     def get_all_6hourly_station_values_df(self, kiwis_data_frames: List[pd.DataFrame]) -> pd.DataFrame:
         merged_df = pd.concat(kiwis_data_frames)
         merged_df = merged_df[[self.COL_LON, self.COL_LAT, self.COL_PROVIDER_ID, self.COL_STATION_NUM, self.COL_STATION_ID, self.COL_VALUE]]
@@ -508,7 +510,8 @@ class DowgradedDailyTo6HourlyObservationsKiwisFilter(ObservationsKiwisFilter):
         providers_ids = list(self.provider_radius.keys())
 
         # Filter all the dataframes
-        filtered_data_frames = super().filter(kiwis_files[1:], kiwis_timestamps[1:], kiwis_6h_dataframes)
+        # filtered_data_frames = super().filter(kiwis_files[1:], kiwis_timestamps[1:], kiwis_6h_dataframes)
+        filtered_data_frames = kiwis_6h_dataframes
 
         # Get all 6hourly slots aggregated
         self.all_6h_df = self.get_all_6hourly_station_values_df(filtered_data_frames)
@@ -562,20 +565,24 @@ class DowgradedDailyTo6HourlyObservationsKiwisFilter(ObservationsKiwisFilter):
 
         # Insert the decumulated stations in the respective 6h slots
         return_data_frames = [self.kiwis_24h_dataframe]
+        i = 1 # First kiwis contains the daily values and the next 4 kiwis contain the 6hourly values
         for df in filtered_data_frames:
             df = df.drop(columns=self.INTERNAL_COLUMNS, axis=1, errors='ignore')
             # Now we need to eliminate the stations that have neighbors on this 6h slot,
             # which means the slot of 6h have already a 6h value in the radius and no
             # decumulation is needed in this slot.
-            df_decumulated_24h = self.df_24h_with_neighbors
+            df_decumulated_24h = self.df_24h_with_neighbors.copy(deep=True)
             df_decumulated_24h['has_neighbor_within_radius'] = False
             tree = cKDTree(df[[self.COL_LON, self.COL_LAT]])
             df_decumulated_24h = self.update_column_if_provider_stations_are_in_radius(df=df_decumulated_24h, tree=tree)
             df_decumulated_24h = df_decumulated_24h[df_decumulated_24h['has_neighbor_within_radius'] == False]
             df_decumulated_24h = df_decumulated_24h.drop(columns=self.INTERNAL_COLUMNS, axis=1, errors='ignore')
             # Append both decumulated 24h dataframes to the 6h slot
-            df_filtered = pd.concat([df, self.df_24h_without_neighbors, df_decumulated_24h])
+            df_filtered = pd.concat([df, self.df_24h_without_neighbors, df_decumulated_24h], ignore_index=True)
             return_data_frames.append(df_filtered)
+            # Timestamp is used to print the 6hourly statistics
+            self.cur_timestamp = dt.strptime(f'{kiwis_timestamps[i]}', "%Y%m%d%H%M")
+            i += 1
             self.print_statistics(df_filtered)
         return return_data_frames
 
