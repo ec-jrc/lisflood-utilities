@@ -27,6 +27,7 @@ import numpy.ma as ma
 import pandas as pd
 from collections import OrderedDict
 from scipy.spatial import cKDTree
+import importlib
 from lisfloodutilities.gridding.lib.utils import Config, FileUtils
 from lisfloodutilities.gridding.lib.filters import KiwisFilter, DowgradedDailyTo6HourlyObservationsKiwisFilter
 
@@ -53,6 +54,34 @@ def get_filter_class(conf: Config) -> KiwisFilter:
     return filter_class
 
 
+def get_filter_classes(conf: Config) -> list:
+    '''
+    Create and instantiate the Filter classes to process the kiwis files
+    '''
+    global quiet_mode
+    plugins_array = []
+    # Load the class dynamically
+    plugins_config = conf.get_config_field('PROPERTIES', 'KIWIS_FILTER_PLUGIN_CLASSES')
+    plugins_dic = eval(plugins_config)
+    plugins = OrderedDict(plugins_dic)
+    plugins_columns_def = conf.get_config_field('PROPERTIES', 'KIWIS_FILTER_COLUMNS')
+    plugins_columns_dic = eval(plugins_columns_def)
+    plugins_columns = OrderedDict(plugins_columns_dic)
+    module_name = 'lisfloodutilities.gridding.lib.filters'
+    try:
+        for plugin in plugins:
+            class_name = plugin
+            class_args = plugins[plugin]
+            module = importlib.import_module(module_name)
+            class_instance = getattr(module, class_name)(plugins_columns, class_args, conf.var_code, quiet_mode)
+            plugins_array.append(class_instance)
+    except ImportError:
+        print(f"Error: Could not import module '{module_name}'")
+    except AttributeError:
+        print(f"Error: Could not find class '{class_name}' in module '{module_name}'")
+    return plugins_array
+
+
 def get_timestamp_from_filename(conf: Config, filename: Path) -> datetime:
     file_timestamp = datetime.strptime(filename.name, conf.input_timestamp_pattern)
     if conf.force_time is not None:
@@ -62,8 +91,7 @@ def get_timestamp_from_filename(conf: Config, filename: Path) -> datetime:
 
 
 def get_dataframes(conf: Config, kiwis_files: List[Path]) -> Tuple[List[pd.DataFrame], List[datetime], List[str], str]:
-    filter_class = get_filter_class(conf)
-    print_msg(f'Filter class: {filter_class.get_class_description()}')
+    filter_classes = get_filter_classes(conf)
     filepath_kiwis = []
     kiwis_timestamps = []
     kiwis_str_timestamps = []
@@ -73,8 +101,13 @@ def get_dataframes(conf: Config, kiwis_files: List[Path]) -> Tuple[List[pd.DataF
         filepath_kiwis.append(filename_kiwis)
         kiwis_str_timestamps.append(kiwis_timestamp_str)
         kiwis_timestamps.append(kiwis_timestamp)
-    df_kiwis_array = filter_class.filter(filepath_kiwis, kiwis_str_timestamps, [])
-    return df_kiwis_array, kiwis_timestamps, kiwis_str_timestamps, filter_class.COL_PROVIDER_ID
+    df_kiwis_array = []
+    last_filter_class = KiwisFilter()
+    for filter_class in filter_classes:
+        last_filter_class = filter_class
+        print_msg(f'{filter_class.get_class_description()}')
+        df_kiwis_array = filter_class.filter(filepath_kiwis, kiwis_str_timestamps, df_kiwis_array)
+    return df_kiwis_array, kiwis_timestamps, kiwis_str_timestamps, last_filter_class.COL_PROVIDER_ID
 
 def get_providers_radius(conf: Config, kiwis_timestamp_24h: datetime) -> dict:
     """
