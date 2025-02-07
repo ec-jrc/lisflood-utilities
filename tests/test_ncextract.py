@@ -1,43 +1,60 @@
 import unittest
 # from lisfloodutilities.compare.nc import NetCDFComparator
 from lisfloodutilities.ncextract import read_points, read_inputmaps, extract_timeseries
-import csv
+import numpy as np
+import xarray as xr
+from datetime import datetime
+
 
 class TestExtract(unittest.TestCase):
-    def compare_csv_files(self, file1, file2):
-        """
-        Compare the content of two CSV files and return True if they are identical, False otherwise.
-        """
-        with open(file1, 'r') as f1, open(file2, 'r') as f2:
-            reader1 = csv.reader(f1)
-            reader2 = csv.reader(f2)
 
-            for row1, row2 in zip(reader1, reader2):
-                if row1 != row2:
-                    return False
+    def compare_datasets(
+        self,
+        dataset1: xr.Dataset,
+        dataset2: xr.Dataset
+    ) -> bool:
+        """
+        Compare the content of two xarray.Datasets and return True if they are identical, False otherwise.
+        """
+        # Check if both datasets have the same dimensions
+        if set(dataset1.dims) != set(dataset2.dims):
+            return False
 
-            # Check if both files have the same number of rows
-            if len(list(reader1)) != len(list(reader2)):
+        # Check if both datasets have the same coordinates
+        if not all((dataset1.coords[dim] == dataset2.coords[dim]).all() for dim in dataset1.coords):
+            return False
+
+        # Check if both datasets have the same variables
+        if set(dataset1.data_vars) != set(dataset2.data_vars):
+            return False
+
+        # Check if the variables' values are the same
+        for var in dataset1.data_vars:
+            if not np.allclose(dataset1[var].values, dataset2[var].values):
                 return False
+            
+        # all tests passed
+        return True 
 
-        return True
-
-    def test_extract_csv(self):
-        inputcsv = 'tests/data/ncextract/stations.csv'
-        datasets = 'tests/data/ncextract/datasets'
-        outputfile = 'tests/data/output.csv'
-        expected = 'tests/data/ncextract/expected.csv'
+    def test_ncextract(self):
+    
+        # config
+        inputcsv = './data/ncextract/stations.csv'
+        data_dir = './data/ncextract/datasets'
+        expected_file = './data/ncextract/expected.nc'
+        start = datetime(2018, 10, 1)
+        end = datetime(2019, 9, 30)
+        
+        # read expected results
+        expected = xr.open_dataset(expected_file)
+        
+        # read points of interest
         poi = read_points(inputcsv)
-        maps = read_inputmaps(datasets)
-        extract_timeseries(maps, poi, outputfile)
-        assert self.compare_csv_files(outputfile, expected)
-
-    # def test_extract_nc(self):
-    #     inputcsv = 'tests/data/ncextract/stations.csv'
-    #     datasets = 'tests/data/ncextract/datasets'
-    #     outputfile = 'tests/data/output.nc'
-    #     expected = 'tests/data/ncextract/expected.nc'
-    #     extract(inputcsv, datasets, outputfile, nc=True)
-    #     comp = NetCDFComparator(None, for_testing=True)
-    #     comp.compare_files(outputfile, expected)
-    #     assert comp.errors == None
+        
+        # read maps
+        maps = read_inputmaps(data_dir, start=start, end=end)
+        
+        # extract timeseries
+        output = extract_timeseries(maps, poi)
+        
+        self.assertTrue(self.compare_datasets(output, expected))
