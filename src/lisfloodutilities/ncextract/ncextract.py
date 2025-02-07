@@ -221,11 +221,11 @@ def main(argv=sys.argv):
         prog=prog,
     )
     parser.add_argument("-p", "--points", required=True, help="CSV file of points of interest (id, lat, lon)")
-    parser.add_argument("-i", "--input", required=True, help="Input directory with .nc files")
+    parser.add_argument("-i", "--input", required=True, help="Input directory with NetCDF or GRIB files")
     parser.add_argument("-o", "--output", required=True, help="Output directory for time series")
-    parser.add_argument("-f", "--format", choices=["nc", "csv"], default="nc", help="Output format: 'nc' of 'csv' (default: 'nc')")
-    parser.add_argument("-s", "--start", type=str, default=None, help='Start datetime (YYYY-MM-DD)')
-    parser.add_argument("-e", "--end", type=str, default=None, help='End datetime (YYYY-MM-DD)')
+    parser.add_argument("-f", "--format", choices=["nc", "csv"], default="nc", help="Output format: 'nc' or 'csv' (default: 'nc')")
+    parser.add_argument("-s", "--start", type=str, default=None, help='Start datetime (YYYY-MM-DD) (default: None)')
+    parser.add_argument("-e", "--end", type=str, default=None, help='End datetime (YYYY-MM-DD) (default: None)')
 
     args = parser.parse_args()
 
