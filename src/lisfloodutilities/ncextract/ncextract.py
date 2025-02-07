@@ -19,9 +19,12 @@ import xarray as xr
 import cfgrib
 from pathlib import Path
 from typing import Union, Optional
+from datetime import datetime
+
+
 
 def read_points(inputcsv: Union[str, Path]) -> xr.Dataset:
-    """It reads a CSV file with coordinates of points: gauging stations, reservoirs...
+    """Reads a CSV file with the coordinates of the points of interest: gauging stations, reservoirs...
 
     Parameters:
     -----------
@@ -35,37 +38,49 @@ def read_points(inputcsv: Union[str, Path]) -> xr.Dataset:
     """
 
     if not os.path.isfile(inputcsv):
-        print(f'ERROR: {inputcsv} is missing!')
-        sys.exit(1)
+        raise ValueError(f'ERROR: {inputcsv} is missing!')
 
     try:
+
+        # read input CSV
         poi_df = pd.read_csv(inputcsv)
         original_columns = poi_df.columns.copy()
         poi_df.columns = original_columns.str.lower()
+
         # find columns representing coordinates
         coord_1 = [col for col in poi_df.columns if col.startswith('lon') or col.startswith('x')][0]
         coord_2 = [col for col in poi_df.columns if col.startswith('lat') or col.startswith('y')][0]
+
         # find the column representing the point ID
         idx_col = poi_df.columns.difference([coord_1, coord_2])[0]
+
         # convert to xarray.Dataset
         poi_xr = poi_df.set_index(idx_col)[[coord_1, coord_2]].to_xarray()
         rename_dim = {idx_col: col for col in original_columns if col.lower() == idx_col}
-        poi_xr = poi_xr.rename(rename_dim)
+        poi_xr = poi_xr.rename({idx_col: 'id'})
+
     except:
-        print('ERROR: Please check that the CSV file is formatted correctly!')
-        sys.exit(2)
+        raise ValueError(f"ERROR: Could not read CSV properly. Please check the format.\nDetails: {e}")
 
     return poi_xr
 
 
 
-def read_inputmaps(directory: Union[str, Path]) -> xr.Dataset:
-    """It extract from a series of input files (NetCDF or GRIB) the time series of a set of points
+def read_inputmaps(
+    directory: Union[str, Path],
+    start: datetime = None,
+    end: datetime = None
+) -> xr.Dataset:
+    """Reads a set of input files (NetCDF or GRIB) and selects the period of interest
 
     Parameters:
     -----------
-   directory: string or pathlib.Path
+    directory: string or pathlib.Path
         the directory containing the input files, which can be either in NetCDF or GRIB format
+    start: datetime
+        Start of the extraction period
+    end: datetime
+        End of the extraction period
 
     Returns:
     --------
@@ -73,78 +88,126 @@ def read_inputmaps(directory: Union[str, Path]) -> xr.Dataset:
         containing the concatenation of all the input maps
     """
 
-    pattern_engine = {'*.nc': 'netcdf4',
-                      '*.grib': 'cfgrib'}
+    pattern_engine = {
+        '*.nc': 'netcdf4',
+        '*.grib': 'cfgrib'
+    }
 
     if not os.path.isdir(directory):
-        print(f'ERROR: {directory} is missing or not a directory!')
-        sys.exit(1)
+        raise FileNotFoundError('ERROR: {directory} is missing or not a directory!')
     else:
         directory = Path(directory)
 
     filepaths = []
     for pattern, engine in pattern_engine.items():
         filepaths = list(directory.glob(pattern))
-        if len(filepaths) > 0:
+        if filepaths:
             break
 
     if not filepaths:
-        print(f'ERROR: No NetCDF/GRIB file found in {directory}')
-        sys.exit(2)
+        raise FileNotFoundError(f'ERROR: No NetCDF/GRIB files found in {directory}')
 
     print(f'{len(filepaths)} input {engine} file(s) found in "{directory}"')
-
-    # chunks is set to auto for general purpose processing
-    # it could be optimized depending on input NetCDF
-    maps = xr.open_mfdataset(filepaths, engine=engine, chunks='auto', parallel=True)
+    
+    try:
+        # load dataset
+        maps = xr.open_mfdataset(filepaths, engine=engine, chunks='auto', parallel=True)
+        # Note: chunks is set to auto for general purpose processing
+        #       it could be optimized depending on input NetCDF
+    except Exception as e:
+        raise RuntimeError(f'ERROR: failed to open datasets using engine "{engine}": {str(e)}')
+    
+    # Validate start and end dates
+    if start and not isinstance(start, datetime):
+        raise ValueError(f"ERROR: The 'start' parameter must be a datetime object, got {type(start)}")
+    if end and not isinstance(end, datetime):
+        raise ValueError(f"ERROR: The 'end' parameter must be a datetime object, got {type(end)}")
+    
+    if start or end:
+        time_dims = [dim for dim in maps.dims if 'time' in dim.lower()]
+        if not time_dims:
+            print('WARNING: No time dimension found, skipping time filtering')
+            return maps
+        
+        try:
+            maps = maps.sel({time_dims[0]: slice(start, end)})
+        except Exception as e:
+            raise ValueError(f'ERROR: failed to apply time filter: {str(e)}')
 
     return maps
 
 
 
-def extract_timeseries(maps: xr.Dataset,
-                       poi: xr.Dataset,
-                       outputfile: Optional[Union[str, Path]] = None
-                      ) -> Optional[xr.Dataset]:
-    """It extract from a series of input files (NetCDF or GRIB) the time series of a set of points
+def extract_timeseries(
+    maps: xr.Dataset,
+    poi: xr.Dataset,
+    output_dir: Optional[Union[str, Path]] = None,
+    output_format: str = 'nc'
+) -> Optional[xr.Dataset]:
+    """Extracts time series for each point of interest and saves them separately.
 
     Parameters:
     -----------
     maps: xarray.Dataset
         the time stack of input maps from which the time series will be extracted
     poi: xarray.Dataset
-        a Dataset indicating the coordinates of the points of interest. It must have only two variables (the coordinates), and the names of this variables must be dimensions in "maps"
-    ouputfile: optional, string or pathlib.Path
-        the file where the results will be saved. It can be either a CSV or a NetCDF file
+        A Dataset indicating the coordinates of the points of interest. It must have only two variables (the coordinates), and the names of this variables must be dimensions in "maps"
+    output_dir: optional, string or pathlib.Path
+        The directory where the results will be saved. If not provided, returns an xarray.Dataset.
+    output_format: optional, str
+        The format of output files: "nc" (NetCDF) or "csv". Default is "nc".
 
     Returns:
     --------
-    By default, it puts out an xarray.Dataset with the extracted time series. Instead, if "outputfile" is provided, results will be saved to a file (CSV or NetCDF)
+    If 'output_dir' is None, returns an xarray.Dataset with extracted time series.
+    Otherwise, saves results in the specified format.
     """
-
+    
+    if "id" not in poi.coords:
+        raise ValueError('ERROR: "poi" must contain an "id" coordinate.')
+        
     coord_1, coord_2 = list(poi)
     if not all(coord in maps.coords for coord in [coord_1, coord_2]):
-        print(f'ERROR: The variables in "poi" (coordinates) are not coordinates in "maps"')
-        sys.exit(1)
+        raise ValueError(f'ERROR: The variables in "poi" (coordinates) are not coordinates in "maps"')
 
-    # extract time series
-    maps_poi = maps.sel({coord_1: poi[coord_1], coord_2: poi[coord_2]}, method='nearest')
+    # create output directory
+    if output_dir:
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # check that the output_format is correct
+        if output_format not in ['csv', 'nc']:
+            raise ValueError('ERROR: the extension of the output file must be either ".nc" or ".csv"')
 
-    if outputfile is None:
-        return maps_poi.compute()
+    maps_poi = []
+    for ID in poi.id.data:
+        # extract time series of the point
+        series = maps.sel(
+            {coord_1: poi.sel(id=ID)[coord_1].item(),
+             coord_2: poi.sel(id=ID)[coord_2].item()},
+            method='nearest'
+        )
+        series = series.expand_dims(dim={'id': [ID]})
 
-    else:
-        outputfile = Path(outputfile)
-        if outputfile.suffix == '.nc':
-            maps_poi.to_netcdf(outputfile)
-        elif outputfile.suffix == '.csv':
-            df = maps_poi.to_dataframe()
-            df_reset = df.reset_index()
-            df_reset.to_csv(outputfile, index=False)
-        else:
-            print('ERROR: the extension of the output file must be either ".nc" or ".csv"')
-            sys.exit(2)
-        print(f'Results exported as {outputfile}')
+        # save time series
+        if output_dir is None:
+            maps_poi.append(series)
+            print('[{0}]: Time series for point {1} extracted'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S'), ID))
+        else:           
+            output_file = output_dir / f'{ID}.{output_format}'
+            if output_format == 'nc':
+                series.to_netcdf(output_file)
+            elif output_format == 'csv':
+                df = series.to_dataframe().reset_index().drop(['id', coord_1, coord_2], axis=1)
+                df.to_csv(output_file, index=False)                
+            print('[{0}]Time series for point {1} saved in {2}'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                                                                 ID,
+                                                                                 output_file))
+    
+    if output_dir is None:
+        return xr.concat(maps_poi, dim='id').compute()
+    
+    return None
 
 
 
@@ -160,22 +223,44 @@ def main(argv=sys.argv):
         """,
         prog=prog,
     )
-    parser.add_argument("-i", "--input", required=True, help="Input CSV file (id, lat, lon)")
-    parser.add_argument("-d", "--directory", required=True, help="Input directory with .nc files")
-    parser.add_argument("-o", "--output", required=True, help="Output file. Two extensions are supported: .csv or .nc")
+    parser.add_argument("-p", "--points", required=True, help="CSV file of points of interest (id, lat, lon)")
+    parser.add_argument("-i", "--input", required=True, help="Input directory with .nc files")
+    parser.add_argument("-o", "--output", required=True, help="Output directory for time series")
+    parser.add_argument("-f", "--format", choices=["nc", "csv"], default="nc", help="Output format: 'nc' of 'csv' (default: 'nc')")
+    parser.add_argument("-s", "--start", type=str, default=None, help='Start datetime (YYYY-MM-DD HH:MM)')
+    parser.add_argument("-e", "--end", type=str, default=None, help='End datetime (YYYY-MM-DD HH:MM)')
 
     args = parser.parse_args()
 
-    try:
-        start_time = time.perf_counter()
+    # parse dates
+    if args.start:
+        if args.start:
+            try:
+                args.start = datetime.strptime(args.start, "%Y-%m-%d %H:%M")
+            except ValueError:
+                print(f"ERROR: Invalid format for --start. Use 'YYYY-MM-DD HH:MM'.")
+                sys.exit(1)
 
+        if args.end:
+            try:
+                args.end = datetime.strptime(args.end, "%Y-%m-%d %H:%M")
+            except ValueError:
+                print(f"ERROR: Invalid format for --end. Use 'YYYY-MM-DD HH:MM'.")
+                sys.exit(1)
+                    
+    try:
+
+        start_time = time.perf_counter()
+        
         print('Reading input CSV...')
         points = read_points(args.input)
+        
         print('Reading input maps...')
-        maps = read_inputmaps(args.directory)
+        maps = read_inputmaps(args.directory, start=args.start, end=args.end)
         print(maps)
+        
         print('Processing...')
-        extract_timeseries(maps, points, args.output)
+        extract_timeseries(maps, points, output_dir, args.format)
 
         elapsed_time = time.perf_counter() - start_time
         print(f"Time elapsed: {elapsed_time:0.2f} seconds")
