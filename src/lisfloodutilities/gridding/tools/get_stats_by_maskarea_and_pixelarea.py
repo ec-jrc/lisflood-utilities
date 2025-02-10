@@ -5,7 +5,7 @@ from pathlib import Path
 OUTPUT_PATH = '/mnt/nahaUsers/gomesgo/CALIBRATION_6.0/var_statistics'
 
 # For pr6, e0, es, et in mm/day
-mm_per_day_to_m = 1000.0 / 4.0
+mm_per_day_to_m = 1000.0 * 4.0
 # For pr6, e0, es, et in mm/6h
 mm_to_m = 1000.0
 
@@ -95,14 +95,12 @@ for mask_filename, mask_var, flip_mask_updown in mask_filenames:
                         # Open the data NetCDF file
                         data_nc = nc.Dataset(data_filename, 'r')
 
-                        # Assuming the variable containing the monthly data is named 'monthly_data'
-                        # and the mask variable is named 'mask'
                         monthly_data_var = v
 
                         # Initialize an empty list to store the yearly totals
                         yearly_totals = []
 
-                        # Loop through each timeslice (assuming there are 12 for each year)
+                        # Loop through each timeslice
                         for i in range(start_step, end_step+1):
                             cur_idx += 1
                             # Read the data for the current timeslice
@@ -112,8 +110,7 @@ for mask_filename, mask_var, flip_mask_updown in mask_filenames:
                                 monthly_data = np.flipud(monthly_data)
 
                             # Apply the mask to the data subset
-                            # masked_monthly_data = np.where(mask_data, data_subset, 0)
-                            masked_monthly_data = np.ma.masked_where(mask_data!=1, monthly_data)
+                            masked_monthly_data = np.ma.masked_where(mask_data !=1, monthly_data)
                 
                             monthly_sum_m = masked_monthly_data / conversion_to_meters
                 
