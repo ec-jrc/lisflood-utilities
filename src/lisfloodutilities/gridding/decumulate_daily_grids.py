@@ -179,6 +179,10 @@ def print_statistics(provider_ids: List[str], df_kiwis_24h: pd.DataFrame, df_kiw
     i = 0
     for df_kiwis_6h_before in df_kiwis_array_6h_before:
         df_kiwis_6h_after = df_kiwis_array_6h_after[i]
+        # Count the number of rows by provider_id 6hourly data before decumulation
+        df_6h_before_count = df_kiwis_6h_before.groupby(column_provider_id_6h).size().reset_index(name='count')
+        df_6h_before_count.rename(columns={column_provider_id_6h: 'provider_id'}, inplace=True)
+        filtered_before_df = df_6h_before_count[df_6h_before_count['provider_id'].isin(provider_ids)]
         # Count the number of rows by provider_id 6hourly data
         df_6h_after_count = df_kiwis_6h_after.groupby(column_provider_id_6h).size().reset_index(name='count')
         df_6h_after_count.rename(columns={column_provider_id_6h: 'provider_id'}, inplace=True)
@@ -195,7 +199,12 @@ def print_statistics(provider_ids: List[str], df_kiwis_24h: pd.DataFrame, df_kiw
         for index, row in filtered_df.iterrows():
             PROVIDER_ID = row['provider_id']
             TOTAL_24H_STATIONS = row['count_24h']
-            DECUMULATED_24H_STATIONS = row['count_6h_after']
+            count_before = 0
+            count_before_series = filtered_before_df.loc[filtered_before_df['provider_id'] == PROVIDER_ID, 'count']
+            if not count_before_series.empty:
+                count_before = count_before_series.iloc[0]
+            count_after = row['count_6h_after']
+            DECUMULATED_24H_STATIONS = count_after - count_before
             DECUMULATED_STATIONS_24H_PERCENT = 0.0
             if TOTAL_24H_STATIONS > 0.0:
                 DECUMULATED_STATIONS_24H_PERCENT = 100.0 * DECUMULATED_24H_STATIONS / TOTAL_24H_STATIONS
