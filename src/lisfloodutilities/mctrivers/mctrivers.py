@@ -178,11 +178,19 @@ def mct_mask(channels_slope_file, ldd_file, uparea_file, mask_file='',
     # Loop nloops times and use downstream function to find out if each cell has nloop MCT cells downstream
     # Downstream function gives the value in the downstream pixel in a map:
     # here it gives 1 if the downstream pixel is Muskingum, zero otherwise.
+    # Note that for pits it always gives its own value so we need to mask out all pits as ann intermidiate step
+    
+    # modify data, so that the most downstream point is masked out (otherwise the below loop gives for all points the same value)
+    downstream_actual_mask_pcr = pcr.downstreamdist(ldd_pcr)
+    downstream_actual_mask_pcr = pcr.ifthenelse(downstream_actual_mask_pcr == 0, pcr.boolean(0), pcr.boolean(1))
+    downstream_actual_mask_pcr = pcr.scalar(downstream_actual_mask_pcr)
+    
     # The loop is used to count how many pixels are MCT downstream, as at each loop we move the values 1 pixel upstream
     # At the end of the loop, each element of the array has the number of downstream MCT pixels for that pixel
     for loops in range(0, nloops):
         # get the value on the downstream cell and put it in a mask
         downstream_cells_pcr = pcr.downstream(ldd_pcr, downstream_cells_pcr)
+        downstream_cells_pcr = downstream_cells_pcr*downstream_actual_mask_pcr
         sum_rivers_pcr = sum_rivers_pcr + downstream_cells_pcr
         
     # ---------------- Generate a new MCT rivers mask
