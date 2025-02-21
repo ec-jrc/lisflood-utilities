@@ -3,14 +3,13 @@
 #   It requires PCRaster.
 #   
 #   Usage:
-#   profiler.py -i changrad.nc -l ec_ldd.nc -m mask.nc -u upArea.nc -X 10.01 -Y 24.01 -E y x -O profiler.csv
+#   profiler.py -i changrad.nc -l ldd.nc -X 10.01 -Y 24.01 -E y x -O profiler.csv
 
 
 import pcraster as pcr
 import xarray as xr
 import pandas as pd
 import numpy as np
-from tqdm import tqdm
 
 def getarg():
     """ Get program arguments.
@@ -155,7 +154,7 @@ def profiler(input_file, ldd_file, x_coord, y_coord, coords_names='None'):
     
     # Loop {number of cells -1} times and use downstream function to find out the order of the cells on the river flow
     print('Calculating the order of the identified points')
-    for loops in tqdm(range(total_points-1)):
+    for loops in range(total_points-1):
         downstream_cells_pcr = pcr.downstream(ldd_pcr, downstream_cells_pcr)
         downstream_cells_pcr = downstream_cells_pcr*downstream_actual_mask_pcr
         sum_rivers_pcr = sum_rivers_pcr + downstream_cells_pcr

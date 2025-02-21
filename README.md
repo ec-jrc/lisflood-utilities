@@ -834,13 +834,13 @@ It can be used either from command line, or also as a python function. Below fol
 Example of command that will generate a profiler csv file for a point with coordinates 10.01, 24.01 lon lat, with coordinates names in the nc being 'x' and 'y' respectively:
 
 ```bash
-profiler.py -i changrad.nc -l ec_ldd.nc -m mask.nc -u upArea.nc -X 10.01 -Y 24.01 -O profiler.csv [-E y x]
+profiler.py -i changrad.nc -l ec_ldd.nc -X 10.01 -Y 24.01 -O profiler.csv [-E y x]
 ```
 
 ```python
 # no data are saved when called inside python
 from lisfloodutilities.profiler.profiler import profiler
-data_df = profiler(input_file='changrad.nc', ldd_file='ldd.nc', Location_x=10.01, Location_y=24.01, coords_names=['y' , 'x'])
+data_df = profiler(input_file='changrad.nc', ldd_file='ldd.nc', x_coord=10.01, y_coord=24.01, coords_names=['y' , 'x'])
 ```
 
 
