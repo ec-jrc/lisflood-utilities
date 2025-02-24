@@ -11,6 +11,7 @@ See the Licence for the specific language governing permissions and limitations 
 """
 
 import argparse
+import numpy as np
 import pandas as pd
 import os
 import sys
@@ -18,7 +19,7 @@ import time
 import xarray as xr
 import cfgrib
 from pathlib import Path
-from typing import Union, Optional
+from typing import Union, Optional, Tuple
 from datetime import datetime
 
 
@@ -134,9 +135,65 @@ def read_inputmaps(
 
 
 
+def find_inflow_points(
+    lat: float,
+    lon: float,
+    ldd: xr.DataArray
+) -> xr.Dataset:
+    """This function finds the upstream coordinates of the pixels flowing into the input coordinates
+    
+    Parameteres:
+    ------------
+    lat: float
+        latitude of the input point
+    lon: float
+        longitued of the input point
+    ldd: xarray.DataArray
+        map of local drainage directions
+        
+    Returns:
+    --------
+    points: xarra.Dataset
+        Contains the coordinates of the pixels flowing into the point of interest.
+    """
+    
+    # Determine coordinate system
+    lat_coord = 'lat' if 'lat' in ldd.coords else 'y'
+    lon_coord = 'lon' if 'lon' in ldd.coords else 'x'
+
+    # spatial resolution of the input map
+    resolution = np.round(np.mean(np.diff(ldd[lon_coord].values)), 4)
+
+    # Define window around the input pixel
+    window = 1.5 * resolution
+    ldd_window = ldd.sel({lat_coord: slice(lat + window, lat - window),
+                           lon_coord: slice(lon - window, lon + window)})
+    # 2D arrays of the coordinates of the pixels in the window
+    lons, lats = np.meshgrid(ldd_window[lon_coord].data, ldd_window[lat_coord].data)
+
+    # create a 1D mask of inflow pixels
+    inflow = np.array([[3, 2, 1],
+                       [6, 5, 4],
+                       [9, 8, 7]])
+    mask = (ldd_window == inflow).data.flatten()
+
+    # apply mask
+    lons, lats = lons.flatten()[mask], lats.flatten()[mask]
+    
+    # convert to xarray.Dataset
+    points = pd.DataFrame(data={lat_coord: lats, lon_coord: lons})
+    points.index.name = 'inflow'
+    points = points.to_xarray()
+
+    return points
+
+
+
 def extract_timeseries(
     maps: xr.Dataset,
     poi: xr.Dataset,
+    inflow: bool = False,
+    ldd: Optional[xr.Dataset] = None,
     output_dir: Optional[Union[str, Path]] = None,
     output_format: str = 'nc'
 ) -> Optional[xr.Dataset]:
@@ -148,6 +205,10 @@ def extract_timeseries(
         the time stack of input maps from which the time series will be extracted
     poi: xarray.Dataset
         A Dataset indicating the coordinates of the points of interest. It must have only two variables (the coordinates), and the names of this variables must be dimensions in "maps"
+    inflow: boolean
+        Wheter to extract the value in that pixel (False) or compute the sum of the pixels flowing into it (True)
+    ldd: optional, xarray.Dataset
+        Map of local drainage directions. Only needed if 'inflow' is True
     output_dir: optional, string or pathlib.Path
         The directory where the results will be saved. If not provided, returns an xarray.Dataset.
     output_format: optional, str
@@ -158,13 +219,20 @@ def extract_timeseries(
     If 'output_dir' is None, returns an xarray.Dataset with extracted time series.
     Otherwise, saves results in the specified format.
     """
-    
+
     if "id" not in poi.coords:
         raise ValueError('ERROR: "poi" must contain an "id" coordinate.')
         
     coord_1, coord_2 = list(poi)
     if not all(coord in maps.coords for coord in [coord_1, coord_2]):
         raise ValueError(f'The variables in "poi" (coordinates) are not coordinates in "maps"')
+    if coord_1.startswith('y') or coord_1.startswith('lat'):
+        coords = [coord_1, coord_2]
+    else:
+        coords = [coord_2, coord_1]
+        
+    if inflow and ldd is None:
+        raise ValueError('An "ldd" map must be provided if the option "inflow" is enabled.')
 
     # create output directory
     if output_dir:
@@ -177,19 +245,30 @@ def extract_timeseries(
 
     maps_poi = []
     for ID in poi.id.data:
-        # extract time series of the point
-        series = maps.sel(
-            {coord_1: poi.sel(id=ID)[coord_1].item(),
-             coord_2: poi.sel(id=ID)[coord_2].item()},
-            method='nearest'
-        )
-        series = series.expand_dims(dim={'id': [ID]})
+
+        if inflow:
+            # find pixels flowing into the point of interest
+            inflows = find_inflow_points(*[poi.sel(id=ID)[coord].item() for coord in coords], ldd)
+            
+            # extract and sum the time series of the pixels flowing into the point
+            series = maps.sel({coord: inflows[coord] for coord in coords}, method='nearest').sum('inflow')
+            series = series.expand_dims({'id': [ID]})            
+            series = series.assign_coords({coord: ('id',
+                                                   [maps[coord].sel({coord: poi.sel(id=ID)[coord].item()}, method='nearest').item()])
+                                                   # [poi.sel(id=ID)[coord].item()])
+                                           for coord in coords})
+            series.attrs.update(maps.attrs)
+
+        else:
+            # extract time series of the point
+            series = maps.sel({coord: poi.sel(id=ID)[coord].item() for coord in coords}, method='nearest')
+            series = series.expand_dims(dim={'id': [ID]})
 
         # save time series
         if output_dir is None:
             maps_poi.append(series)
-            print('{0} | Time series for point {1} extracted'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%s'),
-                                                                      ID))
+            print('{0} | Time series for point {1} extracted'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                                                     ID))
         else:           
             output_file = output_dir / f'{ID}.{output_format}'
             if output_format == 'nc':
@@ -221,13 +300,27 @@ def main(argv=sys.argv):
         prog=prog,
     )
     parser.add_argument("-p", "--points", required=True, help="CSV file of points of interest (id, lat, lon)")
-    parser.add_argument("-i", "--input", required=True, help="Input directory with NetCDF or GRIB files")
+    parser.add_argument("-d", "--dir", required=True, help="Input directory with NetCDF or GRIB files")
     parser.add_argument("-o", "--output", required=True, help="Output directory for time series")
     parser.add_argument("-f", "--format", choices=["nc", "csv"], default="nc", help="Output format: 'nc' or 'csv' (default: 'nc')")
     parser.add_argument("-s", "--start", type=str, default=None, help='Start datetime (YYYY-MM-DD) (default: None)')
     parser.add_argument("-e", "--end", type=str, default=None, help='End datetime (YYYY-MM-DD) (default: None)')
+    parser.add_argument("-i", "--inflow", action="store_true", default=False, help='Extract the aggregation of pixels flowing into the points of interest')
+    parser.add_argument("-l", "--ldd", required=False, help="Map of local drainage directions. Only neccesary if 'inflow' is True")
 
     args = parser.parse_args()
+    
+
+    # ensure ldd is provided if inflow is True
+    if args.inflow:
+        if args.ldd is None:
+            raise ValueError("-ldd must be provided if --inflow is enabled.")
+        else:
+            try:
+                args.ldd = xr.open_dataset(args.ldd)['Band1']
+            except Exception as e:
+                raise RuntimeError(f'{e}')
+                sys.exit(1)
 
     # parse dates
     if args.start:
@@ -241,6 +334,7 @@ def main(argv=sys.argv):
         except ValueError:
             raise ValueError("Invalid date format in the 'end' argument. Use 'YYYY-MM-DD'.")
                     
+
     try:
 
         start_time = time.perf_counter()
@@ -248,12 +342,13 @@ def main(argv=sys.argv):
         print('Reading input CSV...')
         points = read_points(args.points)
         
+
         print('Reading input maps...')
-        maps = read_inputmaps(args.input, start=args.start, end=args.end)
+        maps = read_inputmaps(args.dir, start=args.start, end=args.end)
         print(maps)
-        
+
         print('Processing...')
-        extract_timeseries(maps, points, args.output, args.format)
+        extract_timeseries(maps, points, args.inflow, args.ldd, args.output, args.format)
 
         elapsed_time = time.perf_counter() - start_time
         print(f"Time elapsed: {elapsed_time:0.2f} seconds")
@@ -262,6 +357,8 @@ def main(argv=sys.argv):
         raise RuntimeError(f'{e}')
         sys.exit(1)
 
+        
+        
 def main_script():
     sys.exit(main())
 
