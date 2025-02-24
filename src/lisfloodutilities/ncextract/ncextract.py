@@ -48,14 +48,14 @@ def read_points(inputcsv: Union[str, Path]) -> xr.Dataset:
         poi_df.columns = original_columns.str.lower()
 
         # find columns representing coordinates
-        coord_1 = [col for col in poi_df.columns if col.startswith('lon') or col.startswith('x')][0]
-        coord_2 = [col for col in poi_df.columns if col.startswith('lat') or col.startswith('y')][0]
+        x_coord = [col for col in poi_df.columns if col.startswith('lon') or col.startswith('x')][0]
+        y_coord = [col for col in poi_df.columns if col.startswith('lat') or col.startswith('y')][0]
 
         # find the column representing the point ID
-        idx_col = poi_df.columns.difference([coord_1, coord_2])[0]
+        idx_col = poi_df.columns.difference([x_coord, y_coord])[0]
 
         # convert to xarray.Dataset
-        poi_xr = poi_df.set_index(idx_col)[[coord_1, coord_2]].to_xarray()
+        poi_xr = poi_df.set_index(idx_col)[[x_coord, y_coord]].to_xarray()
         rename_dim = {idx_col: col for col in original_columns if col.lower() == idx_col}
         poi_xr = poi_xr.rename({idx_col: 'id'})
     except:
@@ -135,6 +135,39 @@ def read_inputmaps(
 
 
 
+def read_ldd(
+    file: Union[str, Path],
+    reference: Optional[Union[xr.Dataset, xr.DataArray]] = None
+) -> xr.DataArray:
+    """Reads the local drainage direction map and, if necessary, corrects the names of the geographical coordinates
+
+    Parameters:
+    -----------
+    file: string or pathlib.Path
+        the NetCDF file of the local drainage direction map
+    reference: optional, xarray.Dataset
+        a reference map used to correct the names of the geographical coordinates in the LDD
+
+    Returns:
+    --------
+    ldd: xarray.DataArray
+    """
+       
+    # load file
+    ldd = xr.open_dataset(file)['Band1']
+    
+    # names of geographical coordinates in the ldd
+    x_ldd = [coord for coord in ldd.coords if coord.startswith('lon') or coord.startswith('x')][0]
+    y_ldd = [coord for coord in ldd.coords if coord.startswith('lat') or coord.startswith('y')][0]
+    
+    # names of geographical coordinates in the reference dataset
+    x_ref = [coord for coord in reference.coords if coord.startswith('lon') or coord.startswith('x')][0]
+    y_ref = [coord for coord in reference.coords if coord.startswith('lat') or coord.startswith('y')][0]
+    
+    # rename coordinates
+    return ldd.rename({x_ldd: x_ref, y_ldd: y_ref})
+    
+
 def find_inflow_points(
     lat: float,
     lon: float,
@@ -158,18 +191,18 @@ def find_inflow_points(
     """
     
     # Determine coordinate system
-    lat_coord = 'lat' if 'lat' in ldd.coords else 'y'
-    lon_coord = 'lon' if 'lon' in ldd.coords else 'x'
+    y_coord = [coord for coord in ldd.coords if coord.startswith('lat') or coord.startswith('y')][0]
+    x_coord = [coord for coord in ldd.coords if coord.startswith('lon') or coord.startswith('x')][0]
 
     # spatial resolution of the input map
-    resolution = np.round(np.mean(np.diff(ldd[lon_coord].values)), 4)
+    resolution = np.round(np.mean(np.diff(ldd[x_coord].values)), 4)
 
     # Define window around the input pixel
     window = 1.5 * resolution
-    ldd_window = ldd.sel({lat_coord: slice(lat + window, lat - window),
-                           lon_coord: slice(lon - window, lon + window)})
+    ldd_window = ldd.sel({y_coord: slice(lat + window, lat - window),
+                          x_coord: slice(lon - window, lon + window)})
     # 2D arrays of the coordinates of the pixels in the window
-    lons, lats = np.meshgrid(ldd_window[lon_coord].data, ldd_window[lat_coord].data)
+    lons, lats = np.meshgrid(ldd_window[x_coord].data, ldd_window[y_coord].data)
 
     # create a 1D mask of inflow pixels
     inflow = np.array([[3, 2, 1],
@@ -181,7 +214,7 @@ def find_inflow_points(
     lons, lats = lons.flatten()[mask], lats.flatten()[mask]
     
     # convert to xarray.Dataset
-    points = pd.DataFrame(data={lat_coord: lats, lon_coord: lons})
+    points = pd.DataFrame(data={y_coord: lats, x_coord: lons})
     points.index.name = 'inflow'
     points = points.to_xarray()
 
@@ -284,9 +317,9 @@ def extract_timeseries(
         return xr.concat(maps_poi, dim='id').compute()
     
     return None
-
-
-
+    
+    
+    
 def main(argv=sys.argv):
     prog = os.path.basename(argv[0])
     parser = argparse.ArgumentParser(
@@ -311,17 +344,6 @@ def main(argv=sys.argv):
     args = parser.parse_args()
     
 
-    # ensure ldd is provided if inflow is True
-    if args.inflow:
-        if args.ldd is None:
-            raise ValueError("-ldd must be provided if --inflow is enabled.")
-        else:
-            try:
-                args.ldd = xr.open_dataset(args.ldd)['Band1']
-            except Exception as e:
-                raise RuntimeError(f'{e}')
-                sys.exit(1)
-
     # parse dates
     if args.start:
         try:
@@ -341,11 +363,17 @@ def main(argv=sys.argv):
         
         print('Reading input CSV...')
         points = read_points(args.points)
-        
 
         print('Reading input maps...')
         maps = read_inputmaps(args.dir, start=args.start, end=args.end)
         print(maps)
+        
+        if args.inflow:
+            if args.ldd is None:
+                raise ValueError("-ldd must be provided if --inflow is enabled.")
+            else:
+                print('Reading the LDD map...')
+                args.ldd = read_ldd(args.ldd, reference=maps)
 
         print('Processing...')
         extract_timeseries(maps, points, args.inflow, args.ldd, args.output, args.format)
