@@ -1,6 +1,6 @@
 import unittest
 # from lisfloodutilities.compare.nc import NetCDFComparator
-from lisfloodutilities.ncextract import read_points, read_inputmaps, extract_timeseries
+from lisfloodutilities.ncextract import read_points, read_inputmaps, read_ldd, extract_timeseries
 import numpy as np
 import xarray as xr
 from datetime import datetime
@@ -38,7 +38,6 @@ class TestExtract(unittest.TestCase):
         return True 
 
     def test_ncextract(self):
-    
 
         # config
         inputcsv = './data/ncextract/reservoirs.csv'
@@ -58,7 +57,7 @@ class TestExtract(unittest.TestCase):
         maps = read_inputmaps(data_dir, start=start, end=end)['dis24']
 
         # read LDD
-        ldd = xr.open_dataset(ldd_file)['Band1']
+        ldd = read_ldd(ldd_file, maps)
 
         # extract outflow timeseries
         print('Extracting reservoir outflow...')
