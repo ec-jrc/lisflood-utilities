@@ -6,6 +6,7 @@ import xarray as xr
 from datetime import datetime
 
 
+
 class TestExtract(unittest.TestCase):
 
     def compare_datasets(
@@ -38,23 +39,38 @@ class TestExtract(unittest.TestCase):
 
     def test_ncextract(self):
     
+
         # config
-        inputcsv = './data/ncextract/stations.csv'
+        inputcsv = './data/ncextract/reservoirs.csv'
         data_dir = './data/ncextract/datasets'
+        ldd_file = './data/ncextract/ldd.nc'
         expected_file = './data/ncextract/expected.nc'
-        start = datetime(2018, 10, 1)
-        end = datetime(2019, 9, 30)
-        
+        start = datetime(2018, 10, 2)
+        end = datetime(2019, 10, 1)
+
         # read expected results
         expected = xr.open_dataset(expected_file)
-        
+
         # read points of interest
         poi = read_points(inputcsv)
-        
+
         # read maps
-        maps = read_inputmaps(data_dir, start=start, end=end)
+        maps = read_inputmaps(data_dir, start=start, end=end)['dis24']
+
+        # read LDD
+        ldd = xr.open_dataset(ldd_file)['Band1']
+
+        # extract outflow timeseries
+        print('Extracting reservoir outflow...')
+        outflow = extract_timeseries(maps, poi, inflow=False)
+        outflow.name = 'outflow'
         
-        # extract timeseries
-        output = extract_timeseries(maps, poi)
+        # extract inflow timeseries
+        print('Extracting reservoir inflow...')
+        inflow = extract_timeseries(maps, poi, inflow=True, ldd=ldd)
+        inflow.name = 'inflow'
         
+        # merge both extractions
+        output = xr.merge((outflow, inflow))
+
         self.assertTrue(self.compare_datasets(output, expected))
