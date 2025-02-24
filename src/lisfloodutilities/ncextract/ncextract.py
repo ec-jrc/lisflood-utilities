@@ -60,7 +60,7 @@ def read_points(inputcsv: Union[str, Path]) -> xr.Dataset:
         poi_xr = poi_xr.rename({idx_col: 'id'})
     except:
         raise ValueError(f"Could not read CSV properly. Please check the format.\nDetails: {e}")
-
+        
     return poi_xr
 
 
