@@ -252,9 +252,7 @@ def extract_timeseries(
     If 'output' is None, returns an xarray.Dataset with extracted time series.
     Otherwise, saves results in a set of NetCDF files.
     """
-    
-    print(overwrite)
-    
+        
     if "id" not in poi.coords:
         raise ValueError('ERROR: "poi" must contain an "id" coordinate.')
         
