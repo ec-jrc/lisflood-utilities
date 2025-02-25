@@ -227,8 +227,8 @@ def extract_timeseries(
     poi: xr.Dataset,
     inflow: bool = False,
     ldd: Optional[xr.Dataset] = None,
-    output_dir: Optional[Union[str, Path]] = None,
-    output_format: str = 'nc'
+    output: Optional[Union[str, Path]] = None,
+    overwrite: bool = False
 ) -> Optional[xr.Dataset]:
     """Extracts time series for each point of interest and saves them separately.
 
@@ -242,17 +242,19 @@ def extract_timeseries(
         Wheter to extract the value in that pixel (False) or compute the sum of the pixels flowing into it (True)
     ldd: optional, xarray.Dataset
         Map of local drainage directions. Only needed if 'inflow' is True
-    output_dir: optional, string or pathlib.Path
+    output: optional, string or pathlib.Path
         The directory where the results will be saved. If not provided, returns an xarray.Dataset.
-    output_format: optional, str
-        The format of output files: "nc" (NetCDF) or "csv". Default is "nc".
+    overwrite: boolean
+        whether to overwrite or skip points of interest whose output file already exists. By default is False
 
     Returns:
     --------
-    If 'output_dir' is None, returns an xarray.Dataset with extracted time series.
-    Otherwise, saves results in the specified format.
+    If 'output' is None, returns an xarray.Dataset with extracted time series.
+    Otherwise, saves results in a set of NetCDF files.
     """
-
+    
+    print(overwrite)
+    
     if "id" not in poi.coords:
         raise ValueError('ERROR: "poi" must contain an "id" coordinate.')
         
@@ -268,16 +270,18 @@ def extract_timeseries(
         raise ValueError('An "ldd" map must be provided if the option "inflow" is enabled.')
 
     # create output directory
-    if output_dir:
-        output_dir = Path(output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
-        
-        # check that the output_format is correct
-        if output_format not in ['csv', 'nc']:
-            raise ValueError('the extension of the output file must be either ".nc" or ".csv"')
+    if output:
+        output = Path(output)
+        output.mkdir(parents=True, exist_ok=True)
 
     maps_poi = []
     for ID in poi.id.data:
+        
+        if output:
+            output_file = output / f'{ID}.nc'
+            if output_file.exists() and not overwrite:
+                print(f'Output file {output_file} already exists. Moving forward to the next point.')
+                continue
 
         if inflow:
             # find pixels flowing into the point of interest
@@ -298,22 +302,17 @@ def extract_timeseries(
             series = series.expand_dims(dim={'id': [ID]})
 
         # save time series
-        if output_dir is None:
+        if output is None:
             maps_poi.append(series)
             print('{0} | Time series for point {1} extracted'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                                                                      ID))
         else:           
-            output_file = output_dir / f'{ID}.{output_format}'
-            if output_format == 'nc':
-                series.to_netcdf(output_file)
-            elif output_format == 'csv':
-                df = series.to_dataframe().reset_index().drop(['id', coord_1, coord_2], axis=1)
-                df.to_csv(output_file, index=False)                
+            series.to_netcdf(output_file)               
             print('{0} | Time series for point {1} saved in {2}'.format(datetime.now().strftime('%Y-%m-%d %H:%M'),
                                                                        ID,
                                                                        output_file))
     
-    if output_dir is None:
+    if output is None:
         return xr.concat(maps_poi, dim='id').compute()
     
     return None
@@ -335,11 +334,11 @@ def main(argv=sys.argv):
     parser.add_argument("-p", "--points", required=True, help="CSV file of points of interest (id, lat, lon)")
     parser.add_argument("-d", "--dir", required=True, help="Input directory with NetCDF or GRIB files")
     parser.add_argument("-o", "--output", required=True, help="Output directory for time series")
-    parser.add_argument("-f", "--format", choices=["nc", "csv"], default="nc", help="Output format: 'nc' or 'csv' (default: 'nc')")
     parser.add_argument("-s", "--start", type=str, default=None, help='Start datetime (YYYY-MM-DD) (default: None)')
     parser.add_argument("-e", "--end", type=str, default=None, help='End datetime (YYYY-MM-DD) (default: None)')
     parser.add_argument("-i", "--inflow", action="store_true", default=False, help='Extract the aggregation of pixels flowing into the points of interest')
     parser.add_argument("-l", "--ldd", required=False, help="Map of local drainage directions. Only neccesary if 'inflow' is True")
+    parser.add_argument("-w", "--overwrite", action="store_true", default=False, help="Overwrite existing output files")
 
     args = parser.parse_args()
     
@@ -376,7 +375,7 @@ def main(argv=sys.argv):
                 args.ldd = read_ldd(args.ldd, reference=maps)
 
         print('Processing...')
-        extract_timeseries(maps, points, args.inflow, args.ldd, args.output, args.format)
+        extract_timeseries(maps, points, args.inflow, args.ldd, args.output, args.overwrite)
 
         elapsed_time = time.perf_counter() - start_time
         print(f"Time elapsed: {elapsed_time:0.2f} seconds")
