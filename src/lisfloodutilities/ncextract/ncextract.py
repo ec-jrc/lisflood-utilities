@@ -137,36 +137,63 @@ def read_inputmaps(
 
 def read_ldd(
     file: Union[str, Path],
-    reference: Optional[Union[xr.Dataset, xr.DataArray]] = None
 ) -> xr.DataArray:
-    """Reads the local drainage direction map and, if necessary, corrects the names of the geographical coordinates
+    """Reads the local drainage direction map
 
     Parameters:
     -----------
     file: string or pathlib.Path
         the NetCDF file of the local drainage direction map
-    reference: optional, xarray.Dataset
-        a reference map used to correct the names of the geographical coordinates in the LDD
 
     Returns:
     --------
     ldd: xarray.DataArray
     """
-       
-    # load file
-    ldd = xr.open_dataset(file)['Band1']
     
-    # names of geographical coordinates in the ldd
-    x_ldd = [coord for coord in ldd.coords if coord.startswith('lon') or coord.startswith('x')][0]
-    y_ldd = [coord for coord in ldd.coords if coord.startswith('lat') or coord.startswith('y')][0]
+    return xr.open_dataset(file)['Band1']
+    
+
+def rename_geographic_coords(
+    target: Union[xr.Dataset, xr.DataArray],
+    reference: Union[xr.Dataset, xr.DataArray]
+) -> Union[xr.Dataset, xr.DataArray]:
+    """Renames the geographical coordinates/variables in the target dataset to match those in the reference dataset.
+    
+    Parameters:
+    -----------
+    target: xarray.Dataset or xarray.DataArray
+        Object whose geographical coordinates will be renamed
+    target: xarray.Dataset or xarray.DataArray
+        Reference names of the geographical coordinates
+        
+    Returns:
+    --------
+    A similar object as 'target', but with the names of the geographical coordinates in 'reference'
+    """
+    
+    # names of geographical coordinates in the target dataset
+    try:
+        x_obj = [coord for coord in target.coords if coord.startswith('lon') or coord.startswith('x')][0]
+    except:
+        x_obj = [coord for coord in target.variables if coord.startswith('lon') or coord.startswith('x')][0]
+    try:
+        y_obj = [coord for coord in target.coords if coord.startswith('lat') or coord.startswith('y')][0]
+    except:
+        y_obj = [coord for coord in target.variables if coord.startswith('lat') or coord.startswith('y')][0]
     
     # names of geographical coordinates in the reference dataset
-    x_ref = [coord for coord in reference.coords if coord.startswith('lon') or coord.startswith('x')][0]
-    y_ref = [coord for coord in reference.coords if coord.startswith('lat') or coord.startswith('y')][0]
+    try:
+        x_ref = [coord for coord in reference.coords if coord.startswith('lon') or coord.startswith('x')][0]
+    except:
+        x_ref = [coord for coord in reference.variables if coord.startswith('lon') or coord.startswith('x')][0]
+    try:
+        y_ref = [coord for coord in reference.coords if coord.startswith('lat') or coord.startswith('y')][0]
+    except:
+        y_ref = [coord for coord in reference.variables if coord.startswith('lat') or coord.startswith('y')][0]
     
-    # rename coordinates
-    return ldd.rename({x_ldd: x_ref, y_ldd: y_ref})
-    
+    return target.rename({x_obj: x_ref, y_obj: y_ref})
+
+
 
 def find_inflow_points(
     lat: float,
@@ -353,24 +380,25 @@ def main(argv=sys.argv):
         except ValueError:
             raise ValueError("Invalid date format in the 'end' argument. Use 'YYYY-MM-DD'.")
                     
-
     try:
 
         start_time = time.perf_counter()
         
-        print('Reading input CSV...')
-        points = read_points(args.points)
-
         print('Reading input maps...')
         maps = read_inputmaps(args.dir, start=args.start, end=args.end)
         print(maps)
+        
+        print('Reading input CSV...')
+        points = read_points(args.points)
+        points = rename_geographic_coords(points, maps)
         
         if args.inflow:
             if args.ldd is None:
                 raise ValueError("-ldd must be provided if --inflow is enabled.")
             else:
                 print('Reading the LDD map...')
-                args.ldd = read_ldd(args.ldd, reference=maps)
+                ldd = read_ldd(args.ldd)
+                args.ldd = rename_geographic_coords(ldd, maps)
 
         print('Processing...')
         extract_timeseries(maps, points, args.inflow, args.ldd, args.output, args.overwrite)
