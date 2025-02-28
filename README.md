@@ -539,24 +539,24 @@ Below there's the current available filters but some more can be developed for s
 
 ### Available Filters
 
-####__KiwisFilter:__
-Class to filter Kiwis files metadata and obtain a dataframe containing only the coordinates and values to be used for interpolation.
-
-####__ObservationsKiwisFilter:__
-Class to filter Kiwis files metadata for stations that contain another station in the vicinity.
-Expects to have in filter_args a dictionary containing the provider ID whose stations we want to
-filter (as key) and the radius (in decimal degrees) to find the vicinity station from other providers (as value).
-
-####__ProvidersKiwisFilter:__
-Class to filter Kiwis files metadata for stations that belong to a list of providers and inside a defined list of time intervals.
-Expects to have in filter_args a dictionary containing the provider ID whose stations we want to filter (as key) and an array of pairs of start and end dates defining the intervals to filter the station from.
-filter_args = {1121: [('1992-01-02 06:00:00', '1993-01-01 06:00:00'), ('1995-01-02 06:00:00', '1996-01-01 06:00:00')]}
-
-####__SolarRadiationLimitsKiwisFilter:__
-Class to filter Solar Radiation Kiwis files whose data coordinates are both less equal a defined latitude and values less equal a defined threshold.
-This was developed to avoid wrong values of zero daily solar radiation in EFAS domain bellow 66 degrees Latitude (empirical).
-Expects to have in filter_args a dictionary containing the definition of the limits using the keys EXCLUDE_BELLOW_LATITUDE and EXCLUDE_BELLOW_VALUE.
-In case any of the exclude values are not present or empty it will use the default values of 70.0 Latitude and 0.0 Daily Solar Radiation.
+> __KiwisFilter:__
+> Base class to filter Kiwis files metadata and obtain a dataframe containing only the coordinates and values to be used for interpolation.
+> It implements the basic rules for parsing the Kiwis format.
+> 
+> __ObservationsKiwisFilter:__
+> Class to filter Kiwis files metadata for stations that contain another station in the vicinity.
+> Expects to have in filter_args a dictionary containing the provider ID whose stations we want to filter (as key) and the radius (in decimal degrees) to find the vicinity station from other providers (as value).
+> 
+> __ProvidersKiwisFilter:__
+> Class to filter Kiwis files metadata for stations that belong to a list of providers and inside a defined list of time intervals.
+> Expects to have in filter_args a dictionary containing the provider ID whose stations we want to filter (as key) and an array of pairs of start and end dates defining the intervals to filter the station from.
+> filter_args = {1121: [('1992-01-02 06:00:00', '1993-01-01 06:00:00'), ('1995-01-02 06:00:00', '1996-01-01 06:00:00')]}
+> 
+> __SolarRadiationLimitsKiwisFilter:__
+> Class to filter Solar Radiation Kiwis files whose data coordinates are both less equal a defined latitude and values less equal a defined threshold.
+> This was developed to avoid wrong values of zero daily solar radiation in EFAS domain bellow 66 degrees Latitude (empirical).
+> Expects to have in filter_args a dictionary containing the definition of the limits using the keys EXCLUDE_BELLOW_LATITUDE and EXCLUDE_BELLOW_VALUE.
+> In case any of the exclude values are not present or empty it will use the default values of 70.0 Latitude and 0.0 Daily Solar Radiation.
 
 
 #### Requirements
