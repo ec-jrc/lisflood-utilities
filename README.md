@@ -534,6 +534,31 @@ The utility **pcr2nc** can be used to convert a map in pcraster format into NetC
 This tool is used to interpolate meteo variables observations stored in text files containing (lon, lat, value) into grids.
 It uses by default angular distance weighting interpolation method from pyg2p.
 
+A system of filters is provided to be used to parse and filter the input Kiwis files so they get prepared for processing.
+Below there's the current available filters but some more can be developed for specific necessities.
+
+### Available Filters
+
+####__KiwisFilter:__
+Class to filter Kiwis files metadata and obtain a dataframe containing only the coordinates and values to be used for interpolation.
+
+####__ObservationsKiwisFilter:__
+Class to filter Kiwis files metadata for stations that contain another station in the vicinity.
+Expects to have in filter_args a dictionary containing the provider ID whose stations we want to
+filter (as key) and the radius (in decimal degrees) to find the vicinity station from other providers (as value).
+
+####__ProvidersKiwisFilter:__
+Class to filter Kiwis files metadata for stations that belong to a list of providers and inside a defined list of time intervals.
+Expects to have in filter_args a dictionary containing the provider ID whose stations we want to filter (as key) and an array of pairs of start and end dates defining the intervals to filter the station from.
+filter_args = {1121: [('1992-01-02 06:00:00', '1993-01-01 06:00:00'), ('1995-01-02 06:00:00', '1996-01-01 06:00:00')]}
+
+####__SolarRadiationLimitsKiwisFilter:__
+Class to filter Solar Radiation Kiwis files whose data coordinates are both less equal a defined latitude and values less equal a defined threshold.
+This was developed to avoid wrong values of zero daily solar radiation in EFAS domain bellow 66 degrees Latitude (empirical).
+Expects to have in filter_args a dictionary containing the definition of the limits using the keys EXCLUDE_BELLOW_LATITUDE and EXCLUDE_BELLOW_VALUE.
+In case any of the exclude values are not present or empty it will use the default values of 70.0 Latitude and 0.0 Daily Solar Radiation.
+
+
 #### Requirements
 python3, pyg2p
 
@@ -630,7 +655,31 @@ optional arguments:
 
 ## decumulate
 
-This tool performs the decumulation of daily kiwis files into the respective 4 slots of 6hourly precipitation KIWIS files in order to increase the station density or to fill in 6hourly gaps.
+This tool performs the decumulation of daily KiWIS files into the respective 4 slots of 6-hourly precipitation KiWIS files to increase station density or fill 6-hourly gaps.
+The program is independent of the new interpolation tool, as it will be applied in the pre-processing of gridding and will be used only for historical grids, not in near-real-time (NRT) processing.
+
+Basic functionality includes:
+1. Reading 1 daily KiWIS file and 4 corresponding 6-hourly KiWIS files
+2. Applying filters defined in the configuration files to the daily and 6-hourly files
+3. Calculating decumulated values from the daily file
+4. Writing 4 new 6-hourly KiWIS files, including decumulated values
+
+### Explanation of the algorithm
+
+The algorithm works like it is described in the following steps:
+1. While processing the 4 grids of 6-hourly precipitation (Day 1, 12:00 and 18:00, and Day 2, 00:00 and 06:00), the script uses the daily precipitation of the corresponding period (Day 2, 06:00) to decumulate its values where there is missing 6-hourly precipitation.
+2. The script applies filters defined in the configuration files to the daily and 6-hourly files, ensuring that only values with good or suspicious quality are used.
+3. For each daily precipitation observation from one of the providers to be decumulated, if there is no 6-hourly observation within a 1.5 km radius, the daily value is divided by 4 and inserted into all 4 6-hourly datasets.
+4. If there is one or more 6-hourly stations within the radius and the station has fewer than 4 values, the missing values are inserted into the corresponding 6-hourly dataset by changing its value using the formula (PR - Sum(PR6)) / (number of missing values), but only if the resulting value is positive (≥ 0).
+5. Decumulation is not performed for daily stations that have a real 6-hourly station within the 1.5 km radius that is complete, meaning it has all four 6-hourly values.
+6. Decumulation is not performed for MARS stations without neighbors within the radius that have a DWDSynop station with the same WMO number in the grid, as they are actually the same station, even if they are not exactly within the defined radius.
+7. If there are multiple 6-hourly stations within the radius, the script selects one according to the following rules, in order:
+    a. The station with the highest number of slots (up to 3 slots)
+    b. The station with the lowest positive difference to the 24-hour value
+    c. The top station
+
+#### Configuration
+A new property, KIWIS_FILTER_DECUMULATION_CONFIG, is required in the daily precipitation configuration file (config_pr.txt). This enables configuration of decumulation intervals, associated providers, and a radius around each station. If another complete 6-hourly station is within this radius, decumulation will be avoided.
 
 #### Requirements
 python3, gridding
@@ -655,7 +704,7 @@ Not mandatory but could help to store the files in a folder structure like: ./YY
 Example of command that decumulates the daily precipitation (pr) grids for 2005-12-26 06:00 and inserts the decumulated values into the respective 6hourly files (pr6) (2005-12-25 12:00, 2005-12-25 18:00, 2005-12-26 00:00, 2005-12-26 06:00):
 
 ```bash
-decumulate  --pathconf /path/to/configuration/ --conf 1arcmin --var24h pr --var6h pr6 --out /path/to/output/pr6 --pr24h /path/to/input/pr/ --pr6h /path/to/input/pr6/ -s 20051226000000 -e 20051226060001
+decumulate --pathconf /path/to/configuration/ --conf 1arcmin --var24h pr --var6h pr6 --out /path/to/output/pr6 --pr24h /path/to/input/pr/ --pr6h /path/to/input/pr6/ -s 20051226000000 -e 20051226060001
 ```
 
 The input and output arguments are listed below and can be seen by using the help flag.
@@ -668,7 +717,7 @@ decumulate --help
 usage: decumulate [-h] -d /path/to/pr -g /path/to/pr6
                   [-o /path/to/output/folder] -c {5x5km, 1arcmin,...}
                   [-p /path/to/config] -v {pr,ta,...} -6 {pr6,ta6,...}
-                  [-s YYYYMMDDHHMISS] [-e YYYYMMDDHHMISS] [-q]
+                  [-s YYYYMMDDHHMISS] [-e YYYYMMDDHHMISS] [-b] [-q]
 
 version v0.1 ($Mar 14, 2024 16:01:00$) This script performs the decumulation
 of daily kiwis files into the respective 6hourly precipitation kiwis files in
@@ -703,9 +752,15 @@ optional arguments:
   -e YYYYMMDDHHMISS, --end YYYYMMDDHHMISS
                         Set the end date and time until which data is imported
                         [default: None]
+  -b, --boi             Indicate that the daily timesteps are at the beginning
+                        of the interval [default: False]
   -q, --quiet           Set script output into quiet mode [default: False]
 
 ```
+
+__IMPORTANT:__ The output folder will contain the same folder structure as the 6h input folder. Just a reminder that If you don't set the output folder it will overwrite the input files.
+
+
 
 
 ## cddmap
