@@ -49,11 +49,49 @@ class OutputWriter(Printable):
         self.cell_methods = self.conf.get_config_field('PROPERTIES', 'CELL_METHODS')
         self.units = self.conf.get_config_field('PROPERTIES', 'UNIT')
 
+    def setNaN(self, value, defaultNaN=np.nan):
+        try:
+            value[value==1e31] = defaultNaN
+        except Exception as e:
+            self.print_msg(f"value==1e31 : {str(e)}")
+        try:
+            value[value==self.conf.VALUE_NAN] = defaultNaN
+        except Exception as e:
+            self.print_msg(f"value=={self.conf.VALUE_NAN} : {str(e)}")
+        try:
+            value[value==-32768.0] = defaultNaN
+        except Exception as e:
+            self.print_msg(f"value==-32768.0 : {str(e)}")
+        try:
+            value[value==31082] = defaultNaN
+        except Exception as e:
+            self.print_msg(f"value==31082 : {str(e)}")
+        value[value < self.conf.value_min_packed] = defaultNaN
+        value[value > self.conf.value_max_packed] = defaultNaN
+        return value
+
     def open(self, out_filename: Path):
         self.filepath = out_filename
         self.time_created = timex.ctime(timex.time())
 
-    def write(self, grid: np.ndarray, timestamp: datetime = None):
+    def print_grid_statistics(self, grid: np.ndarray):
+        grid_min = np.nanmin(grid)
+        grid_max = np.nanmax(grid)
+        grid_mean = np.nanmean(grid)
+        grid_percentile_10 = np.nanpercentile(grid, 10)
+        grid_percentile_90 = np.nanpercentile(grid, 90)
+        stats_string = (
+            f'#APP_STATS: {{"TIMESTAMP": "{self.current_timestamp}", "VAR_CODE": "{self.conf.var_code}", '
+            f'"MINIMUM_VALUE": {grid_min:.2f}, "MAXIMUM_VALUE": {grid_max:.2f}, '
+            f'"MEAN_VALUE": {grid_mean:.2f}, "PERCENTILE_10": {grid_percentile_10:.2f}, '
+            f'"PERCENTILE_90": {grid_percentile_90:.2f}}}'
+        )
+        self.print_msg(stats_string)
+    
+    def setup_grid(self, grid: np.ndarray) -> np.ndarray:
+        raise NotImplementedError
+
+    def write(self, grid: np.ndarray, timestamp: datetime = None, print_stats: bool = True):
         raise NotImplementedError
 
     def write_timestep(self, grid: np.ndarray, timestep: int = -1):
@@ -98,33 +136,25 @@ class NetCDFWriter(OutputWriter):
         else:
             raise ArgumentTypeError(f'File {self.filepath} already exists. Use --force flag to append.')
 
-    def setNaN(self, value, defaultNaN=np.nan):
-        try:
-            value[value==1e31] = defaultNaN
-        except Exception as e:
-            self.print_msg(f"value==1e31 : {str(e)}")
-        try:
-            value[value==self.conf.VALUE_NAN] = defaultNaN
-        except Exception as e:
-            self.print_msg(f"value=={self.conf.VALUE_NAN} : {str(e)}")
-        try:
-            value[value==-32768.0] = defaultNaN
-        except Exception as e:
-            self.print_msg(f"value==-32768.0 : {str(e)}")
-        try:
-            value[value==31082] = defaultNaN
-        except Exception as e:
-            self.print_msg(f"value==31082 : {str(e)}")
-        return value
+    def setup_grid(self, grid: np.ndarray, print_stats: bool = True) -> np.ndarray:
+        values = self.setNaN(copy.deepcopy(grid))
+        values = np.trunc(values)
+        values[~np.isnan(values)] *= self.conf.scale_factor
+        values[~np.isnan(values)] += self.conf.add_offset
+        if print_stats:
+            self.print_grid_statistics(values)
+        values[np.isnan(values)] = self.conf.VALUE_NAN * self.conf.scale_factor + self.conf.add_offset
+        return values
 
-    def write(self, grid: np.ndarray, timestamp: datetime = None):
+    def write(self, grid: np.ndarray, timestamp: datetime = None, print_stats: bool = True):
         timestep = -1
         if timestamp is not None:
-            self.current_timestamp = timestamp
+            self.current_timestamp = timestamp.strftime(FileUtils.DATE_PATTERN_SEPARATED)
             timestep = date2num(timestamp, self.calendar_time_unit, self.calendar_type)
         else:
             self.current_timestamp = None
-        self.write_timestep(grid, timestep)
+        cur_grid = self.setup_grid(grid, print_stats)
+        self.write_timestep(cur_grid, timestep)
 
     def write_timestep(self, grid: np.ndarray, timestep: int = -1):
         if timestep >= 0:
@@ -132,13 +162,7 @@ class NetCDFWriter(OutputWriter):
                 raise Exception("netCDF Dataset was not initialized. If file already exists, use --force flag to append.")
             self.__set_write_index(timestep)
             self.nf.variables[self.netcdf_var_time][self.write_idx] = timestep
-            values = self.setNaN(copy.deepcopy(grid))
-            values[values < self.conf.value_min_packed] = np.nan
-            values[values > self.conf.value_max_packed] = np.nan
-            values[values != self.conf.VALUE_NAN] *= self.conf.scale_factor
-            values[values != self.conf.VALUE_NAN] += self.conf.add_offset
-            values[np.isnan(values)] = self.conf.VALUE_NAN * self.conf.scale_factor + self.conf.add_offset
-            self.nf.variables[self.var_code][self.write_idx, :, :] = values
+            self.nf.variables[self.var_code][self.write_idx, :, :] = grid
 
     def __set_write_index(self, timestep: int):
         if not self.is_new_file:
@@ -207,16 +231,16 @@ class NetCDFWriter(OutputWriter):
 
         proj = self.nf.createVariable(self.conf.get_config_field('PROJECTION','GRID_MAPPING'), self.NETCDF_COORDINATES_DATA_TYPE)
         self.__set_property(proj, 'grid_mapping_name', 'PROJECTION', 'GRID_MAPPING')
-        self.__set_property(proj, 'false_easting', 'PROJECTION', 'FALSE_EASTING', float)
-        self.__set_property(proj, 'false_northing', 'PROJECTION', 'FALSE_NORTHING', float)
-        self.__set_property(proj, 'longitude_of_projection_origin', 'PROJECTION', 'ORIGIN_LONGITUDE', float)
-        self.__set_property(proj, 'latitude_of_projection_origin', 'PROJECTION', 'ORIGIN_LATITUDE', float)
-        self.__set_property(proj, 'semi_major_axis', 'PROJECTION', 'SEMI_MAJOR_AXIS', float)
-        self.__set_property(proj, 'inverse_flattening', 'PROJECTION', 'INVERSE_FLATTENING', float)
+        self.__set_property(proj, 'false_easting', 'PROJECTION', 'FALSE_EASTING', np.float32)
+        self.__set_property(proj, 'false_northing', 'PROJECTION', 'FALSE_NORTHING', np.float32)
+        self.__set_property(proj, 'longitude_of_projection_origin', 'PROJECTION', 'ORIGIN_LONGITUDE', np.float32)
+        self.__set_property(proj, 'latitude_of_projection_origin', 'PROJECTION', 'ORIGIN_LATITUDE', np.float32)
+        self.__set_property(proj, 'semi_major_axis', 'PROJECTION', 'SEMI_MAJOR_AXIS', np.float32)
+        self.__set_property(proj, 'inverse_flattening', 'PROJECTION', 'INVERSE_FLATTENING', np.float32)
         self.__set_property(proj, 'proj4_params', 'PROJECTION', 'PARAMS')
         self.__set_property(proj, 'EPSG_code', 'PROJECTION', 'EPSG_CODE')
         self.__set_property(proj, 'spatial_ref', 'PROJECTION', 'STRING')
-        # self.__set_property(proj, 'longitude_of_prime_meridian', 'PROJECTION', 'LONGITUDE_PRIME_MERIDIAN', float)
+        # self.__set_property(proj, 'longitude_of_prime_meridian', 'PROJECTION', 'LONGITUDE_PRIME_MERIDIAN', np.float32)
         # self.__set_property(proj, 'GeoTransform', 'PROJECTION', 'GEO_TRANSFORM', self.__get_tuple)
 
         var_data_type_packed = self.conf.get_config_field('PROPERTIES', 'DATA_TYPE_PACKED')
@@ -281,11 +305,21 @@ class GDALWriter(OutputWriter):
         if self.current_timestamp is not None:
             ds.SetMetadataItem('Timestamp', f'{self.current_timestamp}')
         return ds
+    
+    def setup_grid(self, grid: np.ndarray, print_stats: bool = True) -> np.ndarray:
+        if print_stats:
+            values = self.setNaN(copy.deepcopy(grid))
+            values = values * self.conf.scale_factor + self.conf.add_offset
+            self.print_grid_statistics(values)
+        return grid
 
-    def write(self, grid: np.ndarray, timestamp: datetime = None):
+    def write(self, grid: np.ndarray, timestamp: datetime = None, print_stats: bool = True):
         if timestamp is not None:
             self.current_timestamp = timestamp.strftime(FileUtils.DATE_PATTERN_SEPARATED)
-        self.write_timestep(grid)
+        else:
+            self.current_timestamp = None
+        cur_grid = self.setup_grid(grid, print_stats)
+        self.write_timestep(cur_grid)
         self.current_timestamp = None
 
     def write_timestep(self, grid: np.ndarray, timestep: int = -1):
