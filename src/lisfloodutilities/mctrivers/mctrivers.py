@@ -96,7 +96,7 @@ def mct_mask(channels_slope_file, ldd_file, uparea_file, mask_file='',
     # proprocess CH dataset for having correct format
     CH = xr.open_dataset(channels_slope_file)
     old_name = [i for i in list(CH.data_vars) if sorted(CH[i].dims)==sorted([x_proj, y_proj])]
-    CH = CH.rename({old_name[0]: "changrad"})  # only 1 variable complies with above check
+    CH = CH.rename({old_name[0]: "changrad"})  # only 1 variable complies with the above check
     CH['changrad'] = CH['changrad'].transpose(y_proj, x_proj)  # make sure dims order is as pcraster needs
 
     # ---------------- Set clone map for pcraster
@@ -147,7 +147,7 @@ def mct_mask(channels_slope_file, ldd_file, uparea_file, mask_file='',
     # ---------------- Read upstream area
     UA = xr.open_dataset(uparea_file)
     old_name = [i for i in list(UA.data_vars) if sorted(UA[i].dims)==sorted([x_proj, y_proj])]
-    UA = UA.rename({old_name[0]: "domain"})['domain']  # only 1 variable complies with above if
+    UA = UA.rename({old_name[0]: "domain"})['domain']  # only 1 variable complies with the above if statement
     
     # convert the xarray to pcraster
     UA = UA>=minuparea # check that the area is over the minimum
@@ -158,11 +158,10 @@ def mct_mask(channels_slope_file, ldd_file, uparea_file, mask_file='',
     try:
         MX = xr.open_dataset(mask_file)
         old_name = [i for i in list(MX.data_vars) if sorted(MX[i].dims)==sorted([x_proj, y_proj])]
-        MX = MX.rename({old_name[0]: "domain"})['domain']  # only 1 variable complies with above if
+        MX = MX.rename({old_name[0]: "domain"})['domain']  # only 1 variable complies with the above if statement
     except:
         print(f'The given mask path {mask_file} is not a valid path. All domain read from LDD file {ldd_file} is considered vaid.')
         MX = LD.copy(deep=True)
-        MX = MX.fillna(0)*0+1
 
     # use the exact same coords from channel slope file, just in case there are precision differences
     MX = MX.assign_coords({x_proj: x_all, y_proj: y_all})
@@ -213,14 +212,14 @@ def mct_mask(channels_slope_file, ldd_file, uparea_file, mask_file='',
     MCT.name = 'mct_mask'
     
     # mask final data with the mask_file
-    MCT = MCT.where(MX==1)
+    MCT = MCT.where(MX.notnull())
     
     return MCT
 
 
 def main():
     'function for running from command line'
-    # ---------------- Read settings
+    # ---------------- Read settingss
     args = getarg()
     channels_slope_file_arg = args.changradfile
     ldd_file_arg = args.LDDfile
@@ -234,8 +233,8 @@ def main():
 
     mct_final = mct_mask(channels_slope_file=channels_slope_file_arg, ldd_file=ldd_file_arg, uparea_file=uparea_file_arg, mask_file=mask_file_arg, 
                          slp_threshold=slp_threshold_arg, nloops=nloops_arg, minuparea=minuparea_arg, coords_names=coords_names_arg)
-    # lisflood does not read NaNs so the data are saved as boolean 0-1, with 0 being flagged as NaN for python reading
-    mct_final.to_netcdf(outputfile_arg, encoding={"mct_mask": {'_FillValue': 0, 'dtype': 'int8'}})
+    # lisflood does not read NaNs so the data are saved as boolean 0-1, with -1 being flagged as NaN for python reading
+    mct_final.to_netcdf(outputfile_arg, encoding={"mct_mask": {'_FillValue': -1, 'dtype': 'int8'}})
     
     
 if __name__ == "__main__":
