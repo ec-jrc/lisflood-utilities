@@ -196,7 +196,7 @@ def catchment_statistics(maps: Union[xr.DataArray, xr.Dataset],
 
         if output is not None:
             fileout = output / f'{ID:04}.nc'
-            if fileout.exists() and  ~overwrite:
+            if fileout.exists() and not overwrite:
                 print(f'Output file {fileout} already exists. Moving forward to the next catchment')
                 continue
         
@@ -252,7 +252,7 @@ def main(argv=sys.argv):
     parser.add_argument("-s", "--statistic", nargs='+', required=True, help='List of statistics to be computed. Possible values: mean, sum, std, var, min, max, median, count')
     parser.add_argument("-o", "--output", required=True, help="Directory where the output NetCDF files will be saved")
     parser.add_argument("-a", "--area", required=False, default=None, help="NetCDF file of pixel area used to weigh the statistics")
-    parser.add_argument("-W", "--overwrite", action="store_true", help="Overwrite existing output files")
+    parser.add_argument("-w", "--overwrite", action="store_true", default=False, help="Overwrite existing output files")
     
     args = parser.parse_args()
 
