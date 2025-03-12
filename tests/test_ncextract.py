@@ -40,10 +40,10 @@ class TestExtract(unittest.TestCase):
     def test_ncextract(self):
 
         # config
-        inputcsv = './data/ncextract/reservoirs.csv'
-        data_dir = './data/ncextract/datasets'
-        ldd_file = './data/ncextract/ldd.nc'
-        expected_file = './data/ncextract/expected.nc'
+        inputcsv = 'tests/data/ncextract/reservoirs.csv'
+        data_dir = 'tests/data/ncextract/datasets'
+        ldd_file = 'tests/data/ncextract/ldd.nc'
+        expected_file = 'tests/data/ncextract/expected.nc'
         start = datetime(2018, 10, 2)
         end = datetime(2019, 10, 1)
 
