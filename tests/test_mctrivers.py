@@ -31,8 +31,9 @@ class TestMctMask():
         outputfile = os.path.join(self.out_path_run, 'mctmask.nc')
 
         # generate the mct river mask
-        mct_mask(channels_slope_file, ldd_file, uparea_file, mask_file, slp_threshold, nloops, minuparea, coords_names, outputfile)
-
+        mct_final = mct_mask(channels_slope_file, ldd_file, uparea_file, mask_file, slp_threshold, nloops, minuparea, coords_names)
+        mct_final.to_netcdf(outputfile, encoding={"mct_mask": {'_FillValue': 0, 'dtype': 'int8'}})
+        
         # compare the generated mask with the reference one
         ref_file = self.out_path_ref+'/mctmask.nc'
         reference = xr.open_dataset(ref_file)
