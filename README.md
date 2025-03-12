@@ -99,7 +99,7 @@ Otherwise, ensure you have properly installed the following software:
 If you use conda, create a new env (or use an existing one) and install gdal and lisflood-utilities:
 
 ```bash
-conda create --name myenv python=3.7 -c conda-forge
+conda create --name myenv python=3.8 -c conda-forge
 conda activate myenv
 conda install -c conda-forge pcraster eccodes gdal
 pip install lisflood-utilities
