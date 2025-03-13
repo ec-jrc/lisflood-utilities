@@ -47,4 +47,5 @@ jobs:
       shell: bash -el {0}
       run: |
         pip install pytest pytest-cov
-        pytest
+        pytest -m "not defwaterregions"
+        pytest -m "defwaterregions"

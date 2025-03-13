@@ -1,5 +1,7 @@
 import os
 
+import pytest
+
 from lisfloodutilities.readers import PCRasterMap
 
 from lisfloodutilities.waterregions.define_waterregions import define_waterregions
@@ -9,6 +11,7 @@ import pcraster as pcr
 
 class TestWaterRegions:
 
+    @pytest.mark.defwaterregions
     def test_define_waterregions(self):
         calib_points = 'tests/data/waterregions/calib_points_test.txt'
         countries_id = 'tests/data/waterregions/countries_id_test.map'
