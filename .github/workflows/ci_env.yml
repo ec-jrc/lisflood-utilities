@@ -30,7 +30,7 @@ jobs:
     - name: Install gdal eccodes pcraster hdf5
       shell: bash -el {0}
       run: |
-        conda install -c conda-forge gdal==3.5.1 eccodes pcraster==4.3.3
+        conda install -c conda-forge gdal==3.5.1 eccodes pcraster
         conda install -c conda-forge hdf5
     - name: Install dependencies
       shell: bash -el {0}
