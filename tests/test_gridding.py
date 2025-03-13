@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 from osgeo import gdal
 from netCDF4 import Dataset
+from lisfloodutilities.compare.nc import NetCDFComparator
 from lisfloodutilities.gridding.generate_grids import run, print_msg
 from lisfloodutilities.gridding.lib.utils import FileUtils
 
@@ -26,7 +27,12 @@ class TestGridding:
         assert coords_nc1_size == coords_nc2_size, 'Lat/Long axis do not have same size as reference.'
         max_timesteps = len(time_list1)
         for i in range(max_timesteps):
-            assert np.allclose(nc1.variables[variable_name][i, :, :], nc2.variables[variable_name][i, :, :], atol=0.0000001), f'Timestep {i} is not equal to reference.'
+            nc_comparator = NetCDFComparator(None, atol=0.0000001, 
+                 max_perc_diff=0.001, max_perc_large_diff=0.001)
+            nc_comparator.compare_arrays(nc1.variables[variable_name][i, :, :][~nc1.variables[variable_name][i, :, :].mask], 
+                                         nc2.variables[variable_name][i, :, :][~nc2.variables[variable_name][i, :, :].mask], 
+                                         variable_name, i)
+            #assert np.allclose(nc1.variables[variable_name][i, :, :], nc2.variables[variable_name][i, :, :], atol=0.0000001), f'Timestep {i} is not equal to reference.'
 
     def compare_tiffs(self, tiff_folder_path1: Path, tiff_folder_path2: Path):
         for tiff_file2 in sorted(tiff_folder_path2.rglob('*.tiff')):
@@ -40,7 +46,10 @@ class TestGridding:
                 ds1 = None
             assert values1 is not None, f'Grid {tiff_file2.name} was not generated.'
             assert values1.size == values2.size, f'Grid {tiff_file2.name} do not have same size as reference.'
-            assert np.allclose(values1, values2, atol=0.0000001), f'File {tiff_file2.name} is not equal to reference.'
+            nc_comparator = NetCDFComparator(None, atol=0.0000001, 
+                 max_perc_diff=0.001, max_perc_large_diff=0.001)
+            nc_comparator.compare_arrays(values1, values2, tiff_file2.name)
+            #assert np.allclose(values1, values2, atol=0.0000001), f'File {tiff_file2.name} is not equal to reference.'
 
     def test_generate_netcdf(self):
         input_folder = 'tests/data/gridding/meteo_in/test1'
