@@ -17,7 +17,7 @@ class TestWaterRegions:
         output_wr = 'tests/data/waterregions/waterregions_output_test.map'
         reference_output = 'tests/data/waterregions/waterregions_reference_output.map'
 
-        define_waterregions(calib_points, countries_id, ldd, waterregion_init, output_wr)
+        define_waterregions(calib_points, countries_id, ldd, waterregion_init, output_wr, tmpdir='tests/data/waterregions/')
 
         out = PCRasterMap(output_wr)
         reference = PCRasterMap(reference_output)
