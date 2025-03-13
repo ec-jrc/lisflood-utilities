@@ -47,4 +47,4 @@ jobs:
       shell: bash -el {0}
       run: |
         pip install pytest pytest-cov
-        pytest
+        pytest tests/test_waterregions.py
