@@ -91,7 +91,7 @@ The easy way is to use conda environment as they incapsulate C dependencies as w
 
 Otherwise, ensure you have properly installed the following software:
 
-- Python 3.5+
+- Python 3.8+
 - GDAL C library and software
 - NetCDF4 C library
 
@@ -101,7 +101,7 @@ If you use conda, create a new env (or use an existing one) and install gdal and
 ```bash
 conda create --name myenv python=3.8 -c conda-forge
 conda activate myenv
-conda install -c conda-forge pcraster eccodes gdal
+conda install -c conda-forge pcraster eccodes "gdal<=3.5.3"
 pip install lisflood-utilities
 ```
 
