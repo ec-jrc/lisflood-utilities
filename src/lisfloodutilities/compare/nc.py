@@ -52,7 +52,7 @@ class NetCDFComparator(Comparator):
         writer_diff.finalize(timesteps=self.diff_timesteps)
 
     def __init__(self, mask=None, atol=0.0001, rtol=0.001,
-                 max_perc_diff=0.2, max_perc_large_diff=0.1,
+                 max_perc_diff=0.0, max_perc_large_diff=0.0,
                  array_equal=False, for_testing=True,
                  save_diff_files=False):
         """
