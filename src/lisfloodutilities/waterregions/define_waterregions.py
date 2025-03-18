@@ -11,6 +11,7 @@ See the Licence for the specific language governing permissions and limitations 
 """
 
 import argparse
+import shutil
 import sys
 import numpy as np
 import pcraster as pcr
@@ -50,7 +51,20 @@ def main(cliargs):
     else:
        metadata_parsed = []
 
-    [waterregion_nc, waterregion_pcr, subcat1] = define_waterregions(calib_points, countries_id, ldd, waterregions_initial, output_wr, metadata_parsed)
+    tmp_folder_path = os.path.join(os.path.dirname(output_wr),"tmp")
+    tmpToRemove=False
+    if not os.path.exists(tmp_folder_path):
+         tmpToRemove=True
+         os.mkdir(tmp_folder_path)
+
+    [waterregion_nc, waterregion_pcr, subcat1] = define_waterregions(calib_points, countries_id, ldd, waterregions_initial, output_wr, metadata_parsed, tmpdir=tmp_folder_path)    
+    if tmpToRemove:
+         if os.path.exists(tmp_folder_path):
+            try:
+               shutil.rmtree(tmp_folder_path)
+            except:
+                pass
+    
     logger.info('\nUsing %s and %s to define the water regions\n ', calib_points, ldd)
     
     # check the consistency between the water regions and the calibration catchments
