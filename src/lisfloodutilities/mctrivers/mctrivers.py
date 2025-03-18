@@ -233,8 +233,8 @@ def main():
 
     mct_final = mct_mask(channels_slope_file=channels_slope_file_arg, ldd_file=ldd_file_arg, uparea_file=uparea_file_arg, mask_file=mask_file_arg, 
                          slp_threshold=slp_threshold_arg, nloops=nloops_arg, minuparea=minuparea_arg, coords_names=coords_names_arg)
-    # lisflood does not read NaNs so the data are saved as boolean 0-1, with -1 being flagged as NaN for python reading
-    mct_final.to_netcdf(outputfile_arg, encoding={"mct_mask": {'_FillValue': -1, 'dtype': 'int8'}})
+    # lisflood does not read NaNs so the data are saved as boolean 0-1, with 100 being flagged as NaN for python reading
+    mct_final.to_netcdf(outputfile_arg, encoding={"mct_mask": {'_FillValue': 100, 'dtype': 'int8'}})
     
     
 if __name__ == "__main__":
