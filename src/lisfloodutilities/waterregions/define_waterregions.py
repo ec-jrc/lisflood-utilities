@@ -93,7 +93,6 @@ def main(cliargs):
              output_message = 'OK! Each water region is completely included inside one calibration catchment.'
     
     print(output_message)
-    os.unlink(tempfile.gettempdir() + '/points.map')
 
 
 class ParserHelpOnError(argparse.ArgumentParser):
