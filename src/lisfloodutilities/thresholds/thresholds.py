@@ -239,7 +239,7 @@ def compute_thresholds_gumbel(
     method: Literal['l-moments', 'moments'] = 'l-moments',
     dim: str = 'time'
 ) -> xr.Dataset:
-    """Fits the parameters of the Gumbel right function using the method of L-moments and estimates the discharge associated with the return periods
+    """Fits the parameters of the Gumbel right distribution and estimates the discharge associated with the return periods
 
     Parameters:
     -----------
