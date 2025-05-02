@@ -12,6 +12,8 @@ DATA_TYPE_PACKED = i2
 STANDARD_NAME = integral_wrt_time_of_surface_downwelling_shortwave_flux_in_air
 LONG_NAME = Daily Calculated Radiation
 
+KIWIS_FILTER_PLUGIN_CLASSES = {'SolarRadiationLimitsKiwisFilter': {'EXCLUDE_BELLOW_LATITUDE': 66.0, 'EXCLUDE_BELLOW_VALUE': 0.0}}
+
 [VAR_TIME]
 
 UNIT = days since 1990-01-02 00:00:00.0

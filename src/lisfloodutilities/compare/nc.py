@@ -24,7 +24,8 @@ class NetCDFComparator(Comparator):
     glob_expr = ['**/*.nc']
 
     def write_diff_files(self, filepath, varname, step, vara_step, varb_step, diff_values, lats, lons, time):
-        self.diff_timesteps.append(time[step])
+        if time:
+            self.diff_timesteps.append(time[step])
         filename, _ = os.path.splitext(os.path.basename(filepath))
         filepath_a = self.diff_folder.joinpath(filename + '_a.nc')
         filepath_b = self.diff_folder.joinpath(filename + '_b.nc')
@@ -51,7 +52,7 @@ class NetCDFComparator(Comparator):
         writer_diff.finalize(timesteps=self.diff_timesteps)
 
     def __init__(self, mask=None, atol=0.0001, rtol=0.001,
-                 max_perc_diff=0.2, max_perc_large_diff=0.1,
+                 max_perc_diff=0.0, max_perc_large_diff=0.0,
                  array_equal=False, for_testing=True,
                  save_diff_files=False):
         """
@@ -194,10 +195,10 @@ class NetCDFComparator(Comparator):
             max_diff = np.ma.amax(diff_values_no_nan)  # returns a scalar
             perc_wrong = different_values_size * 100 / vara_step.size
             if perc_wrong >= self.max_perc_diff or (perc_wrong >= self.max_perc_large_diff and max_diff > self.large_diff_th):
-                step = step if step is not None else '(no time)'
+                step_print = step if step is not None else '(no time)'
                 filepath = os.path.basename(filepath) if filepath else '<mem>'
                 varname = varname or '<unknown var>'
-                message = '{}/{}@{} - {:3.2f}% of different values - max diff: {:3.6f}'.format(filepath, varname, step, perc_wrong, max_diff)
+                message = '{}/{}@{} - {:3.2f}% of different values - max diff: {:3.6f}'.format(filepath, varname, step_print, perc_wrong, max_diff)
                 if self.for_testing:
                     assert False, message
                 else:

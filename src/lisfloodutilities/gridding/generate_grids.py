@@ -18,6 +18,7 @@ See the Licence for the specific language governing permissions and limitations 
 import sys
 import os
 import csv
+import copy
 from pathlib import Path
 import numpy as np
 from argparse import ArgumentParser, ArgumentTypeError
@@ -113,7 +114,7 @@ def run(config_filename: str, infolder: str, output_file: str, processing_dates_
         if output_netcdf:
             output_writer_netcdf.write(grid_data, file_timestamp)
         if output_tiff:
-            output_writer_tiff.write(grid_data, file_timestamp)
+            output_writer_tiff.write(grid_data, file_timestamp, print_stats=(not output_netcdf))
             output_writer_tiff.close()
     if output_netcdf:
         output_writer_netcdf.close()

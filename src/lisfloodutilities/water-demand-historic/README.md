@@ -78,7 +78,7 @@ The script can be run on a normal desktop PC, support is provided only for Linux
 # Instructions
 Install main lisflood-utilities package in a conda environment:
 ```bash
-conda create --name <env> python=3.7 -c conda-forge
+conda create --name <env> python=3.8 -c conda-forge
 conda activate <env>
 conda install -c conda-forge pcraster eccodes gdal
 pip install lisflood-utilities

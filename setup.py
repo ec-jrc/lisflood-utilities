@@ -130,8 +130,10 @@ setup_args = dict(
                 'compare: compare two set of netCDF files; '
                 'thresholds: compute discharge return period thresholds; '
                 'gridding: interpolate meteo variables observations; '
+                'decumulate: decumulate daily grids into 6 hourly grids in kiwis format; '
                 'ncextract: extract values from netCDF files; '
-                'catchstats: calculates catchment statistics; ',
+                'catchstats: calculates catchment statistics; '
+                'mctrivers: creates a river mask for MCT diffusive river routing in LISFLOOD; ',
     long_description=long_description,
     long_description_content_type='text/markdown',
     setup_requires=[
@@ -143,12 +145,12 @@ setup_args = dict(
                       # 'GDAL=={}'.format(gdal_version),
                       'netCDF4>=1.5.3', 'toolz', 'xarray>=0.15.1',
                       'dask', 'pandas>=0.25.1', 'nine', 'pyg2p'],
-    author="Valerio Lorini, Stefania Grimaldi, Carlo Russo, Domenico Nappo, Lorenzo Alfieri",
-    author_email="valerio.lorini@ec.europa.eu,stefania.grimaldi@ec.europa.eu,carlo.russo@ext.ec.europa.eu,domenico.nappo@gmail.com,lorenzo.alfieri@ec.europa.eu",
+    author="Valerio Lorini, Stefania Grimaldi, Carlo Russo, Goncalo Gomes, Domenico Nappo, Lorenzo Alfieri",
+    author_email="valerio.lorini@ec.europa.eu,stefania.grimaldi@ec.europa.eu,carlo.russo@ext.ec.europa.eu,goncalo.ramos-gomes@ext.ec.europa.eu,domenico.nappo@gmail.com,lorenzo.alfieri@ec.europa.eu",
     keywords=['netCDF4', 'PCRaster', 'mapstack', 'lisflood', 'efas', 'glofas', 'ecmwf', 'copernicus'],
     license='EUPL 1.2',
     url='https://github.com/ec-jrc/lisflood-utilities',
-    scripts=['bin/pcr2nc', 'bin/cutmaps', 'bin/compare', 'bin/nc2pcr', 'bin/thresholds', 'bin/gridding', 'bin/cddmap', 'bin/ncextract','bin/catchstats',],
+    scripts=['bin/pcr2nc', 'bin/cutmaps', 'bin/compare', 'bin/nc2pcr', 'bin/thresholds', 'bin/gridding', 'bin/decumulate', 'bin/cddmap', 'bin/ncextract','bin/catchstats','bin/mctrivers'],
     zip_safe=True,
     classifiers=[
           # complete classifier list: http://pypi.python.org/pypi?%3Aaction=list_classifiers
