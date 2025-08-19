@@ -5,7 +5,7 @@ input:
     ldd_coarse: data/lfcoords/EFAS/ldd_1min.nc
     upstream_coarse: data/lfcoords/EFAS/uparea_1min.nc
 
-output_folder: data/lfcoor/shapefiles/
+output_folder: data/lfcoords/shapefiles/
 
 conditions:
     min_area: 25 # km2

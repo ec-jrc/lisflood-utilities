@@ -7,7 +7,7 @@ from lisfloodutilities.lfcoords.finer_grid import coordinates_fine
 from lisfloodutilities.lfcoords.coarser_grid import coordinates_coarse
 
 
-class TestCatchStats(unittest.TestCase):
+class TestLFcoords(unittest.TestCase):
 
     path = Path('tests/data/lfcoords')
 
