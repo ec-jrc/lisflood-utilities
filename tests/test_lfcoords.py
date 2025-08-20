@@ -20,7 +20,7 @@ class TestLFcoords(unittest.TestCase):
 
         # load expected values
         expected = pd.read_csv(self.path / 'expected.csv', index_col='ID')
-        expected.index =expected.index.astype(test.index.dtype)
+        expected.index = expected.index.astype(test.index.dtype)
 
         # check
         try:
