@@ -105,56 +105,6 @@ def find_pixel(
     return lat_new, lon_new, min_error.item()
 
 
-def downstream_pixel(
-    lat: float,
-    lon: float,
-    ldd: xr.DataArray
-) -> Tuple[float, float]:
-    """
-    Finds the downstream coordinates of a given point.
-    
-    Parameteres:
-    ------------
-    lat: float
-        latitude of the input point
-    lon: float
-        longitued of the input point
-    ldd: xarray.DataArray
-        map of local drainage direction
-        
-    Returns:
-    --------
-    Tuple[float, float]
-        A tuple containing the latitude and longitude of the immediate
-        downstream pixel.
-    """
-    
-    # drainage direction of the input point
-    pixel = ldd.sel(x=lon, y=lat, method='nearest')
-    direction = pixel.item()
-    lat, lon = pixel.y.item(), pixel.x.item()
-    
-    # spatial resolution of the input map
-    resolution = np.mean(np.diff(ldd.x.values))
-    
-    # correct latitude
-    if direction in [1, 2, 3]:
-        lat -= resolution
-    elif direction in [7, 8, 9]:
-        lat += resolution
-    
-    # correct longitude
-    if direction in [1, 4, 7]:
-        lon -= resolution
-    elif direction in [3, 6, 9]:
-        lon += resolution
-        
-    # pixel downstream in the LDD
-    new_pixel = ldd.sel(x=lon, y=lat, method='nearest')
-    
-    return round(new_pixel.y.item(), 6), round(new_pixel.x.item(), 6)
-
-
 def catchment_polygon(
     data: np.ndarray,
     transform: Affine,
