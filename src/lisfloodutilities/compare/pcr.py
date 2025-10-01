@@ -68,12 +68,17 @@ class TSSComparator(Comparator):
                 self.errors.append(message)
         return b1
 
-    def compare_lines_equal(self, file_a, file_b, timestep=None):
+    def compare_lines_equal(self, file_a, file_b, timestep=None, skip_steps=0):
         tss1 = open(file_a, 'rb')
         tss2 = open(file_b, 'rb')
         # skip first line in TSS as it just reports settings filename
         tss1.readline()
         tss2.readline()
+
+        # skip N time steps if requested
+        for _ in range(skip_steps):
+            tss1.readline()
+            tss2.readline()
 
         if not timestep:
             # identical TSS files
@@ -103,7 +108,7 @@ class TSSComparator(Comparator):
         assert True
         return self.errors
 
-    def compare_lines_tolerance(self, file_a, file_b, timestep=None):
+    def compare_lines_tolerance(self, file_a, file_b, timestep=None, skip_steps=0):
         tss1 = open(file_a, 'rb')
         tss2 = open(file_b, 'rb')
         # skip first lines in TSS as it just reports settings filename
@@ -112,6 +117,12 @@ class TSSComparator(Comparator):
         while 'timestep' not in line.decode():
             tss1.readline()
             line = tss2.readline()
+            numline += 1
+
+        # skip N timesteps if requested
+        for _ in range(skip_steps):
+            tss1.readline()
+            tss2.readline()
             numline += 1
 
         while True:
