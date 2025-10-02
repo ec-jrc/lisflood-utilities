@@ -51,12 +51,13 @@ class TSSComparator(Comparator):
                     current_line = tss_file.readline()
         return current_line, found_timestep
 
-    def __init__(self, atol=0.0001, rtol=0.001,
+    def __init__(self, atol=0.0001, rtol=0.001, init_skip_steps=0,
                  array_equal=False, for_testing=True):
 
         super(TSSComparator, self).__init__(array_equal=array_equal, for_testing=for_testing)
         self.atol = atol
         self.rtol = rtol
+        self.init_skip_steps = init_skip_steps
 
     def _findline_at_timestep(self, tss_file, timestep):
         b1, found_timestep = self.find_timestep(tss_file, timestep)
@@ -68,7 +69,7 @@ class TSSComparator(Comparator):
                 self.errors.append(message)
         return b1
 
-    def compare_lines_equal(self, file_a, file_b, timestep=None, skip_steps=0):
+    def compare_lines_equal(self, file_a, file_b, timestep=None):
         tss1 = open(file_a, 'rb')
         tss2 = open(file_b, 'rb')
         # skip first line in TSS as it just reports settings filename
@@ -76,7 +77,7 @@ class TSSComparator(Comparator):
         tss2.readline()
 
         # skip N time steps if requested
-        for _ in range(skip_steps):
+        for _ in range(self.init_skip_steps):
             tss1.readline()
             tss2.readline()
 
@@ -108,7 +109,7 @@ class TSSComparator(Comparator):
         assert True
         return self.errors
 
-    def compare_lines_tolerance(self, file_a, file_b, timestep=None, skip_steps=0):
+    def compare_lines_tolerance(self, file_a, file_b, timestep=None):
         tss1 = open(file_a, 'rb')
         tss2 = open(file_b, 'rb')
         # skip first lines in TSS as it just reports settings filename
@@ -120,7 +121,7 @@ class TSSComparator(Comparator):
             numline += 1
 
         # skip N timesteps if requested
-        for _ in range(skip_steps):
+        for _ in range(self.init_skip_steps):
             tss1.readline()
             tss2.readline()
             numline += 1
