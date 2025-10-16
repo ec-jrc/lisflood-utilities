@@ -51,8 +51,9 @@ class TSSComparator(Comparator):
                     current_line = tss_file.readline()
         return current_line, found_timestep
 
-    def __init__(self, atol=0.0001, rtol=0.001, init_skip_steps=0,
-                 array_equal=False, for_testing=True):
+    def __init__(self, atol=0.0001, rtol=0.001, 
+                 array_equal=False, for_testing=True,
+                 init_skip_steps=0):
 
         super(TSSComparator, self).__init__(array_equal=array_equal, for_testing=for_testing)
         self.atol = atol
