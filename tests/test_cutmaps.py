@@ -23,17 +23,13 @@ import logging
 from lisfloodutilities.cutmaps.main import get_arg_coords
 
 logging.basicConfig(format="%(threadName)s:%(message)s")
-from lisfloodutilities import IS_PYTHON2
 from lisfloodutilities.cutmaps.cutlib import get_filelist, get_cuts, cutmap, mask_from_ldd
 from lisfloodutilities.nc2pcr import convert as nc2pcr_convert
 from lisfloodutilities.compare.nc import NetCDFComparator
 
 from . import TestWithCleaner
 
-if IS_PYTHON2:
-    from pathlib2 import Path
-else:
-    from pathlib import Path
+from pathlib import Path
 
 
 class TestCutlib(TestWithCleaner):

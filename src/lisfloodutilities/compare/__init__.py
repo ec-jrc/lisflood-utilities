@@ -20,12 +20,7 @@ import cftime
 import itertools
 from typing import Iterable
 
-from nine import IS_PYTHON2
-
-if IS_PYTHON2:
-    from pathlib2 import Path
-else:
-    from pathlib import Path
+from pathlib import Path
 
 from .. import logger
 

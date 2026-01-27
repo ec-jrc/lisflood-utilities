@@ -125,7 +125,7 @@ setup_args = dict(
     packages=find_packages('src'),
     description='A set of utilities for lisflood users. '
                 'pcr2nc: Convert PCRaster files to netCDF CF 1.6; '
-                'nc2pcr: Convert netCDF files ot PCRaster format; '
+                'nc2pcr: Convert netCDF files to PCRaster format; '
                 'cutmaps: cut netCDF files; '
                 'compare: compare two set of netCDF files; '
                 'thresholds: compute discharge return period thresholds; '
@@ -144,7 +144,7 @@ setup_args = dict(
                       # Better to install GDAL manually before to install lisflood-utilities package
                       # 'GDAL=={}'.format(gdal_version),
                       'netCDF4>=1.5.3', 'toolz', 'xarray>=0.15.1',
-                      'dask', 'pandas>=0.25.1', 'nine', 'pyg2p'],
+                      'dask', 'pandas>=0.25.1', 'pyg2p'],
     author="Valerio Lorini, Stefania Grimaldi, Carlo Russo, Goncalo Gomes, Domenico Nappo, Lorenzo Alfieri",
     author_email="valerio.lorini@ec.europa.eu,stefania.grimaldi@ec.europa.eu,carlo.russo@ext.ec.europa.eu,goncalo.ramos-gomes@ext.ec.europa.eu,domenico.nappo@gmail.com,lorenzo.alfieri@ec.europa.eu",
     keywords=['netCDF4', 'PCRaster', 'mapstack', 'lisflood', 'efas', 'glofas', 'ecmwf', 'copernicus'],

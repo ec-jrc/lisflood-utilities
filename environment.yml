@@ -221,7 +221,6 @@ dependencies:
       - more-itertools==10.5.0
       - netcdf4==1.6.4
       - nh3==0.2.21
-      - nine==1.2.0
       - numba==0.58.1
       - numexpr==2.8.6
       - packaging==24.2
