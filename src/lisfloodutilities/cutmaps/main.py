@@ -101,19 +101,14 @@ def main(cliargs):
         os.mkdir(pathout)
     if ldd and stations:
         logger.info('\nTry to produce a mask from LDD and stations points: %s %s', ldd, stations)
-        if ldd.endswith('.nc'):
-            # convert ldd.nc to a pcraster map as we are going to use pcraster commands
-            clonemap = args.clonemap
-            ldd = convert(ldd, '.map', clonemap=clonemap)
-        mask, outlets_nc, mask_nc = mask_from_ldd(ldd, stations)
+        outlets_nc, mask_nc = mask_from_ldd(ldd, stations)
         # copy outlets.nc (produced from stations txt file) and the new mask to output folder
         shutil.copy(outlets_nc, os.path.join(pathout, 'my_outlets.nc'))
-        shutil.copy(mask, os.path.join(pathout, 'my_mask.map'))
         shutil.copy(mask_nc, os.path.join(pathout, 'my_mask.nc'))
 
-    x_min, x_max, y_min, y_max = get_cuts(cuts=cuts, cuts_indices=cuts_indices, mask=mask)
+    x_min, x_max, y_min, y_max = get_cuts(cuts=cuts, cuts_indices=cuts_indices, mask=mask_nc)
     logger.info('\n\nCutting using: %s\n Files to cut from: %s\n Output: %s\n Overwrite existing: %s\n\n',
-                mask or ([x_min, x_max, y_min, y_max if cuts or cuts_indices else None]),
+                mask_nc or ([x_min, x_max, y_min, y_max if cuts or cuts_indices else None]),
                 input_folder or static_data_folder,
                 pathout, overwrite)
 

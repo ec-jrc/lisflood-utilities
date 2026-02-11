@@ -25,10 +25,13 @@ import numpy as np
 
 from dask.diagnostics import ProgressBar
 
-from .helpers import pcraster_command
+from .helpers import pcraster_command, col2netcdf, array_to_nc_from_clone
 from ..readers.pcr import PCRasterMap
+from ..writers.nc import NetCDFWriter
 from ..pcr2nc import convert
 from .. import version, logger
+
+import earthkit.hydro as ekh
 
 encoding_netcdf_vars = {'zlib': False}
 
@@ -163,21 +166,18 @@ def get_cuts(cuts=None, cuts_indices=None, mask=None):
         if not os.path.isfile(mask):
             raise FileNotFoundError('Wrong input mask: %s not a file' % mask)
         maskname, ext = os.path.splitext(mask)
-        if ext == '.map':
-            mask = PCRasterMap(mask)
-            lats = mask.lats
-            lons = mask.lons
-            mask.close()
-            x_min, x_max = float(np.min(lons)), float(np.max(lons))
-            y_min, y_max = float(np.min(lats)), float(np.max(lats))
-        elif ext == '.nc':
+        if ext == '.nc':
             maskmap = xr.open_dataset(mask)
-            latitudes = maskmap['lat'][:]
-            longitudes = maskmap['lon'][:]
+            try:
+                latitudes = maskmap['lat'][:]
+                longitudes = maskmap['lon'][:]
+            except KeyError as e:
+                latitudes = maskmap['y'][:]
+                longitudes = maskmap['x'][:]
             y_min, y_max = float(np.min(latitudes)), float(np.max(latitudes))
             x_min, x_max = float(np.min(longitudes)), float(np.max(longitudes))
         else:
-            logger.error('Mask map format not recognized. Must be either .map or .nc. Found %s', ext)
+            logger.error('Mask map format not recognized. Must be .nc. Found %s', ext)
             sys.exit(1)
         logger.info('MASK: \nmin x: %s \nmax x: %s \nmin y: %s \nmax y: %s', x_min, x_max, y_min, y_max)
     elif cuts:
@@ -207,64 +207,35 @@ def mask_from_ldd(ldd_map, stations):
 
     path = os.path.dirname(stations)
     masknc_path = os.path.join(path, 'my_mask.nc')
-    regions_map = os.path.join(path, 'area_mask_regions.map')
-    smallmask_map = os.path.join(path, 'mask.map')
-    tempmask_map = os.path.join(path, 'tempmask.map')
     outlets_nc = os.path.join(path, 'outlets.nc')
-    outlets_map = os.path.join(path, 'outlets.map')
     # clean existing files from previuos executions
-    for out_file in (masknc_path, regions_map, smallmask_map, tempmask_map, outlets_map, outlets_nc):
+    for out_file in (masknc_path, outlets_nc):
         if os.path.exists(out_file):
             os.unlink(out_file)
 
-    pcraster_command(cmd='col2map F0 F1 -N --clone F2 --large', files=dict(F0=stations, F1=outlets_map, F2=ldd_map))
-
     # Default format for output netcdf file is NETCDF3_CLASSIC
-    pcr2nc_metadata = {'variable': {'description': 'stations id', 'longname': 'platform_id', 'units': '',
-                                    'shortname': 'outlets', 'mv': '0'},
-                       'source': 'JRC E.1 Space, Security, Migration',
-                       'reference': 'JRC E.1 Space, Security, Migration',
-                       'geographical': {'datum': ''}}
+    metadata = {'variable': {'description': 'stations id', 'longname': 'platform_id', 'units': '',
+                             'shortname': 'outlets', 'mv': '0'},
+                'source': 'JRC E.1 Space, Security, Migration',
+                'reference': 'JRC E.1 Space, Security, Migration',
+                'geographical': {'datum': ''}}
 
-    convert(outlets_map, outlets_nc, pcr2nc_metadata)
+    # Identify the outlets on the ldd map marked by the station coordinates    
+    outlets = col2netcdf(stations, outlets_nc, ldd_map, metadata, quiet=False)
 
-    tmp_txt = os.path.join(path, 'tmp.txt')
-    tmp_map = os.path.join(path, 'tmp.map')
-    with open(stations) as f:
-        stations_data = [line.split() for line in f.readlines()]
-    for x, y, idx in stations_data:
-        with open(tmp_txt, "w") as f1:
-            f1.write("%s %s %s\n" % (x, y, 1))
-        catchment_map = os.path.join(path, 'catchmask%05d.map' % int(idx))
-        pcraster_command(cmd='col2map F0 F1 -N --clone F2 --large', files=dict(F0=tmp_txt, F1=tmp_map, F2=ldd_map))
-        pcraster_command(cmd="pcrcalc 'F0 = boolean(catchment(F1, F2))'",
-                         files=dict(F0=catchment_map, F1=ldd_map, F2=tmp_map))
-        pcraster_command(cmd="pcrcalc 'F0 = if((scalar(F0) gt (scalar(F0) * 0)) then F0)'",
-                         files=dict(F0=catchment_map))
-    os.unlink(tmp_txt)
-    os.unlink(tmp_map)
-
-    # init area map
-    pcraster_command(cmd="pcrcalc 'F0 = scalar(F1) * 0 - 1'", files=dict(F0=regions_map, F1=ldd_map))
-    for x, y, idx in stations_data:
-        catchment_map = os.path.join(path, "catchmask%05d.map" % int(idx))
-
-        pcraster_command(cmd="pcrcalc 'F0 = F0 * (1-scalar(cover(F1,0)))'",
-                         files=dict(F0=regions_map, F1=catchment_map))
-        pcraster_command(cmd="pcrcalc 'F0 = F0 + scalar(cover(F1, 0)) * %d'" % int(idx),
-                         files=dict(F0=regions_map, F1=catchment_map))
-        os.unlink(catchment_map)
-    pcraster_command(cmd="pcrcalc 'F0 = boolean(if(scalar(F1) != -1, scalar(1)))'",
-                     files=dict(F0=tempmask_map, F1=regions_map))
-    pcraster_command(cmd='resample -c 0 F0 F1', files=dict(F0=tempmask_map, F1=smallmask_map))
-    os.unlink(tempmask_map)
-    os.unlink(regions_map)
+    # Obtain the catchments that contain these outlets creating a boolean mask where 1 identifies
+    # the catchment cells
+    network = ekh.river_network.create(ldd_map, "pcr_d8", "file")
+    catchments_mask = ekh.catchments.find(network, outlets)
+    catchments_mask[catchments_mask!=0] = 1
 
     # convert pcraster mask map into netCDF format (default format for pcr2nc is NETCDF3_CLASSIC)
     pcr2nc_metadata = {'variable': {'description': 'Mask Area', 'longname': 'area', 'units': '',
                                     'shortname': 'area', 'mv': '0'},
                        'source': 'JRC E.1 Space, Security, Migration',
                        'reference': 'JRC E.1 Space, Security, Migration',
-                       'geographical': {'datum': ''}}
-    convert(smallmask_map, masknc_path, pcr2nc_metadata)
-    return smallmask_map, outlets_nc, masknc_path
+                       'geographical': {'datum': ''}
+                       }
+    array_to_nc_from_clone(masknc_path, ldd_map, catchments_mask, metadata=pcr2nc_metadata)
+    
+    return outlets_nc, masknc_path
