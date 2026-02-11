@@ -23,6 +23,7 @@ partd>=1.4.0
 pluggy>=1.0.0
 pycparser>=2.21
 pyg2p>=3.2.8
+pyproj>=3.5.0
 pytest>=7.3.1
 pytest-cov>=4.0.0
 pytest-env>=0.8.1

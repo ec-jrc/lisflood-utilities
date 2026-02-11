@@ -3,9 +3,10 @@ import argparse
 import sys
 import time
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, Union
 import numpy as np
 from netCDF4 import Dataset
+import xarray as xr
 from pyproj import CRS
 
 
@@ -19,8 +20,14 @@ def pcraster_command(cmd, files=None):
     os.system(cmd)
     return cmd
 
+
+LATITUDE_NAMES = {'y', 'lat', 'latitude', 'nlat'}
+LONGITUDE_NAMES = {'x', 'lon', 'longitude', 'nlon'}
+TIME_NAMES = {'time', 't'}
+
 def get_from_metadata(metadata: dict, main_key: str, sub_key: str, default_value):
     return metadata[main_key].get(sub_key, default_value) if main_key in metadata else default_value
+
 
 def read_column_file(
     file_path: Path,
@@ -86,7 +93,6 @@ def copy_clone_geometry(src_ds: Dataset, dst_ds: Dataset):
     for var_name, var in src_ds.variables.items():
         # Skip data variables that have more than one dimension (e.g. the raster itself).
         # Most clones only have coordinate variables (e.g. lat, lon, x, y, time).
-        # if set(var.dimensions).issubset(set(src_ds.dimensions)):
         if len(var.dimensions) < total_dimensions:
             # Create the variable with the same datatype and attributes.
             new_var = dst_ds.createVariable(
@@ -101,6 +107,7 @@ def copy_clone_geometry(src_ds: Dataset, dst_ds: Dataset):
             new_var[:] = var[:]
     # ----------- global attributes ------------------------------------------
     dst_ds.setncatts({k: src_ds.getncattr(k) for k in src_ds.ncattrs()})
+
 
 def get_crs(ds: Dataset) -> CRS:
     crs_var = None
@@ -134,22 +141,77 @@ def get_crs(ds: Dataset) -> CRS:
         crs = CRS.from_epsg(4326)
     return crs
 
-def read_spatial_dimensions(ds: Dataset) -> Tuple[str, str]:
+
+def read_spatial_dimensions(ds: Union[Dataset, xr.Dataset]) -> Tuple[str, str]:
     """
     Identify the two spatial dimensions (usually y, x)
     Detect the dimension variables where the order is important: (y, x) or (x, y)
     -------------
     Returns (dim_x, dim_y)
     """
-    spatial_dims = [d for d in ds.dimensions if not ds.dimensions[d].isunlimited()]
+    
+    if isinstance(ds, Dataset):
+        spatial_dims = [d for d in ds.dimensions if not ds.dimensions[d].isunlimited()]
+    else:
+        spatial_dims = [d for d in ds.dims]
     if len(spatial_dims) < 2:
         raise ValueError(
-            f"The clone file {clone_path} does not contain at least two spatial dimensions."
+            f"The dataset does not contain at least two spatial dimensions {spatial_dims}."
         )
+    # Transpose the dimension names to get x, y order
     dim_y, dim_x = spatial_dims[:2]
-    if not dim_y.lower() in ['y', 'lat', 'latitude', 'nlat']:
+    if not dim_y.lower() in LATITUDE_NAMES:
         dim_x, dim_y = spatial_dims[:2]
     return dim_x, dim_y
+
+
+def bbox_from_netcdf(path: Path, time_index: int = 0) -> Tuple[float, float, float]:
+    """
+    Get the minimum bounding box possible that includes all data from a netCDF grid.
+    If there is more than 1 raster, selects the raster at time_index position.
+    --------------
+    Returns:
+    min_x, max_x, min_y, max_y
+    """
+    ds = xr.open_dataset(path)
+    var_names = [n for n,da in ds.data_vars.items() if len(da.dims)>1]
+    var_name = var_names[0]
+    da = ds[var_name]
+
+    var_time_names = [n for n,_ in ds.data_vars.items() if n in TIME_NAMES]
+    time_dim = None if len(var_time_names) == 0 else var_time_names[0]
+    if time_dim and time_dim in da.dims:
+        da = da.isel({time_dim: time_index})
+
+    x_dim, y_dim = read_spatial_dimensions(ds)
+
+    # guarantee (y, x) order
+    da = da.transpose(..., y_dim, x_dim)
+
+    # Boolean mask of valid data
+    y_idx, x_idx = np.where(da.notnull().values)
+
+    if y_idx.size == 0:
+        raise ValueError("All values are NaN / masked.")
+
+    # min and max indexes
+    i_min, i_max = x_idx.min(), x_idx.max()
+    j_min, j_max = y_idx.min(), y_idx.max()
+
+    # coordinate values corresponding to the min and max indexes
+    coord_idx_min_x = float(ds[x_dim].values[i_min])
+    coord_idx_max_x = float(ds[x_dim].values[i_max])
+    coord_idx_min_y = float(ds[y_dim].values[j_min])
+    coord_idx_max_y = float(ds[y_dim].values[j_max])
+    
+    # min and max coordinates
+    min_x = min(coord_idx_min_x, coord_idx_max_x)
+    max_x = max(coord_idx_min_x, coord_idx_max_x)
+    min_y = min(coord_idx_min_y, coord_idx_max_y)
+    max_y = max(coord_idx_min_y, coord_idx_max_y)
+
+    return min_x, max_x, min_y, max_y
+
 
 def array_to_nc_from_clone(out_path: Path, clone_path: Path, grid: np.ndarray, metadata: dict = {}):
     """
@@ -196,25 +258,6 @@ def array_to_nc_from_clone(out_path: Path, clone_path: Path, grid: np.ndarray, m
             var.standard_name = nc_var_name
             var.units = get_from_metadata(metadata, 'variable', 'units', '')
             var[:, :] = raster
-
-def find_one(keys: List[str], obj):
-    """
-    Return the first value found for `key`, or None if not present.
-    """
-    if isinstance(obj, dict):
-        for k, v in obj.items():
-            if k.lower() in keys:
-                return v
-            # Dive deeper only if we haven't found it yet
-            result = find_one(keys, v)
-            if result is not None:
-                return result
-    elif isinstance(obj, list):
-        for item in obj:
-            result = find_one(keys, item)
-            if result is not None:
-                return result
-    return None
 
 
 def write_output_nc(out_path: Path, clone_path: Path, points: np.ndarray,
@@ -283,22 +326,6 @@ def write_output_nc(out_path: Path, clone_path: Path, points: np.ndarray,
         xs = points[:, 0]
         ys = points[:, 1]
         vals = points[:, 2]
-
-        # print('minX', xs.min(), 'maxX', xs.max())
-        # print('minY', ys.min(), 'maxY', ys.max())
-        #
-        # crs_obj = get_crs(src)
-        # if crs_obj.is_projected:
-        #     crs_dict = crs_obj.to_dict()
-        #     false_easting = int(crs_dict.get('x_0'))
-        #     false_northing = int(crs_dict.get('y_0'))
-        #     # xs = xs + false_easting
-        #     ys = ys + false_northing
-        # print(f'false_easting: {false_easting} false_northing: {false_northing}')
-        # print('PROJ minX', xs.min(), 'maxX', xs.max())
-        # print('PROJ minY', ys.min(), 'maxY', ys.max())
-        # print('PROJ mincoord_x', coord_x.min(), 'maxcoord_x', coord_x.max())
-        # print('PROJ mincoord_y', coord_y.min(), 'maxcoord_y', coord_y.max())
 
         # Find the index of the nearest coordinate in the clone.
         # Because the coordinate arrays already sorted we can use np.searchsorted.
