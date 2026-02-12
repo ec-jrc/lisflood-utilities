@@ -10,17 +10,6 @@ import xarray as xr
 from pyproj import CRS
 
 
-def pcraster_command(cmd, files=None):
-
-    if files is not None:
-        # replace placeholders in command with actual filenames
-        for alias, realname in files.items():
-            cmd = cmd.replace(alias, '"{}"'.format(realname))
-
-    os.system(cmd)
-    return cmd
-
-
 LATITUDE_NAMES = {'y', 'lat', 'latitude', 'nlat'}
 LONGITUDE_NAMES = {'x', 'lon', 'longitude', 'nlon'}
 TIME_NAMES = {'time', 't'}
@@ -67,7 +56,7 @@ def read_column_file(
         raise RuntimeError(f"Failed to read column file {file_path}: {exc}")
 
     if data.ndim == 1:
-        # Only one line → make it a 2‑D row vector
+        # Only one line, make it a 2‑D row vector
         data = data[np.newaxis, :]
 
     if data.shape[1] < 3:
@@ -110,7 +99,13 @@ def copy_clone_geometry(src_ds: Dataset, dst_ds: Dataset):
 
 
 def get_crs(ds: Dataset) -> CRS:
+    """
+    Try to obtain the coordinate system/projection from a dataset.
+    ------------
+    Returns a CRS object containing the information 
+    """
     crs_var = None
+    # If it exists, identify the variable containing the grid mapping
     for v in ds.variables.values():
         if (getattr(v, "grid_mapping_name", None) is not None or
             getattr(v, "grid_mapping", None) is not None):
@@ -119,19 +114,22 @@ def get_crs(ds: Dataset) -> CRS:
 
     proj_wkt = None
     proj4   = None
+    # Identify in the variable properties the string containing
+    # the projection definitions
     if crs_var is not None:
         proj_wkt = (getattr(crs_var, "spatial_ref", None) or
                     getattr(crs_var, "crs_wkt", None) or
                     getattr(crs_var, "esri_pe_string", None)
                     )
         proj4   = getattr(crs_var, "proj4_params", None)
-
+    # If Identify the string containing the projection definitions
+    # in the dataset itself.
     if not proj_wkt and not proj4:
         proj_wkt = (getattr(ds, "spatial_ref", None) or
-                    getattr(crs_var, "esri_pe_string", None)
+                    getattr(ds, "esri_pe_string", None)
                     )
         proj4   = getattr(ds, "proj4_params", None)
-
+    # Build the CRS object from the projection definitions
     if proj_wkt:
         crs = CRS.from_wkt(proj_wkt)
     elif proj4:
@@ -220,13 +218,13 @@ def array_to_nc_from_clone(out_path: Path, clone_path: Path, grid: np.ndarray, m
 
     Parameters
     -------------
-    out_path: Path,
-    clone_path: Path,
-    grid: array of data
-    metadata: metadata for the output_file
+    out_path: Output netCDF file path
+    clone_path: Clone netCDF file path
+    grid: array of data to be written in the out_path file
+    metadata: metadata for the out_file
     """
     default_var_name = 'map'
-    # Open clone – obtain geometry and coordinate arrays
+    # Open clone and obtain geometry and coordinate arrays
     with Dataset(clone_path, "r") as src:
         dim_x, dim_y = read_spatial_dimensions(src)
 
@@ -236,7 +234,7 @@ def array_to_nc_from_clone(out_path: Path, clone_path: Path, grid: np.ndarray, m
         raster = grid
         raster[raster is np.nan] = fill_value
 
-        # Write the new NetCDF (copy geometry + raster variable)
+        # Write the new NetCDF (copy geometry and raster variable)
         with Dataset(out_path, "w", format="NETCDF4") as dst:
             copy_clone_geometry(src, dst)
             dst.history = 'Created {}'.format(time.ctime(time.time()))
@@ -282,7 +280,7 @@ def write_output_nc(out_path: Path, clone_path: Path, points: np.ndarray,
     -------------
     For convenience returns the result also as a np.ndarray
     """
-    # Open clone – obtain geometry and coordinate arrays
+    # Open clone, obtain geometry and coordinate arrays
     with Dataset(clone_path, "r") as src:
         dim_x, dim_y = read_spatial_dimensions(src)
 
@@ -290,7 +288,7 @@ def write_output_nc(out_path: Path, clone_path: Path, points: np.ndarray,
         nx = len(src.dimensions[dim_x])
 
         # Pull the coordinate vectors (1‑D arrays)
-        # We assume the clone has *coordinate variables* named exactly as the
+        # We assume the clone has coordinate variables named exactly as the
         # dimensions (common convention).
         try:
             coord_x = src.variables[dim_x][:]      # e.g. easting or longitude
@@ -379,7 +377,7 @@ def write_output_nc(out_path: Path, clone_path: Path, points: np.ndarray,
         row_idx_saved = np.array(list(map(lambda idx: coord_y_backup_indexes[coord_y_sorted[idx]], row_idx)))
         raster[row_idx_saved, col_idx_saved] = vals_int
 
-        # Write the new NetCDF (copy geometry + raster variable)
+        # Write the new NetCDF (copy geometry and raster variable)
         with Dataset(out_path, "w", format="NETCDF4") as dst:
             copy_clone_geometry(src, dst)
             dst.history = 'Created {}'.format(time.ctime(time.time()))

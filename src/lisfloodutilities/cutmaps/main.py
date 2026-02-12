@@ -23,7 +23,6 @@ import sys
 
 from .. import version, logger
 from .cutlib import mask_from_ldd, get_filelist, get_cuts, cutmap
-from ..nc2pcr import convert
 from netCDF4 import Dataset 
 import numpy as np
 
@@ -58,15 +57,13 @@ class ParserHelpOnError(argparse.ArgumentParser):
         group_mask = self.add_argument_group(title='Cut with a provided mask or a bounding box or '
                                                    'create mask cookie-cutter on-fly from stations list and ldd map')
         group_filelist = self.add_mutually_exclusive_group(required=True)
-        group_mask.add_argument("-m", "--mask", help='mask file cookie-cutter, .map if pcraster, .nc if netcdf')
+        group_mask.add_argument("-m", "--mask", help='mask file cookie-cutter in netcdf format (.nc)')
         group_mask.add_argument("-c", "--cuts", help='Cut coordinates in the form "lonmin lonmax latmin latmax" using coordinates bounding box', type=get_arg_coords)
         group_mask.add_argument("-i", "--cuts_indices", help='Cut coordinates in the form "imin imax jmin jmax" using matrix indices', type=get_arg_coords)
-        group_mask.add_argument("-l", "--ldd", help='Path to LDD file')
+        group_mask.add_argument("-l", "--ldd", help='Path to LDD file in netcdf format (.nc)')
         group_mask.add_argument("-N", "--stations",
                                 help='Path to stations.txt file.'
                                      'Read documentation to know about the format')
-        group_mask.add_argument("-C", "--clonemap",
-                                help='Path to PCRaster clonemap; used to convert ldd.nc to ldd.map')
 
         group_filelist.add_argument("-f", "--folder", help='Directory with netCDF files to be cut')
         group_filelist.add_argument("-F", "--file", help='netCDF file to be cut')

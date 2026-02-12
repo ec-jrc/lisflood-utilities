@@ -25,10 +25,7 @@ import numpy as np
 
 from dask.diagnostics import ProgressBar
 
-from .helpers import pcraster_command, col2netcdf, array_to_nc_from_clone, bbox_from_netcdf
-from ..readers.pcr import PCRasterMap
-from ..writers.nc import NetCDFWriter
-from ..pcr2nc import convert
+from .helpers import col2netcdf, array_to_nc_from_clone, bbox_from_netcdf
 from .. import version, logger
 
 import earthkit.hydro as ekh
@@ -188,15 +185,8 @@ def get_cuts(cuts=None, cuts_indices=None, mask=None):
 
 def mask_from_ldd(ldd_map, stations):
     """
-
+    Generate a mask map from a LDD where the outlets are identified in the stations file 
     """
-    try:
-        from pcraster import accuflux
-    except ImportError as e:
-        logger.error('PCRaster not installed. Try to install PCRaster >= 4.3.0 in a conda environment '
-                     'and then execute `pip install lisflood-utilities`')
-        raise e
-
     path = os.path.dirname(stations)
     masknc_path = os.path.join(path, 'my_mask.nc')
     outlets_nc = os.path.join(path, 'outlets.nc')
@@ -221,13 +211,13 @@ def mask_from_ldd(ldd_map, stations):
     catchments_mask = ekh.catchments.find(network, outlets)
     catchments_mask[catchments_mask!=0] = 1
 
-    # convert pcraster mask map into netCDF format (default format for pcr2nc is NETCDF3_CLASSIC)
-    pcr2nc_metadata = {'variable': {'description': 'Mask Area', 'longname': 'area', 'units': '',
-                                    'shortname': 'area', 'mv': '0'},
-                       'source': 'JRC E.1 Space, Security, Migration',
-                       'reference': 'JRC E.1 Space, Security, Migration',
-                       'geographical': {'datum': ''}
-                       }
-    array_to_nc_from_clone(masknc_path, ldd_map, catchments_mask, metadata=pcr2nc_metadata)
+    # Mask map for netCDF format
+    nc_metadata = {'variable': {'description': 'Mask Area', 'longname': 'area', 'units': '',
+                                'shortname': 'area', 'mv': '0'},
+                   'source': 'JRC E.1 Space, Security, Migration',
+                   'reference': 'JRC E.1 Space, Security, Migration',
+                   'geographical': {'datum': ''}
+                   }
+    array_to_nc_from_clone(masknc_path, ldd_map, catchments_mask, metadata=nc_metadata)
     
     return outlets_nc, masknc_path
