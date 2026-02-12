@@ -32,6 +32,8 @@ import earthkit.hydro as ekh
 
 encoding_netcdf_vars = {'zlib': False}
 
+# Value used to identify the masked cells
+MASK_VALUE = 1
 
 def cutmap(f, fileout, x_min, x_max, y_min, y_max, use_coords = True):
     nc, num_dims = open_dataset(f)
@@ -209,7 +211,7 @@ def mask_from_ldd(ldd_map, stations):
     # the catchment cells
     network = ekh.river_network.create(ldd_map, "pcr_d8", "file")
     catchments_mask = ekh.catchments.find(network, outlets)
-    catchments_mask[catchments_mask!=0] = 1
+    catchments_mask[catchments_mask!=0] = MASK_VALUE
 
     # Mask map for netCDF format
     nc_metadata = {'variable': {'description': 'Mask Area', 'longname': 'area', 'units': '',

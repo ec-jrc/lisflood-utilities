@@ -22,7 +22,7 @@ import shutil
 import sys
 
 from .. import version, logger
-from .cutlib import mask_from_ldd, get_filelist, get_cuts, cutmap
+from .cutlib import mask_from_ldd, get_filelist, get_cuts, cutmap, MASK_VALUE
 from netCDF4 import Dataset 
 import numpy as np
 
@@ -84,6 +84,7 @@ def main(cliargs):
     mask = args.mask
     cuts = args.cuts
     cuts_indices = args.cuts_indices
+    mask_nc = None
 
     ldd = args.ldd
     stations = args.stations
@@ -144,24 +145,25 @@ def main(cliargs):
                 for k in mask_map.variables.keys():        
                     if (k !='x'  and k !='y'  and k !='lat'  and k !='lon'):
                         mask_map_values=mask_map.variables[k][:] 
-            with Dataset(fileout,'r+',format='NETCDF4_CLASSIC') as file_out:                                    
+            with Dataset(fileout,'r+',format='NETCDF4_CLASSIC') as file_out:
                 for name, variable in file_out.variables.items():
                     data=[]   
                     if (variable.dtype != '|S1' and name != 'crs' and name != 'wgs_1984' and name != 'lambert_azimuthal_equal_area'): 
                         k = name
+                        fill_value = getattr(file_out.variables[k], "_FillValue", np.nan)
                         data=file_out.variables[k][:] 
-                    
+
                         if (len(data.shape)==2):
                             values=[]
-                            values=file_out.variables[k][:]              
-                            values2=np.where(mask_map_values==1,values,np.nan)
+                            values=file_out.variables[k][:]
+                            values2=np.where(mask_map_values==MASK_VALUE, values, fill_value)
                             file_out.variables[k][:] = values2
                             
                         if (len(data.shape)>2):
                             for t in np.arange(data.shape[0]):
                                 values=[]
-                                values=file_out.variables[k][:][t]               
-                                values2=np.where(mask_map_values==1,values,np.nan)
+                                values=file_out.variables[k][:][t]
+                                values2=np.where(mask_map_values==MASK_VALUE, values, fill_value)
                                 file_out.variables[k][t,:,:] = values2
                                    
 def main_script():
