@@ -25,7 +25,8 @@ import numpy as np
 
 from dask.diagnostics import ProgressBar
 
-from .helpers import col2netcdf, array_to_nc_from_clone, bbox_from_netcdf
+from .helpers import (col2netcdf, array_to_nc_from_clone, bbox_from_netcdf,
+                      COORDINATE_NAMES, LATITUDE_NAMES, LATITUDE_NAME_PAIR)
 from .. import version, logger
 
 import earthkit.hydro as ekh
@@ -126,15 +127,16 @@ def cut_from_indices(nc, var, x_min, x_max, y_min, y_max):
 def cut_from_coords(nc, var, x_min, x_max, y_min, y_max):
     # we have coordinates bounds and not indices yet
 
-    if 'lat' in nc.variables:
-        lats = nc.variables['lat'][:]
-        lons = nc.variables['lon'][:]
-    elif 'latitude' in nc.variables:
-        lats = nc.variables['latitude'][:]
-        lons = nc.variables['longitude'][:]
-    else:
-        lats = nc.variables['y'][:]
-        lons = nc.variables['x'][:]
+    lats = None
+    lons = None
+    # Find the latitude and longitude variables
+    for lat_var_name in LATITUDE_NAME_PAIR:
+        if lat_var_name in nc.variables:
+            lats = nc.variables[lat_var_name][:]
+            lons = nc.variables[LATITUDE_NAME_PAIR[lat_var_name]][:]
+            break
+    if lats is None or lons is None:
+        raise ValueError(f'Latitude or Y should be one of: {LATITUDE_NAMES}')
     # find indices
     # np float values comparisons are very sensitive to machine representation
     # so we add some "space" around bounding box when coordinates matches exactly
@@ -149,10 +151,10 @@ def cut_from_coords(nc, var, x_min, x_max, y_min, y_max):
             sliced_var = nc[var][ys, xs]
         except IndexError:
             # it happens when cutting lat or lon netcdf files (not 2D array)
-            if var not in ('lats', 'lat', 'latitude', 'latitudes', 'x', 'y', 'lons', 'longitude', 'longitudes', 'lon'):
+            if var not in COORDINATE_NAMES:
                 raise ValueError('Cannot find main variable to cut')
 
-            sliced_var = nc[var][ys] if var in ('lats', 'lat', 'latitude', 'latitudes', 'y') else nc[var][xs]
+            sliced_var = nc[var][ys] if var in LATITUDE_NAMES else nc[var][xs]
     return sliced_var
 
 

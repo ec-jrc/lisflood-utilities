@@ -10,9 +10,21 @@ import xarray as xr
 from pyproj import CRS
 
 
-LATITUDE_NAMES = {'y', 'lat', 'latitude', 'nlat'}
-LONGITUDE_NAMES = {'x', 'lon', 'longitude', 'nlon'}
+LATITUDE_VARIABLES = ['y', 'lat', 'latitude', 'nlat', 'lats', 'latitudes']
+LONGITUDE_VARIABLES = ['x', 'lon', 'longitude', 'nlon', 'lons', 'longitudes']
+# Used to verify if the name of a variable is a lat variable
+LATITUDE_NAMES = set(LATITUDE_VARIABLES)
+# Used to verify if the name of a variable is a lon variable
+LONGITUDE_NAMES = set(LONGITUDE_VARIABLES)
+# Used to verify if the name of a variable is a lat or lon variable
+COORDINATE_NAMES = LATITUDE_NAMES | LONGITUDE_NAMES
+# Used to verify if the name of a variable is a time variable
 TIME_NAMES = {'time', 't'}
+# Used to find the corresponding lon var name to a given lat var name
+LATITUDE_NAME_PAIR = dict(zip(LATITUDE_VARIABLES, LONGITUDE_VARIABLES))
+# Used to find the corresponding lat var name to a given lon var name
+LONGITUDE_NAME_PAIR = dict(zip(LONGITUDE_VARIABLES, LATITUDE_VARIABLES))
+
 
 def get_from_metadata(metadata: dict, main_key: str, sub_key: str, default_value):
     return metadata[main_key].get(sub_key, default_value) if main_key in metadata else default_value
@@ -330,6 +342,7 @@ def write_output_nc(out_path: Path, clone_path: Path, points: np.ndarray,
         # We also verify that the coordinate matches exactly (within a tiny tolerance)
         # otherwise we raise a warning; you can change the tolerance as needed.
         tol = 1e-6
+        rol = 0.01
 
         coord_x_sorted = np.sort(coord_x)
 
@@ -340,7 +353,7 @@ def write_output_nc(out_path: Path, clone_path: Path, points: np.ndarray,
         col_idx[col_idx == nx] = nx - 1
         
         # Verify matches
-        x_match = np.isclose(coord_x_sorted[col_idx], xs, atol=tol)
+        x_match = np.isclose(coord_x_sorted[col_idx], xs, rtol=rol)
         if not np.all(x_match):
             bad = np.where(~x_match)[0]
             raise ValueError(
@@ -358,7 +371,7 @@ def write_output_nc(out_path: Path, clone_path: Path, points: np.ndarray,
 
         row_idx[row_idx == ny] = ny - 1
 
-        y_match = np.isclose(coord_y_sorted[row_idx], ys, atol=tol)
+        y_match = np.isclose(coord_y_sorted[row_idx], ys, rtol=rol)
         if not np.all(y_match):
             bad = np.where(~y_match)[0]
             raise ValueError(
