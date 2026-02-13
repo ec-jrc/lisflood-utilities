@@ -332,6 +332,7 @@ def write_output_nc(out_path: Path, clone_path: Path, points: np.ndarray,
         tol = 1e-6
 
         coord_x_sorted = np.sort(coord_x)
+
         # X values
         col_idx = np.searchsorted(coord_x_sorted, xs, side="left")
         

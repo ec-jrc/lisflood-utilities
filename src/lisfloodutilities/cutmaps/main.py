@@ -22,7 +22,8 @@ import shutil
 import sys
 
 from .. import version, logger
-from .cutlib import mask_from_ldd, get_filelist, get_cuts, cutmap, MASK_VALUE
+from .cutlib import (mask_from_ldd, get_filelist, get_cuts, cutmap,
+                     MASK_VALUE, SMALL_MASK_FILENAME, FULL_MASK_FILENAME, OUTLETS_FILENAME)
 from netCDF4 import Dataset 
 import numpy as np
 
@@ -99,14 +100,15 @@ def main(cliargs):
         os.mkdir(pathout)
     if ldd and stations:
         logger.info('\nTry to produce a mask from LDD and stations points: %s %s', ldd, stations)
-        outlets_nc, mask_nc = mask_from_ldd(ldd, stations)
-        # copy outlets.nc (produced from stations txt file) and the new mask to output folder
-        shutil.copy(outlets_nc, os.path.join(pathout, 'my_outlets.nc'))
-        shutil.copy(mask_nc, os.path.join(pathout, 'my_mask.nc'))
+        mask, outlets_nc, mask_nc = mask_from_ldd(ldd, stations)
+        # copy outlets (produced from stations txt file) and the new mask to output folder
+        shutil.copy(outlets_nc, os.path.join(pathout, OUTLETS_FILENAME))
+        shutil.copy(mask, os.path.join(pathout, SMALL_MASK_FILENAME))
+        shutil.copy(mask_nc, os.path.join(pathout, FULL_MASK_FILENAME))
 
-    x_min, x_max, y_min, y_max = get_cuts(cuts=cuts, cuts_indices=cuts_indices, mask=mask_nc)
+    x_min, x_max, y_min, y_max = get_cuts(cuts=cuts, cuts_indices=cuts_indices, mask=mask)
     logger.info('\n\nCutting using: %s\n Files to cut from: %s\n Output: %s\n Overwrite existing: %s\n\n',
-                mask_nc or ([x_min, x_max, y_min, y_max if cuts or cuts_indices else None]),
+                mask or ([x_min, x_max, y_min, y_max if cuts or cuts_indices else None]),
                 input_folder or static_data_folder,
                 pathout, overwrite)
 
@@ -141,30 +143,38 @@ def main(cliargs):
 
         cutmap(file_to_cut, fileout, x_min, x_max, y_min, y_max, use_coords=(cuts_indices is None))
         if ldd and stations:
-            with Dataset(os.path.join(pathout, 'my_mask.nc'),'r',format='NETCDF4_CLASSIC')  as mask_map:  
-                for k in mask_map.variables.keys():        
-                    if (k !='x'  and k !='y'  and k !='lat'  and k !='lon'):
-                        mask_map_values=mask_map.variables[k][:] 
+            with Dataset(os.path.join(pathout, SMALL_MASK_FILENAME),'r',format='NETCDF4_CLASSIC')  as mask_map:  
+                for var_name in mask_map.variables.keys():
+                    if (var_name !='x'  and var_name !='y'  and var_name !='lat'  and var_name !='lon'):
+                        mask_map_values=mask_map.variables[var_name][:] 
             with Dataset(fileout,'r+',format='NETCDF4_CLASSIC') as file_out:
-                for name, variable in file_out.variables.items():
+                for output_var_name, variable in file_out.variables.items():
                     data=[]   
-                    if (variable.dtype != '|S1' and name != 'crs' and name != 'wgs_1984' and name != 'lambert_azimuthal_equal_area'): 
-                        k = name
-                        fill_value = getattr(file_out.variables[k], "_FillValue", np.nan)
-                        data=file_out.variables[k][:] 
+                    if (variable.dtype != '|S1' and output_var_name != 'crs' and
+                        output_var_name != 'wgs_1984' and output_var_name != 'lambert_azimuthal_equal_area'):
+
+                        scale_factor = getattr(file_out.variables[output_var_name], 'scale_factor', None)
+                        add_offset = getattr(file_out.variables[output_var_name], 'add_offset', None)
+                        fill_value = getattr(file_out.variables[output_var_name], '_FillValue', np.nan)
+                        # if there is scale and offset setup in the output file we need to pack the
+                        # fill_value so it encodes correctly into NaN
+                        if fill_value is not None and scale_factor is not None and add_offset is not None:
+                            fill_value = fill_value * scale_factor + add_offset
+
+                        data=file_out.variables[output_var_name][:] 
 
                         if (len(data.shape)==2):
                             values=[]
-                            values=file_out.variables[k][:]
+                            values=file_out.variables[output_var_name][:]
                             values2=np.where(mask_map_values==MASK_VALUE, values, fill_value)
-                            file_out.variables[k][:] = values2
+                            file_out.variables[output_var_name][:] = values2
                             
                         if (len(data.shape)>2):
                             for t in np.arange(data.shape[0]):
                                 values=[]
-                                values=file_out.variables[k][:][t]
+                                values=file_out.variables[output_var_name][:][t]
                                 values2=np.where(mask_map_values==MASK_VALUE, values, fill_value)
-                                file_out.variables[k][t,:,:] = values2
+                                file_out.variables[output_var_name][t,:,:] = values2
                                    
 def main_script():
     sys.exit(main(sys.argv[1:]))

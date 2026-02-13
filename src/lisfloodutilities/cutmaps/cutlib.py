@@ -35,6 +35,12 @@ encoding_netcdf_vars = {'zlib': False}
 # Value used to identify the masked cells
 MASK_VALUE = 1
 
+# Internal output filenames
+FULL_MASK_FILENAME = 'mask_full.nc'
+SMALL_MASK_FILENAME = 'mask_small.nc'
+OUTLETS_FILENAME = 'outlets.nc'
+
+
 def cutmap(f, fileout, x_min, x_max, y_min, y_max, use_coords = True):
     nc, num_dims = open_dataset(f)
     var = [v for v in nc.variables if len(nc.variables[v].dims) == num_dims][0]
@@ -54,6 +60,8 @@ def cutmap(f, fileout, x_min, x_max, y_min, y_max, use_coords = True):
         if 'missing_value' in sliced_var.encoding:
             sliced_var.encoding['_FillValue'] = sliced_var.encoding['missing_value']
         logger.info('Creating: %s', fileout)
+        # encoding_netcdf_vars['scale_factor'] = sliced_var.attrs.get('scale_factor')
+        # encoding_netcdf_vars['add_offset'] = sliced_var.attrs.get('add_offset')
         delayed_obj = sliced_var.to_netcdf(fileout, compute=False, encoding={var: encoding_netcdf_vars})
         with ProgressBar(dt=0.1):
             _ = delayed_obj.compute()
@@ -190,10 +198,11 @@ def mask_from_ldd(ldd_map, stations):
     Generate a mask map from a LDD where the outlets are identified in the stations file 
     """
     path = os.path.dirname(stations)
-    masknc_path = os.path.join(path, 'my_mask.nc')
-    outlets_nc = os.path.join(path, 'outlets.nc')
+    masknc_path = os.path.join(path, FULL_MASK_FILENAME)
+    outlets_nc = os.path.join(path, OUTLETS_FILENAME)
+    smallmask_map = os.path.join(path, SMALL_MASK_FILENAME)
     # clean existing files from previuos executions
-    for out_file in (masknc_path, outlets_nc):
+    for out_file in (masknc_path, smallmask_map, outlets_nc):
         if os.path.exists(out_file):
             os.unlink(out_file)
 
@@ -221,5 +230,9 @@ def mask_from_ldd(ldd_map, stations):
                    'geographical': {'datum': ''}
                    }
     array_to_nc_from_clone(masknc_path, ldd_map, catchments_mask, metadata=nc_metadata)
-    
-    return outlets_nc, masknc_path
+
+    # In order to keep the same functionality as before we need to generate also the smaller mask map 
+    x_min, x_max, y_min, y_max = bbox_from_netcdf(masknc_path)
+    cutmap(masknc_path, smallmask_map, x_min, x_max, y_min, y_max, use_coords = True)
+
+    return smallmask_map, outlets_nc, masknc_path
