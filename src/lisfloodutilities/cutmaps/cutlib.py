@@ -19,17 +19,19 @@ import os
 import sys
 import datetime
 from pathlib import Path
+from typing import List, Tuple, Union
 
 import xarray as xr
 import numpy as np
 
-from dask.diagnostics import ProgressBar
+from dask.diagnostics.progress import ProgressBar
 
 from .helpers import (col2netcdf, array_to_nc_from_clone, bbox_from_netcdf,
+                      get_river_network_from_map,
                       COORDINATE_NAMES, LATITUDE_NAMES, LATITUDE_NAME_PAIR)
 from .. import version, logger
 
-import earthkit.hydro as ekh
+from earthkit.hydro import catchments
 
 encoding_netcdf_vars = {'zlib': False}
 
@@ -44,7 +46,7 @@ OUTLETS_FILENAME = 'outlets.nc'
 
 def cutmap(f, fileout, x_min, x_max, y_min, y_max, use_coords = True):
     nc, num_dims = open_dataset(f)
-    var = [v for v in nc.variables if len(nc.variables[v].dims) == num_dims][0]
+    var = str([v for v in nc.variables if len(nc.variables[v].dims) == num_dims][0])
     logger.info('Variable: %s', var)
     
     if use_coords:
@@ -113,7 +115,7 @@ def open_dataset(f):
     return nc, num_dims
 
 
-def cut_from_indices(nc, var, x_min, x_max, y_min, y_max):
+def cut_from_indices(nc: xr.Dataset, var: str, x_min: float, x_max: float, y_min: float, y_max: float) -> xr.DataArray:
     # note: netcdf has lats on first dimension e.g. y_min:y_max are Y/lat dimension indices
     # that in nc file are stored on first dimension: ta(time, lat, lon)
     # you can always adjust indices in input in order to match your nc files structure
@@ -124,7 +126,7 @@ def cut_from_indices(nc, var, x_min, x_max, y_min, y_max):
     return sliced_var
 
 
-def cut_from_coords(nc, var, x_min, x_max, y_min, y_max):
+def cut_from_coords(nc: xr.Dataset, var: str, x_min: float, x_max: float, y_min: float, y_max: float) -> xr.DataArray:
     # we have coordinates bounds and not indices yet
 
     lats = None
@@ -158,14 +160,14 @@ def cut_from_coords(nc, var, x_min, x_max, y_min, y_max):
     return sliced_var
 
 
-def get_filelist(input_folder=None, static_data_folder=None, input_file=None):
+def get_filelist(input_folder: str = '', static_data_folder: str = '', input_file: str = '') -> List[Path]:
     list_to_cut = []
-    if input_folder:
+    if len(input_folder) > 0:
         list_to_cut = [f for f in Path(input_folder).glob('**/*.nc')]
-    elif static_data_folder:
+    elif len(static_data_folder) > 0:
         list_to_cut = [f for f in Path(static_data_folder).glob('**/*') if '/.git/' not in f.as_posix()]
     if input_file:
-        list_to_cut = [input_file]
+        list_to_cut = [Path(input_file)]
     logger.info('==================> Going to cut %d files', len(list_to_cut))
     return list_to_cut
 
@@ -195,17 +197,19 @@ def get_cuts(cuts=None, cuts_indices=None, mask=None):
     return x_min, x_max, y_min, y_max
 
 
-def mask_from_ldd(ldd_map, stations):
+def mask_from_ldd(ldd_map: Union[Path, str], stations: Union[Path, str]) -> Tuple[Path, Path, Path]:
     """
     Generate a mask map from a LDD where the outlets are identified in the stations file 
     """
-    path = os.path.dirname(stations)
-    masknc_path = os.path.join(path, FULL_MASK_FILENAME)
-    outlets_nc = os.path.join(path, OUTLETS_FILENAME)
-    smallmask_map = os.path.join(path, SMALL_MASK_FILENAME)
+    ldd_map_path = Path(ldd_map) if isinstance(ldd_map, str) else ldd_map
+    stations_path = Path(stations) if isinstance(stations, str) else stations
+    path = stations_path.parent
+    masknc_path = Path(path, FULL_MASK_FILENAME)
+    outlets_nc = Path(path, OUTLETS_FILENAME)
+    smallmask_map = Path(path, SMALL_MASK_FILENAME)
     # clean existing files from previuos executions
     for out_file in (masknc_path, smallmask_map, outlets_nc):
-        if os.path.exists(out_file):
+        if out_file.exists():
             os.unlink(out_file)
 
     # Default format for output netcdf file is NETCDF3_CLASSIC
@@ -220,8 +224,8 @@ def mask_from_ldd(ldd_map, stations):
 
     # Obtain the catchments that contain these outlets creating a boolean mask where 1 identifies
     # the catchment cells
-    network = ekh.river_network.create(ldd_map, "pcr_d8", "file")
-    catchments_mask = ekh.catchments.find(network, outlets)
+    network = get_river_network_from_map(ldd_map_path)
+    catchments_mask = catchments.find(network, outlets)
     catchments_mask[catchments_mask!=0] = MASK_VALUE
 
     # Mask map for netCDF format
@@ -231,7 +235,7 @@ def mask_from_ldd(ldd_map, stations):
                    'reference': 'JRC E.1 Space, Security, Migration',
                    'geographical': {'datum': ''}
                    }
-    array_to_nc_from_clone(masknc_path, ldd_map, catchments_mask, metadata=nc_metadata)
+    array_to_nc_from_clone(masknc_path, ldd_map_path, catchments_mask, metadata=nc_metadata)
 
     # In order to keep the same functionality as before we need to generate also the smaller mask map 
     x_min, x_max, y_min, y_max = bbox_from_netcdf(masknc_path)

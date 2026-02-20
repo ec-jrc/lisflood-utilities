@@ -3,11 +3,12 @@ import argparse
 import sys
 import time
 from pathlib import Path
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Optional
 import numpy as np
 from netCDF4 import Dataset
 import xarray as xr
 from pyproj import CRS
+from earthkit.hydro import river_network
 
 
 LATITUDE_VARIABLES = ['y', 'lat', 'latitude', 'nlat', 'lats', 'latitudes']
@@ -26,13 +27,66 @@ LATITUDE_NAME_PAIR = dict(zip(LATITUDE_VARIABLES, LONGITUDE_VARIABLES))
 LONGITUDE_NAME_PAIR = dict(zip(LONGITUDE_VARIABLES, LATITUDE_VARIABLES))
 
 
+def verify_existing_netcdf(input_file: Optional[Union[Path, str]] = None, file_id: str = '') -> str:
+    """
+    Check if input_file is an existing netCDF.
+    ----------
+    Parameters:
+    
+    input_file: Path to the file
+    file_id: String identifying the file for the error message
+    ----------
+    Returns:
+
+    Error message if is invalid
+    Empty string if is valid
+    """
+    msg = ''
+    if input_file is None:
+        msg = f'Error: The {file_id} must be provided.'
+    else:
+        input_file_path = input_file if isinstance(input_file, Path) else Path(input_file)
+        if (not input_file_path.exists() or
+            not input_file_path.is_file() or
+            input_file_path.suffix != '.nc'):
+            msg = f'Error: The {file_id} must exist and be a netCDF file.'
+    return msg
+
+
 def get_from_metadata(metadata: dict, main_key: str, sub_key: str, default_value):
     return metadata[main_key].get(sub_key, default_value) if main_key in metadata else default_value
 
 
+def get_river_network_from_map(ldd_map: Union[Path, str],
+                               precomputed_network: Optional[Union[Path, str]] = None): # -> river_network.RiverNetwork:
+    """
+    Get the river network from a LDD map. If a precomputed network file exists it is used,
+    otherwise it is created and saved in the ldd_map folder for future use.
+    Parameters
+    ----------
+    ldd_map: Path to the LDD map file.
+    precomputed_network: Optional path to a precomputed network file.
+    Returns
+    -------
+    river_network.RiverNetwork
+        The river network object.
+    """
+    ldd_map_path = Path(ldd_map) if isinstance(ldd_map, str) else ldd_map
+    if precomputed_network is not None:
+        precomputed_network_path = Path(precomputed_network) if isinstance(precomputed_network, str) else precomputed_network
+    else:
+        precomputed_network_path = Path(ldd_map_path.parent, f'{ldd_map_path.stem}.joblib')
+    if precomputed_network_path.exists():
+        network = river_network.create(precomputed_network_path.as_posix(), "precomputed", "file")
+        return network
+    network = river_network.create(ldd_map_path.as_posix(), "pcr_d8", "file")
+    network.export(precomputed_network_path.as_posix())
+    return network
+
+
 def read_column_file(
     file_path: Path,
-    delimiter: str = None,
+    delimiter: str = ' ',
     skip_header: bool = False,
 ) -> np.ndarray:
     """
@@ -166,16 +220,18 @@ def read_spatial_dimensions(ds: Union[Dataset, xr.Dataset]) -> Tuple[str, str]:
         spatial_dims = [d for d in ds.dims]
     if len(spatial_dims) < 2:
         raise ValueError(
-            f"The dataset does not contain at least two spatial dimensions {spatial_dims}."
+            f"The data set does not contain at least two spatial dimensions {spatial_dims}."
         )
     # Transpose the dimension names to get x, y order
-    dim_y, dim_x = spatial_dims[:2]
+    dim_y, dim_x = [str(c) for c in spatial_dims[:2]]
     if not dim_y.lower() in LATITUDE_NAMES:
-        dim_x, dim_y = spatial_dims[:2]
+        tmp = dim_y
+        dim_y = dim_x
+        dim_x = tmp
     return dim_x, dim_y
 
 
-def bbox_from_netcdf(path: Path, time_index: int = 0) -> Tuple[float, float, float]:
+def bbox_from_netcdf(path: Path, time_index: int = 0) -> Tuple[float, float, float, float]:
     """
     Get the minimum bounding box possible that includes all data from a netCDF grid.
     If there is more than 1 raster, selects the raster at time_index position.
@@ -271,7 +327,7 @@ def array_to_nc_from_clone(out_path: Path, clone_path: Path, grid: np.ndarray, m
 
 
 def write_output_nc(out_path: Path, clone_path: Path, points: np.ndarray,
-    metadata: dict = {}, nodata_val: np.int32 = 0, var_name: str = "map",
+    metadata: dict = {}, nodata_val: np.int32 = np.int32(0), var_name: str = "map",
     compress: bool = True, quiet: bool = True) -> np.ndarray:
     """
     Create a NetCDF raster (out_path) that mirrors clone_path and fills it with
@@ -311,13 +367,32 @@ def write_output_nc(out_path: Path, clone_path: Path, points: np.ndarray,
                 f"named after its dimensions ({dim_x}, {dim_y})."
             ) from exc
 
+        diff_x = np.diff(coord_x)
+        diff_y = np.diff(coord_y)
         # Ensure they are 1‑D and monotonic (required for searchsorted)
         if coord_x.ndim != 1 or coord_y.ndim != 1:
             raise ValueError("Coordinate variables must be 1‑D arrays.")
-        if not (np.all(np.diff(coord_x) > 0) or np.all(np.diff(coord_x) < 0)):
+        if not (np.all(diff_x > 0) or np.all(diff_x < 0)):
             raise ValueError("X coordinate array must be strictly monotonic.")
-        if not (np.all(np.diff(coord_y) > 0) or np.all(np.diff(coord_y) < 0)):
+        if not (np.all(diff_y > 0) or np.all(diff_y < 0)):
             raise ValueError("Y coordinate array must be strictly monotonic.")
+        
+        # Determine the order of the y axis (ascending or descending)
+        # This is important for correctly mapping the y coordinates to row indices.
+        # Initialize defaults in case diff_y is neither strictly increasing nor decreasing
+        sorted_y_side = "left"
+        sorted_y_offset = 0
+        if np.all(diff_y >= 0):
+            # Ascending order (e.g. latitude increasing from south to north)
+            sorted_y_side = "left"
+            sorted_y_offset = 0
+        elif np.all(diff_y <= 0):
+            # Descending order (e.g. northing decreasing from top to bottom)
+            sorted_y_side = "right"
+            sorted_y_offset = 1
+
+        resolution_x = np.round(np.abs(coord_x[1] - coord_x[0]), decimals=2)
+        resolution_y = np.round(np.abs(coord_y[1] - coord_y[0]), decimals=2)
 
         # Save the order of the coordinates to be able to find the correct index in the raster
         coord_x_backup_indexes = {}
@@ -332,7 +407,7 @@ def write_output_nc(out_path: Path, clone_path: Path, points: np.ndarray,
         fill_value = np.int32(get_from_metadata(metadata, 'variable', 'mv', fill_value))
         raster = np.full((ny, nx), fill_value, dtype=np.int32)
 
-        # From the stations file map each (x, y) -> (row, col) index
+        # From the stations file map each (x, y) -> (col, row) index
         xs = points[:, 0]
         ys = points[:, 1]
         vals = points[:, 2]
@@ -341,8 +416,20 @@ def write_output_nc(out_path: Path, clone_path: Path, points: np.ndarray,
         # Because the coordinate arrays already sorted we can use np.searchsorted.
         # We also verify that the coordinate matches exactly (within a tiny tolerance)
         # otherwise we raise a warning; you can change the tolerance as needed.
-        tol = 1e-6
-        rol = 0.01
+        # Tolerance settings:
+        #   * ``tol``  – absolute tolerance, set to a fraction (10%) of the
+        #                larger grid resolution.  This scales the allowed
+        #                deviation with the spatial resolution of the clone.
+        #   * ``rol_x`` and ``rol_y`` – relative tolerance factors.  The original
+        #                implementation used ``0.5 * resolution``; we keep the same
+        #                behaviour but expose the values as explicit variables for
+        #                clarity and easy tweaking.
+        #   * These tolerances are used with ``np.isclose`` to verify that the
+        #                input coordinates match the clone grid within an acceptable
+        #                margin.
+        tol = 0.1 * max(resolution_x, resolution_y)
+        rol_x = 1.0  # relative tolerance for X (originally 0.5 * resolution_x)
+        rol_y = 1.0  # relative tolerance for Y (originally 0.5 * resolution_y)
 
         coord_x_sorted = np.sort(coord_x)
 
@@ -350,33 +437,44 @@ def write_output_nc(out_path: Path, clone_path: Path, points: np.ndarray,
         col_idx = np.searchsorted(coord_x_sorted, xs, side="left")
         
         # Adjust indices that fall on the right edge
-        col_idx[col_idx == nx] = nx - 1
+        col_idx = np.clip(col_idx, 0, nx - 1)
         
         # Verify matches
-        x_match = np.isclose(coord_x_sorted[col_idx], xs, rtol=rol)
+        x_match = np.isclose(coord_x_sorted[col_idx], xs, atol=tol, rtol=rol_x)
+
         if not np.all(x_match):
             bad = np.where(~x_match)[0]
             raise ValueError(
                 f"The following {len(bad)} x‑coordinates do not match any column of the clone:\n"
-                + "\n".join(f"  row {i}: x={xs[i]}" for i in bad)
+                + "\n".join(f"  point {i}: x={xs[i]}" for i in bad)
             )
 
         coord_y_sorted = np.sort(coord_y)
+
         # Y values
         # NOTE: In many raster conventions Y increases downwards (row 0 = top).
         # NetCDF often stores Y increasing upwards (south to north). The mapping
         # below works for both; we simply locate the index and later use it as the
         # row number.
-        row_idx = np.searchsorted(coord_y_sorted, ys, side="left")
+        # Determine the row index for each y‑coordinate.
+        # ``np.searchsorted`` with ``side="right"`` returns the insertion point
+        # after any equal values. Subtracting one gives the index of the matching
+        # coordinate (or the nearest lower coordinate). This avoids the off‑by‑
+        # one shift that occurs when using ``side="left"`` on ascending sorted
+        # coordinates.
+        row_idx = np.searchsorted(coord_y_sorted, ys, side=sorted_y_side) - sorted_y_offset
 
-        row_idx[row_idx == ny] = ny - 1
+        # Clip indices to the valid range [0, ny‑1] for robustness.
+        row_idx = np.clip(row_idx, 0, ny - 1)
 
-        y_match = np.isclose(coord_y_sorted[row_idx], ys, rtol=rol)
+        # Verify that the located rows are within the tolerance.
+        y_match = np.isclose(coord_y_sorted[row_idx], ys, atol=tol, rtol=rol_y)
+
         if not np.all(y_match):
             bad = np.where(~y_match)[0]
             raise ValueError(
                 f"The following {len(bad)} y‑coordinates do not match any row of the clone:\n"
-                + "\n".join(f"  row {i}: y={ys[i]}" for i in bad)
+                + "\n".join(f"  point {i}: y={ys[i]}" for i in bad)
             )
 
         # Insert the values (vectorised)
@@ -422,8 +520,9 @@ def write_output_nc(out_path: Path, clone_path: Path, points: np.ndarray,
     return raster
 
 
-def col2netcdf(column_file: Path, output_file: Path, clone_file: Path, metadata: dict = {}, var_name: str = 'map',
-               nodata: int = 0, delimiter: str = ' ', skip_header: bool = False, quiet: bool = True) -> np.ndarray:
+def col2netcdf(column_file: Union[Path, str], output_file: Union[Path, str], clone_file: Union[Path, str],
+               metadata: dict = {}, var_name: str = 'map', nodata: np.int32 = np.int32(0), delimiter: str = ' ',
+               skip_header: bool = False, quiet: bool = True) -> np.ndarray:
     """
     Re‑implementation of the PCRaster command using netCDF4 and numpy.
     

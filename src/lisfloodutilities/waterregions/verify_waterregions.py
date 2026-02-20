@@ -17,6 +17,10 @@ import os
 import time
 import logging
 from netCDF4 import Dataset
+from pathlib import Path
+from typing import Optional
+
+from ..cutmaps.helpers import verify_existing_netcdf
 
 logging.basicConfig(format='[%(asctime)s] - %(message)s', datefmt='%H:%M:%S', level=logging.INFO)
 logger = logging.getLogger()
@@ -42,77 +46,89 @@ class ParserHelpOnError(argparse.ArgumentParser):
     def add_args(self):
         self.add_argument("-cc", "--calib_catchments",
                           help='map of calibration catchments, netcdf format',
-                          required=True)
+                          required=True, type=Path)
         self.add_argument("-wr", "--waterregions",
                           help='map of water regions, netcdf format',
-                          required=True)
+                          required=True, type=Path)
 
 
-def verify_waterregions(calib_catchments=None, waterregions=None):         
-       waterregions_map = Dataset(waterregions,'r','format=NETCDF4_classic')
-       
-       for v in waterregions_map.variables:
-           if (v == 'y' or v == 'lat'):
-              ywr = waterregions_map.variables[v][:]
-              wr_yresolution = np.abs((ywr[-1] - ywr[0])/(len(ywr[:])-1.0))
-           if (v == 'x' or v == 'lon'):
-              xwr = waterregions_map.variables[v][:]
-              wr_xresolution = np.abs((xwr[-1] - xwr[0])/(len(xwr[:])-1.0))
-           if len(waterregions_map.variables[v].dimensions) == 2:
-              wr = waterregions_map.variables[v][:]          
-      
-       flipud = 0
-       calibration_catchments_map = Dataset(calib_catchments,'r','format=NETCDF4_classic')
-       for v in calibration_catchments_map.variables:
-           if (v == 'y' or v == 'lat'):
-              ycc = calibration_catchments_map.variables[v][:]
-              cc_resolution =np.abs((ycc[-1] - ywr[0])/(len(ycc[:])-1.0))
-              if round(ycc[0],1) != round(ywr[0],1):
-                 flipud = 1
-                 check_grid_y = np.amax(np.abs(np.flip(ycc)-ywr))
-                 if (check_grid_y > wr_yresolution):
-                      print('Error: the two maps do not have the same coordinates. Please, check the input maps.')
-                      exit()
-           if (v == 'x' or v == 'lon'):
-              xcc = calibration_catchments_map.variables[v][:]
-              check_grid_x = np.amax(np.abs(xcc-xwr))
-              if (check_grid_x > wr_xresolution):
-                      print('Error: the two maps do not have the same coordinates. Please, check the input maps.')
-                      exit()                     
-           if len(calibration_catchments_map.variables[v].dimensions) == 2:
-              cal_catch = calibration_catchments_map.variables[v][:]
-              if flipud == 1:
-                 print('Warning: one of the maps has inverted y-axis, is this an intended feature?')
-                 cal_catch = np.flipud(cal_catch)
-                 
-       
-       cal_catch[cal_catch < 1] = -9999
-       cal_catch[np.isnan(cal_catch) == 1] = -9999
-       wr_id = np.unique(wr)
-      
-       id_error_wr = []
-       cal_catch_error_wr = []
-       output_message = []
-  
-       for a in wr_id:
-           extract_wr = np.where(wr == a, cal_catch, -9999)
-           num_cal_catch = np.unique(extract_wr)
-           num_cal_catch_check = np.extract(num_cal_catch != -9999, num_cal_catch)
-           if len(num_cal_catch_check) > 1:
-             id_error_wr.append(a)
-             num_cal_catch_write = num_cal_catch[num_cal_catch != -9999].astype(int)
-             cal_catch_error_wr.append(num_cal_catch_write)
-             output_message = 'ERROR: The  water regions WR are included in more than one calibration catchment \n WR=' + str(id_error_wr) + '\n Calibration catchments= ' + str(cal_catch_error_wr)
-       if id_error_wr == []:
-           output_message = 'PASSED: Each calibration catchment contains only a finite number of water regions.'
-    
+def verify_waterregions(calib_catchments: Optional[Path] = None, waterregions: Optional[Path] = None) -> str:
+    # Check the input files
+    msg = verify_existing_netcdf(input_file=calib_catchments, file_id='calibration catchments')
+    if len(msg) > 0:
+        return msg
+    msg = verify_existing_netcdf(input_file=waterregions, file_id='water regions')
+    if len(msg) > 0:
+        return msg
 
-       waterregions_map.close()
-       calibration_catchments_map.close()
-       
- 
-       return output_message
-                          
+    waterregions_map = Dataset(waterregions,'r','format=NETCDF4_classic')
+    ywr = []
+    wr_yresolution = 0
+    xwr = []
+    wr_xresolution = 0
+    wr = []
+    for v in waterregions_map.variables:
+        if (v == 'y' or v == 'lat'):
+           ywr = waterregions_map.variables[v][:]
+           wr_yresolution = np.abs((ywr[-1] - ywr[0])/(len(ywr[:])-1.0))
+        if (v == 'x' or v == 'lon'):
+           xwr = waterregions_map.variables[v][:]
+           wr_xresolution = np.abs((xwr[-1] - xwr[0])/(len(xwr[:])-1.0))
+        if len(waterregions_map.variables[v].dimensions) == 2:
+           wr = waterregions_map.variables[v][:]
+
+    cal_catch = np.array([])
+    flipud = False
+    calibration_catchments_map = Dataset(calib_catchments,'r','format=NETCDF4_classic')
+    for v in calibration_catchments_map.variables:
+        if (v == 'y' or v == 'lat'):
+           ycc = calibration_catchments_map.variables[v][:]
+           cc_resolution = np.abs((ycc[-1] - ycc[0])/(len(ycc[:])-1.0))
+           if round(ycc[0],1) != round(ywr[0],1):
+              flipud = True
+              check_grid_y = np.amax(np.abs(np.flip(ycc)-ywr))
+              if (check_grid_y > wr_yresolution):
+                   return 'Error: the two maps do not have the same coordinates. Please, check the input maps.'
+        if (v == 'x' or v == 'lon'):
+           xcc = calibration_catchments_map.variables[v][:]
+           check_grid_x = np.amax(np.abs(xcc-xwr))
+           if (check_grid_x > wr_xresolution):
+                   return 'Error: the two maps do not have the same coordinates. Please, check the input maps.'
+        if len(calibration_catchments_map.variables[v].dimensions) == 2:
+           cal_catch = calibration_catchments_map.variables[v][:]
+           if flipud:
+              print('Warning: one of the maps has inverted y-axis, is this an intended feature?')
+              cal_catch = np.flipud(cal_catch)
+
+    cal_catch[cal_catch < 1] = -9999
+    cal_catch[np.isnan(cal_catch) == 1] = -9999
+    wr_ids = np.unique(wr)
+
+    id_error_wr = []
+    cal_catch_error_wr = []
+    output_message = ''
+
+    for wr_id in wr_ids:
+        extract_wr = np.where(wr == wr_id, cal_catch, -9999)
+        num_cal_catch = np.unique(extract_wr)
+        num_cal_catch_check = np.extract(num_cal_catch != -9999, num_cal_catch)
+        if len(num_cal_catch_check) > 1:
+            id_error_wr.append(int(wr_id))
+            num_cal_catch_write = num_cal_catch[num_cal_catch != -9999].astype(int)
+            # cal_catch_error_wr.append(num_cal_catch_write)
+            cal_catch_error_wr.append(num_cal_catch_write)
+            msg = 'The water regions WR are included in more than one calibration catchment'
+            msg_catchments = [list(c) for c in cal_catch_error_wr]
+            output_message = f'ERROR: {msg}\nWR={id_error_wr}\nCalibration catchments={msg_catchments}'
+    if len(id_error_wr) == 0:
+        output_message = 'PASSED: Each calibration catchment contains only a finite number of water regions.'
+
+    waterregions_map.close()
+    calibration_catchments_map.close()
+
+    return output_message
+
+
 def main_script():
     sys.exit(main(sys.argv[1:]))
 
