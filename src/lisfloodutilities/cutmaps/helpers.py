@@ -8,7 +8,7 @@ import numpy as np
 from netCDF4 import Dataset
 import xarray as xr
 from pyproj import CRS
-from earthkit.hydro import river_network
+from earthkit.hydro import river_network, data_structures
 
 
 LATITUDE_VARIABLES = ['y', 'lat', 'latitude', 'nlat', 'lats', 'latitudes']
@@ -53,12 +53,55 @@ def verify_existing_netcdf(input_file: Optional[Union[Path, str]] = None, file_i
     return msg
 
 
-def get_from_metadata(metadata: dict, main_key: str, sub_key: str, default_value):
-    return metadata[main_key].get(sub_key, default_value) if main_key in metadata else default_value
+def get_from_metadata(metadata: dict[str, Union[str, int, float, bool, dict[str, Union[str, int, float, bool]]]],
+                      main_key: str, sub_key: str,
+                      default_value: Union[str, int, float, bool]) -> Union[str, int, float, bool]:
+    """
+    Retrieve a nested value from a metadata dictionary.
+
+    Safely accesses a two-level nested dictionary, returning a default
+    value if either the main key or sub-key is missing.
+
+    Parameters
+    ----------
+    metadata : dict
+        The dictionary containing metadata with nested structure.
+    main_key : str
+        The top-level key to look up in the metadata.
+    sub_key : str
+        The second-level key to look up within the main_key's value.
+    default_value : Any
+        The value to return if either key is not found.
+
+    Returns
+    -------
+    Any
+        The value associated with sub_key if found, otherwise default_value.
+    """
+    # Validate inputs to fail fast with clear error messages
+    if metadata is None:
+        raise TypeError("metadata cannot be None")
+    if not isinstance(metadata, dict):
+        raise TypeError(f"metadata must be a dict, got {type(metadata).__name__}")
+    if not isinstance(main_key, str):
+        raise TypeError(f"main_key must be a str, got {type(main_key).__name__}")
+    if not isinstance(sub_key, str):
+        raise TypeError(f"sub_key must be a str, got {type(sub_key).__name__}")
+
+    main_value = metadata.get(main_key)
+
+    # Return default if main_key doesn't exist
+    if main_value is None:
+        return default_value
+
+    if not isinstance(main_value, dict):
+        return main_value
+
+    return main_value.get(sub_key, default_value)
 
 
 def get_river_network_from_map(ldd_map: Union[Path, str],
-                               precomputed_network: Optional[Union[Path, str]] = None): # -> river_network.RiverNetwork:
+                               precomputed_network: Optional[Union[Path, str]] = None)-> data_structures.RiverNetwork:
     """
     Get the river network from a LDD map. If a precomputed network file exists it is used,
     otherwise it is created and saved in the ldd_map folder for future use.
@@ -68,7 +111,7 @@ def get_river_network_from_map(ldd_map: Union[Path, str],
     precomputed_network: Optional path to a precomputed network file.
     Returns
     -------
-    river_network.RiverNetwork
+    data_structures.RiverNetwork
         The river network object.
     """
     ldd_map_path = Path(ldd_map) if isinstance(ldd_map, str) else ldd_map
@@ -76,9 +119,11 @@ def get_river_network_from_map(ldd_map: Union[Path, str],
         precomputed_network_path = Path(precomputed_network) if isinstance(precomputed_network, str) else precomputed_network
     else:
         precomputed_network_path = Path(ldd_map_path.parent, f'{ldd_map_path.stem}.joblib')
+    # If the precomputed network file exists, load and return it
     if precomputed_network_path.exists():
         network = river_network.create(precomputed_network_path.as_posix(), "precomputed", "file")
         return network
+    # Creates the new network and saves it for future use
     network = river_network.create(ldd_map_path.as_posix(), "pcr_d8", "file")
     network.export(precomputed_network_path.as_posix())
     return network
@@ -88,7 +133,7 @@ def read_column_file(
     file_path: Path,
     delimiter: str = ' ',
     skip_header: bool = False,
-) -> np.ndarray:
+) -> np.ndarray[tuple[int, int, int], np.dtype[np.float64]]:
     """
     Load a three‑column numeric file and return an (N, 3) array:
         column 0: x coordinate
@@ -130,7 +175,7 @@ def read_column_file(
             f"Column file {file_path} must contain at least three columns (x, y, value)."
         )
     # Keep only the first three columns
-    return data[:, :3]
+    return data[:, :3].astype(np.float64)
 
 
 def copy_clone_geometry(src_ds: Dataset, dst_ds: Dataset):
@@ -279,7 +324,46 @@ def bbox_from_netcdf(path: Path, time_index: int = 0) -> Tuple[float, float, flo
     return min_x, max_x, min_y, max_y
 
 
-def array_to_nc_from_clone(out_path: Path, clone_path: Path, grid: np.ndarray, metadata: dict = {}):
+def get_fill_value_packed(ds: Dataset,
+                          default_fill_value: Union[np.int32, int, float]) -> Tuple[Union[np.int32, int, float],
+                                                                                    Union[np.int32, int, float]]:
+    """
+    Identifies the main variable in the given netCDF4 dataset and returns its fill value, 
+    accounting for scale_factor and add_offset if present.
+    
+    Parameters:
+    dataset (netCDF4.Dataset): The netCDF4 dataset object.
+
+    Returns:
+    The fill value of the main variable, adjusted for scale_factor and add_offset.
+    """
+    main_variable = None
+    max_dimensions = 0
+
+    # Iterate through the variables to identify the main variable
+    for var_name, var in ds.variables.items():
+        # Assuming the main variable has the most dimensions
+        if len(var.dimensions) > max_dimensions:
+            main_variable = var
+            max_dimensions = len(var.dimensions)
+
+    if main_variable is None:
+        raise ValueError("No variables found in the dataset.")
+
+    # Retrieve scaling metadata (if any)
+    scale_factor = getattr(main_variable, 'scale_factor', None)
+    add_offset = getattr(main_variable, 'add_offset', None)
+    fill_value = getattr(main_variable, '_FillValue', np.nan) if not default_fill_value else default_fill_value 
+    fill_value_packed = fill_value
+    # Apply scale/offset to the fill value so that NaNs are encoded correctly.
+    # if fill_value is not None and scale_factor is not None and add_offset is not None:
+    #     fill_value_packed = fill_value * scale_factor + add_offset
+
+    return fill_value, fill_value_packed
+
+
+def array_to_nc_from_clone(out_path: Path, clone_path: Path, grid: np.ndarray,
+                           metadata: dict[str, Union[str, int, float, bool, dict[str, Union[str, int, float, bool]]]] = {}):
     """
     Create a NetCDF raster (out_path) that mirrors clone_path getting the data from grid which
     should have the same shape as clone.
@@ -299,8 +383,9 @@ def array_to_nc_from_clone(out_path: Path, clone_path: Path, grid: np.ndarray, m
         # Prepare the raster (filled with NetCDF fill value)
         fill_value = np.iinfo(np.int32).min
         fill_value = np.int32(get_from_metadata(metadata, 'variable', 'mv', fill_value))
-        raster = grid
-        raster[raster is np.nan] = fill_value
+        fill_value, fill_value_packed = get_fill_value_packed(src, fill_value)
+        raster = grid.copy()
+        raster[np.isnan(raster)] = fill_value_packed
 
         # Write the new NetCDF (copy geometry and raster variable)
         with Dataset(out_path, "w", format="NETCDF4") as dst:
@@ -312,23 +397,24 @@ def array_to_nc_from_clone(out_path: Path, clone_path: Path, grid: np.ndarray, m
             dst.reference = metadata.get('reference', '')
 
             compression_kwargs = {"zlib": True, "complevel": 4}
-            nc_var_name = get_from_metadata(metadata, 'variable', 'shortname', default_var_name)
+            nc_var_name = str(get_from_metadata(metadata, 'variable', 'shortname', default_var_name))
             var = dst.createVariable(
                 nc_var_name,
                 np.int32,
                 (dim_y, dim_x),
-                fill_value=fill_value,
+                fill_value=fill_value_packed,
                 **compression_kwargs,
             )
-            var.long_name = get_from_metadata(metadata, 'variable', 'longname', '')
+            var.long_name = str(get_from_metadata(metadata, 'variable', 'longname', ''))
             var.standard_name = nc_var_name
-            var.units = get_from_metadata(metadata, 'variable', 'units', '')
+            var.units = str(get_from_metadata(metadata, 'variable', 'units', ''))
             var[:, :] = raster
 
 
-def write_output_nc(out_path: Path, clone_path: Path, points: np.ndarray,
-    metadata: dict = {}, nodata_val: np.int32 = np.int32(0), var_name: str = "map",
-    compress: bool = True, quiet: bool = True) -> np.ndarray:
+def write_output_nc(out_path: Path, clone_path: Path, points: np.ndarray[tuple[int, int, int], np.dtype[np.float64]],
+    metadata: dict[str, Union[str, int, float, bool, dict[str, Union[str, int, float, bool]]]] = {},
+    nodata_val: int = 0, var_name: str = "map",
+    compress: bool = True, quiet: bool = True) -> np.ndarray[tuple[int, int], np.dtype[np.int32]]:
     """
     Create a NetCDF raster (out_path) that mirrors clone_path and fills it with
     the values supplied in points (x, y, value).
@@ -346,7 +432,7 @@ def write_output_nc(out_path: Path, clone_path: Path, points: np.ndarray,
 
     Returns
     -------------
-    For convenience returns the result also as a np.ndarray
+    For convenience returns the result also as a np.ndarray 2D array (N, 2) with the raster values.
     """
     # Open clone, obtain geometry and coordinate arrays
     with Dataset(clone_path, "r") as src:
@@ -376,7 +462,7 @@ def write_output_nc(out_path: Path, clone_path: Path, points: np.ndarray,
             raise ValueError("X coordinate array must be strictly monotonic.")
         if not (np.all(diff_y > 0) or np.all(diff_y < 0)):
             raise ValueError("Y coordinate array must be strictly monotonic.")
-        
+
         # Determine the order of the y axis (ascending or descending)
         # This is important for correctly mapping the y coordinates to row indices.
         # Initialize defaults in case diff_y is neither strictly increasing nor decreasing
@@ -405,7 +491,8 @@ def write_output_nc(out_path: Path, clone_path: Path, points: np.ndarray,
         # Prepare an empty raster (filled with NetCDF fill value)
         fill_value = np.iinfo(np.int32).min if nodata_val is None else nodata_val
         fill_value = np.int32(get_from_metadata(metadata, 'variable', 'mv', fill_value))
-        raster = np.full((ny, nx), fill_value, dtype=np.int32)
+        fill_value, fill_value_packed = get_fill_value_packed(src, fill_value)
+        raster = np.full((ny, nx), fill_value_packed, dtype=np.int32)
 
         # From the stations file map each (x, y) -> (col, row) index
         xs = points[:, 0]
@@ -482,7 +569,7 @@ def write_output_nc(out_path: Path, clone_path: Path, points: np.ndarray,
         # are left as the fill value.
         vals_int = vals.astype(np.int32)
         if nodata_val is not None:
-            vals_int[vals_int == nodata_val] = fill_value
+            vals_int[vals_int == nodata_val] = fill_value_packed
 
         # Use advanced indexing to write all points at once
         col_idx_saved = np.array(list(map(lambda idx: coord_x_backup_indexes[coord_x_sorted[idx]], col_idx)))
@@ -499,30 +586,31 @@ def write_output_nc(out_path: Path, clone_path: Path, points: np.ndarray,
             dst.reference = metadata.get('reference', '')
 
             compression_kwargs = {"zlib": True, "complevel": 4} if compress else {}
-            nc_var_name = get_from_metadata(metadata, 'variable', 'shortname', var_name)
+            nc_var_name = str(get_from_metadata(metadata, 'variable', 'shortname', var_name))
             var = dst.createVariable(
                 nc_var_name,
                 np.int32,
                 (dim_y, dim_x),
-                fill_value=fill_value,
+                fill_value=fill_value_packed,
                 **compression_kwargs,
             )
-            var.long_name = get_from_metadata(metadata, 'variable', 'longname', '')
+            var.long_name = str(get_from_metadata(metadata, 'variable', 'longname', ''))
             var.standard_name = nc_var_name
-            var.units = get_from_metadata(metadata, 'variable', 'units', '')
+            var.units = str(get_from_metadata(metadata, 'variable', 'units', ''))
             var[:, :] = raster
 
     if not quiet:
         print(
             f"Created {out_path} ({out_path.stat().st_size/1e6:.2f} MB) "
-            f"with {np.count_nonzero(raster != fill_value)} populated cells."
+            f"with {np.count_nonzero(raster != fill_value_packed)} populated cells."
         )
     return raster
 
 
 def col2netcdf(column_file: Union[Path, str], output_file: Union[Path, str], clone_file: Union[Path, str],
-               metadata: dict = {}, var_name: str = 'map', nodata: np.int32 = np.int32(0), delimiter: str = ' ',
-               skip_header: bool = False, quiet: bool = True) -> np.ndarray:
+               metadata: dict[str, Union[str, int, float, bool, dict[str, Union[str, int, float, bool]]]] = {},
+               var_name: str = 'map', nodata: int = 0, delimiter: str = ' ', skip_header: bool = False,
+               quiet: bool = True) -> np.ndarray[tuple[int, int], np.dtype[np.int32]]:
     """
     Re‑implementation of the PCRaster command using netCDF4 and numpy.
     
@@ -544,7 +632,7 @@ def col2netcdf(column_file: Union[Path, str], output_file: Union[Path, str], clo
 
     Returns
     -------------
-    For convenience returns the result also as a np.ndarray
+    For convenience returns the result also as a np.ndarray2D array (N, 2) with the raster values.
     """
     column_file_path = column_file if isinstance(column_file, Path) else Path(column_file)
     output_file_path = output_file if isinstance(output_file, Path) else Path(output_file)

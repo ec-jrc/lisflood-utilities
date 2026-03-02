@@ -27,7 +27,7 @@ import numpy as np
 from dask.diagnostics.progress import ProgressBar
 
 from .helpers import (col2netcdf, array_to_nc_from_clone, bbox_from_netcdf,
-                      get_river_network_from_map,
+                      get_river_network_from_map, read_column_file,
                       COORDINATE_NAMES, LATITUDE_NAMES, LATITUDE_NAME_PAIR)
 from .. import version, logger
 
@@ -66,17 +66,20 @@ def cutmap(f, fileout, x_min, x_max, y_min, y_max, use_coords = True):
         # encoding_netcdf_vars['scale_factor'] = sliced_var.attrs.get('scale_factor')
         # encoding_netcdf_vars['add_offset'] = sliced_var.attrs.get('add_offset')
         delayed_obj = sliced_var.to_netcdf(fileout, compute=False, encoding={var: encoding_netcdf_vars})
-        with ProgressBar(dt=0.1):
-            _ = delayed_obj.compute()
+        if hasattr(delayed_obj, 'compute'):
+            with ProgressBar(dt=0.1):
+                _ = delayed_obj.compute()
 
     grid_mapping = sliced_var.attrs.get('grid_mapping')
     if grid_mapping in nc.variables:
         varname = grid_mapping
         varproj = nc.variables[varname]
         logger.info('Writing projection variable: %s - %s', varname, varproj.attrs)
-        del_res = xr.DataArray(name=varname, data=varproj.data, dims=varproj.dims, attrs=varproj.attrs).to_netcdf(fileout, mode='a', compute=False)
-        with ProgressBar(dt=0.1):
-            _ = del_res.compute()
+        del_res = xr.DataArray(name=varname, data=varproj.data,
+                               dims=varproj.dims, attrs=varproj.attrs).to_netcdf(fileout, mode='a', compute=False)
+        if hasattr(del_res, 'compute'):
+            with ProgressBar(dt=0.1):
+                _ = del_res.compute()
 
     # adding global attributes
     nc_out, _ = open_dataset(fileout)
@@ -94,8 +97,9 @@ def cutmap(f, fileout, x_min, x_max, y_min, y_max, use_coords = True):
     try:
         logger.info('Writing additional attrs to: %s - %s', fileout, nc_out.attrs)
         del_res = nc_out.to_netcdf(fileout, 'a', compute=False)
-        with ProgressBar(dt=0.1):
-            _ = del_res.compute()
+        if hasattr(del_res, 'compute'):
+            with ProgressBar(dt=0.1):
+                _ = del_res.compute()
     except ValueError as e:
         logger.warning('Cannot add global attributes to %s - %s', fileout, e)
     finally:
@@ -144,8 +148,13 @@ def cut_from_coords(nc: xr.Dataset, var: str, x_min: float, x_max: float, y_min:
     # so we add some "space" around bounding box when coordinates matches exactly
     buffer_y = abs(lats[0] - lats[1]) / 1000
     buffer_x = abs(lons[0] - lons[1]) / 1000
-    ys = np.where((lats > y_min - buffer_y) & (lats < y_max + buffer_y))[0]
-    xs = np.where((lons > x_min - buffer_x) & (lons < x_max + buffer_x))[0]
+    # Handle both ascending and descending coordinate orders
+    y_min_bound = min(y_min, y_max)
+    y_max_bound = max(y_min, y_max)
+    x_min_bound = min(x_min, x_max)
+    x_max_bound = max(x_min, x_max)
+    ys = np.where((lats > y_min_bound - buffer_y) & (lats < y_max_bound + buffer_y))[0]
+    xs = np.where((lons > x_min_bound - buffer_x) & (lons < x_max_bound + buffer_x))[0]
     if 'time' in nc.variables:
         sliced_var = nc[var][:, ys, xs]
     else:
@@ -219,14 +228,23 @@ def mask_from_ldd(ldd_map: Union[Path, str], stations: Union[Path, str]) -> Tupl
                 'reference': 'JRC E.1 Space, Security, Migration',
                 'geographical': {'datum': ''}}
 
-    # Identify the outlets on the ldd map marked by the station coordinates    
-    outlets = col2netcdf(stations, outlets_nc, ldd_map, metadata, quiet=False)
+    # Identify the outlets on the ldd map marked by the station coordinates
+    outlets_raster = col2netcdf(stations_path, outlets_nc, ldd_map, metadata, quiet=False)
+
+    # Get outlets as row, col indexes of elements greater than 0
+    # Note: The fill value is -1 (np.iinfo(np.int32).min), so we use > 0 to filter
+    # earthkit expects (row, col) format, not (col, row)
+    rows, cols = np.where(outlets_raster > 0)
+    outlets = np.column_stack((rows, cols))  # (row, col) format for earthkit
 
     # Obtain the catchments that contain these outlets creating a boolean mask where 1 identifies
     # the catchment cells
     network = get_river_network_from_map(ldd_map_path)
-    catchments_mask = catchments.find(network, outlets)
-    catchments_mask[catchments_mask!=0] = MASK_VALUE
+    catchments_mask = catchments.find(network, outlets) # , return_type='masked')
+    # Convert xarray DataArray to numpy array if needed
+    if hasattr(catchments_mask, 'values'):
+        catchments_mask = catchments_mask.values
+    # catchments_mask[catchments_mask!=0] = MASK_VALUE
 
     # Mask map for netCDF format
     nc_metadata = {'variable': {'description': 'Mask Area', 'longname': 'area', 'units': '',

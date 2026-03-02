@@ -24,8 +24,16 @@ import sys
 from .. import version, logger
 from .cutlib import (mask_from_ldd, get_filelist, get_cuts, cutmap,
                      MASK_VALUE, SMALL_MASK_FILENAME, FULL_MASK_FILENAME, OUTLETS_FILENAME)
+from .helpers import COORDINATE_NAMES
 from netCDF4 import Dataset 
 import numpy as np
+
+# Variables that should be excluded from mask processing. Using a set provides O(1) lookup.
+EXCLUDED_VAR_NAMES = {
+    "crs",
+    "wgs_1984",
+    "lambert_azimuthal_equal_area",
+}
 
 
 def parse_and_check_args(parser, cliargs):
@@ -143,39 +151,41 @@ def main(cliargs):
 
         cutmap(file_to_cut, fileout, x_min, x_max, y_min, y_max, use_coords=(cuts_indices is None))
         if ldd and stations:
+            mask_map_values = None
             with Dataset(os.path.join(pathout, SMALL_MASK_FILENAME),'r',format='NETCDF4_CLASSIC')  as mask_map:  
                 for var_name in mask_map.variables.keys():
-                    if (var_name !='x'  and var_name !='y'  and var_name !='lat'  and var_name !='lon'):
+                    if (var_name not in COORDINATE_NAMES):
                         mask_map_values=mask_map.variables[var_name][:] 
             with Dataset(fileout,'r+',format='NETCDF4_CLASSIC') as file_out:
                 for output_var_name, variable in file_out.variables.items():
-                    data=[]   
-                    if (variable.dtype != '|S1' and output_var_name != 'crs' and
-                        output_var_name != 'wgs_1984' and output_var_name != 'lambert_azimuthal_equal_area'):
+                    # Skip string variables and known coordinate/reference variables.
+                    if variable.dtype == '|S1' or output_var_name in EXCLUDED_VAR_NAMES:
+                        continue
 
-                        scale_factor = getattr(file_out.variables[output_var_name], 'scale_factor', None)
-                        add_offset = getattr(file_out.variables[output_var_name], 'add_offset', None)
-                        fill_value = getattr(file_out.variables[output_var_name], '_FillValue', np.nan)
-                        # if there is scale and offset setup in the output file we need to pack the
-                        # fill_value so it encodes correctly into NaN
-                        if fill_value is not None and scale_factor is not None and add_offset is not None:
-                            fill_value = fill_value * scale_factor + add_offset
+                    # Retrieve scaling metadata (if any)
+                    scale_factor = getattr(variable, 'scale_factor', None)
+                    add_offset = getattr(variable, 'add_offset', None)
+                    fill_value = getattr(variable, '_FillValue', np.nan)
 
-                        data=file_out.variables[output_var_name][:] 
+                    # Apply scale/offset to the fill value so that NaNs are encoded correctly.
+                    if fill_value is not None and scale_factor is not None and add_offset is not None:
+                        fill_value = fill_value * scale_factor + add_offset
 
-                        if (len(data.shape)==2):
-                            values=[]
-                            values=file_out.variables[output_var_name][:]
-                            values2=np.where(mask_map_values==MASK_VALUE, values, fill_value)
-                            file_out.variables[output_var_name][:] = values2
-                            
-                        if (len(data.shape)>2):
-                            for t in np.arange(data.shape[0]):
-                                values=[]
-                                values=file_out.variables[output_var_name][:][t]
-                                values2=np.where(mask_map_values==MASK_VALUE, values, fill_value)
-                                file_out.variables[output_var_name][t,:,:] = values2
-                                   
+                    # Load data once
+                    data = variable[:]
+
+                    if data.ndim == 2:
+                        # 2‑D case (e.g., raster)
+                        values = variable[:]
+                        masked = np.where(mask_map_values == MASK_VALUE, values, fill_value)
+                        variable[:] = masked
+                    else:
+                        # >2‑D case (e.g., time‑series of rasters)
+                        for t in range(data.shape[0]):
+                            values = variable[t]
+                            masked = np.where(mask_map_values == MASK_VALUE, values, fill_value)
+                            variable[t, :, :] = masked
+
 def main_script():
     sys.exit(main(sys.argv[1:]))
 

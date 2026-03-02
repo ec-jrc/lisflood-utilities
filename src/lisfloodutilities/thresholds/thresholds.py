@@ -115,7 +115,7 @@ def read_discharge(in_files):
 
 def unmask_array(mask, template, data):
     data_unmask = np.empty_like(template)
-    data_unmask[...] = np.NaN
+    data_unmask[...] = np.nan
     data_unmask[mask] = data
     return data_unmask
 

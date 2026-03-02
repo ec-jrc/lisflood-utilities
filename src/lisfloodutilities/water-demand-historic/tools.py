@@ -37,7 +37,7 @@ def load_country_code_map(filepath,mapsize):
     country_code_map = resize(country_code_map,mapsize,order=0,mode='edge',anti_aliasing=False)
     country_code_map[country_code_map==158] = 156 # Add Taiwan to China
     country_code_map[country_code_map==736] = 729 # South Sudan missing from map
-    country_code_map[country_code_map==0] = np.NaN
+    country_code_map[country_code_map==0] = np.nan
     
     return country_code_map
     

@@ -181,7 +181,7 @@ def verify_inputs(calib_points: Union[Path, str], countries_id: Union[Path, str]
 
 def get_data_from_timeless_nc(nc_file: Union[Path, str], var_name: Optional[str] = None) -> np.ndarray:
     nc_file_path = nc_file if isinstance(nc_file, Path) else Path(nc_file)
-    with Dataset(nc_file_path, 'r', 'format=NETCDF4_classic') as nc:
+    with Dataset(nc_file_path, 'r', format='NETCDF4_CLASSIC') as nc:
         if var_name is None:
             var_name = str([v for v in nc.variables if len(nc.variables[v].dimensions) == 2][0])
         data = nc[var_name][:]
@@ -214,7 +214,15 @@ def define_waterregions(calib_points: Path, countries_id: Path, ldd: Path,
 
     #2. Catchment map1 derived from calibration points
     network = get_river_network_from_map(ldd)
-    subcatchments = catchments.find(network, points)
+    
+    # Extract row/col indices from the points raster for catchments.find()
+    # points is a 2D array where non-zero values indicate calibration point locations
+    rows, cols = np.where(points > 0)
+    # Create a 2D array with (row, col) coordinates for each point
+    # catchments.find() expects shape (N, 2) for multiple points
+    locations = np.column_stack((rows, cols))
+    
+    subcatchments = catchments.find(network, locations)
     try:
         os.remove(pointmap_file)
     except:
