@@ -1,36 +1,20 @@
 channels:
   - conda-forge
+  - defaults
 dependencies:
   - _openmp_mutex=4.5=20_gnu
-  - alsa-lib=1.2.15.3=hb03c661_0
+  - alsa-lib=1.2.9=hd590300_0
   - attr=2.5.2=h39aace5_0
-  - aws-c-auth=0.9.1=h48c9088_3
-  - aws-c-cal=0.9.2=he7b75e1_1
-  - aws-c-common=0.12.4=hb03c661_0
-  - aws-c-compression=0.3.1=h92c474e_6
-  - aws-c-event-stream=0.5.6=h82d11aa_3
-  - aws-c-http=0.10.4=h94feff3_3
-  - aws-c-io=0.22.0=h57f3b0d_1
-  - aws-c-mqtt=0.13.3=h2b1cf8c_6
-  - aws-c-s3=0.8.6=h4e5ac4b_5
-  - aws-c-sdkutils=0.2.4=h92c474e_1
-  - aws-checksums=0.2.7=h92c474e_2
-  - aws-crt-cpp=0.34.3=h60c762c_1
-  - aws-sdk-cpp=1.11.606=h2d2fbd4_3
-  - azure-core-cpp=1.16.0=h3a458e0_1
-  - azure-identity-cpp=1.12.0=ha729027_0
-  - azure-storage-blobs-cpp=12.14.0=hb1c9500_1
-  - azure-storage-common-cpp=12.10.0=hebae86a_2
-  - blosc=1.21.6=he440d0b_1
+  - blosc=1.21.6=hef167b5_0
+  - boost-cpp=1.78.0=h6582d0a_3
   - bzip2=1.0.8=hda65f42_9
   - c-ares=1.34.6=hb03c661_0
   - ca-certificates=2026.2.25=hbd8a1cb_0
-  - cairo=1.18.4=h3394656_0
-  - capnproto=1.2.0=hfc315d8_0
-  - cfitsio=4.6.2=ha0b56bc_1
-  - cyrus-sasl=2.1.28=hd9c7081_0
-  - dbus=1.16.2=h24cb091_1
-  - fmt=11.2.0=h07f6e7f_0
+  - cairo=1.16.0=hbbf8b49_1016
+  - cfitsio=4.2.0=hd9d235c_0
+  - curl=8.4.0=hca28451_0
+  - dbus=1.13.6=h5008d03_3
+  - expat=2.7.4=hecca717_0
   - font-ttf-dejavu-sans-mono=2.37=hab24e00_0
   - font-ttf-inconsolata=3.000=h77eed37_0
   - font-ttf-source-code-pro=2.038=h77eed37_0
@@ -38,49 +22,46 @@ dependencies:
   - fontconfig=2.17.1=h27c8c51_0
   - fonts-conda-ecosystem=1=0
   - fonts-conda-forge=1=hc364b38_1
-  - freeglut=3.2.2=ha6d2627_3
+  - freeglut=3.2.2=hac7e632_2
   - freetype=2.14.1=ha770c72_0
-  - freexl=2.0.0=h9dce30a_2
-  - gdal=3.11.3=py39h231787c_2
-  - geos=3.14.0=h480dda7_0
+  - freexl=1.0.6=h166bdaf_1
+  - gdal=3.5.3=py310hf0ca374_28
+  - geos=3.11.2=hcb278e6_0
+  - geotiff=1.7.1=h480ec47_8
+  - gettext=0.25.1=h3f43e3d_1
+  - gettext-tools=0.25.1=h3f43e3d_1
   - giflib=5.2.2=hd590300_0
-  - glib=2.86.2=hbcf1ec1_0
-  - glib-tools=2.86.2=hf516916_0
+  - glib=2.78.1=hfc55251_0
+  - glib-tools=2.78.1=hfc55251_0
   - graphite2=1.3.14=hecca717_2
-  - gst-plugins-base=1.24.11=h651a532_0
-  - gstreamer=1.24.11=hc37bda9_0
-  - harfbuzz=12.2.0=h15599e2_0
-  - hdf4=4.2.15=h2a13503_7
-  - hdf5=1.14.6=nompi_h19486de_106
-  - icu=75.1=he02047a_0
-  - jasper=4.2.8=he3c4edf_0
-  - json-c=0.18=h6688a6e_0
-  - kealib=1.6.2=hb2f3951_2
+  - gst-plugins-base=1.22.5=hf7dbed1_0
+  - gstreamer=1.22.5=h98fc4e7_0
+  - harfbuzz=7.3.0=hdb3a94d_0
+  - hdf4=4.2.15=h501b40f_6
+  - hdf5=1.14.0=nompi_hb72d44e_103
+  - icu=72.1=hcb278e6_0
+  - jasper=4.0.0=h32699f2_1
+  - json-c=0.16=hc379101_0
+  - kealib=1.5.1=h3845be2_3
   - keyutils=1.6.3=hb9d3cd8_0
-  - krb5=1.21.3=h659f571_0
+  - krb5=1.21.2=h659d440_0
   - lame=3.100=h166bdaf_1003
-  - lcms2=2.18=h0c24ade_0
+  - lcms2=2.15=haa2dc70_1
   - ld_impl_linux-64=2.45.1=default_hbd61a6d_101
   - lerc=4.0.0=h0aef613_1
-  - libabseil=20250512.1=cxx17_hba17884_0
-  - libadbc-driver-manager=1.7.0=hb700be7_1
   - libaec=1.1.5=h088129d_0
-  - libarchive=3.8.1=gpl_h98cc613_100
+  - libasprintf=0.25.1=h3f43e3d_1
+  - libasprintf-devel=0.25.1=h3f43e3d_1
   - libblas=3.11.0=5_h4a7cf45_openblas
-  - libbrotlicommon=1.2.0=hb03c661_1
-  - libbrotlidec=1.2.0=hb03c661_1
-  - libbrotlienc=1.2.0=hb03c661_1
   - libcap=2.77=h3ff7636_0
   - libcblas=3.11.0=5_h0358290_openblas
-  - libclang-cpp20.1=20.1.8=default_h99862b1_8
-  - libclang13=21.1.8=default_h746c552_3
-  - libcrc32c=1.1.2=h9c3ff4c_0
-  - libcups=2.3.3=hb8b1518_5
-  - libcurl=8.18.0=h4e3cde8_0
-  - libdeflate=1.24=h86f0d12_0
-  - libdrm=2.4.125=hb03c661_1
+  - libclang=15.0.7=default_h127d8a8_5
+  - libclang13=15.0.7=default_h5d6823c_5
+  - libcups=2.3.3=h4637d8d_4
+  - libcurl=8.4.0=hca28451_0
+  - libdap4=3.20.6=h8384fce_4
+  - libdeflate=1.18=h0b41bf4_0
   - libedit=3.1.20250104=pl5321h7949ede_0
-  - libegl=1.7.0=ha4b6fd6_2
   - libev=4.33=hd590300_2
   - libevent=2.1.12=hf998b51_1
   - libexpat=2.7.4=hecca717_0
@@ -90,147 +71,125 @@ dependencies:
   - libfreetype6=2.14.1=h73754d4_0
   - libgcc=15.2.0=he0feb66_18
   - libgcc-ng=15.2.0=h69a702a_18
-  - libgdal=3.11.3=h3b705f5_6
-  - libgdal-adbc=3.11.3=hdee084c_6
-  - libgdal-core=3.11.3=h14edee0_6
-  - libgdal-fits=3.11.3=h2fa2754_6
-  - libgdal-grib=3.11.3=hb20eef8_6
-  - libgdal-hdf4=3.11.3=ha810028_6
-  - libgdal-hdf5=3.11.3=h966a9c2_6
-  - libgdal-jp2openjpeg=3.11.3=hdd07572_6
-  - libgdal-kea=3.11.3=h2bf108d_6
-  - libgdal-netcdf=3.11.3=ha526aae_6
-  - libgdal-pdf=3.11.3=h20efda7_6
-  - libgdal-pg=3.11.3=h8012187_6
-  - libgdal-postgisraster=3.11.3=h8012187_6
-  - libgdal-tiledb=3.11.3=h2465779_6
-  - libgdal-xls=3.11.3=hdee084c_6
+  - libgdal=3.5.3=h89c0d6d_28
+  - libgettextpo=0.25.1=h3f43e3d_1
+  - libgettextpo-devel=0.25.1=h3f43e3d_1
   - libgfortran=15.2.0=h69a702a_18
+  - libgfortran-ng=15.2.0=h69a702a_18
   - libgfortran5=15.2.0=h68bc16d_18
-  - libgl=1.7.0=ha4b6fd6_2
-  - libglib=2.86.2=h32235b2_0
+  - libglib=2.78.1=hebfc3b9_0
   - libglu=9.0.3=h5888daf_1
   - libglvnd=1.7.0=ha4b6fd6_2
-  - libglx=1.7.0=ha4b6fd6_2
   - libgomp=15.2.0=he0feb66_18
-  - libgoogle-cloud=2.39.0=hdb79228_0
-  - libgoogle-cloud-storage=2.39.0=hdbdcf42_0
-  - libgrpc=1.73.1=h3288cfb_1
-  - libhwy=1.3.0=h4c17acf_1
   - libiconv=1.18=h3b78370_2
-  - libjpeg-turbo=3.1.2=hb03c661_0
-  - libjxl=0.11.2=ha09017c_0
+  - libjpeg-turbo=2.1.5.1=hd590300_1
   - libkml=1.3.0=haa4a5bd_1022
   - liblapack=3.11.0=5_h47877c9_openblas
-  - libllvm20=20.1.8=hecd9e04_0
-  - libllvm21=21.1.8=h5ad376a_0
+  - libllvm15=15.0.7=h5cf9203_3
   - liblzma=5.8.2=hb03c661_0
-  - libnetcdf=4.9.3=nompi_h81b047f_102
-  - libnghttp2=1.67.0=had1ee68_0
+  - liblzma-devel=5.8.2=hb03c661_0
+  - libnetcdf=4.9.2=nompi_h0f3d0bb_105
+  - libnghttp2=1.58.0=h47da74e_0
   - libnsl=2.0.1=hb9d3cd8_1
-  - libntlm=1.8=hb9d3cd8_0
   - libogg=1.3.5=hd0c01bc_1
   - libopenblas=0.3.30=pthreads_h94d23a6_4
   - libopengl=1.7.0=ha4b6fd6_2
   - libopus=1.6.1=h280c20c_0
-  - libpciaccess=0.18=hb9d3cd8_0
   - libpng=1.6.55=h421ea60_0
-  - libpq=17.6=h3675c94_1
-  - libprotobuf=6.31.1=h49aed37_4
-  - libre2-11=2025.11.05=h7b12aa8_0
-  - librttopo=1.1.0=h96cd706_19
+  - libpq=15.4=hfc447b1_2
+  - librttopo=1.1.0=h0d5128d_13
   - libsndfile=1.2.2=hc7d488a_2
-  - libspatialite=5.1.0=h7250436_15
+  - libspatialite=5.0.1=hb46c372_26
   - libsqlite=3.51.2=h0c1763c_0
-  - libssh2=1.11.1=hcf80075_0
+  - libssh2=1.11.0=h0841786_0
   - libstdcxx=15.2.0=h934c35e_18
   - libstdcxx-ng=15.2.0=hdf11a46_18
   - libsystemd0=259.1=h6569c3e_0
-  - libtiff=4.7.1=h8261f1e_0
+  - libtiff=4.5.1=h8b53f26_1
   - libuuid=2.41.3=h5347b49_0
   - libvorbis=1.3.7=h54a6638_2
   - libwebp-base=1.6.0=hd42ef1d_0
-  - libxcb=1.17.0=h8a09558_0
+  - libxcb=1.15=h0b41bf4_0
   - libxcrypt=4.4.36=hd590300_1
-  - libxkbcommon=1.11.0=he8b52b9_0
-  - libxml2=2.13.9=h04c0eec_0
-  - libxslt=1.1.43=h7a3aeb2_0
-  - libzip=1.11.2=h6991a6a_0
+  - libxkbcommon=1.6.0=h5d7e998_0
+  - libxml2=2.11.5=h0d562d8_0
+  - libzip=1.10.1=h2629f0a_3
   - libzlib=1.3.1=hb9d3cd8_2
-  - lz4-c=1.10.0=h5888daf_1
-  - lzo=2.10=h280c20c_1002
-  - minizip=4.0.10=h05a5f5f_0
+  - lz4-c=1.9.4=hcb278e6_0
   - mpg123=1.32.9=hc50e24c_0
-  - muparser=2.3.5=h5888daf_0
+  - mysql-common=8.0.33=hf1915f5_6
+  - mysql-libs=8.0.33=hca2cd23_6
   - ncurses=6.5=h2d0b736_3
   - nspr=4.38=h29cc59b_0
   - nss=3.118=h445c969_0
-  - numpy=2.0.2=py39h9cb892a_1
-  - openjpeg=2.5.4=h55fea9a_0
-  - openldap=2.6.10=he970967_0
-  - openssl=3.6.1=h35e630c_1
+  - numpy=1.26.4=py310hb13e2d6_0
+  - openjpeg=2.5.0=hfec8fc6_2
+  - openssl=3.1.8=h7b32b05_0
   - packaging=26.0=pyhcf101f3_0
-  - pcraster=4.4.2=py39hd99710a_1
-  - pcre2=10.46=h1321c63_0
-  - pip=25.2=pyh8b19718_0
+  - pcraster=4.4.0=py310hdd7d5f1_1
+  - pcre2=10.40=hc3806b6_0
+  - pip=26.0.1=pyh8b19718_0
   - pixman=0.46.4=h54a6638_1
-  - poppler=25.07.0=h13eef12_1
+  - poppler=23.05.0=hd18248d_1
   - poppler-data=0.4.12=hd8ed1ab_0
-  - postgresql=17.6=h021f68a_1
-  - proj=9.6.2=h18fbb6c_2
+  - postgresql=15.4=h8972f4a_2
+  - proj=9.2.0=h8ffa02c_0
   - pthread-stubs=0.4=hb9d3cd8_1002
-  - pulseaudio-client=17.0=h9a6aba3_3
-  - python=3.9.23=hc30ae73_0_cpython
-  - python_abi=3.9=8_cp39
-  - qt-main=5.15.15=h3a7ef08_5
-  - re2=2025.11.05=h5301d42_0
+  - pulseaudio-client=16.1=hb77b528_5
+  - python=3.10.13=hd12c33a_0_cpython
+  - python_abi=3.10=8_cp310
+  - qt-main=5.15.8=h7fe3ca9_15
   - readline=8.3=h853b02a_0
-  - s2n=1.5.26=h5ac9029_0
-  - setuptools=80.9.0=pyhff2d567_0
   - snappy=1.2.2=h03e3b7b_1
-  - spdlog=1.15.3=h6dc744f_1
   - sqlite=3.51.2=hbc0de68_0
-  - tiledb=2.28.1=h9da7523_2
-  - tk=8.6.13=noxft_h366c992_103
+  - tiledb=2.13.2=hd532e3d_0
+  - tk=8.6.13=noxft_hd72426e_102
   - tzcode=2025c=hb03c661_0
   - uriparser=0.9.8=hac33072_0
-  - wheel=0.45.1=pyhd8ed1ab_1
-  - xcb-util=0.4.1=h4f16b4b_2
-  - xcb-util-image=0.4.0=hb711507_2
-  - xcb-util-keysyms=0.4.1=hb711507_0
-  - xcb-util-renderutil=0.3.10=hb711507_0
-  - xcb-util-wm=0.4.2=hb711507_0
-  - xerces-c=3.2.5=h988505b_2
-  - xkeyboard-config=2.46=hb03c661_0
+  - wheel=0.46.3=pyhd8ed1ab_0
+  - xcb-util=0.4.0=hd590300_1
+  - xcb-util-image=0.4.0=h8ee46fc_1
+  - xcb-util-keysyms=0.4.0=h8ee46fc_1
+  - xcb-util-renderutil=0.3.9=hd590300_1
+  - xcb-util-wm=0.4.1=h8ee46fc_1
+  - xerces-c=3.2.4=h8d71039_2
+  - xkeyboard-config=2.42=h4ab18f5_0
+  - xorg-fixesproto=5.0=hb9d3cd8_1003
+  - xorg-inputproto=2.3.2=hb9d3cd8_1003
+  - xorg-kbproto=1.0.7=hb9d3cd8_1003
   - xorg-libice=1.1.2=hb9d3cd8_0
   - xorg-libsm=1.2.6=he73a12e_0
-  - xorg-libx11=1.8.13=he1eb515_0
+  - xorg-libx11=1.8.9=h8ee46fc_0
   - xorg-libxau=1.0.12=hb03c661_1
-  - xorg-libxdamage=1.1.6=hb9d3cd8_0
   - xorg-libxdmcp=1.1.5=hb03c661_1
-  - xorg-libxext=1.3.7=hb03c661_0
-  - xorg-libxfixes=6.0.2=hb03c661_0
-  - xorg-libxi=1.8.2=hb9d3cd8_0
-  - xorg-libxrender=0.9.12=hb9d3cd8_0
-  - xorg-libxshmfence=1.3.3=hb9d3cd8_0
-  - xorg-libxxf86vm=1.1.7=hb03c661_0
+  - xorg-libxext=1.3.4=h0b41bf4_2
+  - xorg-libxfixes=5.0.3=h7f98852_1004
+  - xorg-libxi=1.7.10=h4bc722e_1
+  - xorg-libxrender=0.9.11=hd590300_0
+  - xorg-renderproto=0.11.1=hb9d3cd8_1003
+  - xorg-xextproto=7.3.0=hb9d3cd8_1004
+  - xorg-xf86vidmodeproto=2.3.1=hb9d3cd8_1005
+  - xorg-xproto=7.0.31=hb9d3cd8_1008
+  - xz=5.8.2=ha02ee65_0
+  - xz-gpl-tools=5.8.2=ha02ee65_0
+  - xz-tools=5.8.2=hb03c661_0
   - zlib=1.3.1=hb9d3cd8_2
   - zstd=1.5.7=hb78ec9c_6
   - pip:
       - affine==2.4.0
-      - array-api-compat==1.11.2
+      - array-api-compat==1.14.0
       - attrs==25.4.0
       - certifi==2026.2.25
       - cffi==2.0.0
       - cfgrib==0.9.15.1
-      - cftime==1.6.4.post1
+      - cftime==1.6.5
       - charset-normalizer==3.4.4
-      - click==8.1.8
+      - click==8.3.1
       - click-plugins==1.1.1.2
       - cligj==0.7.2
       - cloudpickle==3.1.2
-      - coverage==7.10.7
-      - dask==2024.8.0
+      - coverage==7.13.4
+      - dask==2026.1.2
       - deprecation==2.1.0
       - earthkit-data==0.18.6
       - earthkit-hydro==1.1.0
@@ -238,59 +197,66 @@ dependencies:
       - earthkit-utils==0.1.2
       - eccodes==2.46.0
       - eccodes-python==0.9.9
-      - eccodeslib==2.43.0
-      - eckitlib==1.31.4
+      - eccodeslib==2.46.0.13
+      - eckitlib==2.0.1.13
       - entrypoints==0.4
       - exceptiongroup==1.3.1
-      - fckitlib==0.14.0
-      - filelock==3.19.1
+      - fckitlib==0.14.2.13
+      - filelock==3.25.0
       - findlibs==0.1.2
       - flexcache==0.3
       - flexparser==0.4
-      - fsspec==2025.10.0
+      - fsspec==2026.2.0
       - geographiclib==2.1
       - geopy==2.4.1
       - idna==3.11
       - importlib-metadata==4.13.0
-      - iniconfig==2.1.0
+      - iniconfig==2.3.0
       - jinja2==3.1.6
       - joblib==1.5.3
-      - jsonschema==4.25.1
+      - jsonschema==4.26.0
       - jsonschema-specifications==2025.9.1
-      - llvmlite==0.43.0
+      - lisflood-utilities==0.11.7
+      - llvmlite==0.46.0
       - locket==1.0.0
       - lru-dict==1.4.1
-      - markdown==3.9
+      - markdown==3.10.2
       - markupsafe==3.0.3
+      - memory-profiler==0.61.0
       - more-itertools==10.8.0
       - multiurl==0.3.7
-      - netcdf4==1.7.2
+      - netcdf4==1.7.4
       - nine==1.2.0
-      - numba==0.60.0
-      - numexpr==2.10.2
+      - numba==0.64.0
+      - numexpr==2.14.1
       - pandas==2.3.3
       - partd==1.4.2
-      - pdbufr==0.14.1
+      - pdbufr==0.14.2
       - pint==0.24.4
-      - platformdirs==4.4.0
+      - platformdirs==4.9.2
       - pluggy==1.6.0
-      - pycparser==2.23
-      - pyg2p>=3.2.8
+      - psutil==7.2.2
+      - pycparser==3.0
+      - pyg2p==3.2.8
       - pygments==2.19.2
       - pyparsing==3.3.2
-      - pyproj==3.6.1
-      - pytest==8.4.2
+      - pyproj==3.7.1
+      - pytest==9.0.2
       - pytest-cov==7.0.0
-      - pytest-env==1.1.5
+      - pytest-cover==3.0.0
+      - pytest-coverage==0.0
+      - pytest-env==1.5.0
       - pytest-mock==3.15.1
       - python-dateutil==2.9.0.post0
-      - pytz==2025.2
+      - python-dotenv==1.2.2
+      - pytz==2026.1.post1
       - pyyaml==6.0.3
-      - rasterio==1.4.3
-      - referencing==0.36.2
+      - rasterio==1.4.4
+      - referencing==0.37.0
       - requests==2.32.5
-      - rpds-py==0.27.1
-      - scipy==1.13.1
+      - rpds-py==0.30.0
+      - scipy==1.15.3
+      - setuptools==70.3.0
       - six==1.17.0
       - tomli==2.4.0
       - toolz==1.1.0
@@ -299,5 +265,5 @@ dependencies:
       - tzdata==2025.3
       - ujson==5.11.0
       - urllib3==2.6.3
-      - xarray==2024.7.0
+      - xarray==2025.6.1
       - zipp==3.23.0
