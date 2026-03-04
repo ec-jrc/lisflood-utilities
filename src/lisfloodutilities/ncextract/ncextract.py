@@ -97,6 +97,7 @@ def read_inputmaps(
     
     directory = Path(directory)
     filepaths = []
+    engine = None
     for pattern, engine in pattern_engine.items():
         filepaths = list(directory.glob(pattern))
         if filepaths:
@@ -109,7 +110,9 @@ def read_inputmaps(
     
     try:
         # load dataset
-        maps = xr.open_mfdataset(filepaths, engine=engine, chunks='auto', parallel=True)
+        # Note: parallel=True can cause segmentation faults with netCDF4 library
+        # due to thread-safety issues. Using parallel=False for stability.
+        maps = xr.open_mfdataset(filepaths, engine=engine, chunks='auto', parallel=False)
         # Note: chunks is set to auto for general purpose processing
         #       it could be optimized depending on input NetCDF
     except Exception as e:

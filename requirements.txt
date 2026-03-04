@@ -1,3 +1,5 @@
+gdal<=3.5.3
+setuptools<71.0.0
 attrs>=25.4.0
 cffi>=2.0.0
 cfgrib>=0.9.15.1
@@ -5,10 +7,10 @@ cftime>=1.6.4.post1
 cloudpickle>=3.1.2
 coverage>=7.10.7
 dask>=2024.8.0
-earthkit-data>=0.18.6
-earthkit-hydro>=1.1.0
-earthkit-meteo>=0.5.1
-earthkit-utils>=0.1.2
+earthkit-data>=0.18.6,<0.19.0
+earthkit-hydro==1.1.0
+earthkit-meteo>=0.5.1,<0.6.0
+earthkit-utils>=0.1.2,<0.2.0
 eccodes>=2.46.0
 eccodes-python>=0.9.9
 eccodeslib>=2.43.0
@@ -21,7 +23,9 @@ locket>=1.0.0
 more-itertools>=10.8.0
 netCDF4>=1.7.2 # netCDF4 1.7.2 is required to avoid a bug in 1.6.4 that causes a segfault when used with Python 3.12
 numexpr>=2.10.2
-numpy>=2.0.2
+# numpy>=2.0.2
+numpy>=1.18.2,<2.0.0
+numba>=0.54.0
 packaging>=23.1
 pandas>=2.3.3
 partd>=1.4.2

@@ -240,7 +240,7 @@ def mask_from_ldd(ldd_map: Union[Path, str], stations: Union[Path, str]) -> Tupl
     # Obtain the catchments that contain these outlets creating a boolean mask where 1 identifies
     # the catchment cells
     network = get_river_network_from_map(ldd_map_path)
-    catchments_mask = catchments.find(network, outlets) # , return_type='masked')
+    catchments_mask = catchments.find(network, outlets)
     # Convert xarray DataArray to numpy array if needed
     if hasattr(catchments_mask, 'values'):
         catchments_mask = catchments_mask.values

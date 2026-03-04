@@ -25,6 +25,7 @@ import numpy as np
 try:
     from osgeo import gdal
     from osgeo.gdalconst import GA_ReadOnly
+    gdal.UseExceptions()
 except ImportError as e:
     print("""
     [!] GDAL is not installed. 

@@ -73,6 +73,9 @@ class PCRasterWriter:
 
         if not self._clone_map:
             # if no clone map was provided, we can calculate mask once we get values
+            # Convert xarray Variable to numpy array if needed
+            if hasattr(values, 'values'):
+                values = values.values
             masked_values = ma.masked_values(values, self.mv, copy=False)
             self._mask = ma.getmask(masked_values)
 
@@ -114,6 +117,9 @@ class PCRasterWriter:
         os.unlink(tmpfilename)
 
     def _mask_values(self, values, mv=None):
+        # Convert xarray Variable to numpy array if needed
+        if hasattr(values, 'values'):
+            values = values.values
         if isinstance(values, ma.core.MaskedArray):
             masked = ma.masked_where((self._mask | values.mask), values.data, copy=False)
         else:

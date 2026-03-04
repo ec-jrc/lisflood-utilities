@@ -122,6 +122,7 @@ setup_args = dict(
     package_dir={'': 'src/'},
     package_data={'lisfloodutilities': ['VERSION']},
     version=version,
+    python_requires='>=3.10',
     packages=find_packages('src'),
     description='A set of utilities for lisflood users. '
                 'pcr2nc: Convert PCRaster files to netCDF CF 1.6; '
@@ -139,12 +140,17 @@ setup_args = dict(
     setup_requires=[
             'setuptools>=41.0', 'numpy',
     ],
-    install_requires=['numpy', 'pyyaml>=5.4',
+    install_requires=['numpy>=1.18.2,<2.0.0', 'PyYAML>=6.0.3',
                       # Can create corrupted environment if using conda,
                       # Better to install GDAL manually before to install lisflood-utilities package
                       # 'GDAL=={}'.format(gdal_version),
-                      'netCDF4>=1.5.3', 'toolz', 'xarray>=0.15.1',
-                      'dask', 'pandas>=0.25.1', 'pyg2p'],
+                      'gdal<=3.5.3',
+                      'netCDF4>=1.7.2', 'toolz', 'xarray>=2024.7.0',
+                      'dask', 'pandas>=2.3.3', 'pyg2p>=3.2.8',
+                      'earthkit-data>=0.18.6,<0.19.0',
+                      'earthkit-hydro==1.1.0',
+                      'earthkit-meteo>=0.5.1,<0.6.0',
+                      'earthkit-utils>=0.1.2,<0.2.0'],
     author="Valerio Lorini, Stefania Grimaldi, Carlo Russo, Goncalo Gomes, Domenico Nappo, Lorenzo Alfieri",
     author_email="valerio.lorini@ec.europa.eu,stefania.grimaldi@ec.europa.eu,carlo.russo@ext.ec.europa.eu,goncalo.ramos-gomes@ext.ec.europa.eu,domenico.nappo@gmail.com,lorenzo.alfieri@ec.europa.eu",
     keywords=['netCDF4', 'PCRaster', 'mapstack', 'lisflood', 'efas', 'glofas', 'ecmwf', 'copernicus'],
