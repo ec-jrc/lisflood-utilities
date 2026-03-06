@@ -14,7 +14,7 @@ cur_folder = Path(os.path.dirname(os.path.realpath(__file__)), 'data/waterregion
 
 class TestWaterRegions:
 
-    # @pytest.mark.defwaterregions
+    @pytest.mark.defwaterregions
     def test_define_waterregions(self):
         calib_points = Path(cur_folder, 'calib_points_test.txt')
         countries_id = Path(cur_folder, 'countries_id_test.nc')

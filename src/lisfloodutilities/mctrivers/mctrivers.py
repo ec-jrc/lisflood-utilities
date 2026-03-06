@@ -8,9 +8,16 @@
 #   mctrivers.py -i changrad.nc -l ec_ldd.nc -m mask.nc -u upArea.nc -E y x -S 0.001 -N 5 -U 500 -O chanmct.nc
 
 
+from typing import List, Tuple
+
 import xarray as xr
 import pcraster as pcr
 import numpy as np
+
+
+# Define common coordinate name patterns for automatic detection
+X_COORD_NAMES = ('lon', 'x', 'rlon')
+Y_COORD_NAMES = ('lat', 'y', 'rlat')
 
 
 def getarg():
@@ -43,7 +50,7 @@ def getarg():
 
     
 def mct_mask(channels_slope_file, ldd_file, uparea_file, mask_file='', 
-             slp_threshold=0.001, nloops=5, minuparea=0, coords_names='None'):
+             slp_threshold=0.001, nloops=5, minuparea=0, coords_names: List[str] = []):
     """
     
     Builds a mask of mild sloping rivers for use in LISFLOOD with MCT diffusive river routing. It takes LISFLOOD channels slope map (changrad.nc), the LDD (ldd.nc), 
@@ -61,7 +68,7 @@ def mct_mask(channels_slope_file, ldd_file, uparea_file, mask_file='',
     slp_threshold: Riverbed slope threshold to use MCT diffusive wave routing (default: 0.001)
     nloops: Number of consecutive downstream grid cells that also need to comply with the slope requirement for including a grid cell in the MCT rivers mask (default: 5)
     minuparea: Minimum upstream drainage area for a pixel to be included in the MCT rivers mask (uses the same units as in the -u file) (default: 0)
-    coords_names: Coordinates names for lat, lon (in this order as list) used in the the netcdf files (default: 'None'; checks for commonly used names ['x', 'lon', 'rlon'], similar for lat names)
+    coords_names: Coordinates names for lat, lon (in this order as list) used in the the netcdf files (default: []; checks for commonly used names ['x', 'lon', 'rlon'], similar for lat names)
     outputfile: Output file containing the rivers mask where LISFLOOD can use the MCT diffusive wave routing (default: chanmct.nc)
     
     Example for generating an MCT rivers mask with pixels where riverbed slope < 0.001, drainage area > 500 kms and at least 5 downstream pixels meet the same 
@@ -72,31 +79,13 @@ def mct_mask(channels_slope_file, ldd_file, uparea_file, mask_file='',
     """
     # ---------------- Read LDD (Note that for EFAS5 there is small shift of values for CH)
     LD = xr.open_dataset(ldd_file)
-    
-    # ---------------- Auxiliary variables
-    x_checks = ['lon', 'x', 'rlon']
-    y_checks = ['lat', 'y', 'rlat']
-    if coords_names == "None":
-        x_proj = set(list(LD.coords)) & set(x_checks)
-        y_proj = set(list(LD.coords)) & set(y_checks)
-    
-        if len(x_proj)!=1 or len(y_proj)!=1:
-            print('Input dataset coords names for lat/lon are not as expected.')
-            print(f'The available coords are: {list(LD.coords)}')
-            print(f'The checked names are {y_checks} and {x_checks} for lat and lon respectively.')
-            print('Please use -E argument and give the coords names !with space in between! in order: lan lon')
-            exit(1)
-        
-        x_proj = list(x_proj)[0]
-        y_proj = list(y_proj)[0]
-    else:
-        y_proj, x_proj = coords_names
+
+    x_proj, y_proj = extract_coords(LD, coords_names)
     
     # ---------------- Process channels slope netcdf
     # proprocess CH dataset for having correct format
     CH = xr.open_dataset(channels_slope_file)
-    old_name = [i for i in list(CH.data_vars) if sorted(CH[i].dims)==sorted([x_proj, y_proj])]
-    CH = CH.rename({old_name[0]: "changrad"})  # only 1 variable complies with the above check
+    CH = change_dataset_name(CH, x_proj, y_proj, 'changrad')
     CH['changrad'] = CH['changrad'].transpose(y_proj, x_proj)  # make sure dims order is as pcraster needs
 
     # ---------------- Set clone map for pcraster
@@ -127,27 +116,26 @@ def mct_mask(channels_slope_file, ldd_file, uparea_file, mask_file='',
     rivers_mask_pcr = pcr.numpy2pcr(pcr.Scalar, rivers_mask.values, 0) 
 
     # ---------------- Process LDD
-    old_name = [i for i in list(LD.data_vars) if sorted(LD[i].dims)==sorted([x_proj, y_proj])]
-    LD = LD.rename({old_name[0]: "ldd"})['ldd']  # only 1 variable complies with above if
+    LD = change_dataset_name(LD, x_proj, y_proj, 'ldd')
+    LD = LD['ldd'] # Extract as Dataarray
 
     # sometimes the masked value is flagged not with NaN (e.g., with cutmaps it was flagged with 0)
     # pcr.Ldd takes only integer values 1-9, so any other value needs to be masked
     LD = LD.fillna(-1)  # fill NaN so it can be converted to integer with no issues
     LD = LD.astype('int')
     LD = LD.where((LD>0) & (LD<10)).fillna(-1)
-    
+
     # convert the xarray to pcraster
     LD = LD.transpose(y_proj, x_proj)  # make sure dims order is as pcraster needs
     ldd_pcr = pcr.numpy2pcr(pcr.Ldd, LD.values, -1)  # missing values in the np are flagged as -1
 
     # repair the ldd; needed in case ldd is created from cutmaps, so outlet is not flagged with 5 (pit) 
     ldd_pcr = pcr.lddrepair(ldd_pcr)
-    
 
     # ---------------- Read upstream area
     UA = xr.open_dataset(uparea_file)
-    old_name = [i for i in list(UA.data_vars) if sorted(UA[i].dims)==sorted([x_proj, y_proj])]
-    UA = UA.rename({old_name[0]: "domain"})['domain']  # only 1 variable complies with the above if statement
+    UA = change_dataset_name(UA, x_proj, y_proj, 'domain')
+    UA = UA['domain'] # Extract as Dataarray
     
     # convert the xarray to pcraster
     UA = UA>=minuparea # check that the area is over the minimum
@@ -157,8 +145,8 @@ def mct_mask(channels_slope_file, ldd_file, uparea_file, mask_file='',
     # ---------------- Read domain/basin (mask) area
     try:
         MX = xr.open_dataset(mask_file)
-        old_name = [i for i in list(MX.data_vars) if sorted(MX[i].dims)==sorted([x_proj, y_proj])]
-        MX = MX.rename({old_name[0]: "domain"})['domain']  # only 1 variable complies with the above if statement
+        MX = change_dataset_name(MX, x_proj, y_proj, 'domain')
+        MX = MX['domain'] # Extract as Dataarray
     except:
         print(f'The given mask path {mask_file} is not a valid path. All domain read from LDD file {ldd_file} is considered vaid.')
         MX = LD.copy(deep=True)
@@ -215,6 +203,55 @@ def mct_mask(channels_slope_file, ldd_file, uparea_file, mask_file='',
     MCT = MCT.where(MX.notnull())
     
     return MCT
+
+
+def extract_coords(ds: xr.Dataset, coords_names: List[str] = []) -> Tuple[str, str]:
+    x_proj, y_proj = '', ''
+    # Determine coordinate names: use provided names or auto-detect from dataset
+    if len(coords_names) == 0:
+        # Auto-detect coordinates by matching against known patterns
+        available_coords = set(ds.coords)
+        x_matches = available_coords.intersection(X_COORD_NAMES)
+        y_matches = available_coords.intersection(Y_COORD_NAMES)
+        
+        if len(x_matches) != 1 or len(y_matches) != 1:
+            raise ValueError(
+                f"Unable to uniquely identify coordinates. "
+                f"Found {len(x_matches)} x-coords: {x_matches}, "
+                f"{len(y_matches)} y-coords: {y_matches}. "
+                f"Available: {list(available_coords)}. "
+                f"Please specify coordinates explicitly using the -E argument "
+                f"(format: 'lat lon')."
+            )
+        
+        x_proj = str(next(iter(x_matches)))
+        y_proj = str(next(iter(y_matches)))
+    elif len(coords_names) == 2:
+        # Use provided coordinates (y, x order as per documentation)
+        y_proj, x_proj = coords_names
+    else:
+        raise ValueError(
+            f"coords_names must have 0 or 2 elements, got {len(coords_names)}: {coords_names}"
+        )
+        
+    return x_proj, y_proj
+
+
+def change_dataset_name(ds: xr.Dataset, x_proj: str, y_proj: str, new_name: str) -> xr.Dataset:
+    """
+    Change the name of the variable in the dataset that has dimensions matching x_proj and y_proj to new_name.
+    This is needed for the pcraster conversion.
+    """
+    # Use set comparison instead of sorted() to avoid type issues with Hashable
+    # and to handle dimension order differences
+    old_name = [i for i in list(ds.data_vars) if set(ds[i].dims) == {x_proj, y_proj}]
+    if not old_name:
+        raise ValueError("No variable found with dimensions matching x and y coordinates")
+    if len(old_name) > 1:
+        import warnings
+        warnings.warn(f"Multiple variables match the dimension check: {old_name}. Using first one: {old_name[0]}")
+    ds = ds.rename({old_name[0]: new_name}) # only 1 variable complies with the above check
+    return ds
 
 
 def main():

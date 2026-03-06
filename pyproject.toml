@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lisflood-utilities"
-requires-python = ">=3.10"
+requires-python = "==3.10"
 version = "0.11.7"  # Will be read from VERSION file at build time
 description = "A set of utilities for lisflood users. pcr2nc: Convert PCRaster files to netCDF CF 1.6; nc2pcr: Convert netCDF files to PCRaster format; cutmaps: cut netCDF files; compare: compare two set of netCDF files; thresholds: compute discharge return period thresholds; gridding: interpolate meteo variables observations; decumulate: decumulate daily grids into 6 hourly grids in kiwis format; ncextract: extract values from netCDF files; catchstats: calculates catchment statistics; mctrivers: creates a river mask for MCT diffusive river routing in LISFLOOD; "
 readme = "README.md"
@@ -34,9 +34,9 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Physics",
 ]
 dependencies = [
-    "numpy",
+    "numpy>=1.18.2,<2.0.0",
     "pyyaml>=5.4",
-    "netCDF4>=1.5.3",
+    "netCDF4>=1.7.2",
     "toolz",
     "xarray>=0.15.1",
     "dask",

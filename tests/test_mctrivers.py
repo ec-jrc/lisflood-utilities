@@ -35,9 +35,9 @@ class TestMctMask():
         mct_final.to_netcdf(outputfile, encoding={"mct_mask": {'_FillValue': 0, 'dtype': 'int8'}})
         
         # compare the generated mask with the reference one
-        ref_file = self.out_path_ref+'/mctmask.nc'
+        ref_file = os.path.join(self.out_path_ref, 'mctmask.nc')
         reference = xr.open_dataset(ref_file)
-        out_file = self.out_path_run+'/mctmask.nc'
+        out_file = os.path.join(self.out_path_run, 'mctmask.nc')
         generated = xr.open_dataset(out_file)
         # check if same based on https://docs.xarray.dev/en/stable/generated/xarray.DataArray.equals.html
         all_equal = reference.equals(generated)
@@ -57,10 +57,10 @@ class TestMctrivers(TestMctMask):
     # slp_threshold = 0.001
     # nloops = 5
     # minuparea = 500*10**6
-    # coords_names = 'None'
+    # coords_names = []
 
     def test_mctrivers_etrs89(self):
-        self.run(0.001, 5, 500*10**6, 'None', 'LF_ETRS89_UseCase')
+        self.run(0.001, 5, 500*10**6, [], 'LF_ETRS89_UseCase')
 
     def test_mctrivers_latlon(self):
         self.run(0.001, 5, 500*10**6, ['lat', 'lon'], 'LF_lat_lon_UseCase')

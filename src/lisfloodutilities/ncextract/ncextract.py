@@ -58,7 +58,7 @@ def read_points(inputcsv: Union[str, Path]) -> xr.Dataset:
         poi_xr = poi_df.set_index(idx_col)[[x_coord, y_coord]].to_xarray()
         rename_dim = {idx_col: col for col in original_columns if col.lower() == idx_col}
         poi_xr = poi_xr.rename({idx_col: 'id'})
-    except:
+    except Exception as e:
         raise ValueError(f"Could not read CSV properly. Please check the format.\nDetails: {e}")
         
     return poi_xr
