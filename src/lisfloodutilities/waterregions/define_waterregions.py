@@ -86,7 +86,8 @@ def main(cliargs):
     logger.info('\nUsing %s and %s to define the water regions\n ', calib_points, ldd)
     
     # check the consistency between the water regions and the calibration catchments
-    cal_catch = subcatchment
+    # Convert to numpy array to avoid xarray 2D boolean indexing issues
+    cal_catch = np.array(subcatchment)
     cal_catch[cal_catch < 1] = -9999
     cal_catch[np.isnan(cal_catch)] = -9999
 
@@ -187,6 +188,17 @@ def get_data_from_timeless_nc(nc_file: Union[Path, str], var_name: Optional[str]
         data = nc[var_name][:]
     return data
 
+
+def recode_waterregions(waterregions_unique: np.ndarray) -> np.ndarray:
+    # Recode water region IDs to be consecutive integers starting from 1
+    unique_ids = np.unique(waterregions_unique[~np.isnan(waterregions_unique)])
+    recoded_map = {old_id: new_id for new_id, old_id in enumerate(unique_ids, start=1)}
+    recoded_waterregions = np.copy(waterregions_unique)
+    for old_id, new_id in recoded_map.items():
+        recoded_waterregions[waterregions_unique == old_id] = new_id
+    return recoded_waterregions
+
+
 def define_waterregions(calib_points: Path, countries_id: Path, ldd: Path,
                         waterregions_initial: Path, output_wr: Path, metadata_parsed: dict = {},
                         tmpdir: Union[Path, None] = None) ->  Tuple[Union[Path, None],
@@ -242,10 +254,10 @@ def define_waterregions(calib_points: Path, countries_id: Path, ldd: Path,
                                    subcatchments_unique + (11 * waterregions_initial_map),
                                    subcatchments_unique)
 
+    waterregions_unique = recode_waterregions(waterregions_unique)
+
     #9. Save the water region map
     array_to_nc_from_clone(out_path=output_wr, clone_path=ldd, grid=waterregions_unique, metadata=metadata_parsed)
-
-    print(waterregions_unique)
 
     return output_wr, waterregions_unique, subcatchments
                           
