@@ -127,6 +127,8 @@ setup_args = dict(
     description='A set of utilities for lisflood users. '
                 'pcr2nc: Convert PCRaster files to netCDF CF 1.6; '
                 'nc2pcr: Convert netCDF files to PCRaster format; '
+                'define_waterregions: Define Water Regions consistent with calibration points; '
+                'verify_waterregions: Verify that the Water Regions map is consistent with the map of the calibration catchments; '
                 'cutmaps: cut netCDF files; '
                 'compare: compare two set of netCDF files; '
                 'thresholds: compute discharge return period thresholds; '

@@ -32,7 +32,7 @@ def main(cliargs):
     args = parser.parse_args(cliargs)
     calib_catchments = args.calib_catchments 
     waterregions = args.waterregions 
-    output_message = verify_waterregions(calib_catchments, waterregions)
+    output_message = verify_waterregions(calib_catchments, waterregions, print_progress=True)
     logger.info('\n Verify the consistency between %s and %s ', calib_catchments, waterregions)
     logger.info(output_message)
 
@@ -52,7 +52,7 @@ class ParserHelpOnError(argparse.ArgumentParser):
                           required=True, type=Path)
 
 
-def verify_waterregions(calib_catchments: Optional[Path] = None, waterregions: Optional[Path] = None) -> str:
+def verify_waterregions(calib_catchments: Path , waterregions: Path, print_progress: bool = False) -> str:
     # Check the input files
     msg = verify_existing_netcdf(input_file=calib_catchments, file_id='calibration catchments')
     if len(msg) > 0:
@@ -61,7 +61,7 @@ def verify_waterregions(calib_catchments: Optional[Path] = None, waterregions: O
     if len(msg) > 0:
         return msg
 
-    waterregions_map = Dataset(waterregions,'r','format=NETCDF4_classic')
+    waterregions_map = Dataset(waterregions, 'r', format='NETCDF4_CLASSIC')
     ywr = []
     wr_yresolution = 0
     xwr = []
@@ -79,7 +79,7 @@ def verify_waterregions(calib_catchments: Optional[Path] = None, waterregions: O
 
     cal_catch = np.array([])
     flipud = False
-    calibration_catchments_map = Dataset(calib_catchments,'r','format=NETCDF4_classic')
+    calibration_catchments_map = Dataset(calib_catchments, 'r', format='NETCDF4_CLASSIC')
     for v in calibration_catchments_map.variables:
         if (v == 'y' or v == 'lat'):
            ycc = calibration_catchments_map.variables[v][:]
@@ -108,14 +108,16 @@ def verify_waterregions(calib_catchments: Optional[Path] = None, waterregions: O
     cal_catch_error_wr = []
     output_message = ''
 
-    for wr_id in wr_ids:
+    for idx, wr_id in enumerate(wr_ids):
+        if print_progress:
+            progress = (idx + 1) / len(wr_ids) * 100
+            print(f'\rProgress: {progress:.1f}%', end='')
         extract_wr = np.where(wr == wr_id, cal_catch, -9999)
         num_cal_catch = np.unique(extract_wr)
         num_cal_catch_check = np.extract(num_cal_catch != -9999, num_cal_catch)
         if len(num_cal_catch_check) > 1:
             id_error_wr.append(int(wr_id))
             num_cal_catch_write = num_cal_catch[num_cal_catch != -9999].astype(int)
-            # cal_catch_error_wr.append(num_cal_catch_write)
             cal_catch_error_wr.append(num_cal_catch_write)
             msg = 'The water regions WR are included in more than one calibration catchment'
             msg_catchments = [list(c) for c in cal_catch_error_wr]
