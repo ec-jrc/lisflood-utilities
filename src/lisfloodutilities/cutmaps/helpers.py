@@ -101,7 +101,8 @@ def get_from_metadata(metadata: dict[str, Union[str, int, float, bool, dict[str,
 
 
 def get_river_network_from_map(ldd_map: Union[Path, str],
-                               precomputed_network: Optional[Union[Path, str]] = None)-> data_structures.RiverNetwork:
+                               precomputed_network: Optional[Union[Path, str]] = None,
+                               export: bool = True)-> data_structures.RiverNetwork:
     """
     Get the river network from a LDD map. If a precomputed network file exists it is used,
     otherwise it is created and saved in the ldd_map folder for future use.
@@ -109,6 +110,7 @@ def get_river_network_from_map(ldd_map: Union[Path, str],
     ----------
     ldd_map: Path to the LDD map file.
     precomputed_network: Optional path to a precomputed network file.
+    export: If True, the network will be exported to a file.
     Returns
     -------
     data_structures.RiverNetwork
@@ -125,7 +127,8 @@ def get_river_network_from_map(ldd_map: Union[Path, str],
         return network
     # Creates the new network and saves it for future use
     network = river_network.create(ldd_map_path.as_posix(), "pcr_d8", "file")
-    network.export(precomputed_network_path.as_posix())
+    if export:
+        network.export(precomputed_network_path.as_posix())
     return network
 
 

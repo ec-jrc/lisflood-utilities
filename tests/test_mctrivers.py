@@ -2,7 +2,7 @@ import os
 import shutil
 import xarray as xr
 
-from lisfloodutilities.mctrivers.mctrivers import mct_mask
+from lisfloodutilities.mctrivers.mctrivers import extract_coords, lddrepair, mct_mask, prepare_dataset
 
 
 def mk_path_out(p):
@@ -64,3 +64,29 @@ class TestMctrivers(TestMctMask):
 
     def test_mctrivers_latlon(self):
         self.run(0.001, 5, 500*10**6, ['lat', 'lon'], 'LF_lat_lon_UseCase')
+    
+    def test_lddrepair(self):
+        ldd_path='/mnt/WORKAREA_High_Speed/projects/lisflood-utilities/tests/data/mctrivers/LF_lat_lon_UseCase/ldd.nc'
+        ldd_repaired_path='/mnt/WORKAREA_High_Speed/projects/lisflood-utilities/tests/data/mctrivers/LF_lat_lon_UseCase/ldd_repaired.nc'
+        coords_names = ['lat', 'lon']
+        LD_ds = xr.open_dataset(ldd_path)
+        x_proj, y_proj = extract_coords(LD_ds, coords_names)
+        LD = prepare_dataset(LD_ds, x_proj, y_proj, 'ldd')
+        LD = LD['ldd']
+        LD = LD.fillna(-1)
+        LD = LD.astype('int')
+        LD = LD.where((LD > 0) & (LD < 10)).fillna(-1)
+        ldd_array = LD.values.astype(int)
+        ldd_array = lddrepair(ldd_array)
+
+        LD_REPAIRED_ds = xr.open_dataset(ldd_repaired_path)
+        LD_REPAIRED = prepare_dataset(LD_REPAIRED_ds, x_proj, y_proj, 'ldd_repaired')
+        LD_REPAIRED = LD_REPAIRED['ldd_repaired']
+        LD_REPAIRED = LD_REPAIRED.fillna(-1)
+        LD_REPAIRED = LD_REPAIRED.astype('int')
+        ldd_repaired_array = LD_REPAIRED.values.astype(int)
+
+        LD_ds.close()  # needs to be closed otherwise the out folder can't be deleted
+        LD_REPAIRED_ds.close()  # needs to be closed otherwise the out folder can't be deleted
+
+        assert (ldd_array == ldd_repaired_array).all(), 'LDD repair did not produce the expected output. Please check the generated repaired LDD and compare it with the expected repaired LDD.'
