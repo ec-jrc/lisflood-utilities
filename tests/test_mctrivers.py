@@ -54,11 +54,6 @@ class TestMctMask():
 
 class TestMctrivers(TestMctMask):
 
-    # slp_threshold = 0.001
-    # nloops = 5
-    # minuparea = 500*10**6
-    # coords_names = []
-
     def test_mctrivers_etrs89(self):
         self.run(0.001, 5, 500*10**6, [], 'LF_ETRS89_UseCase')
 
