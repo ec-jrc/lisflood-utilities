@@ -20,6 +20,8 @@ import argparse
 import os
 import shutil
 import sys
+from pathlib import Path
+from typing import Optional, List, Union
 
 from .. import version, logger
 from .cutlib import (mask_from_ldd, get_filelist, get_cuts, cutmap,
@@ -49,10 +51,23 @@ def parse_and_check_args(parser, cliargs):
     return args
 
 def get_arg_coords(value):
+    """Parse coordinate values from command line argument.
+    
+    Args:
+        value: String containing 4 space-separated values (coordinates or indices)
+        
+    Returns:
+        Map object yielding the parsed values as int or float
+        
+    Raises:
+        argparse.ArgumentTypeError: If the value doesn't contain exactly 4 values
+    """
     apply = float if '.' in value else int  # user can provide coords (float) or matrix indices bbox (int)
     values = value.split()
     if len(values) != 4:
-        raise argparse.ArgumentError
+        raise argparse.ArgumentTypeError(
+            f"Expected 4 values, got {len(values)}: '{value}'"
+        )
     values = map(apply, values)
     return values
 
@@ -98,11 +113,72 @@ def main(cliargs):
     ldd = args.ldd
     stations = args.stations
 
+    # =========================================================================
+    # Input Path Handling with Validation and Error Handling
+    # =========================================================================
+    # Extract input paths from arguments with proper validation
     input_folder = args.folder
     input_file = args.file
     static_data_folder = args.subdir
     overwrite = args.overwrite
     pathout = args.outpath
+
+    # Validate input sources - ensure at least one input is provided
+    # This provides early failure with clear error messages
+    if not any([input_folder, input_file, static_data_folder]):
+        parser.error(
+            'No input source specified. Please provide one of: '
+            '--folder, --file, or --subdir'
+        )
+
+    # Validate input_folder if provided - check existence and accessibility
+    if input_folder:
+        input_folder_path = Path(input_folder)
+        if not input_folder_path.exists():
+            raise FileNotFoundError(
+                f"Input folder does not exist: {input_folder}"
+            )
+        if not input_folder_path.is_dir():
+            raise NotADirectoryError(
+                f"Input path is not a directory: {input_folder}"
+            )
+        # Resolve to absolute path for consistent handling
+        input_folder = str(input_folder_path.resolve())
+
+    # Validate input_file if provided
+    if input_file:
+        input_file_path = Path(input_file)
+        if not input_file_path.exists():
+            raise FileNotFoundError(
+                f"Input file does not exist: {input_file}"
+            )
+        if not input_file_path.is_file():
+            raise ValueError(
+                f"Input path is not a file: {input_file}"
+            )
+        # Resolve to absolute path for consistent handling
+        input_file = str(input_file_path.resolve())
+
+    # Validate static_data_folder if provided
+    if static_data_folder:
+        static_data_path = Path(static_data_folder)
+        if not static_data_path.exists():
+            raise FileNotFoundError(
+                f"Static data folder does not exist: {static_data_folder}"
+            )
+        if not static_data_path.is_dir():
+            raise NotADirectoryError(
+                f"Static data path is not a directory: {static_data_folder}"
+            )
+        # Resolve to absolute path for consistent handling
+        static_data_folder = str(static_data_path.resolve())
+
+    # Validate output path
+    pathout_path = Path(pathout)
+    if pathout_path.exists() and not pathout_path.is_dir():
+        raise ValueError(
+            f"Output path exists but is not a directory: {pathout}"
+        )
     if not os.path.exists(pathout):
         logger.warning('\nOutput folder %s not existing. Creating it...', pathout)
         os.mkdir(pathout)

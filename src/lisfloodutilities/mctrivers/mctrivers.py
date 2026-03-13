@@ -100,7 +100,7 @@ def mct_mask(channels_slope_file: str, ldd_file: str, uparea_file: str, mask_fil
     try:
         network = get_river_network_from_map(ldd_file)
     except Exception as e:
-        print(f"Error occurred while creating river network the LDD might have cycles: {e}")
+        print(f"Error occurred while creating river network the LDD might have cycles. Trying to repair it: {e}")
         # If there is an error, we can still attempt to repair the LDD without the network,
         # but it may not be as effective in fixing cycles.
         ldd_array = LD.values.astype(int)  # Ensure integer type

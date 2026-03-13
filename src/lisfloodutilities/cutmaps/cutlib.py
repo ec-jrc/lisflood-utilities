@@ -171,11 +171,11 @@ def cut_from_coords(nc: xr.Dataset, var: str, x_min: float, x_max: float, y_min:
 
 def get_filelist(input_folder: str = '', static_data_folder: str = '', input_file: str = '') -> List[Path]:
     list_to_cut = []
-    if len(input_folder) > 0:
+    if input_folder and len(input_folder) > 0:
         list_to_cut = [f for f in Path(input_folder).glob('**/*.nc')]
-    elif len(static_data_folder) > 0:
+    elif static_data_folder and len(static_data_folder) > 0:
         list_to_cut = [f for f in Path(static_data_folder).glob('**/*') if '/.git/' not in f.as_posix()]
-    if input_file:
+    if input_file and len(input_file) > 0:
         list_to_cut = [Path(input_file)]
     logger.info('==================> Going to cut %d files', len(list_to_cut))
     return list_to_cut
