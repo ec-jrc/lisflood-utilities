@@ -2,7 +2,8 @@ import os
 import shutil
 import xarray as xr
 
-from lisfloodutilities.mctrivers.mctrivers import extract_coords, lddrepair, mct_mask, prepare_dataset
+from lisfloodutilities.mctrivers.helpers import lddrepair
+from lisfloodutilities.mctrivers.mctrivers import extract_coords, mct_mask, prepare_dataset
 
 
 def mk_path_out(p):
