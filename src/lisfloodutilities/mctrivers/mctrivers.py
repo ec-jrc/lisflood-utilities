@@ -9,7 +9,7 @@
 
 import tempfile
 import os
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 import xarray as xr
 import numpy as np
 from earthkit.hydro import distance, move, upstream
@@ -82,17 +82,17 @@ def mct_mask(channels_slope_file: str, ldd_file: str, uparea_file: str, mask_fil
     # ---------------- Read LDD to get coordinates and repair it before creating network
     LD_ds = xr.open_dataset(ldd_file)
     x_proj, y_proj = extract_coords(LD_ds, coords_names)
-    
+
     # Prepare LDD and repair it BEFORE creating the river network
     LD = prepare_dataset(LD_ds, x_proj, y_proj, 'ldd')
     LD = LD['ldd']  # Extract as Dataarray
-    
+
     # sometimes the masked value is flagged not with NaN (e.g., with cutmaps it was flagged with 0)
     # LDD takes only integer values 1-9, so any other value needs to be masked
     LD = LD.fillna(-1)  # fill NaN so it can be converted to integer with no issues
     LD = LD.astype('int')
     LD = LD.where((LD > 0) & (LD < 10)).fillna(-1)
-    
+
     # Create river network from original LDD to use in the lddrepair function in case of failure.
     # This is needed because if there are cycles in the LDD, the downstream and path functions will fail, 
     # and without the river network we can't run the lddrepair function to fix the LDD.;
@@ -117,13 +117,14 @@ def mct_mask(channels_slope_file: str, ldd_file: str, uparea_file: str, mask_fil
             # coords={y_proj: LD.coords[y_proj], x_proj: LD.coords[x_proj]}
         )
         LD_repaired.name = 'ldd'
-        LD_repaired = copy_coordinates_and_attributes(source=LD_ds, target=LD_repaired, y_proj=y_proj, x_proj=x_proj)
+        LD_repaired = copy_coordinates_and_attributes(source=LD_ds, target=LD_repaired,
+                                                      y_proj=y_proj, x_proj=x_proj)
         LD_repaired.to_netcdf(tmp_path)
         LD_ds.close()
 
         # Create river network from repaired LDD
         network = get_river_network_from_map(tmp_path, export=False)
-        
+
         # Reload repaired LDD for further processing
         LD_ds = xr.open_dataset(tmp_path)
         LD = prepare_dataset(LD_ds, x_proj, y_proj, 'ldd')
@@ -135,13 +136,13 @@ def mct_mask(channels_slope_file: str, ldd_file: str, uparea_file: str, mask_fil
         LD_ds.close()
         LD_ds = None
         # Clean up temporary file
-        # try:
-        #     os.remove(tmp_path)
-        # except OSError:
-        #     pass
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
     if LD_ds is not None:
         LD_ds.close()
-    
+
     # ---------------- Process channels slope netcdf
     CH = xr.open_dataset(channels_slope_file)
     CH = prepare_dataset(CH, x_proj, y_proj, 'changrad')
@@ -152,7 +153,7 @@ def mct_mask(channels_slope_file: str, ldd_file: str, uparea_file: str, mask_fil
     # get coords of map
     x_all = CH.variables[x_proj].values
     y_all = CH.variables[y_proj].values
-    
+
     # ---------------- Create rivers mask (Step 1: Flag all grid cells with slope lower than threshold)
     rivers_mask = (CH.changrad < slp_threshold).astype(int)
     CH.close()
@@ -161,11 +162,11 @@ def mct_mask(channels_slope_file: str, ldd_file: str, uparea_file: str, mask_fil
     UA = xr.open_dataset(uparea_file)
     UA = prepare_dataset(UA, x_proj, y_proj, 'domain')
     UA = UA['domain']  # Extract as Dataarray
-    
+
     # check that the area is over the minimum
     minarea_bool = (UA >= minuparea).astype(int)
     UA.close()
-    
+
     # ---------------- Read domain/basin (mask) area
     # Create domain mask from LDD - valid cells are those with valid LDD (1-9)
     # First, reload LDD to create the domain mask
@@ -174,7 +175,7 @@ def mct_mask(channels_slope_file: str, ldd_file: str, uparea_file: str, mask_fil
     LD_for_mask = LD_for_mask['ldd']
     LD_for_mask = LD_for_mask.fillna(0)  # Fill NaN with 0
     LD_for_mask = LD_for_mask.where((LD_for_mask > 0) & (LD_for_mask < 10))  # Valid LDD values are 1-9
-    
+
     if mask_file:
         try:
             MX = xr.open_dataset(mask_file)
@@ -188,24 +189,24 @@ def mct_mask(channels_slope_file: str, ldd_file: str, uparea_file: str, mask_fil
     else:
         print(f'No mask file provided. Using LDD domain from {ldd_file}.')
         MX = LD_for_mask
-    
+
     # use the exact same coords from channel slope file, just in case there are precision differences
     MX = MX.assign_coords({x_proj: x_all, y_proj: y_all})
-    
+
     # ---------------- Loop on the basin pixels to find how many MCT pixels they have downstream
     # initiate a counter with 1 in cells that fit the slope criteria and 0 elsewhere
     sum_rivers = rivers_mask.values.copy()
-    
+
     # set the initial value of the 'downstream' pixels
     downstream_cells = rivers_mask.values.copy()
-    
+
     # Create mask for valid downstream cells (not pits)
     # A pit has ldd value 5, downstreamdist returns 0 for pits
     # Calculates the maximum distance to all points from the river network sinks
     downstreamdist = distance.to_sink(network, path='shortest')
     # downstream_actual_mask = (downstreamdist(ldd_array) > 0).astype(int)
     downstream_actual_mask = (downstreamdist > 0).astype(int)
-    
+
     # The loop is used to count how many pixels are MCT downstream, as at each loop we move the values 1 pixel upstream
     # At the end of the loop, each element of the array has the number of downstream MCT pixels for that pixel
     for loops in range(nloops):
@@ -214,7 +215,7 @@ def mct_mask(channels_slope_file: str, ldd_file: str, uparea_file: str, mask_fil
         downstream_cells = move.upstream(network, downstream_cells, return_type='gridded')
         downstream_cells = downstream_cells * downstream_actual_mask
         sum_rivers = sum_rivers + downstream_cells
-        
+
     # ---------------- Generate a new MCT rivers mask
     # Pixels with nloops downstream MCT pixels plus their self (nloops+1 in total) go to the MCT river mask
     mct_mask_np = (sum_rivers == nloops + 1).astype(int)
@@ -226,7 +227,7 @@ def mct_mask(channels_slope_file: str, ldd_file: str, uparea_file: str, mask_fil
     # path requires boolean 0-1. If there are NaNs then it gives wrong results!
     # mct_mask_np = path(ldd_array, mct_mask_np)
     mct_mask_np = upstream.max(network, mct_mask_np, return_type='gridded').values.astype(int)
-    
+
     # ---------------- Generate the output file
     MCT = xr.DataArray(
         mct_mask_np,
@@ -234,7 +235,7 @@ def mct_mask(channels_slope_file: str, ldd_file: str, uparea_file: str, mask_fil
         # coords={y_proj: y_all, x_proj: x_all}
     )
     MCT.name = 'mct_mask'
-    
+
     # Copy coordinates and projection attributes from the source dataset to preserve CRS information
     MCT = copy_coordinates_and_attributes(source=LD_for_mask_ds, target=MCT, y_proj=y_proj, x_proj=x_proj)
 
@@ -242,7 +243,7 @@ def mct_mask(channels_slope_file: str, ldd_file: str, uparea_file: str, mask_fil
     MCT = MCT.where(MX.notnull())
     MX.close()
     LD_for_mask_ds.close()
-    
+
     return MCT
 
 
@@ -304,6 +305,38 @@ LDD_PIT_VALUE = 5  # LDD value for pits (no flow)
 LDD_MISSING_VALUE = 0  # Value to use for missing/invalid LDD cells in the repaired LDD
 VALID_LDD_VALUES = set(LDD_OFFSETS.keys()).difference({LDD_PIT_VALUE})  # Valid LDD values are 1-9 except 5 which is a pit
 
+
+def get_downstream(i: int, j: int, ldd_arr: np.ndarray, rows: int, cols: int) -> Optional[Tuple[int, int]]:
+    """
+    Get the downstream cell coordinates for a given cell.
+    Parameters:
+    -----------
+    i : int
+        Row index of the cell.
+    j : int
+        Column index of the cell.
+    ldd_arr : np.ndarray
+        LDD array with values 1-9 (or -1/0 for missing/invalid)
+    rows : int
+        Number of rows in the LDD array.
+    cols : int
+        Number of columns in the LDD array.
+
+    Returns:
+    --------
+    Optional[Tuple[int, int]]
+        Coordinates of the downstream cell, or None if no valid downstream cell exists.
+    """
+    ldd_val = int(ldd_arr[i, j])
+    if ldd_val < LDD_OFFSET_MIN or ldd_val > LDD_OFFSET_MAX or ldd_val == LDD_PIT_VALUE:
+        return None  # Invalid or pit
+    di, dj = LDD_OFFSETS[ldd_val]
+    next_i, next_j = i + di, j + dj
+    if 0 <= next_i < rows and 0 <= next_j < cols:
+        return (next_i, next_j)
+    return None  # Flows out of bounds
+
+
 def lddrepair(ldd_array: np.ndarray) -> np.ndarray:
     """
     Repair LDD array - ensures all drainage paths end in a pit.
@@ -333,6 +366,57 @@ def lddrepair(ldd_array: np.ndarray) -> np.ndarray:
     # Create output array - start with copy of input
     ldd_repaired = ldd.copy()
     
+    # Step 1: Remove cycles by assigning missing values to all cells in a cycle
+    # A cycle is a set of cells that don't drain to a pit because they drain to each other
+    # We detect cycles by following downstream paths and checking for visited cells
+    
+    # Track cells that are part of cycles
+    cycle_cells = set()
+    
+    # For each cell, follow the downstream path to detect cycles
+    for i in range(rows):
+        for j in range(cols):
+            ldd_val = int(ldd[i, j])
+            
+            # Skip invalid cells and pits
+            if ldd_val < LDD_OFFSET_MIN or ldd_val > LDD_OFFSET_MAX or ldd_val == LDD_PIT_VALUE:
+                continue
+            
+            # Follow the downstream path, tracking visited cells
+            path = []  # List of (i, j) tuples in order visited
+            visited_in_path = set()  # Set of cells visited in current path
+            
+            current_i, current_j = i, j
+            
+            while current_i is not None and current_j is not None:
+                # Check if we've hit a pit or invalid cell - no cycle here
+                current_ldd = int(ldd[current_i, current_j])
+                if current_ldd < LDD_OFFSET_MIN or current_ldd > LDD_OFFSET_MAX or current_ldd == LDD_PIT_VALUE:
+                    break
+                
+                # Check if we've already visited this cell in the current path - cycle detected!
+                if (current_i, current_j) in visited_in_path:
+                    # Found a cycle - mark all cells in the cycle as missing
+                    # Find the start of the cycle in the path
+                    cycle_start_idx = path.index((current_i, current_j))
+                    for cycle_i, cycle_j in path[cycle_start_idx:]:
+                        cycle_cells.add((cycle_i, cycle_j))
+                    break
+                
+                # Add current cell to path
+                path.append((current_i, current_j))
+                visited_in_path.add((current_i, current_j))
+                
+                # Move to downstream cell
+                downstream = get_downstream(current_i, current_j, ldd, rows, cols)
+                if downstream is None:
+                    break
+                current_i, current_j = downstream
+    
+    # Assign missing values to all cells in cycles
+    for i, j in cycle_cells:
+        ldd_repaired[i, j] = LDD_MISSING_VALUE
+    
     # Step 2: Find cells that are at the edge and flow out of bounds
     # These should be converted to pits
     for i in range(rows):
@@ -350,6 +434,26 @@ def lddrepair(ldd_array: np.ndarray) -> np.ndarray:
             if not (0 <= next_i < rows and 0 <= next_j < cols):
                 # Flows out of bounds - convert to pit
                 ldd_repaired[i, j] = LDD_PIT_VALUE
+    
+    # Step 2b: Find cells that drain to a cell with missing value (including cells in cycles)
+    # These should be converted to pits
+    for i in range(rows):
+        for j in range(cols):
+            ldd_val = int(ldd_repaired[i, j])
+            
+            # Skip if already a pit (5) or invalid
+            if ldd_val == LDD_PIT_VALUE or ldd_val < LDD_OFFSET_MIN or ldd_val > LDD_OFFSET_MAX:
+                continue
+            
+            # Check if this cell's downstream is a missing value
+            di, dj = LDD_OFFSETS[ldd_val]
+            next_i, next_j = i + di, j + dj
+            
+            if 0 <= next_i < rows and 0 <= next_j < cols:
+                downstream_val = ldd_repaired[next_i, next_j]
+                if downstream_val == LDD_MISSING_VALUE:
+                    # Drains to a missing value - convert to pit
+                    ldd_repaired[i, j] = LDD_PIT_VALUE
     
     # Find invalid values (not 1-9)
     invalid_mask = (ldd < LDD_OFFSET_MIN) | (ldd > LDD_OFFSET_MAX)
