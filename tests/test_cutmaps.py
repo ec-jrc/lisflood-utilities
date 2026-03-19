@@ -187,7 +187,8 @@ class TestCutlib(TestWithCleaner):
         x_min, x_max, y_min, y_max = get_cuts(mask=mask)
         x_minr, x_maxr, y_minr, y_maxr = np.round(x_min, 3), np.round(x_max, 3), np.round(y_min, 3), np.round(y_max, 3)
 
-        assert (x_minr, x_maxr, y_minr, y_maxr) == (10.225, 12.175, 42.975, 44.275)
+        assert_msg = 'Unexpected cuts from LDD with 3 arcmin resolution'
+        assert (x_minr, x_maxr, y_minr, y_maxr) == (10.225, 12.175, 42.975, 44.275), assert_msg
 
         fin = 'tests/data/cutmaps/ldd_3arcmin.nc'
         fout = 'tests/data/cutmaps/area_cut_3arcmin.nc'
@@ -200,7 +201,9 @@ class TestCutlib(TestWithCleaner):
             res_y_min = np.round(np.min(lats), 3)
             res_x_max = np.round(np.max(lons), 3)
             res_y_max = np.round(np.max(lats), 3)
-        assert (x_minr, x_maxr, y_minr, y_maxr) == (res_x_min, res_x_max, res_y_min, res_y_max)
+
+        assert_msg = 'Unexpected cuts from cutmap with LDD with 3 arcmin resolution'
+        assert (x_minr, x_maxr, y_minr, y_maxr) == (res_x_min, res_x_max, res_y_min, res_y_max), assert_msg
 
     def test_get_cuts_ldd_onestation(self):
         # this tests the case when LDD is in netCDF format
@@ -212,7 +215,9 @@ class TestCutlib(TestWithCleaner):
         self.cleanups.append((os.unlink, (outlets_points,)))  # produced by mask_from_ldd
         self.cleanups.append((os.unlink, (mask_nc,)))  # produced by mask_from_ldd
         x_min, x_max, y_min, y_max = get_cuts(mask=mask)
-        assert (x_min, x_max, y_min, y_max) == (4347500.0, 4372500.0, 1282500.0, 1307500.0)
+
+        assert_msg = 'Unexpected cuts from LDD with ETRS89 projection and one station'
+        assert (x_min, x_max, y_min, y_max) == (4347500.0, 4372500.0, 1282500.0, 1307500.0), assert_msg
 
         fout = 'tests/data/cutmaps/ldd_eu_cut.nc'
         self.cleanups.append((os.unlink, (fout,)))
@@ -226,4 +231,5 @@ class TestCutlib(TestWithCleaner):
             res_x_max = np.max(lons)
             res_y_max = np.max(lats)
 
-        assert (x_min, x_max, y_min, y_max) == (res_x_min, res_x_max, res_y_min, res_y_max)
+        assert_msg = 'Unexpected cuts from cutmap with LDD with ETRS89 projection and one station'
+        assert (x_min, x_max, y_min, y_max) == (res_x_min, res_x_max, res_y_min, res_y_max), assert_msg

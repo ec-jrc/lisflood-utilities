@@ -26,16 +26,21 @@ from typing import Optional, List, Union
 from .. import version, logger
 from .cutlib import (mask_from_ldd, get_filelist, get_cuts, cutmap,
                      MASK_VALUE, SMALL_MASK_FILENAME, FULL_MASK_FILENAME, OUTLETS_FILENAME)
-from .helpers import COORDINATE_NAMES
+from .helpers import COORDINATE_NAMES, TIME_NAMES
 from netCDF4 import Dataset 
 import numpy as np
 
-# Variables that should be excluded from mask processing. Using a set provides O(1) lookup.
+# Variables that should be excluded from mask processing.
 EXCLUDED_VAR_NAMES = {
     "crs",
     "wgs_1984",
     "lambert_azimuthal_equal_area",
+    "lambert_conformal_conic"
 }
+
+# Add coordinate and time coordinate names to the exclusion set
+EXCLUDED_VAR_NAMES.update(COORDINATE_NAMES)
+EXCLUDED_VAR_NAMES.update(TIME_NAMES)
 
 
 def parse_and_check_args(parser, cliargs):
@@ -256,7 +261,7 @@ def main(cliargs):
                         masked = np.where(mask_map_values == MASK_VALUE, values, fill_value)
                         variable[:] = masked
                     else:
-                        # >2‑D case (e.g., time‑series of rasters)
+                        # 3‑D case (e.g., time‑series of rasters)
                         for t in range(data.shape[0]):
                             values = variable[t]
                             masked = np.where(mask_map_values == MASK_VALUE, values, fill_value)

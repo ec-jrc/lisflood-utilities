@@ -254,6 +254,54 @@ def get_crs(ds: Dataset) -> CRS:
     return crs
 
 
+def copy_datum(source: xr.Dataset, target: xr.Dataset) -> None:
+    """
+    Copy geographical datum attributes from source Dataset to target Dataset.
+    
+    Copies the following attributes from the source to the target:
+    - esri_pe_string
+    - spatial_ref
+    - crs_wkt
+    - grid_mapping
+    
+    Parameters:
+    -----------
+    source : xr.Dataset
+        The source Dataset from which to copy datum attributes.
+    target : xr.Dataset
+        The target Dataset to which datum attributes will be copied.
+    
+    Returns:
+    --------
+    xr.Dataset
+        The target Dataset with copied datum attributes.
+    """
+    # List of datum attributes to copy
+    datum_attrs = ['esri_pe_string', 'spatial_ref', 'crs_wkt']
+    
+    # Get the main variable from the source Dataset (first data variable)
+    if len(source.data_vars) > 0:
+        main_var_name = list(source.data_vars)[0]
+        main_var = source[main_var_name]
+        
+        # Copy attributes from the main variable
+        for attr_name in datum_attrs:
+            if attr_name in main_var.attrs:
+                target.attrs[attr_name] = main_var.attrs[attr_name]
+    
+    # Also check for grid_mapping coordinate and copy if present
+    if 'grid_mapping' in source.coords:
+        target = target.assign_coords({'grid_mapping': source.coords['grid_mapping']})
+        if 'grid_mapping' not in target.attrs and 'grid_mapping' in source.data_vars:
+            target.attrs['grid_mapping'] = source['grid_mapping'].values
+        elif 'grid_mapping' not in target.attrs:
+            # Try to get from the main variable's attributes
+            if len(source.data_vars) > 0:
+                main_var_name = list(source.data_vars)[0]
+                if 'grid_mapping' in source[main_var_name].attrs:
+                    target.attrs['grid_mapping'] = source[main_var_name].attrs['grid_mapping']
+
+
 def read_spatial_dimensions(ds: Union[Dataset, xr.Dataset]) -> Tuple[str, str]:
     """
     Identify the two spatial dimensions (usually y, x)
@@ -323,22 +371,25 @@ def bbox_from_netcdf(path: Path, time_index: int = 0) -> Tuple[float, float, flo
     max_x = max(coord_idx_min_x, coord_idx_max_x)
     min_y = min(coord_idx_min_y, coord_idx_max_y)
     max_y = max(coord_idx_min_y, coord_idx_max_y)
+    
+    ds.close()
 
     return min_x, max_x, min_y, max_y
 
 
 def get_fill_value_packed(ds: Dataset,
-                          default_fill_value: Union[np.int32, int, float]) -> Tuple[Union[np.int32, int, float],
-                                                                                    Union[np.int32, int, float]]:
+                          default_fill_value: Optional[Union[np.int32, int, float] | None] = None
+                        ) -> Tuple[Union[np.int32, int, float], Union[np.int32, int, float]]:
     """
     Identifies the main variable in the given netCDF4 dataset and returns its fill value, 
     accounting for scale_factor and add_offset if present.
+    default_fill_value can be provided to override the fill value from the dataset; if not provided, it defaults to -9999.
     
     Parameters:
     dataset (netCDF4.Dataset): The netCDF4 dataset object.
 
     Returns:
-    The fill value of the main variable, adjusted for scale_factor and add_offset.
+    A tuple containing the original fill value and the packed fill value after applying scale and offset.
     """
     main_variable = None
     max_dimensions = 0
@@ -356,11 +407,11 @@ def get_fill_value_packed(ds: Dataset,
     # Retrieve scaling metadata (if any)
     scale_factor = getattr(main_variable, 'scale_factor', None)
     add_offset = getattr(main_variable, 'add_offset', None)
-    fill_value = getattr(main_variable, '_FillValue', np.nan) if not default_fill_value else default_fill_value 
+    fill_value = getattr(main_variable, '_FillValue', -9999) if default_fill_value is None else default_fill_value
     fill_value_packed = fill_value
     # Apply scale/offset to the fill value so that NaNs are encoded correctly.
-    # if fill_value is not None and scale_factor is not None and add_offset is not None:
-    #     fill_value_packed = fill_value * scale_factor + add_offset
+    if fill_value is not None and scale_factor is not None and add_offset is not None:
+        fill_value_packed = fill_value * scale_factor + add_offset
 
     return fill_value, fill_value_packed
 

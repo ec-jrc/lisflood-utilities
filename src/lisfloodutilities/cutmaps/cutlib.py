@@ -27,7 +27,7 @@ import numpy as np
 from dask.diagnostics.progress import ProgressBar
 
 from .helpers import (col2netcdf, array_to_nc_from_clone, bbox_from_netcdf,
-                      get_river_network_from_map, read_column_file,
+                      get_river_network_from_map, copy_datum,
                       COORDINATE_NAMES, LATITUDE_NAMES, LATITUDE_NAME_PAIR)
 from .. import version, logger
 
@@ -106,16 +106,16 @@ def cutmap(f, fileout, x_min, x_max, y_min, y_max, use_coords = True):
         nc.close()
 
 
-def open_dataset(f):
+def open_dataset(file_path: Union[Path, str]) -> Tuple[xr.Dataset, int]:
     try:
-        nc = xr.open_dataset(f, chunks={'time': 'auto'}, decode_cf=False)
+        nc = xr.open_dataset(file_path, chunks={'time': 'auto'}, decode_cf=False)
         if 'time' in nc.coords:
             num_dims = 3
         else:
             num_dims = 2
     except Exception:  # file has no time component
         num_dims = 2
-        nc = xr.open_dataset(f, decode_cf=False)
+        nc = xr.open_dataset(file_path, decode_cf=False)
     return nc, num_dims
 
 
@@ -206,30 +206,42 @@ def get_cuts(cuts=None, cuts_indices=None, mask=None):
     return x_min, x_max, y_min, y_max
 
 
+def update_datum(source: xr.Dataset, target_path: Union[Path, str]) -> None:
+    """Update the datum of the target netCDF file to match that of the source dataset."""
+    target_nc = xr.open_dataset(target_path, decode_cf=False, mode='r')  # Open in read mode to access attributes without modifying the file
+    target_nc.close()  # Close immediately to avoid issues with concurrent access
+    target_nc = xr.open_dataset(target_path, decode_cf=False, mode='a')  # Reopen in append mode to allow modifications
+    copy_datum(source=source, target=target_nc)
+    # Write in 'w' mode to replace the file with updated attributes
+    # Using compute=True to ensure the file is written completely before returning
+    target_nc.to_netcdf(target_path, mode='a', compute=True)
+    target_nc.close()
+
+
 def mask_from_ldd(ldd_map: Union[Path, str], stations: Union[Path, str]) -> Tuple[Path, Path, Path]:
     """
-    Generate a mask map from a LDD where the outlets are identified in the stations file 
+    Generate a mask map from a LDD where the outlets are identified in the stations file
     """
     ldd_map_path = Path(ldd_map) if isinstance(ldd_map, str) else ldd_map
     stations_path = Path(stations) if isinstance(stations, str) else stations
     path = stations_path.parent
     masknc_path = Path(path, FULL_MASK_FILENAME)
-    outlets_nc = Path(path, OUTLETS_FILENAME)
-    smallmask_map = Path(path, SMALL_MASK_FILENAME)
+    outlets_path = Path(path, OUTLETS_FILENAME)
+    smallmask_path = Path(path, SMALL_MASK_FILENAME)
     # clean existing files from previuos executions
-    for out_file in (masknc_path, smallmask_map, outlets_nc):
+    for out_file in (masknc_path, smallmask_path, outlets_path):
         if out_file.exists():
             os.unlink(out_file)
 
     # Default format for output netcdf file is NETCDF3_CLASSIC
     metadata = {'variable': {'description': 'stations id', 'longname': 'platform_id', 'units': '',
-                             'shortname': 'outlets', 'mv': '0'},
+                             'shortname': 'outlets', 'mv': 0},
                 'source': 'JRC E.1 Space, Security, Migration',
                 'reference': 'JRC E.1 Space, Security, Migration',
                 'geographical': {'datum': ''}}
 
     # Identify the outlets on the ldd map marked by the station coordinates
-    outlets_raster = col2netcdf(stations_path, outlets_nc, ldd_map, metadata, quiet=False)
+    outlets_raster = col2netcdf(stations_path, outlets_path, ldd_map, metadata, quiet=False)
 
     # Get outlets as row, col indexes of elements greater than 0
     # Note: The fill value is -1 (np.iinfo(np.int32).min), so we use > 0 to filter
@@ -244,11 +256,15 @@ def mask_from_ldd(ldd_map: Union[Path, str], stations: Union[Path, str]) -> Tupl
     # Convert xarray DataArray to numpy array if needed
     if hasattr(catchments_mask, 'values'):
         catchments_mask = catchments_mask.values
-    # catchments_mask[catchments_mask!=0] = MASK_VALUE
+
+    # Setup the mask values to return 1 as masked and np.nan as unmasked
+    # (following the convention of mask maps used in cutmaps)
+    catchments_mask[catchments_mask<0] = np.nan
+    catchments_mask[catchments_mask>=0] = MASK_VALUE
 
     # Mask map for netCDF format
     nc_metadata = {'variable': {'description': 'Mask Area', 'longname': 'area', 'units': '',
-                                'shortname': 'area', 'mv': '0'},
+                                'shortname': 'area', 'mv': 0},
                    'source': 'JRC E.1 Space, Security, Migration',
                    'reference': 'JRC E.1 Space, Security, Migration',
                    'geographical': {'datum': ''}
@@ -257,6 +273,13 @@ def mask_from_ldd(ldd_map: Union[Path, str], stations: Union[Path, str]) -> Tupl
 
     # In order to keep the same functionality as before we need to generate also the smaller mask map 
     x_min, x_max, y_min, y_max = bbox_from_netcdf(masknc_path)
-    cutmap(masknc_path, smallmask_map, x_min, x_max, y_min, y_max, use_coords = True)
+    cutmap(masknc_path, smallmask_path, x_min, x_max, y_min, y_max, use_coords = True)
 
-    return smallmask_map, outlets_nc, masknc_path
+    # Guarantee that the output files have the same datum as the original LDD map (important for later use)
+    # ldd_nc, _ = open_dataset(ldd_map_path)
+    # update_datum(source=ldd_nc, target_path=smallmask_path)
+    # update_datum(source=ldd_nc, target_path=outlets_path)
+    # update_datum(source=ldd_nc, target_path=masknc_path)
+    # ldd_nc.close()
+
+    return smallmask_path, outlets_path, masknc_path
