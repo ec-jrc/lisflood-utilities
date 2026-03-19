@@ -27,7 +27,7 @@ import numpy as np
 from dask.diagnostics.progress import ProgressBar
 
 from .helpers import (col2netcdf, array_to_nc_from_clone, bbox_from_netcdf,
-                      get_river_network_from_map, copy_datum,
+                      get_river_network_from_map,
                       COORDINATE_NAMES, LATITUDE_NAMES, LATITUDE_NAME_PAIR)
 from .. import version, logger
 
@@ -206,18 +206,6 @@ def get_cuts(cuts=None, cuts_indices=None, mask=None):
     return x_min, x_max, y_min, y_max
 
 
-def update_datum(source: xr.Dataset, target_path: Union[Path, str]) -> None:
-    """Update the datum of the target netCDF file to match that of the source dataset."""
-    target_nc = xr.open_dataset(target_path, decode_cf=False, mode='r')  # Open in read mode to access attributes without modifying the file
-    target_nc.close()  # Close immediately to avoid issues with concurrent access
-    target_nc = xr.open_dataset(target_path, decode_cf=False, mode='a')  # Reopen in append mode to allow modifications
-    copy_datum(source=source, target=target_nc)
-    # Write in 'w' mode to replace the file with updated attributes
-    # Using compute=True to ensure the file is written completely before returning
-    target_nc.to_netcdf(target_path, mode='a', compute=True)
-    target_nc.close()
-
-
 def mask_from_ldd(ldd_map: Union[Path, str], stations: Union[Path, str]) -> Tuple[Path, Path, Path]:
     """
     Generate a mask map from a LDD where the outlets are identified in the stations file
@@ -274,12 +262,5 @@ def mask_from_ldd(ldd_map: Union[Path, str], stations: Union[Path, str]) -> Tupl
     # In order to keep the same functionality as before we need to generate also the smaller mask map 
     x_min, x_max, y_min, y_max = bbox_from_netcdf(masknc_path)
     cutmap(masknc_path, smallmask_path, x_min, x_max, y_min, y_max, use_coords = True)
-
-    # Guarantee that the output files have the same datum as the original LDD map (important for later use)
-    # ldd_nc, _ = open_dataset(ldd_map_path)
-    # update_datum(source=ldd_nc, target_path=smallmask_path)
-    # update_datum(source=ldd_nc, target_path=outlets_path)
-    # update_datum(source=ldd_nc, target_path=masknc_path)
-    # ldd_nc.close()
 
     return smallmask_path, outlets_path, masknc_path

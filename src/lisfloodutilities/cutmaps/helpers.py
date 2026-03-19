@@ -181,10 +181,14 @@ def read_column_file(
     return data[:, :3].astype(np.float64)
 
 
-def copy_clone_geometry(src_ds: Dataset, dst_ds: Dataset):
+def copy_clone_geometry(src_ds: Dataset, dst_ds: Dataset) -> Dataset:
     """
     Replicate dimensions, coordinate variables and global attributes
     from the clone (src) to the new dataset (dst).
+
+    Returns the dst_ds with the geometry copied.
+    The main data variable (e.g. the raster) is not copied, as it will be created later with the new data.
+    Only coordinate variables (e.g. lat, lon, x, y, time) and global attributes are copied.
     """
     # ----------- dimensions -------------------------------------------------
     for dim_name, dim in src_ds.dimensions.items():
@@ -210,6 +214,7 @@ def copy_clone_geometry(src_ds: Dataset, dst_ds: Dataset):
             new_var[:] = var[:]
     # ----------- global attributes ------------------------------------------
     dst_ds.setncatts({k: src_ds.getncattr(k) for k in src_ds.ncattrs()})
+    return dst_ds
 
 
 def get_crs(ds: Dataset) -> CRS:
@@ -416,6 +421,35 @@ def get_fill_value_packed(ds: Dataset,
     return fill_value, fill_value_packed
 
 
+def set_gridding_metadata(src: Dataset, dst: Dataset) -> Tuple[Dataset, str]:
+    """
+    Set gridding metadata for the destination dataset.
+
+    Parameters:
+    src (Dataset): The source netCDF dataset.
+    dst (Dataset): The destination netCDF dataset.
+
+    Returns:
+    Tuple[Dataset, str]: The updated dataset and the name of the grid mapping variable.
+    """
+    grid_mapping_vars = [var_name for var_name, var in dst.variables.items()
+                            if hasattr(var, 'grid_mapping_name') or hasattr(var, 'grid_mapping')]
+
+    if not grid_mapping_vars:
+        # Get CRS from the source dataset
+        crs = get_crs(src)
+        # Write CRS information as a new grid_mapping variable
+        crs_var_name = 'crs'
+        crs_var = dst.createVariable(crs_var_name, 'i4')
+        crs_var.spatial_ref = crs.to_wkt()
+        crs_var.grid_mapping_name = crs.to_proj4().split()[0].replace('+', '').split('=')[0] if crs.to_proj4() else 'unknown'
+        crs_var.proj4_params = crs.to_proj4()
+    else:
+        # Use existing grid_mapping variable
+        crs_var_name = grid_mapping_vars[0]
+    return dst, crs_var_name
+
+
 def array_to_nc_from_clone(out_path: Path, clone_path: Path, grid: np.ndarray,
                            metadata: dict[str, Union[str, int, float, bool, dict[str, Union[str, int, float, bool]]]] = {}):
     """
@@ -443,12 +477,15 @@ def array_to_nc_from_clone(out_path: Path, clone_path: Path, grid: np.ndarray,
 
         # Write the new NetCDF (copy geometry and raster variable)
         with Dataset(out_path, "w", format="NETCDF4") as dst:
-            copy_clone_geometry(src, dst)
+            dst = copy_clone_geometry(src, dst)
             dst.history = 'Created {}'.format(time.ctime(time.time()))
             dst.Conventions = 'CF-1.7'
             dst.Source_Software = 'JRC.E1 lisfloodutilities'
             dst.source = metadata.get('source', '')
             dst.reference = metadata.get('reference', '')
+
+            # Write CRS information as a grid_mapping variable
+            dst, crs_var_name = set_gridding_metadata(src, dst)
 
             compression_kwargs = {"zlib": True, "complevel": 4}
             nc_var_name = str(get_from_metadata(metadata, 'variable', 'shortname', default_var_name))
@@ -462,6 +499,7 @@ def array_to_nc_from_clone(out_path: Path, clone_path: Path, grid: np.ndarray,
             var.long_name = str(get_from_metadata(metadata, 'variable', 'longname', ''))
             var.standard_name = nc_var_name
             var.units = str(get_from_metadata(metadata, 'variable', 'units', ''))
+            var.grid_mapping = crs_var_name
             var[:, :] = raster
 
 
@@ -632,12 +670,15 @@ def write_output_nc(out_path: Path, clone_path: Path, points: np.ndarray[tuple[i
 
         # Write the new NetCDF (copy geometry and raster variable)
         with Dataset(out_path, "w", format="NETCDF4") as dst:
-            copy_clone_geometry(src, dst)
+            dst = copy_clone_geometry(src, dst)
             dst.history = 'Created {}'.format(time.ctime(time.time()))
             dst.Conventions = 'CF-1.7'
             dst.Source_Software = 'JRC.E1 lisfloodutilities'
             dst.source = metadata.get('source', '')
             dst.reference = metadata.get('reference', '')
+
+            # Write CRS information as a grid_mapping variable
+            dst, crs_var_name = set_gridding_metadata(src, dst)
 
             compression_kwargs = {"zlib": True, "complevel": 4} if compress else {}
             nc_var_name = str(get_from_metadata(metadata, 'variable', 'shortname', var_name))
@@ -651,6 +692,7 @@ def write_output_nc(out_path: Path, clone_path: Path, points: np.ndarray[tuple[i
             var.long_name = str(get_from_metadata(metadata, 'variable', 'longname', ''))
             var.standard_name = nc_var_name
             var.units = str(get_from_metadata(metadata, 'variable', 'units', ''))
+            var.grid_mapping = crs_var_name
             var[:, :] = raster
 
     if not quiet:
