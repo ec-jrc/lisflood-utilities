@@ -3,7 +3,7 @@ import argparse
 import sys
 import time
 from pathlib import Path
-from typing import List, Tuple, Union, Optional
+from typing import List, Tuple, Union, Optional, Any
 import numpy as np
 from netCDF4 import Dataset
 import xarray as xr
@@ -450,7 +450,105 @@ def set_gridding_metadata(src: Dataset, dst: Dataset) -> Tuple[Dataset, str]:
     return dst, crs_var_name
 
 
-def array_to_nc_from_clone(out_path: Path, clone_path: Path, grid: np.ndarray,
+def _ensure_path(path: Union[Path, str], name: str = "path") -> Path:
+    """
+    Ensure the input is a Path object, converting from string if necessary.
+    
+    Parameters
+    ----------
+    path: Path or string to convert
+    name: Name for error messages
+    
+    Returns
+    -------
+    Path object
+    """
+    if isinstance(path, Path):
+        return path
+    return Path(path)
+
+
+def _get_fill_value_with_metadata(src: Dataset, metadata: dict, default_fill: Optional[int] = None) -> Tuple[Union[np.int32, int, float], Union[np.int32, int, float]]:
+    """
+    Get fill value from metadata or default, accounting for scale_factor and add_offset.
+    
+    Parameters
+    ----------
+    src: Source NetCDF dataset
+    metadata: Metadata dictionary
+    default_fill: Default fill value if not in metadata
+    
+    Returns
+    -------
+    Tuple of (fill_value, fill_value_packed)
+    """
+    if default_fill is None:
+        default_fill = np.iinfo(np.int32).min
+    fill_value = np.int32(get_from_metadata(metadata, 'variable', 'mv', default_fill))
+    return get_fill_value_packed(src, fill_value)
+
+
+def _set_global_attributes(dst: Dataset, metadata: dict) -> Dataset:
+    """
+    Set common global attributes on a NetCDF dataset.
+    
+    Parameters
+    ----------
+    dst: Destination NetCDF dataset
+    metadata: Metadata dictionary with optional 'source' and 'reference' keys
+    
+    Returns
+    -------
+    The destination dataset with attributes set
+    """
+    dst.history = 'Created {}'.format(time.ctime(time.time()))
+    dst.Conventions = 'CF-1.7'
+    dst.Source_Software = 'JRC.E1 lisfloodutilities'
+    dst.source = metadata.get('source', '')
+    dst.reference = metadata.get('reference', '')
+    return dst
+
+
+def _create_raster_variable(
+    dst: Dataset,
+    var_name: str,
+    dimensions: Tuple[str, str],
+    fill_value_packed: Union[np.int32, int, float],
+    metadata: dict,
+    compress: bool = True
+) -> Tuple[Dataset, Any]:
+    """
+    Create a raster variable with common settings in a NetCDF dataset.
+    
+    Parameters
+    ----------
+    dst: Destination NetCDF dataset
+    var_name: Name of the variable to create
+    dimensions: Tuple of (y_dimension, x_dimension)
+    fill_value_packed: Packed fill value for the variable
+    metadata: Metadata dictionary with variable properties
+    compress: Whether to apply compression (default: True)
+    
+    Returns
+    -------
+    Tuple of (updated dst, variable name)
+    """
+    compression_kwargs = {"zlib": True, "complevel": 4} if compress else {}
+    nc_var_name = str(get_from_metadata(metadata, 'variable', 'shortname', var_name))
+    var = dst.createVariable(
+        nc_var_name,
+        np.int32,
+        dimensions,
+        fill_value=fill_value_packed,
+        **compression_kwargs,
+    )
+    var.long_name = str(get_from_metadata(metadata, 'variable', 'longname', ''))
+    var.standard_name = nc_var_name
+    var.units = str(get_from_metadata(metadata, 'variable', 'units', ''))
+    return dst, nc_var_name
+
+
+def array_to_nc_from_clone(out_path: Union[Path, str], clone_path: Union[Path, str], grid: np.ndarray,
                            metadata: dict[str, Union[str, int, float, bool, dict[str, Union[str, int, float, bool]]]] = {}):
     """
     Create a NetCDF raster (out_path) that mirrors clone_path getting the data from grid which
@@ -463,47 +561,36 @@ def array_to_nc_from_clone(out_path: Path, clone_path: Path, grid: np.ndarray,
     grid: array of data to be written in the out_path file
     metadata: metadata for the out_file
     """
+    out_path = _ensure_path(out_path, "out_path")
+    clone_path = _ensure_path(clone_path, "clone_path")
     default_var_name = 'map'
+    
     # Open clone and obtain geometry and coordinate arrays
     with Dataset(clone_path, "r") as src:
         dim_x, dim_y = read_spatial_dimensions(src)
 
         # Prepare the raster (filled with NetCDF fill value)
-        fill_value = np.iinfo(np.int32).min
-        fill_value = np.int32(get_from_metadata(metadata, 'variable', 'mv', fill_value))
-        fill_value, fill_value_packed = get_fill_value_packed(src, fill_value)
+        fill_value, fill_value_packed = _get_fill_value_with_metadata(src, metadata)
         raster = grid.copy()
         raster[np.isnan(raster)] = fill_value_packed
 
         # Write the new NetCDF (copy geometry and raster variable)
         with Dataset(out_path, "w", format="NETCDF4") as dst:
             dst = copy_clone_geometry(src, dst)
-            dst.history = 'Created {}'.format(time.ctime(time.time()))
-            dst.Conventions = 'CF-1.7'
-            dst.Source_Software = 'JRC.E1 lisfloodutilities'
-            dst.source = metadata.get('source', '')
-            dst.reference = metadata.get('reference', '')
+            dst = _set_global_attributes(dst, metadata)
 
             # Write CRS information as a grid_mapping variable
             dst, crs_var_name = set_gridding_metadata(src, dst)
 
-            compression_kwargs = {"zlib": True, "complevel": 4}
-            nc_var_name = str(get_from_metadata(metadata, 'variable', 'shortname', default_var_name))
-            var = dst.createVariable(
-                nc_var_name,
-                np.int32,
-                (dim_y, dim_x),
-                fill_value=fill_value_packed,
-                **compression_kwargs,
+            dst, nc_var_name = _create_raster_variable(
+                dst, default_var_name, (dim_y, dim_x), fill_value_packed, metadata
             )
-            var.long_name = str(get_from_metadata(metadata, 'variable', 'longname', ''))
-            var.standard_name = nc_var_name
-            var.units = str(get_from_metadata(metadata, 'variable', 'units', ''))
+            var = dst.variables[nc_var_name]
             var.grid_mapping = crs_var_name
             var[:, :] = raster
 
 
-def write_output_nc(out_path: Path, clone_path: Path, points: np.ndarray[tuple[int, int, int], np.dtype[np.float64]],
+def write_output_nc(out_path: Union[Path, str], clone_path: Union[Path, str], points: np.ndarray[tuple[int, int, int], np.dtype[np.float64]],
     metadata: dict[str, Union[str, int, float, bool, dict[str, Union[str, int, float, bool]]]] = {},
     nodata_val: int = 0, var_name: str = "map",
     compress: bool = True, quiet: bool = True) -> np.ndarray[tuple[int, int], np.dtype[np.int32]]:
@@ -526,6 +613,9 @@ def write_output_nc(out_path: Path, clone_path: Path, points: np.ndarray[tuple[i
     -------------
     For convenience returns the result also as a np.ndarray 2D array (N, 2) with the raster values.
     """
+    out_path = _ensure_path(out_path, "out_path")
+    clone_path = _ensure_path(clone_path, "clone_path")
+    
     # Open clone, obtain geometry and coordinate arrays
     with Dataset(clone_path, "r") as src:
         dim_x, dim_y = read_spatial_dimensions(src)
@@ -581,9 +671,8 @@ def write_output_nc(out_path: Path, clone_path: Path, points: np.ndarray[tuple[i
             coord_y_backup_indexes[y] = i
 
         # Prepare an empty raster (filled with NetCDF fill value)
-        fill_value = np.iinfo(np.int32).min if nodata_val is None else nodata_val
-        fill_value = np.int32(get_from_metadata(metadata, 'variable', 'mv', fill_value))
-        fill_value, fill_value_packed = get_fill_value_packed(src, fill_value)
+        default_fill = np.iinfo(np.int32).min if nodata_val is None else nodata_val
+        fill_value, fill_value_packed = _get_fill_value_with_metadata(src, metadata, default_fill)
         raster = np.full((ny, nx), fill_value_packed, dtype=np.int32)
 
         # From the stations file map each (x, y) -> (col, row) index
@@ -671,27 +760,15 @@ def write_output_nc(out_path: Path, clone_path: Path, points: np.ndarray[tuple[i
         # Write the new NetCDF (copy geometry and raster variable)
         with Dataset(out_path, "w", format="NETCDF4") as dst:
             dst = copy_clone_geometry(src, dst)
-            dst.history = 'Created {}'.format(time.ctime(time.time()))
-            dst.Conventions = 'CF-1.7'
-            dst.Source_Software = 'JRC.E1 lisfloodutilities'
-            dst.source = metadata.get('source', '')
-            dst.reference = metadata.get('reference', '')
+            dst = _set_global_attributes(dst, metadata)
 
             # Write CRS information as a grid_mapping variable
             dst, crs_var_name = set_gridding_metadata(src, dst)
 
-            compression_kwargs = {"zlib": True, "complevel": 4} if compress else {}
-            nc_var_name = str(get_from_metadata(metadata, 'variable', 'shortname', var_name))
-            var = dst.createVariable(
-                nc_var_name,
-                np.int32,
-                (dim_y, dim_x),
-                fill_value=fill_value_packed,
-                **compression_kwargs,
+            dst, nc_var_name = _create_raster_variable(
+                dst, var_name, (dim_y, dim_x), fill_value_packed, metadata, compress
             )
-            var.long_name = str(get_from_metadata(metadata, 'variable', 'longname', ''))
-            var.standard_name = nc_var_name
-            var.units = str(get_from_metadata(metadata, 'variable', 'units', ''))
+            var = dst.variables[nc_var_name]
             var.grid_mapping = crs_var_name
             var[:, :] = raster
 
@@ -730,9 +807,9 @@ def col2netcdf(column_file: Union[Path, str], output_file: Union[Path, str], clo
     -------------
     For convenience returns the result also as a np.ndarray2D array (N, 2) with the raster values.
     """
-    column_file_path = column_file if isinstance(column_file, Path) else Path(column_file)
-    output_file_path = output_file if isinstance(output_file, Path) else Path(output_file)
-    clone_file_path = clone_file if isinstance(clone_file, Path) else Path(clone_file)
+    column_file_path = _ensure_path(column_file, "column_file")
+    output_file_path = _ensure_path(output_file, "output_file")
+    clone_file_path = _ensure_path(clone_file, "clone_file")
     # Load the column values
     column_values = read_column_file(column_file_path, delimiter=delimiter, skip_header=skip_header)
     # Write the output NetCDF
