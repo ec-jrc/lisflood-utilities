@@ -14,12 +14,9 @@ import argparse
 import shutil
 import sys
 import numpy as np
-import pcraster as pcr
 import os
 import time
 import logging
-from lisfloodutilities.nc2pcr import convert as convnc2pcr
-from lisfloodutilities.pcr2nc import convert as convpcr2nc
 import tempfile
 from pathlib import Path
 from osgeo import gdal

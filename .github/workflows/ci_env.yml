@@ -6,28 +6,28 @@ jobs:
   tests:
     runs-on: ubuntu-22.04
     strategy:
+      matrix:
+        python-version: ["3.10"]
       max-parallel: 5
 
     steps:
     - name: Checkout github repo
-      uses: actions/checkout@v3
-    - uses: conda-incubator/setup-miniconda@v2
+      uses: actions/checkout@v4
+    - uses: conda-incubator/setup-miniconda@v3
       with:
         auto-update-conda: true
         python-version: "3.10"
     - name: Conda info
       shell: bash -el {0}
       run: conda info
-    - name: Install python and gcc
+    - name: Install gcc
       shell: bash -el {0}
       run: |
-        conda install -c conda-forge python="3.10"
-        conda install -c conda-forge gcc=12.1.0
+        conda install -c conda-forge "gcc>=12.1.0"
     - name: Install gdal eccodes pcraster hdf5
       shell: bash -el {0}
       run: |
-        conda install -c conda-forge "gdal<=3.5.3" eccodes pcraster
-        conda install -c conda-forge hdf5
+        conda install -c conda-forge "gdal<=3.5.3" eccodes pcraster hdf5
     - name: Install dependencies
       shell: bash -el {0}
       run: |
