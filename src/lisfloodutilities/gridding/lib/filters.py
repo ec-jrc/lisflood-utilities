@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import re
 from datetime import datetime as dt
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from scipy.spatial import cKDTree
 from geopy.distance import geodesic
 import math
@@ -25,7 +25,7 @@ class KiwisFilter:
         self.QUALITY_CODE_WRONG = '160'
         self.stati = {"Active": 1, "Inactive": 0, "yes": 0, "no": 1, "Closed": 0, "Under construction": 0}
         self.defaultReturn = 1
-        self.cur_timestamp = ''
+        self.cur_timestamp: Optional[dt] = None
         self.setup_column_names()
         self.OUTPUT_COLUMNS = [self.COL_LON, self.COL_LAT, self.COL_VALUE]
         self.INTERNAL_COLUMNS = [f'{self.COL_STATION_DIARY_STATUS}_INTERNAL', f'{self.COL_INACTIVE_HISTORIC}_INTERNAL']
@@ -85,7 +85,7 @@ class KiwisFilter:
 
     def print_statistics(self, df: pd.DataFrame, stats_tag: str = 'KIWIS_STATS', force_print: bool = True):
         # print only once when reading a file for the first time
-        if force_print:
+        if force_print and self.cur_timestamp is not None:
             timestamp = self.cur_timestamp.strftime('%Y-%m-%d %H:%M:%S')
             new_df = df.groupby([self.COL_PROVIDER_ID, self.COL_QUALITY_CODE]).size().reset_index(name='count')
             # Transpose the quality codes
@@ -172,9 +172,11 @@ class KiwisFilter:
         status_list = []
         if status_strings:
             for crnt_string in status_strings:
-                date_str, status = re.match("(\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d): (.*)", crnt_string).groups()
-                datetime_list.append(dt.strptime(date_str, "%Y-%m-%d %H:%M:%S"))
-                status_list.append(status)
+                match = re.match("(\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d): (.*)", crnt_string)
+                if match:
+                    date_str, status = match.groups()
+                    datetime_list.append(dt.strptime(date_str, "%Y-%m-%d %H:%M:%S"))
+                    status_list.append(status)
         if datetime_list:
             if to_eval_timestamp < datetime_list[0]:
                 """Timestamp is before the first timestamp, return code should be the NOT of status"""
@@ -444,9 +446,10 @@ class DowgradedDailyTo6HourlyObservationsKiwisFilter(ObservationsKiwisFilter):
         except:
             return station_num
     
-    def get_decumulated_24h_value_for_missing_6h_values(self, row: pd.Series, tree: cKDTree = None, provider_id: int = 0,
-                                                        radius: np.float32 = ObservationsKiwisFilter.CLUSTER_COLLAPSE_RADIUS,
-                                                        stations_6h_df: pd.DataFrame = None) -> np.float32:
+    def get_decumulated_24h_value_for_missing_6h_values(self, row: pd.Series, tree: cKDTree,
+                                                        stations_6h_df: pd.DataFrame, provider_id: int = 0,
+                                                        radius: np.float32 = ObservationsKiwisFilter.CLUSTER_COLLAPSE_RADIUS
+                                                        ) -> np.float32:
         """
         DECUMULATED_PR = (PR - Sum(PR6)) / (number of missing values)
         If there are more than one 6h station in the radius, select according to the following rules by order:

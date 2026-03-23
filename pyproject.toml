@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "lisflood-utilities"
 requires-python = "==3.10"
 version = "0.11.7"  # Will be read from VERSION file at build time
-description = "A set of utilities for lisflood users. pcr2nc: Convert PCRaster files to netCDF CF 1.6; nc2pcr: Convert netCDF files to PCRaster format; cutmaps: cut netCDF files; compare: compare two set of netCDF files; thresholds: compute discharge return period thresholds; gridding: interpolate meteo variables observations; decumulate: decumulate daily grids into 6 hourly grids in kiwis format; ncextract: extract values from netCDF files; catchstats: calculates catchment statistics; mctrivers: creates a river mask for MCT diffusive river routing in LISFLOOD; "
+description = "A set of utilities for lisflood users. pcr2nc: Convert PCRaster files to netCDF CF 1.6; nc2pcr: Convert netCDF files to PCRaster format; cutmaps: cut netCDF files; compare: compare two set of netCDF files; thresholds: compute discharge return period thresholds; gridding: interpolate meteo variables observations; decumulate: decumulate daily grids into 6 hourly grids in kiwis format; download_timeseries: download timeseries in kiwis format; ncextract: extract values from netCDF files; catchstats: calculates catchment statistics; mctrivers: creates a river mask for MCT diffusive river routing in LISFLOOD; "
 readme = "README.md"
 license = {text = "EUPL 1.2"}
 authors = [
@@ -61,6 +61,7 @@ verify_waterregions = "lisfloodutilities.waterregions.verify_waterregions:main_s
 thresholds = "lisfloodutilities.thresholds:main_script"
 gridding = "lisfloodutilities.gridding.generate_grids:main_script"
 decumulate = "lisfloodutilities.gridding.decumulate_daily_grids:main_script"
+download_timeseries = "lisfloodutilities.gridding.download_timeseries:main_script"
 cddmap = "lisfloodutilities.cddmap.cddmap:main"
 catchstats = "lisfloodutilities.catchstats:main_script"
 mctrivers = "lisfloodutilities.mctrivers.mctrivers:main"

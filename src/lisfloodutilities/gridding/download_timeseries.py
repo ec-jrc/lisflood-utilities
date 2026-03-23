@@ -690,7 +690,7 @@ def create_parser() -> argparse.ArgumentParser:
         "--api-key",
         type=str,
         default=None,
-        help="API key for authentication (if not provided, uses default key)"
+        help=f"API key for authentication (if not provided, uses the environment variable {ENV_KIWI_API_KEY})"
     )
     return parser
 
@@ -798,5 +798,9 @@ def main():
         sys.exit(1)
 
 
+def main_script():
+    sys.exit(main())
+
+
 if __name__ == "__main__":
-    main()
+    main_script()

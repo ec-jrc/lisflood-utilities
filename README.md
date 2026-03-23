@@ -68,6 +68,8 @@ NetCDF, PCRaster and TSS files.
     2. get the one with the lowest positive difference to the 24h value
     3. get the one on the top
 
+* __[download_timeseries](#download_timeseries)__ is a tool to download timeseries of meteo variables observations from KIsters API and store them in text files in KIWI format containing the stations metadata and observations to be later used as input to generate meteo grids.
+
 * __[cddmap](#cddmap)__ is a tool to generate correlation decay distance (CDD) maps starting from station timeseries
 
 * __[ncextract](#ncextract)__ is a tool to extract values from NetCDF4 (or GRIB) file(s) at specific coordinates.

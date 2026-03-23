@@ -134,6 +134,7 @@ setup_args = dict(
                 'thresholds: compute discharge return period thresholds; '
                 'gridding: interpolate meteo variables observations; '
                 'decumulate: decumulate daily grids into 6 hourly grids in kiwis format; '
+                'download_timeseries: download timeseries data from WISKI API; '
                 'ncextract: extract values from netCDF files; '
                 'catchstats: calculates catchment statistics; '
                 'mctrivers: creates a river mask for MCT diffusive river routing in LISFLOOD; ',
@@ -158,7 +159,7 @@ setup_args = dict(
     keywords=['netCDF4', 'PCRaster', 'mapstack', 'lisflood', 'efas', 'glofas', 'ecmwf', 'copernicus'],
     license='EUPL 1.2',
     url='https://github.com/ec-jrc/lisflood-utilities',
-    scripts=['bin/pcr2nc', 'bin/cutmaps', 'bin/compare', 'bin/nc2pcr', 'bin/thresholds', 'bin/gridding', 'bin/decumulate', 'bin/cddmap', 'bin/ncextract','bin/catchstats','bin/mctrivers'],
+    scripts=['bin/pcr2nc', 'bin/cutmaps', 'bin/compare', 'bin/nc2pcr', 'bin/thresholds', 'bin/gridding', 'bin/decumulate', 'bin/download_timeseries', 'bin/cddmap', 'bin/ncextract','bin/catchstats','bin/mctrivers'],
     zip_safe=True,
     classifiers=[
           # complete classifier list: http://pypi.python.org/pypi?%3Aaction=list_classifiers
