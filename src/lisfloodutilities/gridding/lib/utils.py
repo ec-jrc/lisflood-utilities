@@ -403,6 +403,40 @@ class Config(Printable):
         except Exception as e:
             return None
 
+    @property
+    def api_url(self) -> str:
+        """
+        Returns the URL of the API to download the data from.
+        """
+        return self.get_config_field('KISTERS_API', 'API_URL')
+
+    @property
+    def api_timeseries_id(self) -> str:
+        """
+        Returns the timeseries ID to download the data from.
+        Identification of the timeseries inside the API.
+        Identifies the variable to be downloaded.
+        """
+        return self.get_config_field('KISTERS_API', 'API_TIMESERIES_ID')
+
+    @property
+    def api_timeseries_time_to_download(self) -> str:
+        """
+        Returns the time to download the metadata from.
+        Setup of the Hour to download the metadata from.
+        Each variable have a specific hour for the data availability
+        """
+        return self.get_config_field('KISTERS_API', 'API_TIMESERIES_TIME_TO_DOWNLOAD')
+
+    @property
+    def api_timeseries_path_wildcard(self) -> str:
+        """
+        Returns the path wildcard to identify which data should be downloaded from the timeseries.
+        Identifies which data should be downloaded from the timeseries. Total, Average, Min, Max, ...
+        Example: "*/*/Precip/6h.Total" to get the total precipitation.
+        """
+        return self.get_config_field('KISTERS_API', 'API_TIMESERIES_PATH_WILDCARD')
+
 
 class GriddingUtils(Printable):
 

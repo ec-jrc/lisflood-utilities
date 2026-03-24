@@ -46,6 +46,22 @@ KIWIS_FILTER_PLUGIN_CLASSES = {'KiwisFilter': {}}
 # KIWIS_FILTER_DECUMULATION_CONFIG = [{'START': '1989-12-31 00:00:00', 'END': '2000-12-31 23:59:59', 'PROVIDERS_RADIUS': {'1295': 1.5, '1302': 1.5}}]
 KIWIS_FILTER_DECUMULATION_CONFIG = []
 
+[KISTERS_API]
+
+# Defines the URL of the API
+API_URL = cems-mdcc.kisterscloud.de
+
+# Identification of the timeseries inside the API. Identifies the variable to be downloaded.
+API_TIMESERIES_ID: 
+
+# Setup of the Hour to download the metadata from.
+# Each variable have a specific hour for the data availability
+API_TIMESERIES_TIME_TO_DOWNLOAD: 
+
+# Identifies which data should be downloaded from the timeseries. Total, Average, Min, Max, ...
+# Example: "*/*/Precip/6h.Total" to get the total precipitation
+API_TIMESERIES_PATH_WILDCARD: 
+
 [DIMENSION]
 
 # TOP = 5497500

@@ -13,6 +13,19 @@ DATA_TYPE_PACKED = i2
 STANDARD_NAME = air_temperature
 LONG_NAME = Daily Average Temperature
 
+[KISTERS_API]
+
+# Identification of the timeseries inside the API. Identifies the variable to be downloaded.
+API_TIMESERIES_ID: 1417496
+
+# Setup of the Hour to download the metadata from.
+# Each variable have a specific hour for the data availability
+API_TIMESERIES_TIME_TO_DOWNLOAD: 06
+
+# Identifies which data should be downloaded from the timeseries. Total, Average, Min, Max, ...
+# Example: "*/*/Precip/6h.Total" to get the total precipitation
+API_TIMESERIES_PATH_WILDCARD: */*/AT/Day.Mean
+
 [VAR_TIME]
 
 UNIT = days since 1990-01-01 00:00:00.0
