@@ -1,4 +1,8 @@
-#!/usr/bin/env python
+__author__="Goncalo Gomes"
+__date__="$Mar 24, 2026 12:01:00$"
+__version__="0.1"
+__updated__="$Mar 24, 2026 16:01:00$"
+
 """
 This script downloads KIWI files from the WISKI API for a variable and time frame.
 It downloads metadata, filters stations in the EFAS domain, downloads timeseries
@@ -10,6 +14,15 @@ Usage:
 Examples:
     python download_timeseries.py pr6
     python download_timeseries.py pr6 --start 2024-12-31 --end 2026-01-02
+
+Copyright 2019-2020 European Union
+Licensed under the EUPL, Version 1.2 or as soon they will be approved by the European Commission  subsequent versions of the EUPL (the "Licence");
+You may not use this work except in compliance with the Licence.
+You may obtain a copy of the Licence at:
+https://joinup.ec.europa.eu/sites/default/files/inline-files/EUPL%20v1_2%20EN(1).txt
+Unless required by applicable law or agreed to in writing, software distributed under the Licence is distributed on an "AS IS" basis,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the Licence for the specific language governing permissions and limitations under the Licence.
 """
 
 import argparse
@@ -35,19 +48,22 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Column indices for metadata file (0-based)
-MAX_METADATA_FIELDS = 18
-METADATA_IDX_VALUE = 2
-METADATA_IDX_QCODE = 3
-METADATA_IDX_STATION_ID = 8
-METADATA_IDX_NOGRIDDING = 14
-METADATA_IDX_ISINARCMINDOMAIN = 16
+# Columns for metadata file
+METADATA_MAX_FIELDS_KEY = 'max_fields'
+METADATA_COL_VALUE = 'ts_value'
+METADATA_COL_QCODE = 'q_code'
+METADATA_COL_STATION_ID = 'station_id'
+METADATA_COL_NOGRIDDING = 'EFAS-ADDATTR-NOGRIDDING'
+METADATA_COL_ISINARCMINDOMAIN = 'EFAS-ADDATTR-ISINARCMINDOMAIN'
+
+metadata_indices = {}
 
 # Skip header (first 9 lines based on the bash script)
 # The data starts after line 9 (tail -n +10 in bash)
 TIMESERIES_FILE_HEADER_LINES = 9
 
-TIMESERIES_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%S"
+# TIMESERIES_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%S"
+TIMESERIES_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%S.000Z"
 
 # Column indices for timeseries files (0-based)
 MAX_TIMESERIES_FIELDS = 3
@@ -77,6 +93,46 @@ class DownloadError(Exception):
 class APIError(Exception):
     """Custom exception for API errors."""
     pass
+
+
+def calculate_metadata_indices(header_line: str) -> dict:
+    """
+    Calculate the column indices from the metadata file header.
+    
+    This function parses the header line of a metadata file and finds the
+    indices of the required columns based on their names.
+    If the indices have already been calculated and stored in the
+    global variable `metadata_indices`, it returns that instead of recalculating.
+    
+    Args:
+        header_line: The header line from the metadata file (tab-separated)
+    
+    Returns:
+        A dictionary with the following keys:
+        - METADATA_COL_VALUE: index of the ts_value column
+        - METADATA_COL_QCODE: index of the q_code column
+        - METADATA_COL_STATION_ID: index of the station_id column
+        - METADATA_COL_NOGRIDDING: index of the EFAS-ADDATTR-NOGRIDDING column
+        - METADATA_COL_ISINARCMINDOMAIN: index of the EFAS-ADDATTR-ISINARCMINDOMAIN column
+        - METADATA_MAX_FIELDS_KEY: total number of columns in the header
+    """
+    global metadata_indices
+    if len(metadata_indices) > 0:
+        return metadata_indices
+
+    columns = header_line.strip().split(COLUMN_SEPARATOR)
+
+    indices = {
+        METADATA_COL_VALUE: columns.index(METADATA_COL_VALUE),
+        METADATA_COL_QCODE: columns.index(METADATA_COL_QCODE),
+        METADATA_COL_STATION_ID: columns.index(METADATA_COL_STATION_ID),
+        METADATA_COL_NOGRIDDING: columns.index(METADATA_COL_NOGRIDDING),
+        METADATA_COL_ISINARCMINDOMAIN: columns.index(METADATA_COL_ISINARCMINDOMAIN),
+        METADATA_MAX_FIELDS_KEY: len(columns)
+    }
+    metadata_indices.update(indices)
+
+    return metadata_indices
 
 
 def create_auth_header(key: str) -> str:
@@ -242,11 +298,11 @@ def download_metadata(conf: Config, variable: str, base_path: str, yyyy: str, mm
         "metadata": "true",
         "invalidValue": "-999",
         "invalidPeriod": "PT1H",
-        "md_returnfields": "site_no,site_name,station_name,station_no,station_id,ts_unitsymbol,ts_shortname,parametertype_name,ca_sta,ca_par",
+        "md_returnfields": f"site_no,site_name,station_name,station_no,{METADATA_COL_STATION_ID},ts_unitsymbol,ts_shortname,parametertype_name,ca_sta,ca_par",
         "crs": "global",
-        "ca_sta_returnfields": "station_status,station_diary_status,EFAS-ADDATTR-NOGRIDDING,EFAS-ADDATTR-COUNTRY,EFAS-ADDATTR-ISINARCMINDOMAIN",
+        "ca_sta_returnfields": f"station_status,station_diary_status,{METADATA_COL_NOGRIDDING},EFAS-ADDATTR-COUNTRY,{METADATA_COL_ISINARCMINDOMAIN}",
         "ca_par_returnfields": "EXCLUDE,INACTIVE_histattr",
-        "returnfields": "sta_location,ts_value,q_code",
+        "returnfields": f"sta_location,{METADATA_COL_VALUE},{METADATA_COL_QCODE}",
         "valueType": "matchingValue_nocalc"
     }
     
@@ -278,18 +334,23 @@ def process_metadata_file(metadata_file: str) -> None:
             
         # Process each line (skip header)
         processed_lines = []
+        indices = None
         for i, line in enumerate(lines):
             fields = line.rstrip(NEWLINE).split(COLUMN_SEPARATOR)
             if i == 0:
-                # Header line - keep as is
+                # Header line - keep as is and calculate indices
                 processed_lines.append(line.rstrip(NEWLINE))
-            else:
-                # Data lines - replace column 3 with {value} and column 4 with {qcode}
-                if len(fields) >= 4:
-                    fields[METADATA_IDX_VALUE] = "{value}"
-                    fields[METADATA_IDX_QCODE] = "{qcode}"
+                indices = calculate_metadata_indices(line)
+            elif indices is not None:
+                # Data lines - replace value and qcode columns with placeholders
+                if len(fields) >= indices[METADATA_MAX_FIELDS_KEY]:
+                    fields[indices[METADATA_COL_VALUE]] = "{value}"
+                    fields[indices[METADATA_COL_QCODE]] = "{qcode}"
                 processed_lines.append(COLUMN_SEPARATOR.join(fields))
-        
+            else:
+                # No header found, just append the line as-is
+                processed_lines.append(line.rstrip(NEWLINE))
+
         # Write back
         with open(metadata_file, 'w', encoding='utf-8') as f:
             f.write(NEWLINE.join(processed_lines) + NEWLINE)
@@ -371,16 +432,20 @@ def filter_stations_efas_domain(metadata_file: str, stations_file: str,
         efas_station_ids = set()
         with open(metadata_file, 'r', encoding='utf-8') as f:
             lines = f.readlines()
-        
+        # Calculate column indices from header
+        if not lines:
+            logger.warning(f"No lines found in metadata file: {metadata_file}")
+            return
+        indices = calculate_metadata_indices(lines[0])
         for line in lines[1:]:  # Skip header
             fields = line.rstrip(NEWLINE).split(COLUMN_SEPARATOR)
-            if len(fields) >= MAX_METADATA_FIELDS:
-                nogridding = fields[METADATA_IDX_NOGRIDDING] if len(fields) > METADATA_IDX_NOGRIDDING else ""
-                isinarcmindomain = fields[METADATA_IDX_ISINARCMINDOMAIN] if len(fields) > METADATA_IDX_ISINARCMINDOMAIN else ""
+            if len(fields) >= indices[METADATA_MAX_FIELDS_KEY]:
+                nogridding = fields[indices[METADATA_COL_NOGRIDDING]] if len(fields) > indices[METADATA_COL_NOGRIDDING] else ""
+                isinarcmindomain = fields[indices[METADATA_COL_ISINARCMINDOMAIN]] if len(fields) > indices[METADATA_COL_ISINARCMINDOMAIN] else ""
                 
                 if nogridding != "yes" and isinarcmindomain != "no":
-                    if len(fields) > METADATA_IDX_STATION_ID:
-                        efas_station_ids.add(fields[METADATA_IDX_STATION_ID])
+                    if len(fields) > indices[METADATA_COL_STATION_ID]:
+                        efas_station_ids.add(fields[indices[METADATA_COL_STATION_ID]])
         
         # Write EFAS domain station IDs
         with open(efas_domain_file, 'w', encoding='utf-8') as f:
@@ -541,11 +606,12 @@ def merge_timeseries_with_metadata(conf: Config, variable: str, base_path: str,
         lines = f.readlines()
     
     header = lines[0].rstrip(NEWLINE)
+    indices = calculate_metadata_indices(header)
     
     for line in lines[1:]:
         fields = line.rstrip(NEWLINE).split(COLUMN_SEPARATOR)
-        if len(fields) > METADATA_IDX_STATION_ID:
-            station_id = fields[METADATA_IDX_STATION_ID]
+        if len(fields) > indices[METADATA_COL_STATION_ID]:
+            station_id = fields[indices[METADATA_COL_STATION_ID]]
             metadata_dict[station_id] = line.rstrip(NEWLINE)
     
     # Process each timeseries file

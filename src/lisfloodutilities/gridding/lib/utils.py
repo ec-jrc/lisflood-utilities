@@ -15,18 +15,17 @@ import os
 import csv
 import pickle
 from pathlib import Path
-# from pyproj import Transformer
 from argparse import ArgumentTypeError
 import configparser as ConfigParser
 import numpy as np
 import numpy.ma as ma
 import pandas as pd
-import rasterio
+import rasterio # type: ignore
 from decimal import Decimal, getcontext
 from datetime import datetime, timedelta
 from typing import Optional
 from collections import OrderedDict
-from scipy.spatial import cKDTree
+from scipy.spatial import cKDTree # type: ignore
 from pyg2p import Loggable
 from pyg2p.main.readers.netcdf import NetCDFReader
 from pyg2p.main.interpolation.scipy_interpolation_lib import ScipyInterpolation
@@ -298,7 +297,7 @@ class Config(Printable):
             self.print_msg(f'Saved height from DEM: {self._dem_height_correction_file}')
             self.print_msg('Create KDtree DEM')
             transformed_coordinates = (df_dem[self.COLUMN_LON].values, df_dem[self.COLUMN_LAT].values)
-            self.DEM_HEIGHT_CORRECTION_QUERY = cKDTree(data=np.vstack(transformed_coordinates).T, copy_data=True)
+            self.DEM_HEIGHT_CORRECTION_QUERY = cKDTree(data=np.vstack(transformed_coordinates).T, copy_data=True) # type: ignore
             pickle.dump(self.DEM_HEIGHT_CORRECTION_QUERY, self._dem_height_correction_kdt_file.open("wb"))
             self.print_msg(f'Saved creating KDtree DEM: {self._dem_height_correction_kdt_file}')
             self.print_msg(f'Writing file: {self._dem_interpolation_file}')
