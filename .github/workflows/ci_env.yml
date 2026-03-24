@@ -1,6 +1,8 @@
 name: Lisflood Utilities Unit Tests
 
-on: [push]
+on:
+  push:
+    branches: [main, master]
 
 jobs:
   tests:
@@ -8,37 +10,39 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.10"]
-      max-parallel: 5
 
     steps:
     - name: Checkout github repo
-      uses: actions/checkout@v3
-    - uses: conda-incubator/setup-miniconda@v2
+      uses: actions/checkout@v4
+    - name: Setup Miniconda
+      uses: conda-incubator/setup-miniconda@v3
       with:
         auto-update-conda: true
         python-version: "3.10"
+        miniforge-version: latest
+
     - name: Conda info
       shell: bash -el {0}
       run: conda info
-    - name: Install gcc
+
+    - name: Install system dependencies
       shell: bash -el {0}
       run: |
-        conda install -c conda-forge "gcc>=12.1.0"
-    - name: Install gdal eccodes pcraster hdf5
-      shell: bash -el {0}
-      run: |
-        conda install -c conda-forge "gdal<=3.5.3" eccodes pcraster hdf5
+        conda install -c conda-forge "gcc>=12.1.0" "gdal<=3.5.3" eccodes pcraster hdf5
+
     - name: Install dependencies
       shell: bash -el {0}
       run: |
         pip install -r requirements.txt
         pip install .
+
     - name: Check installation
       shell: bash -el {0}
       run: |
         gdal-config --version
         python -c "from osgeo import gdal; print(gdal.__version__)"
         conda list
+
     - name: Test with pytest
       shell: bash -el {0}
       run: |
