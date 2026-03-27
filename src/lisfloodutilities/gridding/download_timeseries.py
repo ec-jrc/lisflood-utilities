@@ -443,7 +443,7 @@ def filter_stations_efas_domain(metadata_file: str, stations_file: str,
                 nogridding = fields[indices[METADATA_COL_NOGRIDDING]] if len(fields) > indices[METADATA_COL_NOGRIDDING] else ""
                 isinarcmindomain = fields[indices[METADATA_COL_ISINARCMINDOMAIN]] if len(fields) > indices[METADATA_COL_ISINARCMINDOMAIN] else ""
                 
-                if nogridding != "yes" and isinarcmindomain != "no":
+                if nogridding.lower() != "yes" and isinarcmindomain.lower() != "no":
                     if len(fields) > indices[METADATA_COL_STATION_ID]:
                         efas_station_ids.add(fields[indices[METADATA_COL_STATION_ID]])
         

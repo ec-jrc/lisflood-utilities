@@ -63,4 +63,4 @@ class TestWaterRegions:
         output_message = verify_waterregions(calib_catchments, waterregions)
         assert output_message != 'PASSED: Each calibration catchment contains only a finite number of water regions.'
 
-test_define_waterregions = TestWaterRegions().test_define_waterregions()
+# test_define_waterregions = TestWaterRegions().test_define_waterregions()

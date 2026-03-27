@@ -768,6 +768,105 @@ __IMPORTANT:__ The output folder will contain the same folder structure as the 6
 
 
 
+## download_timeseries
+
+This tool downloads timeseries of meteo variables observations from the WISKI API and stores them in text files in KIWI format. The downloaded data contains station metadata and observations, which can later be used as input to generate meteo grids using the [gridding](#gridding) tool.
+
+The download process consists of four main steps:
+1. Download metadata from the API (station information, coordinates, quality codes)
+2. Download the list of stations and filter them to keep only those in the EFAS domain
+3. Download timeseries data for each station for the specified time period
+4. Merge the timeseries data with metadata to create KIWI format files
+
+#### Requirements
+python3, configuration files in the gridding configuration folder
+
+### Usage
+
+> __Note:__ This guide assumes you have installed the program with pip tool.
+> If you cloned the source code instead, just substitute the executable `download_timeseries` with `python bin/download_timeseries` that is in the root folder of the cloned project.
+
+The tool requires two mandatory command line input arguments:
+
+- `variable`: The variable to download (e.g., pr6, ta6, pr, tx, tn, pd, ws, rg, wx)
+- -c, --conf: Set the grid configuration type to use (5x5km, 1arcmin,...)
+
+Optional arguments:
+- -p, --pathconf: Overrides the base path where the configurations are stored
+- --base-path: Base path for output files (default: /tmp/download_timeseries)
+- --start: Start date (YYYY-MM-DD, default: 1989-12-31)
+- --end: End date (YYYY-MM-DD, default: current date)
+- --no-metadata: Skip downloading metadata
+- --no-stations: Skip downloading station list
+- --no-data: Skip downloading station data
+- --no-merge: Skip merging timeseries with metadata
+- --verbose: Enable verbose logging
+- --api-key: API key for authentication (if not provided, uses the environment variable KIWI_API_KEY)
+
+Example of command that will download precipitation timeseries (pr6) for January 2024:
+
+```bash
+download_timeseries pr6 -c 1arcmin --start 2024-01-01 --end 2024-01-31 --api-key YOUR_API_KEY
+```
+
+Example of command that will download temperature timeseries (ta6) for a specific date range:
+
+```bash
+download_timeseries ta6 -c 1arcmin --start 2024-12-31 --end 2026-01-02 --base-path /path/to/output
+```
+
+The input and output arguments are listed below and can be seen by using the help flag:
+
+```bash
+download_timeseries --help
+```
+
+```text
+usage: download_timeseries.py [-h] variable -c {5x5km, 1arcmin,...}
+                               [-p /path/to/config] [--base-path BASE_PATH]
+                               [--start START] [--end END] [--no-metadata]
+                               [--no-stations] [--no-data] [--no-merge]
+                               [--verbose] [--api-key API_KEY]
+
+Download timeseries data from WISKI API
+
+positional arguments:
+  variable              Variable to download (e.g., pr6, ta6, pr, tx, tn, pd,
+                        ws, rg, wx)
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -c {5x5km, 1arcmin,...}, --conf {5x5km, 1arcmin,...}
+                        Set the grid configuration type to use.
+  -p /path/to/config, --pathconf /path/to/config
+                        Overrides the base path where the configurations are
+                        stored.
+  --base-path BASE_PATH
+                        Base path for output files (default: /tmp/download_timeseries)
+  --start START         Start date (YYYY-MM-DD, default: 1989-12-31)
+  --end END             End date (YYYY-MM-DD, default: current date)
+  --no-metadata         Skip downloading metadata
+  --no-stations         Skip downloading station list
+  --no-data             Skip downloading station data
+  --no-merge            Skip merging timeseries with metadata
+  --verbose             Enable verbose logging
+  --api-key API_KEY     API key for authentication (if not provided, uses
+                        the environment variable KIWI_API_KEY)
+
+```
+
+#### Output
+
+The tool creates the following output files in the specified base path:
+
+- `{variable}_timeseries_metadata.tsv`: Metadata file with station information
+- `{variable}_stations_to_download.tsv`: Filtered list of stations in the EFAS domain
+- `timeseries/{variable}/`: Folder containing individual station timeseries files
+- `meteo/{variable}/`: Folder containing the final KIWI format files organized by year/month/day
+
+The KIWI format files can be used directly as input to the [gridding](#gridding) tool for interpolation.
+
+
 ## cddmap
 
 This tool is used to generate correlation decay distance (CDD) maps starting from station timeseries

@@ -1,0 +1,13 @@
+# station_id:	173913
+# site_no:	1221
+# site_name:	ARPASIM
+# station_no:	2
+# station_name:	Finale Emilia
+# station_latitude:	44.839061
+# station_longitude:	11.284021
+# rows:	4
+# Timestamp	Value	Quality Code
+2026-03-20T00:00:00.000Z	1.80	40
+2026-03-21T00:00:00.000Z	0.80	40
+2026-03-22T00:00:00.000Z	0.60	40
+2026-03-23T00:00:00.000Z	1.10	40
