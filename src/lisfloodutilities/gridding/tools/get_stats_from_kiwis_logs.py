@@ -23,7 +23,7 @@ from argparse import ArgumentParser, ArgumentTypeError
 import pandas as pd
 import json
 import csv
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta as dt_timedelta
 from lisfloodutilities.gridding.lib.utils import FileUtils
 
 
@@ -64,11 +64,11 @@ def run(statfile: str, outfile: str):
     i = 0
     for provider_id in provider_ids:
         average_stations = df_stats.loc[df_stats[COL_OUTPUT_PROVIDER_ID] == provider_id, COL_OUTPUT_TOTAL_OBSERVATIONS].mean()
-        out_row2[2 + i] = round(average_stations,0)
+        out_row2[2 + i] = round(average_stations, 0)
         average_error = df_stats.loc[df_stats[COL_OUTPUT_PROVIDER_ID] == provider_id, COL_OUTPUT_QUALITY_CODE_WRONG].mean()
         out_row3[2 + i] = round(average_error)
-        max_error = df_stats.loc[df_stats[COL_OUTPUT_PROVIDER_ID] == provider_id, COL_OUTPUT_QUALITY_CODE_WRONG].max()
-        out_row4[2 + i] = round(max_error)
+        max_error_value = df_stats.loc[df_stats[COL_OUTPUT_PROVIDER_ID] == provider_id, COL_OUTPUT_QUALITY_CODE_WRONG].max()
+        out_row4[2 + i] = round(max_error_value)
         i += 1
 
     with open(outfilepath, 'a', newline='') as file:
