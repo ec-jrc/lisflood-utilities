@@ -35,7 +35,7 @@ Here's a list of utilities you can find in lisflood-utilities package.
   - a bounding box of coordinates
   - a bounding box of matrix indices
   - an existing boolean area mask
-  - a list of stations and a LDD ("local drain direction" in NetCDF or PCRaster format)
+  - a list of stations and a LDD ("local drain direction" in NetCDF format)
   
 > **Note**: PCRaster must be installed in the Conda environment.
  
@@ -77,6 +77,7 @@ NetCDF, PCRaster and TSS files.
 * __[catchstats](#catchstats)__ calculates catchment statistics (mean, sum, std, min, max...) from NetCDF4 files given masks created with [cutmaps](#cutmaps).
 
 * __[mctrivers](#mctrivers)__ creates a river mask for MCT diffusive river routing in LISFLOOD.
+
 > **Note**: PCRaster must be installed in the Conda environment.
 
 The package contains convenient classes for reading/writing:
@@ -267,7 +268,7 @@ This tool cuts NetCDF files using either a mask, a bounding box, or a list of st
 The tool requires a series of arguments:
 
 * The area to be extracted can be defined in one of the following ways:
-    - `-m`, `--mask`: a mask map (either PCRaster or NetCDF format).
+    - `-m`, `--mask`: a mask map (in NetCDF format).
     - `-i`, `--cuts_indices`: a bounding box defined by matrix indices in the form `-i imin imax jmin jmax` (the indices must be integers).
     - `-c`, `--cuts`: a bounding box defined by coordinates in the form `-c xmin xmax ymin ymax` (the coordinates can be integer or floating point numbers; x = longitude, y = latitude).
     - `-N`, `-stations`: a list of stations included in a tab separated text file. This approach requires a LDD (local drain direction) map as an extra input, defined with the argument `-l` (`-ldd`).
@@ -323,19 +324,7 @@ The TXT file with stations must have a specific format as in the example below. 
 The following command will cut all the maps in a specific folder (`-f` argument) given a LDD map (`-l` argument) and the previous text file (`-N` argument), and save the results in a folder defined by the argument `-o`.
 
 ```bash
-cutmaps -f /home/projects/lisflood-eu -l ldd.map -N stations.txt -o /Work/Tunisia/cutmaps
-```
-
-If the LDD is in NetCDF format, it will be first converted into PCRaster format.
-
-```bash
 cutmaps -f /home/projects/lisflood-eu -l ldd.nc -N stations.txt -o /Work/Tunisia/cutmaps
-``` 
-
-If you experience problems, you can try to pass a path to a PCRaster clone map using the `-C` argument.
-
-```bash
-cutmaps -f /home/projects/lisflood-eu -l ldd.nc -C area.map -N stations.txt -o /Work/Tunisia/cutmaps
 ```
 
 ### Output
@@ -434,16 +423,16 @@ More specifically, this utility can be used to:
 It is here reminded that when calibrating a catchment which is a subset of a larger computational domain, and the option wateruse is switched on, then the option groudwatersmooth must be switched off. The explanation of this requirement is provided in the chapter [Water use](https://ec-jrc.github.io/lisflood-model/2_18_stdLISFLOOD_water-use/) of the LISFLOOD documentation. 
 
 #### Requirements
-python3, pcraster 4.3. The protocol was tested on Linux.
+python3, The protocol was tested on Linux.
 
 ### define_waterregions
 This utility allows to create a  water region map which is consistent with a set of calibration points. The protocol was created by Ad De Roo (Unit D2, Joint Research Centre).
 
 #### Input 
 - List of the coordinates of the calibration points. This list must be provided in a .txt file with three columns: LONGITUDE(or x), LATITUDE(or y), point ID.
-- LDD map can be in NetCDF format or pcraster format. When using pcraster format, the following condition must be satisfied: *PCRASTER_VALUESCALE=VS_LDD*. 
-- Countries map in NetCDF format or pcraster format. When using pcraster format, the following condition must be satisfied: *PCRASTER_VALUESCALE=VS_NOMINAL*. This map shows the political boundaries of the Countries, each Coutry is identified by using a unique ID. This map is used to ensure that the water regions are not split accross different Countries.
-- Map of the initial definition of the water regions in NetCDF format or pcraster format. When using pcraster format, the following condition must be satisfied: *PCRASTER_VALUESCALE=VS_NOMINAL*. This map is used to attribute a water region to areas not included in the calibration catchments. In order to create this map, the user can follow the guidelines provided [here](https://ec-jrc.github.io/lisflood-model/2_18_stdLISFLOOD_water-use/).
+- LDD map is in NetCDF format.
+- Countries map in NetCDF format. This map shows the political boundaries of the Countries, each Coutry is identified by using a unique ID. This map is used to ensure that the water regions are not split accross different Countries.
+- Map of the initial definition of the water regions in NetCDF format. This map is used to attribute a water region to areas not included in the calibration catchments. In order to create this map, the user can follow the guidelines provided [here](https://ec-jrc.github.io/lisflood-model/2_18_stdLISFLOOD_water-use/).
 - file *.yaml* or *.json* to define the metadata of the output water regions map in NetCDF format. An example of the structure of these files is provided [here](tests/data/waterregions)
 
 ##### Input data provided by this utility:
@@ -451,21 +440,21 @@ This utility provides three maps of [Countries IDs](tests/data/waterregions): 1a
 
 #### Output
 Map of the water regions which is consistent with the calibration catchments. In other words, each water region is entirely included in one calibration catchment.  The test to check the consistency between the newly created water regions map and the calibration catchments is implemented internally by the code and the outcome of the test is printed on the screen. 
-In the output map, each water region is identified by a unique ID. The format of the output map can be NetCDF or pcraster.
+In the output map, each water region is identified by a unique ID. The format of the output map is NetCDF.
 
 #### Usage
 The following command lines allow to produce a water region map which is consistent with the calibration points (only one commad line is required: each one of the command lines below shows a different combination of input files format):
 
-*python define_waterregions.py -p calib_points_test.txt -l ldd_test.map -C countries_id_test.map -w waterregions_initial_test.map -o my_new_waterregions.map* <br>
+*python define_waterregions.py -p calib_points_test.txt -l ldd_test.nc -C countries_id_test.nc -w waterregions_initial_test.nc -o my_new_waterregions.nc* <br>
 
 *python define_waterregions.py -p calib_points_test.txt -l ldd_test.nc -C countries_id_test.nc -w waterregions_initial_test.nc -o my_new_waterregions.nc -m metadata.test.json* <br>
 
-*python define_waterregions.py -p calib_points_test.txt -l ldd_test.map -C countries_id_test.nc -w waterregions_initial_test.map -o my_new_waterregions.nc -m metadata.test.yaml* <br>
+*python define_waterregions.py -p calib_points_test.txt -l ldd_test.nc -C countries_id_test.nc -w waterregions_initial_test.nc -o my_new_waterregions.nc -m metadata.test.yaml* <br>
 
 
-The input maps can be in nectdf format or pcraster format (the same command line can accept a mix of pcraster and NetCDF formats).It is imperative to write the file name in full, that is including the extension (which can be either ".nc" or ".map").<br>
-The utility can return either a pcraster file or a NetCDF file. The users select their preferred format by specifying the extension of the file in the output option (i.e. either ".nc" or ".map"). <br>
-The metadata file in .yaml format must be provided only if the output file is in NetCDF format.<br>
+The input maps are in nectdf format. It is imperative to write the file name in full, that is including the extension.<br>
+The utility returns a NetCDF file.<br>
+The metadata file in .yaml format can be provided to allow specific metadata for the output file in NetCDF format.<br>
 
 The code internally verifies that the each one of the newly created water regions is entirely included  within one calibration catchments. If this condition is satisfied, the follwing message in printed out: *“OK! Each water region is completely included inside one calibration catchment”*. If the condition is not satisfied, the error message is *“ERROR: The  water regions WR are included in more than one calibration catchment”*. Moreover, the code provides the list of the water regions WR and the calibration catchments that do not meet the requirment. This error highlight a problem in the input data: the user is recommended to check (and correct) the list of calibration points and the input maps.
 
@@ -1083,7 +1072,7 @@ mct_mask_ds = mct_mask(channels_slope_file='changrad.nc', ldd_file='ldd.nc', upa
 
 ## Using `lisfloodutilities` programmatically 
 
-You can use lisflood utilities in your python programs. As an example, the script below creates the mask map for a set of stations (stations.txt). The mask map is a boolean map with 1 and 0. 1 is used for all (and only) the pixels hydrologically connected to one of the stations. The resulting mask map is in pcraster format.
+You can use lisflood utilities in your python programs. As an example, the script below creates the mask map for a set of stations (stations.txt). The mask map is a boolean map with 1 and 0. 1 is used for all (and only) the pixels hydrologically connected to one of the stations. The resulting mask map is in netCDF format.
 
 ```python
 from lisfloodutilities.cutmaps.cutlib import mask_from_ldd
@@ -1091,12 +1080,11 @@ from lisfloodutilities.nc2pcr import convert
 from lisfloodutilities.readers import PCRasterMap
 
 ldd = 'tests/data/cutmaps/ldd_eu.nc'
-clonemap = 'tests/data/cutmaps/area_eu.map'
 stations = 'tests/data/cutmaps/stations.txt'
 
-ldd_pcr = convert(ldd, clonemap, 'tests/data/cutmaps/ldd_eu_test.map', is_ldd=True)[0]
-mask, outlets_nc, maskmap_nc = mask_from_ldd(ldd_pcr, stations)
-mask_map = PCRasterMap(mask)
+mask, outlets_nc, maskmap_nc = mask_from_ldd(ldd, stations)
+mask_pcr = convert(mask, 'tests/data/cutmaps/mask.map', is_ldd=False)[0]
+mask_map = PCRasterMap(mask_pcr)
 print(mask_map.data)
 ```
 
