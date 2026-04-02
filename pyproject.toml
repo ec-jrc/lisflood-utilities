@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "lisflood-utilities"
 requires-python = "==3.10"
 version = "0.11.7"  # Will be read from VERSION file at build time
-description = "A set of utilities for lisflood users. pcr2nc: Convert PCRaster files to netCDF CF 1.6; nc2pcr: Convert netCDF files to PCRaster format; cutmaps: cut netCDF files; compare: compare two set of netCDF files; thresholds: compute discharge return period thresholds; gridding: interpolate meteo variables observations; decumulate: decumulate daily grids into 6 hourly grids in kiwis format; download_timeseries: download timeseries in kiwis format; ncextract: extract values from netCDF files; catchstats: calculates catchment statistics; mctrivers: creates a river mask for MCT diffusive river routing in LISFLOOD; "
+description = "A set of utilities for lisflood users. pcr2nc: Convert PCRaster files to netCDF CF 1.6; nc2pcr: Convert netCDF files to PCRaster format; cutmaps: cut netCDF files; compare: compare two set of netCDF files; thresholds: compute discharge return period thresholds; gridding: interpolate meteo variables observations; decumulate: decumulate daily grids into 6 hourly grids in kiwis format; download_timeseries: download timeseries in kiwis format; ncextract: extract values from netCDF files; catchstats: calculates catchment statistics; mctrivers: creates a river mask for MCT diffusive river routing in LISFLOOD; rainbomb: Correct rainbombs from precipitation netCDF files; "
 readme = "README.md"
 license = {text = "EUPL 1.2"}
 authors = [
@@ -66,6 +66,7 @@ cddmap = "lisfloodutilities.cddmap.cddmap:main"
 catchstats = "lisfloodutilities.catchstats:main_script"
 mctrivers = "lisfloodutilities.mctrivers.mctrivers:main"
 ncextract = "lisfloodutilities.ncextract:main_script"
+rainbomb = "lisfloodutilities.rainbomb.rainbomb_correction:main_script"
 
 [project.urls]
 Homepage = "https://github.com/ec-jrc/lisflood-utilities"

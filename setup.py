@@ -137,7 +137,8 @@ setup_args = dict(
                 'download_timeseries: download timeseries data from WISKI API; '
                 'ncextract: extract values from netCDF files; '
                 'catchstats: calculates catchment statistics; '
-                'mctrivers: creates a river mask for MCT diffusive river routing in LISFLOOD; ',
+                'mctrivers: creates a river mask for MCT diffusive river routing in LISFLOOD; '
+                'rainbomb: Correct rainbombs from precipitation netCDF files; ',
     long_description=long_description,
     long_description_content_type='text/markdown',
     setup_requires=[
@@ -159,7 +160,7 @@ setup_args = dict(
     keywords=['netCDF4', 'PCRaster', 'mapstack', 'lisflood', 'efas', 'glofas', 'ecmwf', 'copernicus'],
     license='EUPL 1.2',
     url='https://github.com/ec-jrc/lisflood-utilities',
-    scripts=['bin/pcr2nc', 'bin/cutmaps', 'bin/compare', 'bin/nc2pcr', 'bin/thresholds', 'bin/gridding', 'bin/decumulate', 'bin/download_timeseries', 'bin/cddmap', 'bin/ncextract','bin/catchstats','bin/mctrivers'],
+    scripts=['bin/pcr2nc', 'bin/cutmaps', 'bin/compare', 'bin/nc2pcr', 'bin/thresholds', 'bin/gridding', 'bin/decumulate', 'bin/download_timeseries', 'bin/cddmap', 'bin/ncextract','bin/catchstats','bin/mctrivers','bin/rainbomb'],
     zip_safe=True,
     classifiers=[
           # complete classifier list: http://pypi.python.org/pypi?%3Aaction=list_classifiers
