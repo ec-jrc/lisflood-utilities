@@ -470,7 +470,7 @@ def main(argv=sys.argv):
         if args.verbose:
             print(f"Time elapsed: {elapsed_time:0.2f} seconds")
     except FileNotFoundError as fnfe:
-        print(f'{fnfe}')
+        print(f'ERROR: {fnfe}')
     except Exception as e:
         raise RuntimeError(f'{e}')
 
