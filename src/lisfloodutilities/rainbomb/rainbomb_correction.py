@@ -25,7 +25,7 @@ import xarray as xr
 import climetlab as cml # type: ignore
 
 
-cur_folder = os.path.dirname(os.path.realpath(__file__))
+cur_folder = os.getcwd()
 
 DATA_CONVERSION_FACTOR = 1000 # convert to mm
 
