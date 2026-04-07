@@ -208,6 +208,13 @@ def correct_rainbomb_dataset(
     --------
     None
     """
+    # Validate input file exists
+    if not os.path.isfile(input_file):
+        raise FileNotFoundError(
+            f"Input file not found: {input_file}. "
+            "Please provide a valid path to an existing ERA5 NetCDF file."
+        )
+
     # Resolve auxiliary file paths
     if parent_dir is None and neighbours_file is None and thresholds_file is None and template_file is None:
         raise ValueError(
@@ -221,6 +228,25 @@ def correct_rainbomb_dataset(
         thresholds_file = os.path.join(parent_dir, FILENAME_THRESHOLDS) # type: ignore
     if template_file is None:
         template_file = os.path.join(parent_dir, FILENAME_TEMPLATE) # type: ignore
+
+    # Validate auxiliary files exist
+    if not os.path.isfile(neighbours_file):  # type: ignore[arg-type]
+        raise FileNotFoundError(
+            f"Neighbours file not found: {neighbours_file}. "
+            "Please provide a valid path to the neighbours data file."
+        )
+
+    if not os.path.isfile(thresholds_file):  # type: ignore[arg-type]
+        raise FileNotFoundError(
+            f"Thresholds file not found: {thresholds_file}. "
+            "Please provide a valid path to the thresholds CSV file."
+        )
+
+    if not os.path.isfile(template_file):  # type: ignore[arg-type]
+        raise FileNotFoundError(
+            f"Template file not found: {template_file}. "
+            "Please provide a valid path to the GRIB template file."
+        )
 
     if verbose:
         print(f"Reading input file: {input_file}")
@@ -443,7 +469,8 @@ def main(argv=sys.argv):
         elapsed_time = time.perf_counter() - start_time
         if args.verbose:
             print(f"Time elapsed: {elapsed_time:0.2f} seconds")
-
+    except FileNotFoundError as fnfe:
+        print(f'{fnfe}')
     except Exception as e:
         raise RuntimeError(f'{e}')
 
