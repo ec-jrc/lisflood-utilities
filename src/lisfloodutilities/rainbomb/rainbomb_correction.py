@@ -13,6 +13,7 @@ See the Licence for the specific language governing permissions and limitations 
 
 import argparse
 import os
+import subprocess
 import sys
 import time
 from typing import Optional
@@ -25,6 +26,8 @@ import climetlab as cml
 
 
 cur_folder = os.path.dirname(os.path.realpath(__file__))
+
+DATA_CONVERSION_FACTOR = 1000 # convert to mm
 
 # file with the closest ERA5 neighbours for each point, used to check the rainbombs
 FILENAME_CLOSEST_NEIGHBOURS = 'neighbours_era5_closest.nc'
@@ -41,6 +44,10 @@ DATA_KEY_C_INTERM = 'c_interm'  # intermediate buffer threshold (Buffer1)
 DATA_KEY_LOWER_BUFFER = 'LowerBuffer'  # lower buffer threshold (MaxNeigh + Buffer1)
 DATA_KEY_RAINFALL_BIN = 'RainfallBin'  # rain bin based on MaxNeigh, used to assign the buffers
 DATA_KEY_PRECIPITATION_VARIABLE = 'tp'  # variable name for precipitation in the dataset
+DATA_KEY_NEIGHBOUR  = 'neighbour'
+DATA_KEY_POINT_ID = 'point_id'
+DATA_KEY_VALUES = 'values'
+
 
 def correct_rainbomb(data: pd.Series) -> float:
     """
@@ -100,6 +107,59 @@ def correct_rainbomb(data: pd.Series) -> float:
     return fore3
 
 
+def set_grib_date(output_file: str, init_date: str, step: int = 24, verbose: bool = False) -> None:
+    """
+    Set the correct date in a GRIB file using grib_set.
+
+    The GRIB file created from a template may have random date fields.
+    This function uses the ecCodes grib_set tool to update the dataDate,
+    dataTime, and step in the GRIB file.
+
+    Produces a new GRIB file named 'era5_corrected_{init_date}.grb' with the updated date fields.
+
+    Parameters:
+    -----------
+    output_file: str
+        Path to the GRIB file to modify
+    init_date: str
+        Date in YYYYMMDD format (e.g., '20200101')
+    step: int, optional
+        Forecast step in hours (default: 24)
+    verbose: bool, optional
+        If True, print the grib_set command being executed (default: False)
+
+    Returns:
+    --------
+    None
+
+    Raises:
+    -------
+    RuntimeError: If grib_set command fails
+    """
+    output_file_parent = os.path.dirname(output_file)
+    corrected_file = os.path.join(output_file_parent, f'era5_corrected_{init_date}.grb')
+    cmd = ['grib_set', '-s', f'step={step},dataDate={init_date},dataTime=0', output_file, corrected_file]
+
+    if verbose:
+        print(f"Executing: {' '.join(cmd)}")
+
+    try:
+        result = subprocess.run(
+            cmd,
+            check=True,
+            capture_output=True,
+            text=True
+        )
+        if verbose and result.stdout:
+            print(result.stdout)
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"grib_set failed: {e.stderr}") from e
+    except FileNotFoundError:
+        raise RuntimeError(
+            "grib_set not found. Please ensure ecCodes is installed and grib_set is in PATH"
+        ) from None
+
+
 def correct_rainbomb_dataset(
     input_file: str,
     output_file: str,
@@ -107,7 +167,8 @@ def correct_rainbomb_dataset(
     thresholds_file: Optional[str] = None,
     template_file: Optional[str] = None,
     parent_dir: Optional[str] = None,
-    verbose: bool = False
+    verbose: bool = False,
+    set_grib_date_flag: bool = False,
 ) -> None:
     """
     Correct rainbomb artifacts in ERA5 daily precipitation data.
@@ -139,6 +200,9 @@ def correct_rainbomb_dataset(
         - 'template.grib': GRIB template for output formatting
     verbose: bool, optional
         If True, print progress information (default: False)
+    set_grib_date_flag: bool, optional
+        If True, set the correct date in the GRIB output file based on the input
+        NetCDF time coordinate (default: False)
 
     Returns:
     --------
@@ -178,20 +242,20 @@ def correct_rainbomb_dataset(
     if verbose:
         print("Processing rainfall data...")
 
-    rain_mm = raw_era5.tp * 1000  # convert to mm
+    rain_mm = raw_era5[DATA_KEY_PRECIPITATION_VARIABLE] * DATA_CONVERSION_FACTOR # convert to mm
 
     # max rain of neighbours (mask non-existing ones!)
     rain_neighbours_max = rain_mm.isel(values=neighbours).where(neighbours >= 0)
 
     # rename for compatibility among sets
-    rain_neighbours_max = rain_neighbours_max.max('neighbour').rename({'point_id': 'values'})
+    rain_neighbours_max = rain_neighbours_max.max(DATA_KEY_NEIGHBOUR).rename({DATA_KEY_POINT_ID: DATA_KEY_VALUES})
 
     # keep another column for replace value, in case we want to use different than the max neighbour
     initial_check = pd.DataFrame({
         DATA_KEY_REF: rain_mm.isel(values=(rain_mm > rain_neighbours_max)),
         DATA_KEY_MAX_NEIGH: rain_neighbours_max.isel(values=(rain_mm > rain_neighbours_max)),
         DATA_KEY_REPLACE: rain_neighbours_max.isel(values=(rain_mm > rain_neighbours_max))
-    }, index=rain_mm.isel(values=(rain_mm > rain_neighbours_max))['values'].values)
+    }, index=rain_mm.isel(values=(rain_mm > rain_neighbours_max))[DATA_KEY_VALUES].values)
 
     # keep only the cells whose value is over the max_rain + minimum buffer (Buffer2)
     # so we check the smallest number of points possible
@@ -217,7 +281,7 @@ def correct_rainbomb_dataset(
     corrections = [correct_rainbomb(i) for i in corrections]  # correct the checked instances
     corrected_np = rain_mm.values.copy()  # get a np array with the original ERA5 values
     corrected_np[initial_check.index] = np.array(corrections)  # replace the rainbombs with the corrected values
-    corrected_ds = raw_era5 * 0 + corrected_np / 1000  # final corrected data in the same format as the original data
+    corrected_ds = raw_era5 * 0 + corrected_np / DATA_CONVERSION_FACTOR  # final corrected data in the same format and units as the original data
 
     # ----------- Save as grb file -----------
 
@@ -232,13 +296,26 @@ def correct_rainbomb_dataset(
     with cml.new_grib_output(output_file, template=template) as output:
         output.write(corrected_ds[DATA_KEY_PRECIPITATION_VARIABLE].values)
 
+    # Extract the date from the input file to set correct date in GRIB output
+    # Only run if the user specified --set-grib-date flag
+    if set_grib_date_flag:
+        # The input NetCDF has a time coordinate we can use
+        time_coord = raw_era5.time
+        if hasattr(time_coord, 'values'):
+            # xarray DataArray - get the first time value
+            time_val = time_coord.values[0]
+        else:
+            # Already a datetime object
+            time_val = time_coord
+
+        # Convert to string in YYYYMMDD format
+        date_str = pd.to_datetime(time_val).strftime('%Y%m%d')
+
+        # Set the correct date in the GRIB file using grib_set
+        set_grib_date(output_file, date_str, step=24, verbose=verbose)
+
     if verbose:
         print("Correction complete!")
-
-    # Note: the above python line uses a template with random grib fields in the date,
-    # so we need to set the correct ones. This can be done after this script with
-    # the grib_set function when changing the dataDate to the correct one:
-    # grib_set -s step=24,dataDate=$idate,dataTime=0 $output era5_corrected_${idate}.grb
 
 
 def getargs():
@@ -308,6 +385,12 @@ def getargs():
         help="Output file (corrected ERA5 in GRIB format)",
     )
     parser.add_argument(
+        "--set-grib-date",
+        action="store_true",
+        default=False,
+        help="Set the correct date in the GRIB output file based on the input NetCDF time coordinate",
+    )
+    parser.add_argument(
         "-v",
         "--verbose",
         action="store_true",
@@ -353,7 +436,8 @@ def main(argv=sys.argv):
             thresholds_file=args.thresholds_file,
             template_file=args.template_file,
             parent_dir=args.parent_dir,
-            verbose=args.verbose
+            verbose=args.verbose,
+            set_grib_date_flag=args.set_grib_date,
         )
 
         elapsed_time = time.perf_counter() - start_time
