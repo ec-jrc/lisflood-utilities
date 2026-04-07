@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-import climetlab as cml
+import climetlab as cml # type: ignore
 
 
 cur_folder = os.path.dirname(os.path.realpath(__file__))
@@ -342,7 +342,7 @@ def getargs():
         "-d",
         "--parent_dir",
         type=str,
-        default=None,
+        default=f'{cur_folder}/config',
         help="Parent directory where the auxiliary data for the rainbomb correction are located. "
              "Ignored if individual auxiliary files are specified.",
     )
