@@ -33,8 +33,16 @@ FILENAME_THRESHOLDS = 'thresholds.csv'
 # GRIB template for saving the corrected data, with the correct grid and fields but random date (to be set after with grib_set)
 FILENAME_TEMPLATE = 'rain_template.grb'
 
+DATA_KEY_REF = 'Ref'  # central point
+DATA_KEY_MAX_NEIGH = 'MaxNeigh'  # max neighbour
+DATA_KEY_REPLACE = 'Replace'  # replacement value if case of rainbomb
+DATA_KEY_C_MAX = 'c_max'  # upper buffer threshold (Buffer2)
+DATA_KEY_C_INTERM = 'c_interm'  # intermediate buffer threshold (Buffer1)
+DATA_KEY_LOWER_BUFFER = 'LowerBuffer'  # lower buffer threshold (MaxNeigh + Buffer1)
+DATA_KEY_RAINFALL_BIN = 'RainfallBin'  # rain bin based on MaxNeigh, used to assign the buffers
+DATA_KEY_PRECIPITATION_VARIABLE = 'tp'  # variable name for precipitation in the dataset
 
-def correct_rainbomb(data):
+def correct_rainbomb(data: pd.Series) -> float:
     """
     Correct the rainbomb based on the max rainfall from neighbours, a replacement array
     (e.g. max/mean rain), and auxiliary information depending on the rain intensity.
@@ -73,11 +81,11 @@ def correct_rainbomb(data):
     float: The corrected rainfall value
     """
     # get values from the data
-    ref_val = data['Ref']  # central point
-    max_val = data['MaxNeigh']  # max neighbour
-    replacement_value = data['Replace']  # replacement value if case of rainbomb
-    c_max = data['c_max']  # upper buffer threshold (Buffer2)
-    c_interm = data['c_interm']  # intermediate buffer threshold (Buffer1)
+    ref_val = data[DATA_KEY_REF]  # central point
+    max_val = data[DATA_KEY_MAX_NEIGH]  # max neighbour
+    replacement_value = data[DATA_KEY_REPLACE]  # replacement value if case of rainbomb
+    c_max = data[DATA_KEY_C_MAX]  # upper buffer threshold (Buffer2)
+    c_interm = data[DATA_KEY_C_INTERM]  # intermediate buffer threshold (Buffer1)
 
     if ref_val > max_val + c_max:
         fore3 = replacement_value
@@ -180,26 +188,26 @@ def correct_rainbomb_dataset(
 
     # keep another column for replace value, in case we want to use different than the max neighbour
     initial_check = pd.DataFrame({
-        'Ref': rain_mm.isel(values=(rain_mm > rain_neighbours_max)),
-        'MaxNeigh': rain_neighbours_max.isel(values=(rain_mm > rain_neighbours_max)),
-        'Replace': rain_neighbours_max.isel(values=(rain_mm > rain_neighbours_max))
+        DATA_KEY_REF: rain_mm.isel(values=(rain_mm > rain_neighbours_max)),
+        DATA_KEY_MAX_NEIGH: rain_neighbours_max.isel(values=(rain_mm > rain_neighbours_max)),
+        DATA_KEY_REPLACE: rain_neighbours_max.isel(values=(rain_mm > rain_neighbours_max))
     }, index=rain_mm.isel(values=(rain_mm > rain_neighbours_max))['values'].values)
 
     # keep only the cells whose value is over the max_rain + minimum buffer (Buffer2)
     # so we check the smallest number of points possible
 
     # assign each analyzed instance in rain bin based on MaxNeigh
-    thresholds_row = np.digitize(initial_check.MaxNeigh, thresholds_df.Limit, True)
+    thresholds_row = np.digitize(initial_check[DATA_KEY_MAX_NEIGH], thresholds_df.Limit, True)
     thresholds_row[thresholds_row >= len(thresholds_df)] = len(thresholds_df) - 1  # if over last row's value, go last row
-    initial_check['RainfallBin'] = thresholds_row
+    initial_check[DATA_KEY_RAINFALL_BIN] = thresholds_row
 
     # get the buffers for each instance based on the rain bin
-    initial_check['c_interm'] = thresholds_df.Buffer1.iloc[thresholds_row].values
-    initial_check['c_max'] = thresholds_df.Buffer2.iloc[thresholds_row].values
-    initial_check['LowerBuffer'] = initial_check.MaxNeigh + thresholds_df.Buffer1.iloc[thresholds_row].values
+    initial_check[DATA_KEY_C_INTERM] = thresholds_df.Buffer1.iloc[thresholds_row].values
+    initial_check[DATA_KEY_C_MAX] = thresholds_df.Buffer2.iloc[thresholds_row].values
+    initial_check[DATA_KEY_LOWER_BUFFER] = initial_check[DATA_KEY_MAX_NEIGH] + thresholds_df.Buffer1.iloc[thresholds_row].values
 
     # keep only the suspicious instances where Ref - MaxNeigh > interm_buffer
-    initial_check = initial_check[initial_check.Ref > initial_check.LowerBuffer]
+    initial_check = initial_check[initial_check[DATA_KEY_REF] > initial_check[DATA_KEY_LOWER_BUFFER]]
 
     if verbose:
         print(f"Found {len(initial_check)} rainbomb instances to correct")
@@ -217,12 +225,12 @@ def correct_rainbomb_dataset(
         print(f"Saving corrected data to: {output_file}")
 
     # grb template to be used for saving the data
-    template_file = os.path.join(parent_dir, 'rain_template.grb') # type: ignore
+    template_file = os.path.join(parent_dir, FILENAME_TEMPLATE) # type: ignore
     source = cml.load_source("file", template_file)
     template = source[0]
 
     with cml.new_grib_output(output_file, template=template) as output:
-        output.write(corrected_ds['tp'].values)
+        output.write(corrected_ds[DATA_KEY_PRECIPITATION_VARIABLE].values)
 
     if verbose:
         print("Correction complete!")
