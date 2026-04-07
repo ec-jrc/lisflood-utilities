@@ -24,8 +24,19 @@ import xarray as xr
 import climetlab as cml
 
 
+cur_folder = os.path.dirname(os.path.realpath(__file__))
+
+# file with the closest ERA5 neighbours for each point, used to check the rainbombs
+FILENAME_CLOSEST_NEIGHBOURS = 'neighbours_era5_closest.nc'
+# file with the intermediate and upper thresholds based on the SEAS5 data, used to check the rainbombs
+FILENAME_THRESHOLDS = 'thresholds.csv'
+# GRIB template for saving the corrected data, with the correct grid and fields but random date (to be set after with grib_set)
+FILENAME_TEMPLATE = 'rain_template.grb'
+
+
 def correct_rainbomb(data):
-    """Correct the rainbomb based on the max rainfall from neighbours, a replacement array
+    """
+    Correct the rainbomb based on the max rainfall from neighbours, a replacement array
     (e.g. max/mean rain), and auxiliary information depending on the rain intensity.
 
     All methods analyzed are kept here (commented), but for operational purposes the cor3
@@ -90,7 +101,8 @@ def correct_rainbomb_dataset(
     parent_dir: Optional[str] = None,
     verbose: bool = False
 ) -> None:
-    """Correct rainbomb artifacts in ERA5 daily precipitation data.
+    """
+    Correct rainbomb artifacts in ERA5 daily precipitation data.
 
     A rainbomb is an unrealistically high rainfall value at a single grid point
     that is not supported by surrounding points. This function identifies and
@@ -110,13 +122,13 @@ def correct_rainbomb_dataset(
         'thresholds.csv' in parent_dir.
     template_file: str, optional
         Path to the GRIB template file. If not provided, defaults to
-        'rain_template.grb' in parent_dir.
+        'template.grib' in parent_dir.
     parent_dir: str, optional
         Parent directory containing auxiliary data (used as fallback if individual
         files are not specified). Expected files:
-        - neighbours_era5_closest.nc: closest ERA5 neighbours for each point
-        - thresholds.csv: intermediate and upper thresholds based on SEAS5 data
-        - rain_template.grb: GRIB template for output formatting
+        - 'neighbours_era5_closest.nc': closest ERA5 neighbours for each point
+        - 'thresholds.csv': intermediate and upper thresholds based on SEAS5 data
+        - 'template.grib': GRIB template for output formatting
     verbose: bool, optional
         If True, print progress information (default: False)
 
@@ -132,11 +144,11 @@ def correct_rainbomb_dataset(
 
     # Set default paths based on parent_dir
     if neighbours_file is None:
-        neighbours_file = os.path.join(parent_dir, 'neighbours_era5_closest.nc') # type: ignore
+        neighbours_file = os.path.join(parent_dir, FILENAME_CLOSEST_NEIGHBOURS) # type: ignore
     if thresholds_file is None:
-        thresholds_file = os.path.join(parent_dir, 'thresholds.csv') # type: ignore
+        thresholds_file = os.path.join(parent_dir, FILENAME_THRESHOLDS) # type: ignore
     if template_file is None:
-        template_file = os.path.join(parent_dir, 'rain_template.grb') # type: ignore
+        template_file = os.path.join(parent_dir, FILENAME_TEMPLATE) # type: ignore
 
     if verbose:
         print(f"Reading input file: {input_file}")
@@ -221,7 +233,7 @@ def correct_rainbomb_dataset(
     # grib_set -s step=24,dataDate=$idate,dataTime=0 $output era5_corrected_${idate}.grb
 
 
-def getarg():
+def getargs():
     """Get program arguments.
 
     Returns:
@@ -229,53 +241,7 @@ def getarg():
     args: argparse.Namespace
         Namespace of program arguments
     """
-    parser = argparse.ArgumentParser(
-        description="""
-        Script for correcting ERA5 single-grid rainbombs for daily fields.
-
-        A rainbomb is an unrealistically high rainfall value at a single grid point
-        that is not supported by surrounding points. This utility identifies and
-        corrects such artifacts by comparing each grid point against its neighbours
-        and applying threshold-based corrections.
-        """,
-        prog=os.path.basename(sys.argv[0]),
-    )
-    parser.add_argument(
-        "-d",
-        "--parent_dir",
-        type=str,
-        required=False,
-        default="/home/ecm8227/Repositories/glofas_forcings/version5/rainbomb_correction/",
-        help="Parent directory where the auxiliary data for the rainbomb correction are located.",
-    )
-    parser.add_argument(
-        "-i",
-        "--input_file",
-        type=str,
-        required=True,
-        help="Input file for correction (raw ERA5 in NetCDF format)",
-    )
-    parser.add_argument(
-        "-o",
-        "--output_file",
-        type=str,
-        required=True,
-        help="Output file (corrected ERA5 in GRIB format)",
-    )
-    parser.add_argument(
-        "-v",
-        "--verbose",
-        action="store_true",
-        default=False,
-        help="Print progress information",
-    )
-    args = parser.parse_args()
-    return args
-
-
-def main(argv=sys.argv):
-    """Main function for running the rainbomb correction script."""
-    prog = os.path.basename(argv[0])
+    prog = os.path.basename(sys.argv[0])
     parser = argparse.ArgumentParser(
         description="""
         Script for correcting ERA5 single-grid rainbombs for daily fields.
@@ -301,7 +267,7 @@ def main(argv=sys.argv):
         type=str,
         default=None,
         help="Path to the neighbours data file (NetCDF). "
-             "If not provided, defaults to 'neighbours_era5_closest.nc' in parent_dir.",
+             f"If not provided, defaults to '{FILENAME_CLOSEST_NEIGHBOURS}' in parent_dir.",
     )
     parser.add_argument(
         "-t",
@@ -309,7 +275,7 @@ def main(argv=sys.argv):
         type=str,
         default=None,
         help="Path to the thresholds CSV file. "
-             "If not provided, defaults to 'thresholds.csv' in parent_dir.",
+             f"If not provided, defaults to '{FILENAME_THRESHOLDS}' in parent_dir.",
     )
     parser.add_argument(
         "-m",
@@ -317,7 +283,7 @@ def main(argv=sys.argv):
         type=str,
         default=None,
         help="Path to the GRIB template file. "
-             "If not provided, defaults to 'rain_template.grb' in parent_dir.",
+             f"If not provided, defaults to '{FILENAME_TEMPLATE}' in parent_dir.",
     )
     parser.add_argument(
         "-i",
@@ -340,8 +306,14 @@ def main(argv=sys.argv):
         default=False,
         help="Print progress information",
     )
+    args = parser.parse_args(sys.argv[1:]) # parser.parse_args()
+    return args
 
-    args = parser.parse_args(argv[1:])
+
+def main(argv=sys.argv):
+    """Main function for running the rainbomb correction script."""
+    
+    args = getargs()
 
     # Validate arguments
     if args.parent_dir is None and args.neighbours_file is None and args.thresholds_file is None and args.template_file is None:
