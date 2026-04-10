@@ -19,6 +19,5 @@ from lisfloodutilities.rainbomb.rainbomb_correction import (
     correct_rainbomb,
     correct_rainbomb_dataset,
     main_script,
-    set_grib_date,
 )
 

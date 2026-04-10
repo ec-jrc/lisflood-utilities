@@ -62,8 +62,9 @@ class TestMctrivers(TestMctMask):
         self.run(0.001, 5, 500*10**6, ['lat', 'lon'], 'LF_lat_lon_UseCase')
     
     def test_lddrepair(self):
-        ldd_path='/mnt/WORKAREA_High_Speed/projects/lisflood-utilities/tests/data/mctrivers/LF_lat_lon_UseCase/ldd.nc'
-        ldd_repaired_path='/mnt/WORKAREA_High_Speed/projects/lisflood-utilities/tests/data/mctrivers/LF_lat_lon_UseCase/ldd_repaired.nc'
+        case_name = 'LF_lat_lon_UseCase'
+        ldd_path = os.path.join(self.case_dir, case_name, 'ldd.nc')
+        ldd_repaired_path = os.path.join(self.case_dir, case_name, 'ldd_repaired.nc')
         coords_names = ['lat', 'lon']
         LD_ds = xr.open_dataset(ldd_path)
         x_proj, y_proj = extract_coords(LD_ds, coords_names)

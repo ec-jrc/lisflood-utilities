@@ -13,19 +13,24 @@ See the Licence for the specific language governing permissions and limitations 
 
 import argparse
 import os
-import subprocess
 import sys
 import time
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
 import xarray as xr
 
 import climetlab as cml # type: ignore
+import logging
+
+logging.getLogger('cfgrib').setLevel(logging.ERROR)
 
 
 cur_folder = os.getcwd()
+
+NETCDF_EXTENSIONS = {'.nc', '.nc4'}
+GRIB_EXTENSIONS = {'.grib', '.grb', '.grib2', '.grb2'}
 
 DATA_CONVERSION_FACTOR = 1000 # convert to mm
 
@@ -107,57 +112,50 @@ def correct_rainbomb(data: pd.Series) -> float:
     return fore3
 
 
-def set_grib_date(output_file: str, init_date: str, step: int = 24, verbose: bool = False) -> None:
+def read_era5(input_file: str, verbose: bool = False) -> tuple[xr.Dataset, str]:
     """
-    Set the correct date in a GRIB file using grib_set.
-
-    The GRIB file created from a template may have random date fields.
-    This function uses the ecCodes grib_set tool to update the dataDate,
-    dataTime, and step in the GRIB file.
-
-    Produces a new GRIB file named 'era5_corrected_{init_date}.grb' with the updated date fields.
-
+    Read ERA5 data from a NetCDF or GRIB file.
+    Supports both formats based on file extension.
     Parameters:
     -----------
-    output_file: str
-        Path to the GRIB file to modify
-    init_date: str
-        Date in YYYYMMDD format (e.g., '20200101')
-    step: int, optional
-        Forecast step in hours (default: 24)
+    input_file: str
+        Path to the input ERA5 file (NetCDF or GRIB format)
     verbose: bool, optional
-        If True, print the grib_set command being executed (default: False)
-
+        If True, print the detected file format (default: False)
     Returns:
     --------
-    None
-
+        tuple[xr.Dataset, str]: The loaded ERA5 dataset and its file extension
     Raises:
     -------
-    RuntimeError: If grib_set command fails
+    RuntimeError: If the file format is unsupported or if cfgrib engine is required but not installed for GRIB files
     """
-    output_file_parent = os.path.dirname(output_file)
-    corrected_file = os.path.join(output_file_parent, f'era5_corrected_{init_date}.grb')
-    cmd = ['grib_set', '-s', f'step={step},dataDate={init_date},dataTime=0', output_file, corrected_file]
-
+    # Detect file format based on extension
+    file_ext = os.path.splitext(input_file)[1].lower()
     if verbose:
-        print(f"Executing: {' '.join(cmd)}")
+        print(f"Detected file extension: {file_ext}")
 
-    try:
-        result = subprocess.run(
-            cmd,
-            check=True,
-            capture_output=True,
-            text=True
-        )
-        if verbose and result.stdout:
-            print(result.stdout)
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"grib_set failed: {e.stderr}") from e
-    except FileNotFoundError:
-        raise RuntimeError(
-            "grib_set not found. Please ensure ecCodes is installed and grib_set is in PATH"
-        ) from None
+    # read daily raw field
+    # Support both NetCDF and GRIB formats
+    if file_ext in NETCDF_EXTENSIONS:
+        if verbose:
+            print("Opening as NetCDF file...")
+        raw_era5 = xr.open_dataset(input_file)
+    elif file_ext in GRIB_EXTENSIONS:
+        if verbose:
+            print("Opening as GRIB file...")
+
+        try:
+            raw_era5 = xr.open_dataset(input_file, engine='cfgrib')
+        except ImportError:
+            raise RuntimeError(
+                "cfgrib engine required for GRIB files. Install with: pip install cfgrib"
+            )
+    else:
+        # Try NetCDF as default (some files don't have extensions)
+        if verbose:
+            print("Unknown extension, attempting to open as NetCDF...")
+        raw_era5 = xr.open_dataset(input_file)
+    return raw_era5, file_ext
 
 
 def correct_rainbomb_dataset(
@@ -222,37 +220,15 @@ def correct_rainbomb_dataset(
         )
 
     # Set default paths based on parent_dir
-    if neighbours_file is None:
-        neighbours_file = os.path.join(parent_dir, FILENAME_CLOSEST_NEIGHBOURS) # type: ignore
-    if thresholds_file is None:
-        thresholds_file = os.path.join(parent_dir, FILENAME_THRESHOLDS) # type: ignore
-    if template_file is None:
-        template_file = os.path.join(parent_dir, FILENAME_TEMPLATE) # type: ignore
-
-    # Validate auxiliary files exist
-    if not os.path.isfile(neighbours_file):  # type: ignore[arg-type]
-        raise FileNotFoundError(
-            f"Neighbours file not found: {neighbours_file}. "
-            "Please provide a valid path to the neighbours data file."
-        )
-
-    if not os.path.isfile(thresholds_file):  # type: ignore[arg-type]
-        raise FileNotFoundError(
-            f"Thresholds file not found: {thresholds_file}. "
-            "Please provide a valid path to the thresholds CSV file."
-        )
-
-    if not os.path.isfile(template_file):  # type: ignore[arg-type]
-        raise FileNotFoundError(
-            f"Template file not found: {template_file}. "
-            "Please provide a valid path to the GRIB template file."
-        )
+    neighbours_file, thresholds_file, template_file = validate_config_file_paths(neighbours_file,
+                                                                                 thresholds_file,
+                                                                                 template_file,
+                                                                                 parent_dir)
 
     if verbose:
         print(f"Reading input file: {input_file}")
 
-    # read daily raw field
-    raw_era5 = xr.open_dataset(input_file)
+    raw_era5, file_ext = read_era5(input_file, verbose)
 
     if verbose:
         print(f"Loading neighbours data from: {neighbours_file}")
@@ -268,6 +244,88 @@ def correct_rainbomb_dataset(
     if verbose:
         print("Processing rainfall data...")
 
+    # final corrected data in the same format and units as the original dataset, to be saved as GRIB after
+    corrected_ds = process_rainfall_data(raw_era5, neighbours, thresholds_df, verbose) 
+
+    # ----------- Save as grb file -----------
+
+    if verbose:
+        print(f"Saving corrected data to: {output_file}")
+        print(f"Using template file: {template_file}")
+
+    # grb template to be used for saving the data, with the correct grid
+    # and fields but random date (to be set after with grib_set)
+    source = cml.load_source("file", template_file)
+    template = source[0] # type: ignore
+
+    # Diagnostic: Print template info
+    if verbose:
+        print(f"Template missingValue: {template['missingValue']}")
+        print(f"Template shape: {template.shape}")
+
+    # Diagnostic: Check corrected data for issues
+    corrected_data = corrected_ds[DATA_KEY_PRECIPITATION_VARIABLE].values
+    if verbose:
+        print(f"Corrected data dtype: {corrected_data.dtype}")
+        print(f"Corrected data has NaN: {np.any(np.isnan(corrected_data))}")
+        print(f"Corrected data has inf: {np.any(np.isinf(corrected_data))}")
+        print(f"Corrected data min: {np.nanmin(corrected_data)}")
+        print(f"Corrected data max: {np.nanmax(corrected_data)}")
+
+    grib_metadata = {}
+
+    # Extract the date from the input file to set correct date in GRIB output
+    # Only run if the user specified --set-grib-date flag
+    if set_grib_date_flag:
+        # Handle time coordinate extraction for both NetCDF and GRIB formats
+        time_val = extract_timestamp(raw_era5, file_ext)
+        # Convert to string in YYYYMMDD format
+        date_str = pd.to_datetime(time_val).strftime('%Y%m%d')
+
+        grib_metadata = {
+            'date': date_str,
+            'time': 0,
+            'step': 24,
+        }
+
+    # Get the corrected data and handle NaN values explicitly
+    # This prevents the "failed to set key 'missingValue'" error that can occur
+    # when climetlab tries to convert NaN to float32 max (3.4028235e+38)
+    corrected_data = corrected_ds[DATA_KEY_PRECIPITATION_VARIABLE].values.copy()
+    
+    # Replace NaN and inf values with the template's missingValue
+    template_missing_value = template['missingValue']
+    if np.any(np.isnan(corrected_data)) or np.any(np.isinf(corrected_data)):
+        if verbose:
+            print(f"Replacing NaN/inf values with template missingValue: {template_missing_value}")
+        corrected_data = np.where(np.isfinite(corrected_data), corrected_data, template_missing_value)
+    
+    with cml.new_grib_output(output_file, template=template) as output:
+        # Use check_nans=False since we handled NaN values manually above
+        output.write(corrected_data, check_nans=True, metadata=grib_metadata)
+
+    if verbose:
+        print("Correction complete!")
+
+
+def process_rainfall_data(raw_era5: xr.Dataset, neighbours: xr.DataArray,
+                          thresholds_df: pd.DataFrame, verbose: bool) -> xr.Dataset:
+    """
+    Process the rainfall data to identify and correct rainbombs.
+    Parameters:
+    -----------
+    raw_era5: xr.Dataset
+        The raw ERA5 dataset containing the precipitation variable
+    neighbours: xr.DataArray
+        DataArray containing the indices of the closest neighbours for each grid point
+    thresholds_df: pd.DataFrame
+        DataFrame containing the intermediate and upper thresholds based on SEAS5 data
+    verbose: bool
+        If True, print progress information
+    Returns:
+    --------    xr.Dataset
+        A new Dataset with the corrected precipitation variable, in the same format and units as the original dataset
+    """
     rain_mm = raw_era5[DATA_KEY_PRECIPITATION_VARIABLE] * DATA_CONVERSION_FACTOR # convert to mm
 
     # max rain of neighbours (mask non-existing ones!)
@@ -307,44 +365,260 @@ def correct_rainbomb_dataset(
     corrections = [correct_rainbomb(i) for i in corrections]  # correct the checked instances
     corrected_np = rain_mm.values.copy()  # get a np array with the original ERA5 values
     corrected_np[initial_check.index] = np.array(corrections)  # replace the rainbombs with the corrected values
-    corrected_ds = raw_era5 * 0 + corrected_np / DATA_CONVERSION_FACTOR  # final corrected data in the same format and units as the original data
+    corrected_ds = raw_era5 * 0 + corrected_np / DATA_CONVERSION_FACTOR
+    return corrected_ds
 
-    # ----------- Save as grb file -----------
 
-    if verbose:
-        print(f"Saving corrected data to: {output_file}")
-
-    # grb template to be used for saving the data
-    template_file = os.path.join(parent_dir, FILENAME_TEMPLATE) # type: ignore
-    source = cml.load_source("file", template_file)
-    template = source[0]
-
-    with cml.new_grib_output(output_file, template=template) as output:
-        output.write(corrected_ds[DATA_KEY_PRECIPITATION_VARIABLE].values)
-
-    # Extract the date from the input file to set correct date in GRIB output
-    # Only run if the user specified --set-grib-date flag
-    if set_grib_date_flag:
-        # The input NetCDF has a time coordinate we can use
+def extract_timestamp_valid_time(raw_era5: xr.Dataset, file_ext: str) -> pd.Timestamp:
+    """Extract timestamp from a NetCDF or GRIB file.
+    
+    This function handles various formats of time coordinate extraction from xarray
+    datasets, ensuring the returned value is always a pandas Timestamp.
+    
+    Parameters:
+    -----------
+    raw_era5: xr.Dataset
+        The input xarray dataset (NetCDF or GRIB)
+    file_ext: str
+        The file extension to determine the file type
+        
+    Returns:
+    --------
+    pd.Timestamp
+        The extracted timestamp
+        
+    Raises:
+    -------
+    ValueError
+        If no valid timestamp can be extracted from the file
+    """
+    time_val: Any = None
+    if file_ext in GRIB_EXTENSIONS:
+        # GRIB files opened with cfgrib may have time in 'valid_time' or 'time'
+        if 'valid_time' in raw_era5.attrs:
+            time_val = raw_era5.attrs['valid_time']
+        elif hasattr(raw_era5, 'valid_time') and raw_era5.valid_time is not None:
+            time_val = raw_era5.valid_time.values if hasattr(raw_era5.valid_time, 'values') else raw_era5.valid_time
+        elif 'time' in raw_era5:
+            time_coord = raw_era5['time']
+            time_val = time_coord.values if hasattr(time_coord, 'values') else time_coord
+        else:
+            # Try to get from the data variable
+            if DATA_KEY_PRECIPITATION_VARIABLE in raw_era5:
+                time_val = raw_era5[DATA_KEY_PRECIPITATION_VARIABLE].attrs.get('valid_time', None)
+                if time_val is None and hasattr(raw_era5[DATA_KEY_PRECIPITATION_VARIABLE], 'valid_time'):
+                    time_val = raw_era5[DATA_KEY_PRECIPITATION_VARIABLE].valid_time
+                    time_val = time_val.values if hasattr(time_val, 'values') else time_val
+            if time_val is None:
+                raise ValueError("Could not extract time/date from input GRIB file. Please check the file structure.")
+    else:
+        # NetCDF files - use time coordinate
         time_coord = raw_era5.time
         if hasattr(time_coord, 'values'):
             # xarray DataArray - get the first time value
-            time_val = time_coord.values[0]
+            time_values = time_coord.values
+            if len(time_values) == 0:
+                raise ValueError("Time coordinate is empty in input netCDF file.")
+            time_val = time_values[0]
         else:
             # Already a datetime object
             time_val = time_coord
+        if time_val is None:
+            raise ValueError("Could not extract time/date from input netCDF file. Please check the file structure.")
+    
+    # Convert to pandas Timestamp if needed
+    if isinstance(time_val, pd.Timestamp):
+        return time_val
+    
+    # Handle numpy arrays - extract scalar value
+    if isinstance(time_val, np.ndarray):
+        if time_val.ndim == 0:
+            # Scalar numpy array - extract the Python value
+            time_val = time_val.item()
+        else:
+            # Multi-dimensional array - get first element
+            time_val = time_val[0]
+    
+    # Handle xarray DataArray - extract value
+    if isinstance(time_val, xr.DataArray):
+        time_arr = time_val.values
+        if isinstance(time_arr, np.ndarray) and time_arr.ndim == 0:
+            time_val = time_arr.item()
+        else:
+            time_val = time_arr[0] if hasattr(time_arr, '__getitem__') else time_arr
+    
+    # Handle numpy datetime64
+    if isinstance(time_val, np.datetime64):
+        return pd.Timestamp(time_val)
+    
+    # Handle numpy scalars that might be datetime64
+    if isinstance(time_val, np.generic):
+        # Convert numpy scalar to Python native type
+        time_val = time_val.item()
+    
+    # Final conversion to pd.Timestamp - handle datetime objects
+    if isinstance(time_val, (pd.Timestamp, np.datetime64)):
+        return pd.Timestamp(time_val)
+    
+    try:
+        # Convert to datetime first, then to Timestamp
+        return pd.Timestamp(pd.to_datetime(time_val))
+    except (ValueError, TypeError, OSError) as e:
+        raise ValueError(f"Could not convert time value '{time_val}' (type: {type(time_val).__name__}) to Timestamp: {e}")
 
-        # Convert to string in YYYYMMDD format
-        date_str = pd.to_datetime(time_val).strftime('%Y%m%d')
 
-        # Set the correct date in the GRIB file using grib_set
-        set_grib_date(output_file, date_str, step=24, verbose=verbose)
+def extract_timestamp(raw_era5: xr.Dataset, file_ext: str) -> pd.Timestamp:
+    """Extract timestamp from a NetCDF or GRIB file.
+    
+    This function handles various formats of time coordinate extraction from xarray
+    datasets, ensuring the returned value is always a pandas Timestamp.
+    
+    Parameters:
+    -----------
+    raw_era5: xr.Dataset
+        The input xarray dataset (NetCDF or GRIB)
+    file_ext: str
+        The file extension to determine the file type
+        
+    Returns:
+    --------
+    pd.Timestamp
+        The extracted timestamp
+        
+    Raises:
+    -------
+    ValueError
+        If no valid timestamp can be extracted from the file
+    """
+    time_val: Any = None
+    if file_ext in GRIB_EXTENSIONS:
+        # GRIB files opened with cfgrib may have time in 'valid_time' or 'time'
+        if 'time' in raw_era5:
+            time_coord = raw_era5['time']
+            time_val = time_coord.values if hasattr(time_coord, 'values') else time_coord
+        elif 'valid_time' in raw_era5.attrs:
+            time_val = raw_era5.attrs['valid_time']
+        elif hasattr(raw_era5, 'valid_time') and raw_era5.valid_time is not None:
+            time_val = raw_era5.valid_time.values if hasattr(raw_era5.valid_time, 'values') else raw_era5.valid_time
+        else:
+            # Try to get from the data variable
+            if DATA_KEY_PRECIPITATION_VARIABLE in raw_era5:
+                time_val = raw_era5[DATA_KEY_PRECIPITATION_VARIABLE].attrs.get('valid_time', None)
+                if time_val is None and hasattr(raw_era5[DATA_KEY_PRECIPITATION_VARIABLE], 'valid_time'):
+                    time_val = raw_era5[DATA_KEY_PRECIPITATION_VARIABLE].valid_time
+                    time_val = time_val.values if hasattr(time_val, 'values') else time_val
+            if time_val is None:
+                raise ValueError("Could not extract time/date from input GRIB file. Please check the file structure.")
+    else:
+        # NetCDF files - use time coordinate
+        time_coord = raw_era5.time
+        if hasattr(time_coord, 'values'):
+            # xarray DataArray - get the first time value
+            time_values = time_coord.values
+            if len(time_values) == 0:
+                raise ValueError("Time coordinate is empty in input netCDF file.")
+            time_val = time_values[0]
+        else:
+            # Already a datetime object
+            time_val = time_coord
+        if time_val is None:
+            raise ValueError("Could not extract time/date from input netCDF file. Please check the file structure.")
+    
+    # Convert to pandas Timestamp if needed
+    if isinstance(time_val, pd.Timestamp):
+        return time_val
+    
+    # Handle numpy arrays - extract scalar value
+    if isinstance(time_val, np.ndarray):
+        if time_val.ndim == 0:
+            # Scalar numpy array - extract the Python value
+            time_val = time_val.item()
+        else:
+            # Multi-dimensional array - get first element
+            time_val = time_val[0]
+    
+    # Handle xarray DataArray - extract value
+    if isinstance(time_val, xr.DataArray):
+        time_arr = time_val.values
+        if isinstance(time_arr, np.ndarray) and time_arr.ndim == 0:
+            time_val = time_arr.item()
+        else:
+            time_val = time_arr[0] if hasattr(time_arr, '__getitem__') else time_arr
+    
+    # Handle numpy datetime64
+    if isinstance(time_val, np.datetime64):
+        return pd.Timestamp(time_val)
+    
+    # Handle numpy scalars that might be datetime64
+    if isinstance(time_val, np.generic):
+        # Convert numpy scalar to Python native type
+        time_val = time_val.item()
+    
+    # Final conversion to pd.Timestamp - handle datetime objects
+    if isinstance(time_val, (pd.Timestamp, np.datetime64)):
+        return pd.Timestamp(time_val)
+    
+    try:
+        # Convert to datetime first, then to Timestamp
+        return pd.Timestamp(pd.to_datetime(time_val))
+    except (ValueError, TypeError, OSError) as e:
+        raise ValueError(f"Could not convert time value '{time_val}' (type: {type(time_val).__name__}) to Timestamp: {e}")
 
-    if verbose:
-        print("Correction complete!")
+
+def validate_config_file_paths(
+    neighbours_file: Optional[str] = None,
+    thresholds_file: Optional[str] = None,
+    template_file: Optional[str] = None,
+    parent_dir: Optional[str] = None,
+) -> tuple[str, str, str]:
+    """Validate and resolve auxiliary file paths for rainbomb correction.
+    
+    Parameters:
+    -----------
+    neighbours_file: Optional[str]
+        Path to neighbours data file, or None to use default from parent_dir
+    thresholds_file: Optional[str]
+        Path to thresholds CSV file, or None to use default from parent_dir
+    template_file: Optional[str]
+        Path to GRIB template file, or None to use default from parent_dir
+    parent_dir: Optional[str]
+        Parent directory containing auxiliary files (used if individual paths are None)
+    
+    Returns:
+    --------
+    tuple[str, str, str]
+        Tuple of (neighbours_file, thresholds_file, template_file) - all guaranteed to be str
+    """
+    if neighbours_file is None:
+        neighbours_file = os.path.join(parent_dir, FILENAME_CLOSEST_NEIGHBOURS)  # type: ignore[arg-type]
+    if thresholds_file is None:
+        thresholds_file = os.path.join(parent_dir, FILENAME_THRESHOLDS)  # type: ignore[arg-type]
+    if template_file is None:
+        template_file = os.path.join(parent_dir, FILENAME_TEMPLATE)  # type: ignore[arg-type]
+
+    # Validate auxiliary files exist
+    if not os.path.isfile(neighbours_file):  # type: ignore[arg-type]
+        raise FileNotFoundError(
+            f"Neighbours file not found: {neighbours_file}. "
+            "Please provide a valid path to the neighbours data file."
+        )
+
+    if not os.path.isfile(thresholds_file):  # type: ignore[arg-type]
+        raise FileNotFoundError(
+            f"Thresholds file not found: {thresholds_file}. "
+            "Please provide a valid path to the thresholds CSV file."
+        )
+
+    if not os.path.isfile(template_file):  # type: ignore[arg-type]
+        raise FileNotFoundError(
+            f"Template file not found: {template_file}. "
+            "Please provide a valid path to the GRIB template file."
+        )
+        
+    return neighbours_file, thresholds_file, template_file  # type: ignore[return-value]
 
 
-def getargs():
+def getargs(argv=sys.argv) -> argparse.Namespace:
     """Get program arguments.
 
     Returns:
@@ -352,7 +626,7 @@ def getargs():
     args: argparse.Namespace
         Namespace of program arguments
     """
-    prog = os.path.basename(sys.argv[0])
+    prog = os.path.basename(argv[0])
     parser = argparse.ArgumentParser(
         description="""
         Script for correcting ERA5 single-grid rainbombs for daily fields.
@@ -401,7 +675,7 @@ def getargs():
         "--input_file",
         type=str,
         required=True,
-        help="Input file for correction (raw ERA5 in NetCDF format)",
+        help="Input file for correction (raw ERA5 in NetCDF or GRIB format)",
     )
     parser.add_argument(
         "-o",
@@ -414,7 +688,7 @@ def getargs():
         "--set-grib-date",
         action="store_true",
         default=False,
-        help="Set the correct date in the GRIB output file based on the input NetCDF time coordinate",
+        help="Set the correct date in the GRIB output file based on the input NetCDF or GRIB time coordinate",
     )
     parser.add_argument(
         "-v",
@@ -423,14 +697,14 @@ def getargs():
         default=False,
         help="Print progress information",
     )
-    args = parser.parse_args(sys.argv[1:]) # parser.parse_args()
+    args = parser.parse_args(argv[1:])
     return args
 
 
 def main(argv=sys.argv):
     """Main function for running the rainbomb correction script."""
-    
-    args = getargs()
+
+    args = getargs(argv)
 
     # Validate arguments
     if args.parent_dir is None and args.neighbours_file is None and args.thresholds_file is None and args.template_file is None:
