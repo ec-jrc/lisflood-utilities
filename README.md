@@ -78,6 +78,8 @@ NetCDF, PCRaster and TSS files.
 
 * __[mctrivers](#mctrivers)__ creates a river mask for MCT diffusive river routing in LISFLOOD.
 
+* __[rainbomb](#rainbomb)__ is a tool to correct rainbomb artifacts in ERA5 daily precipitation data. A rainbomb is an unrealistically high rainfall value at a single grid point that is not supported by surrounding points. This utility identifies and corrects such artifacts by comparing each grid point against its neighbours and applying threshold-based corrections.
+
 > **Note**: PCRaster must be installed in the Conda environment.
 
 The package contains convenient classes for reading/writing:
@@ -1070,7 +1072,119 @@ mct_mask_ds = mct_mask(channels_slope_file='changrad.nc', ldd_file='ldd.nc', upa
 ```
 
 
-## Using `lisfloodutilities` programmatically 
+## rainbomb
+
+This tool corrects rainbomb artifacts in ERA5 daily precipitation data. A rainbomb is an unrealistically high rainfall value at a single grid point that is not supported by surrounding points. This utility identifies and corrects such artifacts by comparing each grid point against its neighbours and applying threshold-based corrections.
+
+The correction algorithm works as follows:
+1. For each grid point, the maximum precipitation value from its closest neighbours is computed
+2. If the central point's value exceeds the maximum neighbour value by more than the upper buffer threshold (c_max), the value is replaced entirely with the neighbour maximum
+3. If the excess is between the intermediate buffer (c_interm) and upper buffer (c_max), the value is linearly interpolated based on the relative difference
+4. Otherwise, the original value is kept unchanged
+
+The buffer thresholds (c_interm and c_max) are derived from long-term SEAS5 data and vary based on the rainfall intensity bin assigned to each point.
+
+### Requirements
+
+python3, climetlab, xarray, pandas, numpy
+
+### Usage
+
+> __Note:__ This guide assumes you have installed the program with pip tool.
+> If you cloned the source code instead, just substitute the executable `rainbomb` with `python bin/rainbomb` that is in the root folder of the cloned project.
+
+The tool requires the following mandatory input arguments:
+
+- `-i`, `--input_file`: Input file for correction (raw ERA5 in NetCDF or GRIB format)
+- `-o`, `--output_file`: Output file (corrected ERA5 in GRIB format)
+
+The tool requires either:
+
+- `-d`, `--parent_dir`: Parent directory where the auxiliary data for the rainbomb correction are located
+
+Or individual auxiliary files:
+
+- `-n`, `--neighbours_file`: Path to the neighbours data file (NetCDF)
+- `-t`, `--thresholds_file`: Path to the thresholds CSV file
+- `-m`, `--template_file`: Path to the GRIB template file
+
+Additional options:
+
+- `--set-grib-date`: Set the correct date in the GRIB output file based on the input NetCDF or GRIB time coordinate
+- `-v`, `--verbose`: Print progress information
+
+Example of command that will correct rainbombs in an ERA5 NetCDF file:
+
+```bash
+rainbomb -i /path/to/input/era5_precip.nc -o /path/to/output/era5_precip_corrected.grb -d /path/to/auxiliary/data/
+```
+
+Example with individual auxiliary files:
+
+```bash
+rainbomb -i /path/to/input/era5_precip.nc -o /path/to/output/era5_precip_corrected.grb -n neighbours.nc -t thresholds.csv -m template.grb
+```
+
+The input and output arguments are listed below and can be seen by using the help flag:
+
+```bash
+rainbomb --help
+```
+
+```text
+usage: rainbomb [-h] -i INPUT_FILE -o OUTPUT_FILE [-d PARENT_DIR]
+                [-n NEIGHBOURS_FILE] [-t THRESHOLDS_FILE] [-m TEMPLATE_FILE]
+                [--set-grib-date] [-v]
+
+Script for correcting ERA5 single-grid rainbombs for daily fields.
+
+A rainbomb is an unrealistically high rainfall value at a single grid point
+that is not supported by surrounding points. This utility identifies and
+corrects such artifacts by comparing each grid point against its neighbours
+and applying threshold-based corrections.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -i INPUT_FILE, --input_file INPUT_FILE
+                        Input file for correction (raw ERA5 in NetCDF or GRIB
+                        format)
+  -o OUTPUT_FILE, --output_file OUTPUT_FILE
+                        Output file (corrected ERA5 in GRIB format)
+  -d PARENT_DIR, --parent_dir PARENT_DIR
+                        Parent directory where the auxiliary data for the
+                        rainbomb correction are located. Ignored if individual
+                        auxiliary files are specified.
+  -n NEIGHBOURS_FILE, --neighbours_file NEIGHBOURS_FILE
+                        Path to the neighbours data file (NetCDF). If not
+                        provided, defaults to 'neighbours_era5_closest.nc' in
+                        parent_dir.
+  -t THRESHOLDS_FILE, --thresholds_file THRESHOLDS_FILE
+                        Path to the thresholds CSV file. If not provided,
+                        defaults to 'thresholds.csv' in parent_dir.
+  -m TEMPLATE_FILE, --template_file TEMPLATE_FILE
+                        Path to the GRIB template file. If not provided,
+                        defaults to 'rain_template.grb' in parent_dir.
+  --set-grib-date       Set the correct date in the GRIB output file based
+                        on the input NetCDF or GRIB time coordinate
+  -v, --verbose         Print progress information
+```
+
+It can also be used as a Python function:
+
+```python
+from lisfloodutilities.rainbomb import correct_rainbomb_dataset
+
+correct_rainbomb_dataset(
+    input_file='/path/to/input/era5_precip.nc',
+    output_file='/path/to/output/era5_precip_corrected.grb',
+    parent_dir='/path/to/auxiliary/data/',
+    verbose=True,
+    set_grib_date_flag=True
+)
+```
+
+
+## Using `lisfloodutilities` programmatically
 
 You can use lisflood utilities in your python programs. As an example, the script below creates the mask map for a set of stations (stations.txt). The mask map is a boolean map with 1 and 0. 1 is used for all (and only) the pixels hydrologically connected to one of the stations. The resulting mask map is in netCDF format.
 
