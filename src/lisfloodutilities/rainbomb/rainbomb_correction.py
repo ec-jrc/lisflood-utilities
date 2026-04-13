@@ -24,6 +24,7 @@ import xarray as xr
 import climetlab as cml # type: ignore
 import logging
 
+# suppress cfgrib warnings about missing lat/lon coordinates when opening GRIB files with xarray
 logging.getLogger('cfgrib').setLevel(logging.ERROR)
 
 
@@ -264,7 +265,7 @@ def correct_rainbomb_dataset(
         print(f"Template shape: {template.shape}")
 
     # Diagnostic: Check corrected data for issues
-    corrected_data = corrected_ds[DATA_KEY_PRECIPITATION_VARIABLE].values
+    corrected_data = corrected_ds[DATA_KEY_PRECIPITATION_VARIABLE].values.copy()
     if verbose:
         print(f"Corrected data dtype: {corrected_data.dtype}")
         print(f"Corrected data has NaN: {np.any(np.isnan(corrected_data))}")
@@ -291,7 +292,6 @@ def correct_rainbomb_dataset(
     # Get the corrected data and handle NaN values explicitly
     # This prevents the "failed to set key 'missingValue'" error that can occur
     # when climetlab tries to convert NaN to float32 max (3.4028235e+38)
-    corrected_data = corrected_ds[DATA_KEY_PRECIPITATION_VARIABLE].values.copy()
     
     # Replace NaN and inf values with the template's missingValue
     template_missing_value = template['missingValue']
@@ -302,7 +302,7 @@ def correct_rainbomb_dataset(
     
     with cml.new_grib_output(output_file, template=template) as output:
         # Use check_nans=False since we handled NaN values manually above
-        output.write(corrected_data, check_nans=True, metadata=grib_metadata)
+        output.write(corrected_data, check_nans=False, metadata=grib_metadata)
 
     if verbose:
         print("Correction complete!")
@@ -334,38 +334,62 @@ def process_rainfall_data(raw_era5: xr.Dataset, neighbours: xr.DataArray,
     # rename for compatibility among sets
     rain_neighbours_max = rain_neighbours_max.max(DATA_KEY_NEIGHBOUR).rename({DATA_KEY_POINT_ID: DATA_KEY_VALUES})
 
+    # Mask potential rainbombs
+    suspect_mask = rain_mm > rain_neighbours_max
+    suspect_indices = np.where(suspect_mask.values)[0]
+    if suspect_indices.size == 0:
+        return raw_era5  # no postprocessing needed
+
     # keep another column for replace value, in case we want to use different than the max neighbour
-    initial_check = pd.DataFrame({
-        DATA_KEY_REF: rain_mm.isel(values=(rain_mm > rain_neighbours_max)),
-        DATA_KEY_MAX_NEIGH: rain_neighbours_max.isel(values=(rain_mm > rain_neighbours_max)),
-        DATA_KEY_REPLACE: rain_neighbours_max.isel(values=(rain_mm > rain_neighbours_max))
-    }, index=rain_mm.isel(values=(rain_mm > rain_neighbours_max))[DATA_KEY_VALUES].values)
+    df = pd.DataFrame({
+        DATA_KEY_REF: rain_mm.values[suspect_indices],
+        DATA_KEY_MAX_NEIGH: rain_neighbours_max.values[suspect_indices],
+        DATA_KEY_REPLACE: rain_neighbours_max.values[suspect_indices]
+    }, index=suspect_indices)
 
     # keep only the cells whose value is over the max_rain + minimum buffer (Buffer2)
     # so we check the smallest number of points possible
 
     # assign each analyzed instance in rain bin based on MaxNeigh
-    thresholds_row = np.digitize(initial_check[DATA_KEY_MAX_NEIGH], thresholds_df.Limit, True)
-    thresholds_row[thresholds_row >= len(thresholds_df)] = len(thresholds_df) - 1  # if over last row's value, go last row
-    initial_check[DATA_KEY_RAINFALL_BIN] = thresholds_row
+    bins = np.digitize(df[DATA_KEY_MAX_NEIGH], thresholds_df.Limit, True)
+    bins = np.clip(bins, 0, len(thresholds_df) - 1)
+    # df[DATA_KEY_RAINFALL_BIN] = bins
 
     # get the buffers for each instance based on the rain bin
-    initial_check[DATA_KEY_C_INTERM] = thresholds_df.Buffer1.iloc[thresholds_row].values
-    initial_check[DATA_KEY_C_MAX] = thresholds_df.Buffer2.iloc[thresholds_row].values
-    initial_check[DATA_KEY_LOWER_BUFFER] = initial_check[DATA_KEY_MAX_NEIGH] + thresholds_df.Buffer1.iloc[thresholds_row].values
+    df[DATA_KEY_C_INTERM] = thresholds_df.Buffer1.values[bins]
+    df[DATA_KEY_C_MAX] = thresholds_df.Buffer2.values[bins]
+    df[DATA_KEY_LOWER_BUFFER] = df[DATA_KEY_MAX_NEIGH] + df[DATA_KEY_C_INTERM]
 
     # keep only the suspicious instances where Ref - MaxNeigh > interm_buffer
-    initial_check = initial_check[initial_check[DATA_KEY_REF] > initial_check[DATA_KEY_LOWER_BUFFER]]
+    df = df[df[DATA_KEY_REF] > df[DATA_KEY_LOWER_BUFFER]]
 
     if verbose:
-        print(f"Found {len(initial_check)} rainbomb instances to correct")
+        print(f"Found {len(df)} rainbomb instances to correct")
 
     # final corrected dataset
-    corrections = [i[1] for i in list(initial_check.iterrows())]  # get the data for corrections (i[0] is the index)
-    corrections = [correct_rainbomb(i) for i in corrections]  # correct the checked instances
+    corrections = df.apply(correct_rainbomb, axis=1).values  # correct the checked instances
     corrected_np = rain_mm.values.copy()  # get a np array with the original ERA5 values
-    corrected_np[initial_check.index] = np.array(corrections)  # replace the rainbombs with the corrected values
-    corrected_ds = raw_era5 * 0 + corrected_np / DATA_CONVERSION_FACTOR
+    corrected_np[df.index] = corrections  # replace the rainbombs with the corrected values
+
+    # Convert back to original units
+    corrected_values = corrected_np / DATA_CONVERSION_FACTOR
+
+    # Validate corrected values before creating dataset
+    if np.any(np.isnan(corrected_values)) or np.any(np.isinf(corrected_values)):
+        # Replace invalid values with original rain_mm values (in original units)
+        original_values = rain_mm.values / DATA_CONVERSION_FACTOR
+        corrected_values = np.where(np.isfinite(corrected_values), corrected_values, original_values)
+
+    # Create new dataset with same structure as original
+    corrected_ds = xr.zeros_like(raw_era5)
+
+    # Assign corrected precipitation data to the appropriate variable
+    corrected_ds[DATA_KEY_PRECIPITATION_VARIABLE].values = corrected_values
+
+    # Restore original attributes to preserve metadata (units, long_name, etc.)
+    original_attrs = raw_era5[DATA_KEY_PRECIPITATION_VARIABLE].attrs
+    corrected_ds[DATA_KEY_PRECIPITATION_VARIABLE].attrs = original_attrs.copy()
+
     return corrected_ds
 
 
