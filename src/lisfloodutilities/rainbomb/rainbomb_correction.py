@@ -54,6 +54,10 @@ DATA_KEY_NEIGHBOUR  = 'neighbour'
 DATA_KEY_POINT_ID = 'point_id'
 DATA_KEY_VALUES = 'values'
 
+OUTPUT_FIRST_STEP_TIME = 0 # time to set in the GRIB output metadata (in hours)
+OUTPUT_FIRST_STEP = 0 # first step to set in the GRIB output metadata
+OUTPUT_LAST_STEP = 24 # last step to set in the GRIB output metadata
+
 
 def correct_rainbomb(data: pd.Series) -> float:
     """
@@ -259,6 +263,9 @@ def correct_rainbomb_dataset(
     source = cml.load_source("file", template_file)
     template = source[0] # type: ignore
 
+    template_step_range = template['stepRange']  # e.g., '5-6'
+    template_end_step = template_step_range.split('-')[1]
+
     # Diagnostic: Print template info
     if verbose:
         print(f"Template missingValue: {template['missingValue']}")
@@ -285,8 +292,9 @@ def correct_rainbomb_dataset(
 
         grib_metadata = {
             'date': date_str,
-            'time': 0,
-            'step': 24,
+            'time': OUTPUT_FIRST_STEP_TIME,
+            'step': OUTPUT_LAST_STEP,
+            'stepRange': f'{OUTPUT_FIRST_STEP}-{OUTPUT_LAST_STEP}',
         }
 
     # Get the corrected data and handle NaN values explicitly
