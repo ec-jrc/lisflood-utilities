@@ -260,6 +260,9 @@ def correct_rainbomb_dataset(
 
     # grb template to be used for saving the data, with the correct grid
     # and fields but random date (to be set after with grib_set)
+    if file_ext in GRIB_EXTENSIONS:
+        # If input is GRIB, use the same file as template to ensure correct grid and metadata
+        template_file = input_file
     source = cml.load_source("file", template_file)
     template = source[0] # type: ignore
 
@@ -300,14 +303,14 @@ def correct_rainbomb_dataset(
     # Get the corrected data and handle NaN values explicitly
     # This prevents the "failed to set key 'missingValue'" error that can occur
     # when climetlab tries to convert NaN to float32 max (3.4028235e+38)
-    
+
     # Replace NaN and inf values with the template's missingValue
     template_missing_value = template['missingValue']
     if np.any(np.isnan(corrected_data)) or np.any(np.isinf(corrected_data)):
         if verbose:
             print(f"Replacing NaN/inf values with template missingValue: {template_missing_value}")
         corrected_data = np.where(np.isfinite(corrected_data), corrected_data, template_missing_value)
-    
+
     with cml.new_grib_output(output_file, template=template) as output:
         # Use check_nans=False since we handled NaN values manually above
         output.write(corrected_data, check_nans=False, metadata=grib_metadata)
