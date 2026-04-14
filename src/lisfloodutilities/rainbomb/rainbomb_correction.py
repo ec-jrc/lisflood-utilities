@@ -254,15 +254,16 @@ def correct_rainbomb_dataset(
 
     # ----------- Save as grb file -----------
 
-    if verbose:
-        print(f"Saving corrected data to: {output_file}")
-        print(f"Using template file: {template_file}")
-
     # grb template to be used for saving the data, with the correct grid
     # and fields but random date (to be set after with grib_set)
     if file_ext in GRIB_EXTENSIONS:
         # If input is GRIB, use the same file as template to ensure correct grid and metadata
         template_file = input_file
+
+    if verbose:
+        print(f"Saving corrected data to: {output_file}")
+        print(f"Using template file: {template_file}")
+
     source = cml.load_source("file", template_file)
     template = source[0] # type: ignore
 
