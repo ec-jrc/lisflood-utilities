@@ -7,10 +7,10 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 
-from lisfloodpreprocessing import Config, read_input_files
-from lisfloodpreprocessing.utils import find_conflicts
-from lisfloodpreprocessing.finer_grid import coordinates_fine
-from lisfloodpreprocessing.coarser_grid import coordinates_coarse
+from . import Config, read_input_files
+from .utils import find_conflicts
+from .finer_grid import coordinates_fine
+from .coarser_grid import coordinates_coarse
 
 logging.getLogger('pyogrio').propagate = False
 
