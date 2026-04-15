@@ -78,7 +78,7 @@ class TestNetcdfWriter(TestWithCleaner):
             },
             'source': 'JRC E1',
             'reference': 'JRC E1',
-            'dtype': np.float,
+            'dtype': float,
             'lons': self.lons,
             'lats': self.lats
         }
@@ -106,7 +106,7 @@ class TestNetcdfWriter(TestWithCleaner):
             },
             'source': 'JRC E1',
             'reference': 'JRC E1',
-            'dtype': np.float,
+            'dtype': float,
             'lons': self.lons,
             'lats': self.lats,
             'time': {

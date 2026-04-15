@@ -18,7 +18,7 @@ import os, sys, glob, time, pdb
 import pandas as pd
 import numpy as np
 from netCDF4 import Dataset
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from skimage.transform import resize
 from tools import *
 import rasterio
@@ -71,7 +71,7 @@ def main():
     print('-------------------------------------------------------------------------------')
     print('Loading and resampling country border raster')
     t0 = time.time()
-    country_code_map = load_country_code_map(os.path.join(config['world_borders_folder'],'TM_WORLD_BORDERS_UN_rasterized.tif'),mapsize_global)
+    country_code_map = load_country_code_map(os.path.join(config['world_borders_folder'],'CNTR_RG_01M_2024_4326_rasterized.tif'),mapsize_global)
     country_code_map_360x720 = resize(country_code_map,(360,720),order=0,mode='edge',anti_aliasing=False)
     print("Time elapsed is "+str(time.time()-t0)+" sec")
 
@@ -368,7 +368,7 @@ def main():
     for jj in np.arange(country_codes.shape[0]):
         country_code = country_codes.iloc[jj]['country-code']    
         for ii in np.arange(len(years)):
-            sel = (aquastat['Area Id']==country_code) & (aquastat['Variable Name']=='Industrial water withdrawal') & (aquastat['Year']==years[ii])
+            sel = (aquastat['m49']==country_code) & (aquastat['Variable']=='Industrial water withdrawal') & (aquastat['Year']==years[ii])
             if np.sum(sel)==0: continue
             table_aquastat_industry_withdrawal[jj,ii] = aquastat['Value'][sel].values # km3/year
 
@@ -474,11 +474,13 @@ def main():
         # Aggregate different sectors
         sel = ["Reference" in s for s in gcam_output['scenario']] &\
             (gcam_output['region']==region_name) &\
-            (gcam_output['sector'].isin(['biomass', 'electricity', 'industry', 'nuclearFuelGenII', 'nuclearFuelGenIII', 'regional coal', 'regional natural gas', 'regional oil']))
+            (gcam_output['sector'].isin(['biomass', 'electricity', 'H2 central production', 'H2 industrial', 'H2 wholesale dispensing', \
+                                         'food processing', 'paper', 'other industry', 'nuclearFuelGenII', 'nuclearFuelGenIII', 'regional coal', 'regional oil']))
         gcam_industry_withdrawal = np.sum(gcam_output.iloc[np.where(sel)[0],3:-1].values,axis=0) # km3/year
         sel = ["Reference" in s for s in gcam_output['scenario']] &\
             (gcam_output['region']==region_name) &\
-            (gcam_output['sector'].isin(['biomass', 'electricity', 'nuclearFuelGenII', 'nuclearFuelGenIII', 'regional coal', 'regional natural gas', 'regional oil']))
+            (gcam_output['sector'].isin(['biomass', 'electricity', 'H2 central production', 'H2 industrial', 'H2 wholesale dispensing', \
+                                         'nuclearFuelGenII', 'nuclearFuelGenIII', 'regional coal', 'regional oil']))
         gcam_thermoelectric_withdrawal = np.sum(gcam_output.iloc[np.where(sel)[0],3:-1].values,axis=0) # km3/year    
         gcam_years = np.array([int(x) for x in gcam_output.columns[3:-1].values])    
         
@@ -527,11 +529,11 @@ def main():
         building = np.sum(gcam_output.iloc[np.where(sel)[0],4:-1].values,axis=0)
         sel = ["Reference" in s for s in gcam_output['scenario']] & (gcam_output['region']==region_name) & (gcam_output['input'].isin(['elect_td_ind', 'elect_td_trn']))
         trans_ind = np.sum(gcam_output.iloc[np.where(sel)[0],4:-1].values,axis=0)
-        sel = ["Reference" in s for s in gcam_output['scenario']] & (gcam_output['region']==region_name) & (gcam_output['sector']=='resid heating')
+        sel = ["Reference" in s for s in gcam_output['scenario']] & (gcam_output['region']==region_name) & (gcam_output['sector'][:13]=='resid heating')
         heating = np.sum(gcam_output.iloc[np.where(sel)[0],4:-1].values,axis=0)
-        sel = ["Reference" in s for s in gcam_output['scenario']] & (gcam_output['region']==region_name) & (gcam_output['sector']=='resid cooling')
+        sel = ["Reference" in s for s in gcam_output['scenario']] & (gcam_output['region']==region_name) & (gcam_output['sector'][:13]=='resid cooling')
         cooling = np.sum(gcam_output.iloc[np.where(sel)[0],4:-1].values,axis=0)
-        sel = ["Reference" in s for s in gcam_output['scenario']] & (gcam_output['region']==region_name) & (gcam_output['sector']=='resid others')
+        sel = ["Reference" in s for s in gcam_output['scenario']] & (gcam_output['region']==region_name) & (gcam_output['sector'][:12]=='resid others')
         other = np.sum(gcam_output.iloc[np.where(sel)[0],4:-1].values,axis=0)
         gcam_years = np.array([int(x) for x in gcam_output.columns[4:-1].values])    
         
@@ -666,39 +668,39 @@ def main():
         #   Plot figure
         #--------------------------------------------------------------------------
 
-        # Initialize figure
-        f, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True)
+        # # Initialize figure
+        # f, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True)
         
-        # Subpanel 1
-        ax1.plot(years,table_aquastat_industry_withdrawal[jj,:],'*',label='FAO industry withdrawal',color=(0.5,0.5,0.5))
-        ax1.plot(years,table_gcam_withdrawal_industry[jj,:],'+',label='GCAM industry withdrawal',color=(0,0.5,0))
-        ax1.plot(years,table_gcam_withdrawal_industry[jj,:]-table_gcam_withdrawal_thermoelectric[jj,:],'+',label='GCAM manufacturing withdrawal',color=(0,1,0))
-        ax1.plot(years,table_withdrawal_industry[jj,:],label='Beck industry withdrawal',color=(0.5,0,0))
-        ax1.plot(years,table_withdrawal_manufacturing[jj,:],label='Beck manufacturing withdrawal',color=(1,0,0))
-        ax1.legend()
-        ax1.set_ylabel('Withdrawal (km^3/year)')
-        ax1.set_title(country_name)
+        # # Subpanel 1
+        # ax1.plot(years,table_aquastat_industry_withdrawal[jj,:],'*',label='FAO industry withdrawal',color=(0.5,0.5,0.5))
+        # ax1.plot(years,table_gcam_withdrawal_industry[jj,:],'+',label='GCAM industry withdrawal',color=(0,0.5,0))
+        # ax1.plot(years,table_gcam_withdrawal_industry[jj,:]-table_gcam_withdrawal_thermoelectric[jj,:],'+',label='GCAM manufacturing withdrawal',color=(0,1,0))
+        # ax1.plot(years,table_withdrawal_industry[jj,:],label='Beck industry withdrawal',color=(0.5,0,0))
+        # ax1.plot(years,table_withdrawal_manufacturing[jj,:],label='Beck manufacturing withdrawal',color=(1,0,0))
+        # ax1.legend()
+        # ax1.set_ylabel('Withdrawal (km^3/year)')
+        # ax1.set_title(country_name)
         
-        # Subpanel 2
-        ax2.plot(years,table_Huang_withdrawal_industry[jj,:],label='Huang industry withdrawal',color=(0,0,0.5))
-        ax2.plot(years,table_Huang_withdrawal_manufacturing[jj,:],label='Huang manufacturing withdrawal',color=(0,0,1))
-        ax2.plot(years,table_withdrawal_industry[jj,:],label='Beck industry withdrawal',color=(0.5,0,0))
-        ax2.plot(years,table_withdrawal_manufacturing[jj,:],label='Beck manufacturing withdrawal',color=(1,0,0))
-        ax2.legend()
-        ax2.set_ylabel('Withdrawal (km^3/year)')
-        ax2.set_title(country_name)
+        # # Subpanel 2
+        # ax2.plot(years,table_Huang_withdrawal_industry[jj,:],label='Huang industry withdrawal',color=(0,0,0.5))
+        # ax2.plot(years,table_Huang_withdrawal_manufacturing[jj,:],label='Huang manufacturing withdrawal',color=(0,0,1))
+        # ax2.plot(years,table_withdrawal_industry[jj,:],label='Beck industry withdrawal',color=(0.5,0,0))
+        # ax2.plot(years,table_withdrawal_manufacturing[jj,:],label='Beck manufacturing withdrawal',color=(1,0,0))
+        # ax2.legend()
+        # ax2.set_ylabel('Withdrawal (km^3/year)')
+        # ax2.set_title(country_name)
             
-        # Subpanel 3
-        ax3.plot(years,table_worldbank_gdp[jj,:],label='GDP',color='g')
-        ax3.plot(years,table_worldbank_mva[jj,:],label='MVA',color='b')
-        ax3.legend()
-        ax3.set_ylabel('Constant 2010 US$')
-        ax3.set_title(country_name)    
+        # # Subpanel 3
+        # ax3.plot(years,table_worldbank_gdp[jj,:],label='GDP',color='g')
+        # ax3.plot(years,table_worldbank_mva[jj,:],label='MVA',color='b')
+        # ax3.legend()
+        # ax3.set_ylabel('Constant 2010 US$')
+        # ax3.set_title(country_name)    
         
-        # Save figure
-        f.set_size_inches(10, 10)
-        plt.savefig(os.path.join(config['output_folder'],'step3a_industrial_demand','figures',str(jj).zfill(3)+'_'+country_name+'.png'),dpi=150)
-        plt.close()
+        # # Save figure
+        # f.set_size_inches(10, 10)
+        # plt.savefig(os.path.join(config['output_folder'],'step3a_industrial_demand','figures',str(jj).zfill(3)+'_'+country_name+'.png'),dpi=150)
+        # plt.close()
             
     # Save to csv
     pd.DataFrame(table_withdrawal_data_source,index=country_codes['name'],columns=['Withdrawal data source']).to_csv(os.path.join(config['output_folder'],'step3a_industrial_demand','tables','withdrawal_data_source.csv'))
@@ -731,7 +733,14 @@ def main():
             ndays = monthrange(year,month)[1]
             mswx_month = np.zeros((1800,3600,ndays),dtype=np.single)*np.NaN
             for day in np.arange(1,ndays+1):
-                filepath = os.path.join(config['mswx_folder'],'Past','Temp','Daily',datetime(year,month,day).strftime('%Y%j')+'.nc')
+                if year<1979:   #MSWX dataset starts from 1979
+                    try:
+                        date=datetime(1979,month,day)
+                    except: # fix for Leap years < 1979
+                        date=datetime(1979,month,day-1)
+                    filepath = os.path.join(config['mswx_folder'],'Past','Temp','Daily',date.strftime('%Y%j')+'.nc')
+                else:
+                    filepath = os.path.join(config['mswx_folder'],'Past','Temp','Daily',datetime(year,month,day).strftime('%Y%j')+'.nc')
                 if os.path.isfile(filepath):
                     dset = Dataset(filepath)
                     mswx_month[:,:,day-1] = np.squeeze(np.array(dset.variables['air_temperature']))

@@ -21,6 +21,7 @@ else:
     from pathlib import Path
 
 import pytest
+import shutil
 
 from lisfloodutilities.compare.pcr import PCRComparator, TSSComparator
 from lisfloodutilities.compare.nc import NetCDFComparator
@@ -55,6 +56,11 @@ class TestComparators:
         assert comp.diff_folder.joinpath('a_a.nc').exists(), 'Diff file A does not exist in %s' % comp.diff_folder
         assert comp.diff_folder.joinpath('a_b.nc').exists(), 'Diff file B does not exist'
         assert comp.diff_folder.joinpath('a_diff.nc').exists(), 'Diff file diff.nc does not exist'
+        # Clean the diff folder after the test since it is no longer needed
+        if comp.diff_folder is not None and comp.diff_folder.parent.name == 'diffs':
+            shutil.rmtree(comp.diff_folder.parent)
+        else:
+            shutil.rmtree(comp.diff_folder)
 
     def test_netcdfcomp_submask(self):
         comp = NetCDFComparator(mask='tests/data/submask/subcatchment_mask.map')

@@ -85,10 +85,10 @@ class Dem(Printable):
         self.mv = reader.mv.astype(np.float32)
         self.values = reader.values.astype(np.float32)
         self.lats, self.lons = reader.get_lat_lon_values()
-        self.lats = self.lats.astype(np.float32)
-        self.lons = self.lons.astype(np.float32) 
-        self.lat_values = reader.get_lat_values()
-        self.lon_values = reader.get_lon_values()
+        self.lats = self.lats.astype(np.float64)
+        self.lons = self.lons.astype(np.float64)
+        self.lat_values = reader.get_lat_values().astype(np.float64)
+        self.lon_values = reader.get_lon_values().astype(np.float64)
         self.cell_size_x = reader._pxlW
         self.cell_size_y = reader._pxlH
         self.lat_min = reader.lat_min
@@ -343,8 +343,8 @@ class Config(Printable):
         return int((self.value_max - self.add_offset) / self.scale_factor)
 
     @property
-    def value_nan_packed(self) -> float:
-        return float((self.VALUE_NAN - self.add_offset) / self.scale_factor)
+    def value_nan_packed(self) -> np.float32:
+        return np.float32((self.VALUE_NAN - self.add_offset) / self.scale_factor)
 
     @property
     def var_code(self) -> str:
@@ -355,8 +355,8 @@ class Config(Printable):
         return self.height_correction_factor != 0.0
 
     @property
-    def height_correction_factor(self) -> float:
-        return float(self.get_config_field('PROPERTIES', 'HEIGHT_CORRECTION_FACTOR'))
+    def height_correction_factor(self) -> np.float32:
+        return np.float32(self.get_config_field('PROPERTIES', 'HEIGHT_CORRECTION_FACTOR'))
     
     @property
     def truncate_negative_values(self) -> bool:
@@ -402,8 +402,7 @@ class GriddingUtils(Printable):
         super().__init__(quiet_mode)
         self.conf = conf
         self.use_broadcasting = use_broadcasting
-        self.unit_conversion = float(self.conf.get_config_field('PROPERTIES', 'UNIT_CONVERSION'))
-        # self.compressed_NaN = (self.conf.VALUE_NAN - self.conf.add_offset) / self.conf.scale_factor
+        self.unit_conversion = np.float32(self.conf.get_config_field('PROPERTIES', 'UNIT_CONVERSION'))
 
     def correct_height(self, df: pd.DataFrame) -> pd.DataFrame:
         if self.conf.do_height_correction:
@@ -432,16 +431,17 @@ class GriddingUtils(Printable):
         return result
 
     def prepare_grid(self, result: np.ndarray, grid_shape: np.ndarray) -> np.ndarray:
-        # Compress data
+        # Pack data
         if self.unit_conversion != 1.0:
             result = result * self.unit_conversion
         result[np.where(result == self.conf.VALUE_NAN)] = np.nan
         result[np.where(result < self.conf.value_min)] = np.nan
         result[np.where(result > self.conf.value_max)] = np.nan
-        result = np.round(result.astype(float), 1)
-        result = (result - self.conf.add_offset) / self.conf.scale_factor
+        result = result.astype(np.float32)
+        result = np.round(result, 1)
+        result[~np.isnan(result)] -= self.conf.add_offset
+        result[~np.isnan(result)] /= self.conf.scale_factor
         result[np.isnan(result)] = self.conf.VALUE_NAN
-        # Reshape grid
         grid_data = result.reshape(grid_shape)
         return grid_data
 
@@ -455,7 +455,7 @@ class GriddingUtils(Printable):
         current_grid[np.where(current_grid > self.conf.value_max)] = np.nan
         count_grid_nan = np.count_nonzero(np.isnan(current_grid))
         if count_dem_nan != count_grid_nan:
-            print(f"WARNING: The grid interpolated from file {filename.name} contains different NaN values ({count_grid_nan}) than the DEM ({count_dem_nan}). diff: {count_grid_nan - count_dem_nan}")
+            self.print_msg(f"WARNING: The grid interpolated from file {filename.name} contains different NaN values ({count_grid_nan}) than the DEM ({count_dem_nan}). diff: {count_grid_nan - count_dem_nan}")
 
     def read_tiff(self, tiff_filepath: Path) -> np.ndarray:
         # This method could be implemented on a GDALReader class
@@ -626,7 +626,7 @@ class KiwisLoader(Printable):
                 class_name = plugin
                 class_args = plugins[plugin]
                 module = importlib.import_module(module_name)
-                class_instance = getattr(module, class_name)(plugins_columns, class_args)
+                class_instance = getattr(module, class_name)(plugins_columns, class_args, self.var_code, self.quiet_mode)
                 plugins_array.append(class_instance)
         except ImportError:
             print(f"Error: Could not import module '{module_name}'")
