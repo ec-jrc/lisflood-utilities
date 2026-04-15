@@ -179,10 +179,14 @@ def correct_rainbomb_dataset(
     that is not supported by surrounding points. This function identifies and
     corrects such artifacts by comparing each grid point against its neighbours.
 
+    Note: The input file must be in the standard ERA5 resolution of approximately
+    31 km or 0.25 arc-degrees.
+
     Parameters:
     -----------
     input_file: str
-        Path to the input ERA5 file (NetCDF format)
+        Path to the input ERA5 file (NetCDF or GRIB format). The input file must
+        be in the standard ERA5 resolution of approximately 31 km or 0.25 arc-degrees.
     output_file: str
         Path to the output corrected file (GRIB format)
     neighbours_file: str, optional
@@ -790,6 +794,9 @@ def getargs(argv=sys.argv) -> argparse.Namespace:
         that is not supported by surrounding points. This utility identifies and
         corrects such artifacts by comparing each grid point against its neighbours
         and applying threshold-based corrections.
+
+        Note: The input file must be in the standard ERA5 resolution of approximately
+        31 km or 0.25 arc-degrees.
         """,
         prog=prog,
     )
@@ -822,7 +829,9 @@ def getargs(argv=sys.argv) -> argparse.Namespace:
         "--input_file",
         type=str,
         required=True,
-        help="Input file for correction (raw ERA5 in NetCDF or GRIB format)",
+        help="Input file for correction (raw ERA5 in NetCDF or GRIB format). "
+             "The input file must be in the standard ERA5 resolution of approximately "
+             "31 km or 0.25 arc-degrees.",
     )
     parser.add_argument(
         "-o",

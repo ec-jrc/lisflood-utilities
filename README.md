@@ -78,7 +78,7 @@ NetCDF, PCRaster and TSS files.
 
 * __[mctrivers](#mctrivers)__ creates a river mask for MCT diffusive river routing in LISFLOOD.
 
-* __[rainbomb](#rainbomb)__ is a tool to correct rainbomb artifacts in ERA5 daily precipitation data. A rainbomb is an unrealistically high rainfall value at a single grid point that is not supported by surrounding points. This utility identifies and corrects such artifacts by comparing each grid point against its neighbours and applying threshold-based corrections.
+* __[rainbomb](#rainbomb)__ is a tool to correct rainbomb artifacts in ERA5 daily precipitation data. A rainbomb is an unrealistically high rainfall value at a single grid point that is not supported by surrounding points. This utility identifies and corrects such artifacts by comparing each grid point against its neighbours and applying threshold-based corrections. The input file must be in the standard ERA5 resolution of approximately 31 km or 0.25 arc-degrees.
 
 > **Note**: PCRaster must be installed in the Conda environment.
 
