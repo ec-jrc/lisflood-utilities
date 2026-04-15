@@ -22,9 +22,32 @@ to execute some mundane tasks that are necessary to operate LISFLOOD.
 
 The documentation about the available tools and how to use them can be found in the [Wiki](https://github.com/ec-jrc/lisflood-utilities/wiki) of this repository.
 
-## Installation
+Lisflood Utilities is a set of tools to help LISFLOOD users (or any users of PCRaster/NetCDF files)
+to execute some mundane tasks that are necessary to operate lisflood.
+Here's a list of utilities you can find in lisflood-utilities package.
 
-### Requisites
+* __[pcr2nc](#pcr2nc)__ is a tool to convert PCRaster maps to NetCDF4 files.
+  - convert a single map into a NetCDF4 file
+  - convert a time series of maps into a NetCDF4 mapstack
+  - support for WGS84 and ETRS89 (LAEA) reference systems
+  - fine tuning of output files (compression, significant digits, etc.)
+ 
+* __[nc2pcr](#nc2pcr)__ is a tool to convert a NetCDF file into PCRaster maps.
+  - convert 2D variables in single PCRaster maps
+  - NetCDF4 mapstacks are not supported yet
+
+* __[cutmaps](#cutmaps)__ is a tool to cut NetCDF files in order to reduce size, using either
+  - a bounding box of coordinates
+  - a bounding box of matrix indices
+  - an existing boolean area mask
+  - a list of stations and a LDD ("local drain direction" in NetCDF or PCRaster format)
+  
+> **Note**: PCRaster must be installed in the Conda environment.
+ 
+* __[compare](#compare)__ is a package containing a set of simple Python classes that helps to compare 
+NetCDF, PCRaster and TSS files.
+
+* __[thresholds](#thresholds)__ is a tool to compute the discharge return period thresholds from NetCDF4 file containing a discharge time series.
 
 * __[water-demand-historic](#water-demand-historic)__ is a package allowing to generate sectoral (domestic, livestock, industry, and thermoelectric) water demand maps with monthly to yearly temporal steps for a range of past years, at the users’ defined spatial resolution and geographical extent. These maps are required by the LISFLOOD OS [water use module](https://ec-jrc.github.io/lisflood-model/2_18_stdLISFLOOD_water-use)
 
