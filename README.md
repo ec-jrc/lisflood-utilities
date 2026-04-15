@@ -1096,7 +1096,7 @@ python3, climetlab, xarray, pandas, numpy
 The tool requires the following mandatory input arguments:
 
 - `-i`, `--input_file`: Input file for correction (raw ERA5 in NetCDF or GRIB format)
-- `-o`, `--output_file`: Output file (corrected ERA5 in GRIB format)
+- `-o`, `--output_file`: Output file (corrected ERA5 in the same format as the input: NetCDF or GRIB)
 
 The tool requires either:
 
@@ -1106,23 +1106,30 @@ Or individual auxiliary files:
 
 - `-n`, `--neighbours_file`: Path to the neighbours data file (NetCDF)
 - `-t`, `--thresholds_file`: Path to the thresholds CSV file
-- `-m`, `--template_file`: Path to the GRIB template file
 
 Additional options:
 
 - `--set-grib-date`: Set the correct date in the GRIB output file based on the input NetCDF or GRIB time coordinate
+- `--skip-conversion`: Skip the unit conversion from m to mm (assumes input data is already in mm)
+- `-p`, `--precipitation-variable`: Name of the precipitation variable in the input dataset (defaults to 'tp')
 - `-v`, `--verbose`: Print progress information
 
 Example of command that will correct rainbombs in an ERA5 NetCDF file:
 
 ```bash
-rainbomb -i /path/to/input/era5_precip.nc -o /path/to/output/era5_precip_corrected.grb -d /path/to/auxiliary/data/
+rainbomb -i /path/to/input/era5_precip.nc -o /path/to/output/era5_precip_corrected.nc -d /path/to/auxiliary/data/
+```
+
+Example with GRIB input and output:
+
+```bash
+rainbomb -i /path/to/input/era5_precip.grb -o /path/to/output/era5_precip_corrected.grb -d /path/to/auxiliary/data/
 ```
 
 Example with individual auxiliary files:
 
 ```bash
-rainbomb -i /path/to/input/era5_precip.nc -o /path/to/output/era5_precip_corrected.grb -n neighbours.nc -t thresholds.csv -m template.grb
+rainbomb -i /path/to/input/era5_precip.nc -o /path/to/output/era5_precip_corrected.nc -n neighbours.nc -t thresholds.csv
 ```
 
 The input and output arguments are listed below and can be seen by using the help flag:
@@ -1133,8 +1140,9 @@ rainbomb --help
 
 ```text
 usage: rainbomb [-h] -i INPUT_FILE -o OUTPUT_FILE [-d PARENT_DIR]
-                [-n NEIGHBOURS_FILE] [-t THRESHOLDS_FILE] [-m TEMPLATE_FILE]
-                [--set-grib-date] [-v]
+                [-n NEIGHBOURS_FILE] [-t THRESHOLDS_FILE]
+                [--set-grib-date] [--skip-conversion]
+                [-p PRECIPITATION_VARIABLE] [-v]
 
 Script for correcting ERA5 single-grid rainbombs for daily fields.
 
@@ -1149,7 +1157,8 @@ optional arguments:
                         Input file for correction (raw ERA5 in NetCDF or GRIB
                         format)
   -o OUTPUT_FILE, --output_file OUTPUT_FILE
-                        Output file (corrected ERA5 in GRIB format)
+                        Output file (corrected ERA5 in same format as input:
+                        NetCDF or GRIB)
   -d PARENT_DIR, --parent_dir PARENT_DIR
                         Parent directory where the auxiliary data for the
                         rainbomb correction are located. Ignored if individual
@@ -1161,11 +1170,14 @@ optional arguments:
   -t THRESHOLDS_FILE, --thresholds_file THRESHOLDS_FILE
                         Path to the thresholds CSV file. If not provided,
                         defaults to 'thresholds.csv' in parent_dir.
-  -m TEMPLATE_FILE, --template_file TEMPLATE_FILE
-                        Path to the GRIB template file. If not provided,
-                        defaults to 'rain_template.grb' in parent_dir.
   --set-grib-date       Set the correct date in the GRIB output file based
                         on the input NetCDF or GRIB time coordinate
+  --skip-conversion     Skip the unit conversion from m to mm (assumes input
+                        data is already in mm) and skip the conversion from
+                        mm back to m at the end
+  -p PRECIPITATION_VARIABLE, --precipitation-variable PRECIPITATION_VARIABLE
+                        Name of the precipitation variable in the input
+                        dataset. If not provided, defaults to 'tp'
   -v, --verbose         Print progress information
 ```
 
@@ -1176,12 +1188,24 @@ from lisfloodutilities.rainbomb import correct_rainbomb_dataset
 
 correct_rainbomb_dataset(
     input_file='/path/to/input/era5_precip.nc',
-    output_file='/path/to/output/era5_precip_corrected.grb',
+    output_file='/path/to/output/era5_precip_corrected.nc',
     parent_dir='/path/to/auxiliary/data/',
     verbose=True,
-    set_grib_date_flag=True
+    set_grib_date_flag=True,
+    precipitation_variable='tp'  # Optional: defaults to 'tp'
 )
 ```
+
+### Recent Changes
+
+The rainbomb tool has been updated with the following improvements:
+
+- **NetCDF Support**: The tool now supports both NetCDF and GRIB input/output formats. The output format is automatically determined from the input file extension.
+- **Removed Template File**: The separate GRIB template file is no longer required. When the input is GRIB, the tool uses the input file itself as the template.
+- **Improved GRIB Metadata**: Added proper stepRange handling for GRIB output files.
+- **Skip Conversion Option**: Added `--skip-conversion` flag for cases where input data is already in millimetres.
+- **Optimized Processing**: Improved rainbomb detection and correction logic using numpy operations for better performance.
+- **Custom Precipitation Variable**: Added `-p`/`--precipitation-variable` option to allow overriding the default precipitation variable name ('tp') in the input dataset.
 
 
 ## Using `lisfloodutilities` programmatically

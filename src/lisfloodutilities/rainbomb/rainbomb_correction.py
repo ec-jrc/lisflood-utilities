@@ -169,6 +169,8 @@ def correct_rainbomb_dataset(
     parent_dir: Optional[str] = None,
     verbose: bool = False,
     set_grib_date_flag: bool = False,
+    skip_conversion: bool = False,
+    precipitation_variable: Optional[str] = None,
 ) -> None:
     """
     Correct rainbomb artifacts in ERA5 daily precipitation data.
@@ -199,11 +201,20 @@ def correct_rainbomb_dataset(
     set_grib_date_flag: bool, optional
         If True, set the correct date in the GRIB output file based on the input
         NetCDF time coordinate (default: False)
+    skip_conversion: bool, optional
+        If True, skip the unit conversion from m to mm (assumes input data is already in mm)
+        and skip the conversion from mm back to m at the end (default: False)
+    precipitation_variable: str, optional
+        Name of the precipitation variable in the dataset. If not provided, defaults to
+        DATA_KEY_PRECIPITATION_VARIABLE ('tp')
 
     Returns:
     --------
     None
     """
+    # Use the provided precipitation variable name or default to DATA_KEY_PRECIPITATION_VARIABLE
+    if precipitation_variable is None:
+        precipitation_variable = DATA_KEY_PRECIPITATION_VARIABLE
     # Validate input file exists
     if not os.path.isfile(input_file):
         raise FileNotFoundError(
@@ -240,109 +251,26 @@ def correct_rainbomb_dataset(
         print("Processing rainfall data...")
 
     # final corrected data in the same format and units as the original dataset, to be saved as GRIB after
-    corrected_ds = process_rainfall_data(raw_era5, neighbours, thresholds_df, verbose)
+    corrected_ds = process_rainfall_data(raw_era5, neighbours, thresholds_df, verbose, skip_conversion, precipitation_variable)
 
     # save the corrected dataset in the same format as the input file (GRIB or NetCDF)
     if file_ext in GRIB_EXTENSIONS:
         # If input is GRIB, use the same file as template to ensure correct grid and metadata
-        save_as_grib(input_file, output_file, verbose, set_grib_date_flag, raw_era5, file_ext, corrected_ds)
+        save_as_grib(input_file, output_file, verbose, set_grib_date_flag, raw_era5, file_ext, corrected_ds, precipitation_variable)
     elif file_ext in NETCDF_EXTENSIONS:
         # Save as NetCDF - preserve original format and structure
-        save_as_netcdf(corrected_ds, output_file, raw_era5, verbose)
+        save_as_netcdf(corrected_ds, output_file, raw_era5, verbose, precipitation_variable)
     else:
         raise ValueError(f"WRITE: Unsupported file extension: {file_ext}")
 
     if verbose:
         print("Correction complete!")
 
-def save_as_grib(input_file: str, output_file: str, verbose: bool, set_grib_date_flag: bool,
-                 raw_era5: xr.Dataset, file_ext: str, corrected_ds: xr.Dataset) -> None:
-    '''
-    Save the corrected dataset as a GRIB file using climetlab, with a template to ensure correct grid and metadata.
-
-    Parameters:
-    -----------
-    input_file: str
-        Path to the input ERA5 file (used as template for grid and metadata)
-    output_file: str
-        Path to the output corrected GRIB file
-    verbose: bool
-        If True, print progress information
-    set_grib_date_flag: bool
-        If True, set the correct date in the GRIB output file based on the input NetCDF time coordinate
-    raw_era5: xr.Dataset
-        The original ERA5 dataset (used to extract time information if set_grib_date_flag is True)
-    file_ext: str
-        The file extension of the input file, used to determine how to extract time information
-    corrected_ds: xr.Dataset
-        The corrected dataset with rainbomb values fixed, in the same format and units as the original dataset
-
-    Returns:
-    --------
-    None
-    '''
-    # default template is the input file itself, to ensure correct grid and metadata for GRIB output
-    template_file = input_file
-
-    if verbose:
-        print(f"Saving corrected data to: {output_file}")
-        print(f"Using template file: {template_file}")
-
-    source = cml.load_source("file", input_file)
-    template = source[0] # type: ignore
-
-    template_step_range = template['stepRange']  # e.g., '5-6'
-    template_end_step = template_step_range.split('-')[1]
-
-        # Diagnostic: Print template info
-    if verbose:
-        print(f"Template missingValue: {template['missingValue']}")
-        print(f"Template shape: {template.shape}")
-
-    grib_metadata = {}
-
-        # Extract the date from the input file to set correct date in GRIB output
-        # Only run if the user specified --set-grib-date flag
-    if set_grib_date_flag:
-            # Handle time coordinate extraction for both NetCDF and GRIB formats
-        time_val = extract_timestamp(raw_era5, file_ext)
-            # Convert to string in YYYYMMDD format
-        date_str = pd.to_datetime(time_val).strftime('%Y%m%d')
-
-        grib_metadata = {
-                'date': date_str,
-                'time': OUTPUT_FIRST_STEP_TIME,
-                'step': OUTPUT_LAST_STEP,
-                'stepRange': f'{OUTPUT_FIRST_STEP}-{OUTPUT_LAST_STEP}',
-            }
-
-        # Get the corrected data and handle NaN values explicitly
-        # This prevents the "failed to set key 'missingValue'" error that can occur
-        # when climetlab tries to convert NaN to float32 max (3.4028235e+38)
-        # Diagnostic: Check corrected data for issues
-    corrected_data = corrected_ds[DATA_KEY_PRECIPITATION_VARIABLE].values.copy()
-    if verbose:
-        print(f"Corrected data dtype: {corrected_data.dtype}")
-        print(f"Corrected data has NaN: {np.any(np.isnan(corrected_data))}")
-        print(f"Corrected data has inf: {np.any(np.isinf(corrected_data))}")
-        print(f"Corrected data min: {np.nanmin(corrected_data)}")
-        print(f"Corrected data max: {np.nanmax(corrected_data)}")
-
-        # Replace NaN and inf values with the template's missingValue
-    template_missing_value = template['missingValue']
-    if np.any(np.isnan(corrected_data)) or np.any(np.isinf(corrected_data)):
-        if verbose:
-            print(f"Replacing NaN/inf values with template missingValue: {template_missing_value}")
-        corrected_data = np.where(np.isfinite(corrected_data), corrected_data, template_missing_value)
-
-        # Save as GRIB format
-    with cml.new_grib_output(output_file, template=template) as output:
-            # Use check_nans=False since we handled NaN values manually above
-        output.write(corrected_data, check_nans=False, metadata=grib_metadata)
-
 
 def process_rainfall_data(raw_era5: xr.Dataset, neighbours: xr.DataArray,
-                          thresholds_df: pd.DataFrame, verbose: bool) -> xr.Dataset:
+                          thresholds_df: pd.DataFrame, verbose: bool,
+                          skip_conversion: bool = False,
+                          precipitation_variable: str = DATA_KEY_PRECIPITATION_VARIABLE) -> xr.Dataset:
     """
     Process the rainfall data to identify and correct rainbombs.
 
@@ -356,12 +284,20 @@ def process_rainfall_data(raw_era5: xr.Dataset, neighbours: xr.DataArray,
         DataFrame containing the intermediate and upper thresholds based on SEAS5 data
     verbose: bool
         If True, print progress information
+    skip_conversion: bool
+        If True, skip the unit conversion from m to mm (assumes input data is already in mm)
+        and skip the conversion from mm back to m at the end (default: False)
+    precipitation_variable: str
+        Name of the precipitation variable in the dataset (default: DATA_KEY_PRECIPITATION_VARIABLE)
     Returns:
     --------
     xr.Dataset
         A new Dataset with the corrected precipitation variable, in the same format and units as the original dataset
     """
-    rain_mm = raw_era5[DATA_KEY_PRECIPITATION_VARIABLE] * DATA_CONVERSION_FACTOR # convert to mm
+    # Extract the precipitation variable and convert to mm if needed (if not already in mm)
+    rain_mm = raw_era5[precipitation_variable]
+    if not skip_conversion:
+        rain_mm = rain_mm * DATA_CONVERSION_FACTOR  # convert to mm
 
     # max rain of neighbours (mask non-existing ones!)
     rain_neighbours_max = rain_mm.isel(values=neighbours).where(neighbours >= 0)
@@ -405,30 +341,122 @@ def process_rainfall_data(raw_era5: xr.Dataset, neighbours: xr.DataArray,
     corrected_np = rain_mm.values.copy()  # get a np array with the original ERA5 values
     corrected_np[df.index] = corrections  # replace the rainbombs with the corrected values
 
-    # Convert back to original units
-    corrected_values = corrected_np / DATA_CONVERSION_FACTOR
+    # Convert back to original units (skip if data was already in mm)
+    corrected_values = corrected_np
+    original_values = rain_mm.values
+    if not skip_conversion:
+        corrected_values /= DATA_CONVERSION_FACTOR
+        original_values /= DATA_CONVERSION_FACTOR
 
     # Validate corrected values before creating dataset
     if np.any(np.isnan(corrected_values)) or np.any(np.isinf(corrected_values)):
-        # Replace invalid values with original rain_mm values (in original units)
-        original_values = rain_mm.values / DATA_CONVERSION_FACTOR
+        # Replace invalid values with original rain_mm values
         corrected_values = np.where(np.isfinite(corrected_values), corrected_values, original_values)
 
     # Create new dataset with same structure as original
     corrected_ds = xr.zeros_like(raw_era5)
 
     # Assign corrected precipitation data to the appropriate variable
-    corrected_ds[DATA_KEY_PRECIPITATION_VARIABLE].values = corrected_values
+    corrected_ds[precipitation_variable].values = corrected_values
 
     # Restore original attributes to preserve metadata (units, long_name, etc.)
-    original_attrs = raw_era5[DATA_KEY_PRECIPITATION_VARIABLE].attrs
-    corrected_ds[DATA_KEY_PRECIPITATION_VARIABLE].attrs = original_attrs.copy()
+    original_attrs = raw_era5[precipitation_variable].attrs
+    corrected_ds[precipitation_variable].attrs = original_attrs.copy()
 
     return corrected_ds
 
+def save_as_grib(input_file: str, output_file: str, verbose: bool, set_grib_date_flag: bool,
+                 raw_era5: xr.Dataset, file_ext: str, corrected_ds: xr.Dataset,
+                 precipitation_variable: str = DATA_KEY_PRECIPITATION_VARIABLE) -> None:
+    '''
+    Save the corrected dataset as a GRIB file using climetlab, with a template to ensure correct grid and metadata.
+
+    Parameters:
+    -----------
+    input_file: str
+        Path to the input ERA5 file (used as template for grid and metadata)
+    output_file: str
+        Path to the output corrected GRIB file
+    verbose: bool
+        If True, print progress information
+    set_grib_date_flag: bool
+        If True, set the correct date in the GRIB output file based on the input NetCDF time coordinate
+    raw_era5: xr.Dataset
+        The original ERA5 dataset (used to extract time information if set_grib_date_flag is True)
+    file_ext: str
+        The file extension of the input file, used to determine how to extract time information
+    corrected_ds: xr.Dataset
+        The corrected dataset with rainbomb values fixed, in the same format and units as the original dataset
+    precipitation_variable: str
+        Name of the precipitation variable in the dataset (default: DATA_KEY_PRECIPITATION_VARIABLE)
+
+    Returns:
+    --------
+    None
+    '''
+    # default template is the input file itself, to ensure correct grid and metadata for GRIB output
+    template_file = input_file
+
+    if verbose:
+        print(f"Saving corrected data to: {output_file}")
+        print(f"Using template file: {template_file}")
+
+    source = cml.load_source("file", input_file)
+    template = source[0] # type: ignore
+
+    template_step_range = template['stepRange']  # e.g., '5-6'
+    template_end_step = template_step_range.split('-')[1]
+
+        # Diagnostic: Print template info
+    if verbose:
+        print(f"Template missingValue: {template['missingValue']}")
+        print(f"Template shape: {template.shape}")
+
+    grib_metadata = {}
+
+        # Extract the date from the input file to set correct date in GRIB output
+        # Only run if the user specified --set-grib-date flag
+    if set_grib_date_flag:
+            # Handle time coordinate extraction for both NetCDF and GRIB formats
+        time_val = extract_timestamp(raw_era5, file_ext, precipitation_variable)
+            # Convert to string in YYYYMMDD format
+        date_str = pd.to_datetime(time_val).strftime('%Y%m%d')
+
+        grib_metadata = {
+                'date': date_str,
+                'time': OUTPUT_FIRST_STEP_TIME,
+                'step': OUTPUT_LAST_STEP,
+                'stepRange': f'{OUTPUT_FIRST_STEP}-{OUTPUT_LAST_STEP}',
+            }
+
+        # Get the corrected data and handle NaN values explicitly
+        # This prevents the "failed to set key 'missingValue'" error that can occur
+        # when climetlab tries to convert NaN to float32 max (3.4028235e+38)
+        # Diagnostic: Check corrected data for issues
+    corrected_data = corrected_ds[precipitation_variable].values.copy()
+    if verbose:
+        print(f"Corrected data dtype: {corrected_data.dtype}")
+        print(f"Corrected data has NaN: {np.any(np.isnan(corrected_data))}")
+        print(f"Corrected data has inf: {np.any(np.isinf(corrected_data))}")
+        print(f"Corrected data min: {np.nanmin(corrected_data)}")
+        print(f"Corrected data max: {np.nanmax(corrected_data)}")
+
+        # Replace NaN and inf values with the template's missingValue
+    template_missing_value = template['missingValue']
+    if np.any(np.isnan(corrected_data)) or np.any(np.isinf(corrected_data)):
+        if verbose:
+            print(f"Replacing NaN/inf values with template missingValue: {template_missing_value}")
+        corrected_data = np.where(np.isfinite(corrected_data), corrected_data, template_missing_value)
+
+        # Save as GRIB format
+    with cml.new_grib_output(output_file, template=template) as output:
+            # Use check_nans=False since we handled NaN values manually above
+        output.write(corrected_data, check_nans=False, metadata=grib_metadata)
+
 
 def save_as_netcdf(corrected_ds: xr.Dataset, output_file: str,
-                   original_ds: xr.Dataset, verbose: bool = False) -> None:
+                   original_ds: xr.Dataset, verbose: bool = False,
+                   precipitation_variable: str = DATA_KEY_PRECIPITATION_VARIABLE) -> None:
     """
     Save the corrected dataset as a NetCDF file, preserving the original structure.
     
@@ -442,6 +470,8 @@ def save_as_netcdf(corrected_ds: xr.Dataset, output_file: str,
         The original input dataset (used to preserve attributes and structure)
     verbose: bool, optional
         If True, print progress information (default: False)
+    precipitation_variable: str
+        Name of the precipitation variable in the dataset (default: DATA_KEY_PRECIPITATION_VARIABLE)
     
     Returns:
     --------
@@ -460,29 +490,29 @@ def save_as_netcdf(corrected_ds: xr.Dataset, output_file: str,
     corrected_ds.attrs = original_ds.attrs.copy()
     
     # Ensure the precipitation variable has the correct attributes
-    if DATA_KEY_PRECIPITATION_VARIABLE in corrected_ds.data_vars:
+    if precipitation_variable in corrected_ds.data_vars:
         # Restore original attributes to preserve metadata (units, long_name, etc.)
-        original_attrs = original_ds[DATA_KEY_PRECIPITATION_VARIABLE].attrs
-        corrected_ds[DATA_KEY_PRECIPITATION_VARIABLE].attrs = original_attrs.copy()
-    
+        original_attrs = original_ds[precipitation_variable].attrs
+        corrected_ds[precipitation_variable].attrs = original_attrs.copy()
+
     # Handle NaN values - replace with fill value for NetCDF
-    corrected_data = corrected_ds[DATA_KEY_PRECIPITATION_VARIABLE].values.copy()
+    corrected_data = corrected_ds[precipitation_variable].values.copy()
     if np.any(np.isnan(corrected_data)) or np.any(np.isinf(corrected_data)):
         if verbose:
             print("Replacing NaN/inf values in NetCDF output")
-        original_values = original_ds[DATA_KEY_PRECIPITATION_VARIABLE].values
+        original_values = original_ds[precipitation_variable].values
         corrected_data = np.where(np.isfinite(corrected_data), corrected_data, original_values)
-        corrected_ds[DATA_KEY_PRECIPITATION_VARIABLE].values = corrected_data
-    
+        corrected_ds[precipitation_variable].values = corrected_data
+
     # Save to NetCDF with compression for efficiency
     encoding = {
-        DATA_KEY_PRECIPITATION_VARIABLE: {
+        precipitation_variable: {
             'zlib': True,
             'complevel': 4,
             'shuffle': True
         }
     }
-    
+
     # Add encoding for coordinates if they exist
     for coord in corrected_ds.coords:
         if coord in original_ds.coords:
@@ -494,12 +524,13 @@ def save_as_netcdf(corrected_ds: xr.Dataset, output_file: str,
                 encoding[coord_name] = coord_encoding
     
     corrected_ds.to_netcdf(output_file, format='NETCDF4', engine='netcdf4', encoding=encoding)
-    
+
     if verbose:
         print(f"NetCDF file saved successfully: {output_file}")
 
 
-def extract_timestamp_valid_time(raw_era5: xr.Dataset, file_ext: str) -> pd.Timestamp:
+def extract_timestamp_valid_time(raw_era5: xr.Dataset, file_ext: str,
+                                  precipitation_variable: str = DATA_KEY_PRECIPITATION_VARIABLE) -> pd.Timestamp:
     """Extract timestamp from a NetCDF or GRIB file.
     
     This function handles various formats of time coordinate extraction from xarray
@@ -511,6 +542,8 @@ def extract_timestamp_valid_time(raw_era5: xr.Dataset, file_ext: str) -> pd.Time
         The input xarray dataset (NetCDF or GRIB)
     file_ext: str
         The file extension to determine the file type
+    precipitation_variable: str
+        Name of the precipitation variable in the dataset (default: DATA_KEY_PRECIPITATION_VARIABLE)
         
     Returns:
     --------
@@ -534,10 +567,10 @@ def extract_timestamp_valid_time(raw_era5: xr.Dataset, file_ext: str) -> pd.Time
             time_val = time_coord.values if hasattr(time_coord, 'values') else time_coord
         else:
             # Try to get from the data variable
-            if DATA_KEY_PRECIPITATION_VARIABLE in raw_era5:
-                time_val = raw_era5[DATA_KEY_PRECIPITATION_VARIABLE].attrs.get('valid_time', None)
-                if time_val is None and hasattr(raw_era5[DATA_KEY_PRECIPITATION_VARIABLE], 'valid_time'):
-                    time_val = raw_era5[DATA_KEY_PRECIPITATION_VARIABLE].valid_time
+            if precipitation_variable in raw_era5:
+                time_val = raw_era5[precipitation_variable].attrs.get('valid_time', None)
+                if time_val is None and hasattr(raw_era5[precipitation_variable], 'valid_time'):
+                    time_val = raw_era5[precipitation_variable].valid_time
                     time_val = time_val.values if hasattr(time_val, 'values') else time_val
             if time_val is None:
                 raise ValueError("Could not extract time/date from input GRIB file. Please check the file structure.")
@@ -597,7 +630,8 @@ def extract_timestamp_valid_time(raw_era5: xr.Dataset, file_ext: str) -> pd.Time
         raise ValueError(f"Could not convert time value '{time_val}' (type: {type(time_val).__name__}) to Timestamp: {e}")
 
 
-def extract_timestamp(raw_era5: xr.Dataset, file_ext: str) -> pd.Timestamp:
+def extract_timestamp(raw_era5: xr.Dataset, file_ext: str,
+                      precipitation_variable: str = DATA_KEY_PRECIPITATION_VARIABLE) -> pd.Timestamp:
     """Extract timestamp from a NetCDF or GRIB file.
     
     This function handles various formats of time coordinate extraction from xarray
@@ -609,6 +643,8 @@ def extract_timestamp(raw_era5: xr.Dataset, file_ext: str) -> pd.Timestamp:
         The input xarray dataset (NetCDF or GRIB)
     file_ext: str
         The file extension to determine the file type
+    precipitation_variable: str
+        Name of the precipitation variable in the dataset (default: DATA_KEY_PRECIPITATION_VARIABLE)
         
     Returns:
     --------
@@ -632,10 +668,10 @@ def extract_timestamp(raw_era5: xr.Dataset, file_ext: str) -> pd.Timestamp:
             time_val = raw_era5.valid_time.values if hasattr(raw_era5.valid_time, 'values') else raw_era5.valid_time
         else:
             # Try to get from the data variable
-            if DATA_KEY_PRECIPITATION_VARIABLE in raw_era5:
-                time_val = raw_era5[DATA_KEY_PRECIPITATION_VARIABLE].attrs.get('valid_time', None)
-                if time_val is None and hasattr(raw_era5[DATA_KEY_PRECIPITATION_VARIABLE], 'valid_time'):
-                    time_val = raw_era5[DATA_KEY_PRECIPITATION_VARIABLE].valid_time
+            if precipitation_variable in raw_era5:
+                time_val = raw_era5[precipitation_variable].attrs.get('valid_time', None)
+                if time_val is None and hasattr(raw_era5[precipitation_variable], 'valid_time'):
+                    time_val = raw_era5[precipitation_variable].valid_time
                     time_val = time_val.values if hasattr(time_val, 'values') else time_val
             if time_val is None:
                 raise ValueError("Could not extract time/date from input GRIB file. Please check the file structure.")
@@ -802,6 +838,21 @@ def getargs(argv=sys.argv) -> argparse.Namespace:
         help="Set the correct date in the GRIB output file based on the input NetCDF or GRIB time coordinate",
     )
     parser.add_argument(
+        "--skip-conversion",
+        action="store_true",
+        default=False,
+        help="Skip the unit conversion from m to mm (assumes input data is already in mm) "
+             "and skip the conversion from mm back to m at the end",
+    )
+    parser.add_argument(
+        "-p",
+        "--precipitation-variable",
+        type=str,
+        default=None,
+        help="Name of the precipitation variable in the input dataset. "
+             f"If not provided, defaults to '{DATA_KEY_PRECIPITATION_VARIABLE}'",
+    )
+    parser.add_argument(
         "-v",
         "--verbose",
         action="store_true",
@@ -846,6 +897,8 @@ def main(argv=sys.argv):
             parent_dir=args.parent_dir,
             verbose=args.verbose,
             set_grib_date_flag=args.set_grib_date,
+            skip_conversion=args.skip_conversion,
+            precipitation_variable=args.precipitation_variable,
         )
 
         elapsed_time = time.perf_counter() - start_time
