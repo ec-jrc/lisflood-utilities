@@ -22,8 +22,6 @@ to execute some mundane tasks that are necessary to operate LISFLOOD.
 
 The documentation about the available tools and how to use them can be found in the [Wiki](https://github.com/ec-jrc/lisflood-utilities/wiki) of this repository.
 
-Lisflood Utilities is a set of tools to help LISFLOOD users (or any users of PCRaster/NetCDF files)
-to execute some mundane tasks that are necessary to operate lisflood.
 Here's a list of utilities you can find in lisflood-utilities package.
 
 * __[pcr2nc](#pcr2nc)__ is a tool to convert PCRaster maps to NetCDF4 files.
