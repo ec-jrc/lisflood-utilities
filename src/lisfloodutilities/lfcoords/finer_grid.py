@@ -11,8 +11,8 @@ import xarray as xr
 import pyflwdir
 from tqdm import tqdm
 
-from lisfloodpreprocessing import Config
-from lisfloodpreprocessing.utils import find_pixel, catchment_polygon
+from . import Config
+from .utils import find_pixel, catchment_polygon
 
 os.environ['USE_PYGEOS'] = '0'
 warnings.filterwarnings("ignore")
