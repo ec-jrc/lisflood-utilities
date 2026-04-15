@@ -18,7 +18,7 @@ import os, sys, glob, time, pdb
 import pandas as pd
 import numpy as np
 from netCDF4 import Dataset
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from skimage.transform import resize
 from tools import *
 import rasterio
@@ -98,7 +98,7 @@ def main():
     print('-------------------------------------------------------------------------------')
     print('Loading and resampling country border raster')
     t0 = time.time()
-    country_code_map = load_country_code_map(os.path.join(config['world_borders_folder'],'TM_WORLD_BORDERS_UN_rasterized.tif'),mapsize_global)
+    country_code_map = load_country_code_map(os.path.join(config['world_borders_folder'],'CNTR_RG_01M_2024_4326_rasterized.tif'),mapsize_global)
     print("Time elapsed is "+str(time.time()-t0)+" sec")
 
 
@@ -109,7 +109,7 @@ def main():
     print('-------------------------------------------------------------------------------')
     print('Loading and resampling US state border raster')
     t0 = time.time()
-    state_code_map = load_us_state_code_map(os.path.join(config['us_states_folder'],'cb_2018_us_state_500k_rasterized.tif'),mapsize_global)
+    state_code_map = load_us_state_code_map(os.path.join(config['us_states_folder'],'cb_2023_us_state_500k_rasterized.tif'),mapsize_global)
     print("Time elapsed is "+str(time.time()-t0)+" sec")
     
 
@@ -169,12 +169,15 @@ def main():
 
     aquastat = pd.read_csv(os.path.join(config['aquastat_folder'],'aquastat_clean.csv'),index_col=False)
 
+    # sort the dataframe by year to allow fao_years extrapolations
+    aquastat.sort_values(by=['Area', 'm49', 'Variable', 'Year'], ignore_index=True, inplace=True)
+
     table_aquastat_domestic_withdrawal_interp = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.NaN
     for jj in np.arange(country_codes.shape[0]):
         country_code = country_codes.iloc[jj]['country-code']
 
         # Find location of data in AQUASTAT table
-        sel = np.where((aquastat['Area Id']==country_code) & (aquastat['Variable Name']=='Municipal water withdrawal'))[0]
+        sel = np.where((aquastat['m49']==country_code) & (aquastat['Variable']=='Municipal water withdrawal'))[0]
         if len(sel)==0: 
             continue
             
@@ -282,18 +285,19 @@ def main():
         '''
         
         # Load withdrawal estimates for 1985 from USGS table
-        ii = years.tolist().index(1985)
-        row = USGS_1985_data_table.iloc[:,0].tolist().index(state_acr)
-        col1 = USGS_1985_data_table.columns.tolist().index('do-sstot')
-        col2 = USGS_1985_data_table.columns.tolist().index('do-total')        
-        table_usgs_domestic_withdrawal[jj,ii] = 365.25*(USGS_1985_data_table.iloc[row,col1]+USGS_1985_data_table.iloc[row,col2])*4.54609*10**-6 # Mgal/d to km3/yr
-        col = USGS_1985_data_table.columns.tolist().index('in-wtofr')
-        table_usgs_manufacturing_withdrawal[jj,ii] = 365.25*USGS_1985_data_table.iloc[row,col]*4.54609*10**-6 # Mgal/d to km3/yr
-        col = USGS_1985_data_table.columns.tolist().index('pt-frtot')
-        table_usgs_thermoelectric_withdrawal[jj,ii] = 365.25*USGS_1985_data_table.iloc[row,col]*4.54609*10**-6 # Mgal/d to km3/yr
-        col = USGS_1985_data_table.columns.tolist().index('lv-total')
-        table_usgs_livestock_withdrawal[jj,ii] = 365.25*USGS_1985_data_table.iloc[row,col]*4.54609*10**-6 # Mgal/d to km3/yr
-        
+        if (1985 in years):
+            ii = years.tolist().index(1985)
+            row = USGS_1985_data_table.iloc[:,0].tolist().index(state_acr)
+            col1 = USGS_1985_data_table.columns.tolist().index('do-sstot')
+            col2 = USGS_1985_data_table.columns.tolist().index('do-total')        
+            table_usgs_domestic_withdrawal[jj,ii] = 365.25*(USGS_1985_data_table.iloc[row,col1]+USGS_1985_data_table.iloc[row,col2])*4.54609*10**-6 # Mgal/d to km3/yr
+            col = USGS_1985_data_table.columns.tolist().index('in-wtofr')
+            table_usgs_manufacturing_withdrawal[jj,ii] = 365.25*USGS_1985_data_table.iloc[row,col]*4.54609*10**-6 # Mgal/d to km3/yr
+            col = USGS_1985_data_table.columns.tolist().index('pt-frtot')
+            table_usgs_thermoelectric_withdrawal[jj,ii] = 365.25*USGS_1985_data_table.iloc[row,col]*4.54609*10**-6 # Mgal/d to km3/yr
+            col = USGS_1985_data_table.columns.tolist().index('lv-total')
+            table_usgs_livestock_withdrawal[jj,ii] = 365.25*USGS_1985_data_table.iloc[row,col]*4.54609*10**-6 # Mgal/d to km3/yr
+                
         # Load withdrawal estimates for 1990 from USGS table
         ii = years.tolist().index(1990)
         row = USGS_1990_data_table.iloc[:,0].tolist().index(state_acr)
@@ -340,7 +344,10 @@ def main():
         # Load MSWX air temperature data
         mswx_monthly = np.zeros((mapsize_global[0],mapsize_global[1],12),dtype=np.single)*np.NaN
         for month in np.arange(1,13):
-            dset = Dataset(os.path.join(config['mswx_folder'],'Past','Temp','Monthly',str(year)+str(month).zfill(2)+'.nc'))
+            if year<1979:  #MSWX dataset starts from 1979
+                dset = Dataset(os.path.join(config['mswx_folder'],'Past','Temp','Monthly',str(1979)+str(month).zfill(2)+'.nc'))
+            else:
+                dset = Dataset(os.path.join(config['mswx_folder'],'Past','Temp','Monthly',str(year)+str(month).zfill(2)+'.nc'))
             data = np.squeeze(np.array(dset.variables['air_temperature']))
             mswx_monthly[:,:,month-1] = imresize_mean(data,mapsize_global)
         mswx_avg = np.mean(mswx_monthly,axis=2)
@@ -401,25 +408,25 @@ def main():
         #   Plot figure
         #--------------------------------------------------------------------------
     
-        # Initialize figure
-        f, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
+        # # Initialize figure
+        # f, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
         
-        # Subpanel 1
-        ax1.imshow(np.sqrt(imresize_mean(data_annual_map,(360,720))),vmin=0,vmax=12,cmap=plt.get_cmap('YlGnBu'))
-        ax1.set_title('Beck et al. (2022) withdrawal (mm/month)')
+        # # Subpanel 1
+        # ax1.imshow(np.sqrt(imresize_mean(data_annual_map,(360,720))),vmin=0,vmax=12,cmap=plt.get_cmap('YlGnBu'))
+        # ax1.set_title('Beck et al. (2022) withdrawal (mm/month)')
 
-        # Subpanel 2
-        try:
-            timeindex = year-1971
-            ax2.imshow(np.sqrt(np.sum(Huang_withdrawal[:,:,np.arange(timeindex*12,timeindex*12+12)],axis=2)),vmin=0,vmax=12,cmap=plt.get_cmap('YlGnBu'))
-            ax2.set_title('Huang et al. (2018) withdrawal (mm/month)')
-        except:
-            pass
+        # # Subpanel 2
+        # try:
+        #     timeindex = year-1971
+        #     ax2.imshow(np.sqrt(np.sum(Huang_withdrawal[:,:,np.arange(timeindex*12,timeindex*12+12)],axis=2)),vmin=0,vmax=12,cmap=plt.get_cmap('YlGnBu'))
+        #     ax2.set_title('Huang et al. (2018) withdrawal (mm/month)')
+        # except:
+        #     pass
     
-        # Save figure
-        f.set_size_inches(10, 10)
-        plt.savefig(os.path.join(config['output_folder'],'step2_domestic_demand','figures','dom_'+str(year)+'.png'),dpi=150)
-        plt.close()
+        # # Save figure
+        # f.set_size_inches(10, 10)
+        # plt.savefig(os.path.join(config['output_folder'],'step2_domestic_demand','figures','dom_'+str(year)+'.png'),dpi=150)
+        # plt.close()
         
         print("Time elapsed is "+str(time.time()-t0)+" sec")
 
@@ -452,7 +459,7 @@ def main():
     ncfile.variables['lat'].long_name = 'latitude'
 
     ncfile.createVariable('time', 'f8', 'time')
-    ncfile.variables['time'].units = 'days since 1979-01-02 00:00:00'
+    ncfile.variables['time'].units = 'days since {}'.format(pd.to_datetime(datetime(int(config['year_start']), 1, int(1+config['shift_hours_units_start']/24), int(config['shift_hours_units_start']%24))))
     ncfile.variables['time'].long_name = 'time'
     ncfile.variables['time'].calendar = 'proleptic_gregorian'
 
@@ -472,7 +479,7 @@ def main():
             
             index = (year-config['year_start'])*12+month-1
              
-            ncfile.variables['time'][index] = (pd.to_datetime(datetime(year,month,1))-pd.to_datetime(datetime(1979, 1, 1))).total_seconds()/86400    
+            ncfile.variables['time'][index] = (pd.to_datetime(datetime(year,month,1))-pd.to_datetime(datetime(int(config['year_start']), 1, 1))).total_seconds()/86400    
             ncfile.variables[varname][index,:,:] = data
             
             print("Time elapsed is "+str(time.time()-t0)+" sec")
