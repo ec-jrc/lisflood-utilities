@@ -1,4 +1,4 @@
-f# Lisflood Utilities
+# Lisflood Utilities
 
 This repository hosts source code of LISFLOOD utilities.
 Go to [Lisflood OS page](https://ec-jrc.github.io/lisflood/) for more information.
@@ -15,10 +15,13 @@ Other useful resources
 | Lisflood Usecases   |                                                           | https://github.com/ec-jrc/lisflood-usecases                     |
 
 
-## Intro
+## Intro and documentation
 
 Lisflood Utilities is a set of tools to help LISFLOOD users (or any users of PCRaster/NetCDF files)
-to execute some mundane tasks that are necessary to operate lisflood.
+to execute some mundane tasks that are necessary to operate LISFLOOD.
+
+The documentation about the available tools and how to use them can be found in the [Wiki](https://github.com/ec-jrc/lisflood-utilities/wiki) of this repository.
+
 Here's a list of utilities you can find in lisflood-utilities package.
 
 * __[pcr2nc](#pcr2nc)__ is a tool to convert PCRaster maps to NetCDF4 files.
@@ -95,7 +98,8 @@ Otherwise, ensure you have properly installed the following software:
 - GDAL C library and software
 - NetCDF4 C library
 
-#### Install
+### Install
+
 If you use conda, create a new env (or use an existing one) and install gdal and lisflood-utilities:
 
 ```bash
@@ -105,17 +109,16 @@ conda install -c conda-forge pcraster eccodes "gdal<=3.5.3"
 pip install lisflood-utilities
 ```
 
-If you don't use conda but a straight python3 virtualenv:
+If you don't use conda but a straight Python3 virtualenv:
 
 ```bash
 source /path/myenv/bin/activate
 pip install lisflood-utilities
 ```
 
-If GDAL library fails to install, ensure to install the same package version of the
-C library you have on your system. You may also need to setup paths to gdal headers.
+If GDAL library fails to install, ensure to install the same package version of the C library you have on your system. You may also need to setup paths to GDAL headers.
 
-To check which version of GDAL libraries you have installed on your computer, use gdal-config
+To check which version of GDAL libraries you have installed on your computer, use `gdal-config`
 
 ```bash
 sudo apt-get install libgdal-dev libgdal
@@ -125,7 +128,7 @@ gdal-config --version  # 3.0.1
 pip install GDAL==3.0.1
 ```
 
-Note: if you previously installed an older version of the lisflood-utilities, it is highly recommended to remove it before installing the newest version:
+> **Note:** if you previously installed an older version of `lisflood-utilities`, it is highly recommended to remove it before installing the newest version:
 
 ```bash
 pip uninstall lisflood-utilities
@@ -982,7 +985,7 @@ mct_mask_ds = mct_mask(channels_slope_file='changrad.nc', ldd_file='ldd.nc', upa
 
 ## Using `lisfloodutilities` programmatically 
 
-You can use lisflood utilities in your python programs. As an example, the script below creates the mask map for a set of stations (stations.txt). The mask map is a boolean map with 1 and 0. 1 is used for all (and only) the pixels hydrologically connected to one of the stations. The resulting mask map is in pcraster format.
+You can use lisflood utilities in your Python programs. As an example, the script below creates the mask map for a set of stations (_stations.txt_). The mask map is a boolean map with 1 and 0. 1 is used for all (and only) the pixels hydrologically connected to one of the stations. The resulting mask map is in PCRaster format.
 
 ```python
 from lisfloodutilities.cutmaps.cutlib import mask_from_ldd
@@ -998,5 +1001,3 @@ mask, outlets_nc, maskmap_nc = mask_from_ldd(ldd_pcr, stations)
 mask_map = PCRasterMap(mask)
 print(mask_map.data)
 ```
-
-

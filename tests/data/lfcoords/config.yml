@@ -1,0 +1,13 @@
+input:
+    points: data/lfcoords/points.csv
+    ldd_fine: data/lfcoords/MERIT/ldd_3sec.tif
+    upstream_fine: data/lfcoords/MERIT/uparea_3sec.tif
+    ldd_coarse: data/lfcoords/EFAS/ldd_1min.nc
+    upstream_coarse: data/lfcoords/EFAS/uparea_1min.nc
+
+output_folder: data/lfcoords/shapefiles/
+
+conditions:
+    min_area: 25 # km2
+    abs_error: 50 # km2
+    pct_error: 5 # %
