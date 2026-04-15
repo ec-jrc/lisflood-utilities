@@ -39,8 +39,6 @@ DATA_CONVERSION_FACTOR = 1000 # convert to mm
 FILENAME_CLOSEST_NEIGHBOURS = 'neighbours_era5_closest.nc'
 # file with the intermediate and upper thresholds based on the SEAS5 data, used to check the rainbombs
 FILENAME_THRESHOLDS = 'thresholds.csv'
-# GRIB template for saving the corrected data, with the correct grid and fields but random date (to be set after with grib_set)
-FILENAME_TEMPLATE = 'rain_template.grb'
 
 DATA_KEY_REF = 'Ref'  # central point
 DATA_KEY_MAX_NEIGH = 'MaxNeigh'  # max neighbour
@@ -168,7 +166,6 @@ def correct_rainbomb_dataset(
     output_file: str,
     neighbours_file: Optional[str] = None,
     thresholds_file: Optional[str] = None,
-    template_file: Optional[str] = None,
     parent_dir: Optional[str] = None,
     verbose: bool = False,
     set_grib_date_flag: bool = False,
@@ -192,15 +189,11 @@ def correct_rainbomb_dataset(
     thresholds_file: str, optional
         Path to the thresholds CSV file. If not provided, defaults to
         'thresholds.csv' in parent_dir.
-    template_file: str, optional
-        Path to the GRIB template file. If not provided, defaults to
-        'template.grib' in parent_dir.
     parent_dir: str, optional
         Parent directory containing auxiliary data (used as fallback if individual
         files are not specified). Expected files:
         - 'neighbours_era5_closest.nc': closest ERA5 neighbours for each point
         - 'thresholds.csv': intermediate and upper thresholds based on SEAS5 data
-        - 'template.grib': GRIB template for output formatting
     verbose: bool, optional
         If True, print progress information (default: False)
     set_grib_date_flag: bool, optional
@@ -215,20 +208,17 @@ def correct_rainbomb_dataset(
     if not os.path.isfile(input_file):
         raise FileNotFoundError(
             f"Input file not found: {input_file}. "
-            "Please provide a valid path to an existing ERA5 NetCDF file."
+            "Please provide a valid path to an existing ERA5 NetCDF or GRIB file."
         )
 
     # Resolve auxiliary file paths
-    if parent_dir is None and neighbours_file is None and thresholds_file is None and template_file is None:
+    if parent_dir is None and neighbours_file is None and thresholds_file is None:
         raise ValueError(
             "Either parent_dir or individual auxiliary file paths must be provided"
         )
 
     # Set default paths based on parent_dir
-    neighbours_file, thresholds_file, template_file = validate_config_file_paths(neighbours_file,
-                                                                                 thresholds_file,
-                                                                                 template_file,
-                                                                                 parent_dir)
+    neighbours_file, thresholds_file = validate_config_file_paths(neighbours_file, thresholds_file, parent_dir)
 
     if verbose:
         print(f"Reading input file: {input_file}")
@@ -250,32 +240,86 @@ def correct_rainbomb_dataset(
         print("Processing rainfall data...")
 
     # final corrected data in the same format and units as the original dataset, to be saved as GRIB after
-    corrected_ds = process_rainfall_data(raw_era5, neighbours, thresholds_df, verbose) 
+    corrected_ds = process_rainfall_data(raw_era5, neighbours, thresholds_df, verbose)
 
-    # ----------- Save as grb file -----------
-
-    # grb template to be used for saving the data, with the correct grid
-    # and fields but random date (to be set after with grib_set)
+    # save the corrected dataset in the same format as the input file (GRIB or NetCDF)
     if file_ext in GRIB_EXTENSIONS:
         # If input is GRIB, use the same file as template to ensure correct grid and metadata
-        template_file = input_file
+        save_as_grib(input_file, output_file, verbose, set_grib_date_flag, raw_era5, file_ext, corrected_ds)
+    elif file_ext in NETCDF_EXTENSIONS:
+        # Save as NetCDF - preserve original format and structure
+        save_as_netcdf(corrected_ds, output_file, raw_era5, verbose)
+    else:
+        raise ValueError(f"WRITE: Unsupported file extension: {file_ext}")
+
+    if verbose:
+        print("Correction complete!")
+
+def save_as_grib(input_file: str, output_file: str, verbose: bool, set_grib_date_flag: bool,
+                 raw_era5: xr.Dataset, file_ext: str, corrected_ds: xr.Dataset) -> None:
+    '''
+    Save the corrected dataset as a GRIB file using climetlab, with a template to ensure correct grid and metadata.
+
+    Parameters:
+    -----------
+    input_file: str
+        Path to the input ERA5 file (used as template for grid and metadata)
+    output_file: str
+        Path to the output corrected GRIB file
+    verbose: bool
+        If True, print progress information
+    set_grib_date_flag: bool
+        If True, set the correct date in the GRIB output file based on the input NetCDF time coordinate
+    raw_era5: xr.Dataset
+        The original ERA5 dataset (used to extract time information if set_grib_date_flag is True)
+    file_ext: str
+        The file extension of the input file, used to determine how to extract time information
+    corrected_ds: xr.Dataset
+        The corrected dataset with rainbomb values fixed, in the same format and units as the original dataset
+
+    Returns:
+    --------
+    None
+    '''
+    # default template is the input file itself, to ensure correct grid and metadata for GRIB output
+    template_file = input_file
 
     if verbose:
         print(f"Saving corrected data to: {output_file}")
         print(f"Using template file: {template_file}")
 
-    source = cml.load_source("file", template_file)
+    source = cml.load_source("file", input_file)
     template = source[0] # type: ignore
 
     template_step_range = template['stepRange']  # e.g., '5-6'
     template_end_step = template_step_range.split('-')[1]
 
-    # Diagnostic: Print template info
+        # Diagnostic: Print template info
     if verbose:
         print(f"Template missingValue: {template['missingValue']}")
         print(f"Template shape: {template.shape}")
 
-    # Diagnostic: Check corrected data for issues
+    grib_metadata = {}
+
+        # Extract the date from the input file to set correct date in GRIB output
+        # Only run if the user specified --set-grib-date flag
+    if set_grib_date_flag:
+            # Handle time coordinate extraction for both NetCDF and GRIB formats
+        time_val = extract_timestamp(raw_era5, file_ext)
+            # Convert to string in YYYYMMDD format
+        date_str = pd.to_datetime(time_val).strftime('%Y%m%d')
+
+        grib_metadata = {
+                'date': date_str,
+                'time': OUTPUT_FIRST_STEP_TIME,
+                'step': OUTPUT_LAST_STEP,
+                'stepRange': f'{OUTPUT_FIRST_STEP}-{OUTPUT_LAST_STEP}',
+            }
+
+        # Get the corrected data and handle NaN values explicitly
+        # This prevents the "failed to set key 'missingValue'" error that can occur
+        # when climetlab tries to convert NaN to float32 max (3.4028235e+38)
+        # Diagnostic: Check corrected data for issues
     corrected_data = corrected_ds[DATA_KEY_PRECIPITATION_VARIABLE].values.copy()
     if verbose:
         print(f"Corrected data dtype: {corrected_data.dtype}")
@@ -284,46 +328,24 @@ def correct_rainbomb_dataset(
         print(f"Corrected data min: {np.nanmin(corrected_data)}")
         print(f"Corrected data max: {np.nanmax(corrected_data)}")
 
-    grib_metadata = {}
-
-    # Extract the date from the input file to set correct date in GRIB output
-    # Only run if the user specified --set-grib-date flag
-    if set_grib_date_flag:
-        # Handle time coordinate extraction for both NetCDF and GRIB formats
-        time_val = extract_timestamp(raw_era5, file_ext)
-        # Convert to string in YYYYMMDD format
-        date_str = pd.to_datetime(time_val).strftime('%Y%m%d')
-
-        grib_metadata = {
-            'date': date_str,
-            'time': OUTPUT_FIRST_STEP_TIME,
-            'step': OUTPUT_LAST_STEP,
-            'stepRange': f'{OUTPUT_FIRST_STEP}-{OUTPUT_LAST_STEP}',
-        }
-
-    # Get the corrected data and handle NaN values explicitly
-    # This prevents the "failed to set key 'missingValue'" error that can occur
-    # when climetlab tries to convert NaN to float32 max (3.4028235e+38)
-
-    # Replace NaN and inf values with the template's missingValue
+        # Replace NaN and inf values with the template's missingValue
     template_missing_value = template['missingValue']
     if np.any(np.isnan(corrected_data)) or np.any(np.isinf(corrected_data)):
         if verbose:
             print(f"Replacing NaN/inf values with template missingValue: {template_missing_value}")
         corrected_data = np.where(np.isfinite(corrected_data), corrected_data, template_missing_value)
 
+        # Save as GRIB format
     with cml.new_grib_output(output_file, template=template) as output:
-        # Use check_nans=False since we handled NaN values manually above
+            # Use check_nans=False since we handled NaN values manually above
         output.write(corrected_data, check_nans=False, metadata=grib_metadata)
-
-    if verbose:
-        print("Correction complete!")
 
 
 def process_rainfall_data(raw_era5: xr.Dataset, neighbours: xr.DataArray,
                           thresholds_df: pd.DataFrame, verbose: bool) -> xr.Dataset:
     """
     Process the rainfall data to identify and correct rainbombs.
+
     Parameters:
     -----------
     raw_era5: xr.Dataset
@@ -335,7 +357,8 @@ def process_rainfall_data(raw_era5: xr.Dataset, neighbours: xr.DataArray,
     verbose: bool
         If True, print progress information
     Returns:
-    --------    xr.Dataset
+    --------
+    xr.Dataset
         A new Dataset with the corrected precipitation variable, in the same format and units as the original dataset
     """
     rain_mm = raw_era5[DATA_KEY_PRECIPITATION_VARIABLE] * DATA_CONVERSION_FACTOR # convert to mm
@@ -365,7 +388,6 @@ def process_rainfall_data(raw_era5: xr.Dataset, neighbours: xr.DataArray,
     # assign each analyzed instance in rain bin based on MaxNeigh
     bins = np.digitize(df[DATA_KEY_MAX_NEIGH], thresholds_df.Limit, True)
     bins = np.clip(bins, 0, len(thresholds_df) - 1)
-    # df[DATA_KEY_RAINFALL_BIN] = bins
 
     # get the buffers for each instance based on the rain bin
     df[DATA_KEY_C_INTERM] = thresholds_df.Buffer1.values[bins]
@@ -403,6 +425,78 @@ def process_rainfall_data(raw_era5: xr.Dataset, neighbours: xr.DataArray,
     corrected_ds[DATA_KEY_PRECIPITATION_VARIABLE].attrs = original_attrs.copy()
 
     return corrected_ds
+
+
+def save_as_netcdf(corrected_ds: xr.Dataset, output_file: str,
+                   original_ds: xr.Dataset, verbose: bool = False) -> None:
+    """
+    Save the corrected dataset as a NetCDF file, preserving the original structure.
+    
+    Parameters:
+    -----------
+    corrected_ds: xr.Dataset
+        The corrected dataset with rainbomb values fixed
+    output_file: str
+        Path to the output NetCDF file
+    original_ds: xr.Dataset
+        The original input dataset (used to preserve attributes and structure)
+    verbose: bool, optional
+        If True, print progress information (default: False)
+    
+    Returns:
+    --------
+    None
+    """
+    if verbose:
+        print(f"Saving corrected data as NetCDF to: {output_file}")
+    
+    # Ensure the corrected dataset has all the same variables and attributes as the original
+    # Copy over any missing variables from the original dataset
+    for var_name in original_ds.data_vars:
+        if var_name not in corrected_ds.data_vars:
+            corrected_ds[var_name] = original_ds[var_name]
+    
+    # Copy global attributes from original dataset
+    corrected_ds.attrs = original_ds.attrs.copy()
+    
+    # Ensure the precipitation variable has the correct attributes
+    if DATA_KEY_PRECIPITATION_VARIABLE in corrected_ds.data_vars:
+        # Restore original attributes to preserve metadata (units, long_name, etc.)
+        original_attrs = original_ds[DATA_KEY_PRECIPITATION_VARIABLE].attrs
+        corrected_ds[DATA_KEY_PRECIPITATION_VARIABLE].attrs = original_attrs.copy()
+    
+    # Handle NaN values - replace with fill value for NetCDF
+    corrected_data = corrected_ds[DATA_KEY_PRECIPITATION_VARIABLE].values.copy()
+    if np.any(np.isnan(corrected_data)) or np.any(np.isinf(corrected_data)):
+        if verbose:
+            print("Replacing NaN/inf values in NetCDF output")
+        original_values = original_ds[DATA_KEY_PRECIPITATION_VARIABLE].values
+        corrected_data = np.where(np.isfinite(corrected_data), corrected_data, original_values)
+        corrected_ds[DATA_KEY_PRECIPITATION_VARIABLE].values = corrected_data
+    
+    # Save to NetCDF with compression for efficiency
+    encoding = {
+        DATA_KEY_PRECIPITATION_VARIABLE: {
+            'zlib': True,
+            'complevel': 4,
+            'shuffle': True
+        }
+    }
+    
+    # Add encoding for coordinates if they exist
+    for coord in corrected_ds.coords:
+        if coord in original_ds.coords:
+            coord_name = str(coord)
+            coord_encoding: dict = {}
+            if 'dtype' in original_ds[coord].encoding:
+                coord_encoding['dtype'] = original_ds[coord].encoding['dtype']
+            if coord_encoding:
+                encoding[coord_name] = coord_encoding
+    
+    corrected_ds.to_netcdf(output_file, format='NETCDF4', engine='netcdf4', encoding=encoding)
+    
+    if verbose:
+        print(f"NetCDF file saved successfully: {output_file}")
 
 
 def extract_timestamp_valid_time(raw_era5: xr.Dataset, file_ext: str) -> pd.Timestamp:
@@ -604,9 +698,8 @@ def extract_timestamp(raw_era5: xr.Dataset, file_ext: str) -> pd.Timestamp:
 def validate_config_file_paths(
     neighbours_file: Optional[str] = None,
     thresholds_file: Optional[str] = None,
-    template_file: Optional[str] = None,
     parent_dir: Optional[str] = None,
-) -> tuple[str, str, str]:
+) -> tuple[str, str]:
     """Validate and resolve auxiliary file paths for rainbomb correction.
     
     Parameters:
@@ -615,22 +708,18 @@ def validate_config_file_paths(
         Path to neighbours data file, or None to use default from parent_dir
     thresholds_file: Optional[str]
         Path to thresholds CSV file, or None to use default from parent_dir
-    template_file: Optional[str]
-        Path to GRIB template file, or None to use default from parent_dir
     parent_dir: Optional[str]
         Parent directory containing auxiliary files (used if individual paths are None)
     
     Returns:
     --------
-    tuple[str, str, str]
-        Tuple of (neighbours_file, thresholds_file, template_file) - all guaranteed to be str
+    tuple[str, str]
+        Tuple of (neighbours_file, thresholds_file)
     """
     if neighbours_file is None:
         neighbours_file = os.path.join(parent_dir, FILENAME_CLOSEST_NEIGHBOURS)  # type: ignore[arg-type]
     if thresholds_file is None:
         thresholds_file = os.path.join(parent_dir, FILENAME_THRESHOLDS)  # type: ignore[arg-type]
-    if template_file is None:
-        template_file = os.path.join(parent_dir, FILENAME_TEMPLATE)  # type: ignore[arg-type]
 
     # Validate auxiliary files exist
     if not os.path.isfile(neighbours_file):  # type: ignore[arg-type]
@@ -644,14 +733,8 @@ def validate_config_file_paths(
             f"Thresholds file not found: {thresholds_file}. "
             "Please provide a valid path to the thresholds CSV file."
         )
-
-    if not os.path.isfile(template_file):  # type: ignore[arg-type]
-        raise FileNotFoundError(
-            f"Template file not found: {template_file}. "
-            "Please provide a valid path to the GRIB template file."
-        )
         
-    return neighbours_file, thresholds_file, template_file  # type: ignore[return-value]
+    return neighbours_file, thresholds_file  # type: ignore[return-value]
 
 
 def getargs(argv=sys.argv) -> argparse.Namespace:
@@ -699,14 +782,6 @@ def getargs(argv=sys.argv) -> argparse.Namespace:
              f"If not provided, defaults to '{FILENAME_THRESHOLDS}' in parent_dir.",
     )
     parser.add_argument(
-        "-m",
-        "--template_file",
-        type=str,
-        default=None,
-        help="Path to the GRIB template file. "
-             f"If not provided, defaults to '{FILENAME_TEMPLATE}' in parent_dir.",
-    )
-    parser.add_argument(
         "-i",
         "--input_file",
         type=str,
@@ -718,7 +793,7 @@ def getargs(argv=sys.argv) -> argparse.Namespace:
         "--output_file",
         type=str,
         required=True,
-        help="Output file (corrected ERA5 in GRIB format)",
+        help="Output file (corrected ERA5 in same format as input: NetCDF or GRIB)",
     )
     parser.add_argument(
         "--set-grib-date",
@@ -743,10 +818,10 @@ def main(argv=sys.argv):
     args = getargs(argv)
 
     # Validate arguments
-    if args.parent_dir is None and args.neighbours_file is None and args.thresholds_file is None and args.template_file is None:
+    if args.parent_dir is None and args.neighbours_file is None and args.thresholds_file is None:
         raise ValueError(
             "Either --parent_dir or at least one individual auxiliary file "
-            "(--neighbours_file, --thresholds_file, --template_file) must be provided"
+            "(--neighbours_file, --thresholds_file) must be provided"
         )
 
     try:
@@ -762,15 +837,12 @@ def main(argv=sys.argv):
                 print(f"Neighbours file: {args.neighbours_file}")
             if args.thresholds_file:
                 print(f"Thresholds file: {args.thresholds_file}")
-            if args.template_file:
-                print(f"Template file: {args.template_file}")
 
         correct_rainbomb_dataset(
             input_file=args.input_file,
             output_file=args.output_file,
             neighbours_file=args.neighbours_file,
             thresholds_file=args.thresholds_file,
-            template_file=args.template_file,
             parent_dir=args.parent_dir,
             verbose=args.verbose,
             set_grib_date_flag=args.set_grib_date,
