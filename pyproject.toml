@@ -67,6 +67,7 @@ catchstats = "lisfloodutilities.catchstats:main_script"
 mctrivers = "lisfloodutilities.mctrivers.mctrivers:main"
 ncextract = "lisfloodutilities.ncextract:main_script"
 rainbomb = "lisfloodutilities.rainbomb.rainbomb_correction:main_script"
+generate_neighbours = "lisfloodutilities.rainbomb.generate_neighbours:main_script"
 
 [project.urls]
 Homepage = "https://github.com/ec-jrc/lisflood-utilities"

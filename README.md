@@ -1208,6 +1208,74 @@ The rainbomb tool has been updated with the following improvements:
 - **Custom Precipitation Variable**: Added `-p`/`--precipitation-variable` option to allow overriding the default precipitation variable name ('tp') in the input dataset.
 
 
+### generate_neighbours
+
+This script generates neighbour indices for each grid point. It is used to reduce the computation time for the rainbomb correction by pre-computing and storing the indices of neighbours for each grid point. The neighbours on east/west are always the closest points in the same latitude. For north and south, there are two methods available:
+
+- **Rectangle method**: Keeps all points that lie within the longitudinal range of west-east neighbours
+- **Closest method**: Keeps only the closest north and south neighbour (can be 1 or 2 if same distance north/south-west and north/south-east of the point)
+
+The output consists of two NetCDF files:
+- `neighbours_<product>_rectangle.nc`: Neighbours using the rectangle method (up to 3 north/south neighbours)
+- `neighbours_<product>_closest.nc`: Neighbours using the closest method (up to 2 north/south neighbours)
+
+#### Requirements
+
+python3, xarray, pandas, numpy, tqdm
+
+#### Usage
+
+> __Note:__ This guide assumes you have installed the program with pip tool.
+> If you cloned the source code instead, just substitute the executable `generate_neighbours` with `python bin/generate_neighbours` that is in the root folder of the cloned project.
+
+The tool requires the following arguments:
+
+- `-d`, `--directory`: Work directory containing the auxiliary data files and the output files. The directory should contain the sample file `<product>_sample.grb` depending on the product used.
+- `-p`, `--product`: Product to be used: era5, seasonal (default: era5)
+
+Example command:
+
+```bash
+generate_neighbours -d /path/to/auxiliary/data/ -p era5
+```
+
+The help flag shows all available options:
+
+```bash
+generate_neighbours --help
+```
+
+```text
+usage: generate_neighbours [-h] -d DIRECTORY [-p PRODUCT]
+
+Script for generating neighbour indices for each grid point.
+
+For reducing the time of the computations for the rainbomb correction,
+this script keeps the indices of the neighbours for each grid point.
+Thus, the correction script can iterate directly over each point and its
+neighbours. The neighbours on east/west are always the closest points in
+the same latitude. For the north and south, the search is done to the next
+upper/lower latitude and there are 3 methods used:
+- Keep all points that lie within the longitudinal range of west-east based
+  on the west & east neighbours
+- Keep the closest north and south neighbour (can be 1 or even 2 if same
+  distance north/south-west of the point and north/south-east)
+- Keep all points that have smaller distance than the maximum distance from
+  the reference point to its west/east neighbour
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -d DIRECTORY, --directory DIRECTORY
+                        Work directory containing the auxiliary data files
+                        and the output files. The directory should contain
+                        the sample file '<product>_sample.grb' depending on
+                        the product used.
+  -p PRODUCT, --product PRODUCT
+                        Product to be used: era5,seasonal; the default is
+                        era5
+```
+
+
 ## Using `lisfloodutilities` programmatically
 
 You can use lisflood utilities in your python programs. As an example, the script below creates the mask map for a set of stations (stations.txt). The mask map is a boolean map with 1 and 0. 1 is used for all (and only) the pixels hydrologically connected to one of the stations. The resulting mask map is in netCDF format.

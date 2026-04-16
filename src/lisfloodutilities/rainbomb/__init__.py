@@ -18,6 +18,9 @@ See the Licence for the specific language governing permissions and limitations 
 from lisfloodutilities.rainbomb.rainbomb_correction import (
     correct_rainbomb,
     correct_rainbomb_dataset,
-    main_script,
+    main_script as rainbomb_correction_main_script,
 )
 
+from lisfloodutilities.rainbomb.generate_neighbours import (
+    main_script as generate_neighbours_main_script,
+)
