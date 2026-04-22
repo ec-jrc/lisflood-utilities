@@ -61,6 +61,11 @@ def main():
             logger.info('Processing points in the high-resolution grid...')
             points_fine, basins_fine = coordinates_fine(cfg, save=True)
 
+            if cfg.fine_resolution is None:
+                raise ValueError("Fine resolution could not be determined from the flow direction map.")
+            if cfg.output_folder is None:
+                raise ValueError("Output folder path is not defined in the configuration.")
+
             # find conflicts in high resolution
             logger.info('Finding conflicts in the high-resolution grid...')
             conflicts_fine = find_conflicts(
@@ -73,6 +78,8 @@ def main():
                 logger.warning(f"{len(conflicts_fine)} conflicts in the high-resolution grid")
                 points_fine.drop(conflicts_fine.index, axis=0, inplace=True)
         else:
+            if cfg.points_fine is None or cfg.basins_fine is None:
+                raise ValueError("If 'points' is not provided, both 'points_fine' and 'basins_fine' need to be provided.")
             # read points and basins in the finer resolution grid
             points_fine = read_shapefiles(cfg.points_fine)
             basins_fine = read_shapefiles(cfg.basins_fine)
@@ -85,7 +92,11 @@ def main():
                                                         polygons_fine=basins_fine,
                                                         save=True
                                                         )
-        
+            if cfg.coarse_resolution is None:
+                raise ValueError("Coarse resolution could not be determined from the flow direction map.")
+            if cfg.output_folder is None:
+                raise ValueError("Output folder path is not defined in the configuration.")
+
             # find conflicts in low resolution
             logger.info('Finding conflicts in the low-resolution grid...')
             conflicts_coarse = find_conflicts(
