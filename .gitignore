@@ -1,4 +1,5 @@
 # Created by .ignore support plugin (hsz.mobi)
+.ipynb*
 .idea
 *.nc
 **/__pycache__/
@@ -51,8 +52,12 @@ dist/
 tests/**/*aux.xml
 .coverage
 !src/lisfloodutilities/gridding/**/*.nc
+src/lisfloodutilities/gridding/configuration/**/*.kdt
+src/lisfloodutilities/gridding/configuration/**/*.npy
+src/lisfloodutilities/gridding/configuration/**/*.wgs
 tests/data/gridding/meteo_out/**/*.nc
 tests/data/gridding/meteo_out/**/*.tiff
+tests/data/gridding/meteo_out/**/*.kiwis
 .settings
 .project
 .pydevproject

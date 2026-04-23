@@ -1,0 +1,10 @@
+{
+"type": "FeatureCollection",
+"name": "stations_outlets_1min",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "id": 1264, "abs_error": 4.0, "area": 157, "area_1min": 153.0, "area_3sec": 156.4, "lat": 43.161688, "lat_1min": 43.141667, "lat_3sec": 43.160833, "lon": -4.611686, "lon_1min": -4.591667, "lon_3sec": -4.611667, "pct_error": 2.547770700636943 }, "geometry": { "type": "Point", "coordinates": [ -4.591667, 43.141667 ] } },
+{ "type": "Feature", "properties": { "id": 1265, "abs_error": 0.80000000000001137, "area": 290, "area_1min": 290.8, "area_3sec": 295.3, "lat": 43.161679, "lat_1min": 43.158333, "lat_3sec": 43.160833, "lon": -4.61235, "lon_1min": -4.625, "lon_3sec": -4.613333, "pct_error": 0.27586206896552118 }, "geometry": { "type": "Point", "coordinates": [ -4.625, 43.158333 ] } },
+{ "type": "Feature", "properties": { "id": 1268, "abs_error": 6.0, "area": 643, "area_1min": 649.0, "area_3sec": 648.6, "lat": 43.317142, "lat_1min": 43.308333, "lat_3sec": 43.3175, "lon": -4.607169, "lon_1min": -4.608333, "lon_3sec": -4.6075, "pct_error": 0.93312597200622094 }, "geometry": { "type": "Point", "coordinates": [ -4.608333, 43.308333 ] } }
+]
+}

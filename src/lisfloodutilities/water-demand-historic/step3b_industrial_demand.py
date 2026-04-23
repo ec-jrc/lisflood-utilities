@@ -18,7 +18,7 @@ import os, sys, glob, time, pdb
 import pandas as pd
 import numpy as np
 from netCDF4 import Dataset
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from skimage.transform import resize
 from tools import *
 import rasterio
@@ -71,7 +71,7 @@ def main():
     print('-------------------------------------------------------------------------------')
     print('Loading and resampling country border raster')
     t0 = time.time()
-    country_code_map = load_country_code_map(os.path.join(config['world_borders_folder'],'TM_WORLD_BORDERS_UN_rasterized.tif'),mapsize_global)
+    country_code_map = load_country_code_map(os.path.join(config['world_borders_folder'],'CNTR_RG_01M_2024_4326_rasterized.tif'),mapsize_global)
     country_code_map = fill(country_code_map)
     country_code_map_1800x3600 = resize(country_code_map,(1800,3600),order=0,mode='edge',anti_aliasing=False)
     print("Time elapsed is "+str(time.time()-t0)+" sec")
@@ -84,7 +84,7 @@ def main():
     print('-------------------------------------------------------------------------------')
     print('Loading and resampling US state border raster')
     t0 = time.time()
-    state_code_map = load_us_state_code_map(os.path.join(config['us_states_folder'],'cb_2018_us_state_500k_rasterized.tif'),mapsize_global)
+    state_code_map = load_us_state_code_map(os.path.join(config['us_states_folder'],'cb_2023_us_state_500k_rasterized.tif'),mapsize_global)
     print("Time elapsed is "+str(time.time()-t0)+" sec")
 
 
@@ -186,7 +186,7 @@ def main():
         ncfile.variables['lat'].long_name = 'latitude'
 
         ncfile.createVariable('time', 'f8', 'time')
-        ncfile.variables['time'].units = 'days since 1979-01-02 00:00:00'
+        ncfile.variables['time'].units = 'days since {}'.format(pd.to_datetime(datetime(int(config['year_start']), 1, int(1+config['shift_hours_units_start']/24), int(config['shift_hours_units_start']%24))))
         ncfile.variables['time'].long_name = 'time'
         ncfile.variables['time'].calendar = 'proleptic_gregorian'
 
@@ -298,27 +298,27 @@ def main():
             #   Plot figure
             #--------------------------------------------------------------------------
         
-            # Initialize figure
-            f, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
+            # # Initialize figure
+            # f, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
             
-            # Subpanel 1
-            ax1.imshow(np.sqrt(imresize_mean(data_annual_map,(360,720))),vmin=0,vmax=15,cmap=plt.get_cmap('YlGnBu'))
-            ax1.set_title('Beck et al. (2022) withdrawal (mm/month)')
+            # # Subpanel 1
+            # ax1.imshow(np.sqrt(imresize_mean(data_annual_map,(360,720))),vmin=0,vmax=15,cmap=plt.get_cmap('YlGnBu'))
+            # ax1.set_title('Beck et al. (2022) withdrawal (mm/month)')
 
-            # Subpanel 2
-            try:
-                if varname=='ene': varindex = 0
-                if varname=='ind': varindex = 1
-                timeindex = year-1971
-                ax2.imshow(np.sqrt(np.sum(Huang_withdrawal[varindex,:,:,np.arange(timeindex*12,timeindex*12+12)],axis=0)),vmin=0,vmax=15,cmap=plt.get_cmap('YlGnBu'))
-                ax2.set_title('Huang et al. (2018) withdrawal (mm/month)')
-            except:
-                pass
+            # # Subpanel 2
+            # try:
+            #     if varname=='ene': varindex = 0
+            #     if varname=='ind': varindex = 1
+            #     timeindex = year-1971
+            #     ax2.imshow(np.sqrt(np.sum(Huang_withdrawal[varindex,:,:,np.arange(timeindex*12,timeindex*12+12)],axis=0)),vmin=0,vmax=15,cmap=plt.get_cmap('YlGnBu'))
+            #     ax2.set_title('Huang et al. (2018) withdrawal (mm/month)')
+            # except:
+            #     pass
         
-            # Save figure
-            f.set_size_inches(10, 10)
-            plt.savefig(os.path.join(config['output_folder'],'step3b_industrial_demand','figures',varname+'_'+str(year)+'.png'),dpi=150)
-            plt.close()
+            # # Save figure
+            # f.set_size_inches(10, 10)
+            # plt.savefig(os.path.join(config['output_folder'],'step3b_industrial_demand','figures',varname+'_'+str(year)+'.png'),dpi=150)
+            # plt.close()
                 
             
             #--------------------------------------------------------------------------
@@ -331,7 +331,7 @@ def main():
                 data = np.round(data,decimals=2)
                 data = data[row_upper:row_upper+len(template_lat),col_left:col_left+len(template_lon)] # Subset to template map area
                 index = (year-config['year_start'])*12+month-1
-                ncfile.variables['time'][index] = (pd.to_datetime(datetime(year,month,1))-pd.to_datetime(datetime(1979, 1, 1))).total_seconds()/86400    
+                ncfile.variables['time'][index] = (pd.to_datetime(datetime(year,month,1))-pd.to_datetime(datetime(int(config['year_start']), 1, 1))).total_seconds()/86400    
                 ncfile.variables[varname][index,:,:] = data
                    
             print("Time elapsed is "+str(time.time()-t1)+" sec")

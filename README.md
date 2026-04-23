@@ -1,4 +1,4 @@
-f# Lisflood Utilities
+# Lisflood Utilities
 
 This repository hosts source code of LISFLOOD utilities.
 Go to [Lisflood OS page](https://ec-jrc.github.io/lisflood/) for more information.
@@ -15,10 +15,13 @@ Other useful resources
 | Lisflood Usecases   |                                                           | https://github.com/ec-jrc/lisflood-usecases                     |
 
 
-## Intro
+## Intro and documentation
 
 Lisflood Utilities is a set of tools to help LISFLOOD users (or any users of PCRaster/NetCDF files)
-to execute some mundane tasks that are necessary to operate lisflood.
+to execute some mundane tasks that are necessary to operate LISFLOOD.
+
+The documentation about the available tools and how to use them can be found in the [Wiki](https://github.com/ec-jrc/lisflood-utilities/wiki) of this repository.
+
 Here's a list of utilities you can find in lisflood-utilities package.
 
 * __[pcr2nc](#pcr2nc)__ is a tool to convert PCRaster maps to NetCDF4 files.
@@ -49,19 +52,35 @@ NetCDF, PCRaster and TSS files.
 * __[waterregions](#waterregions)__ is a package containing two scripts that allow to create and verify a water regions map, respectively.
 
 * __[gridding](#gridding)__ is a tool to interpolate meteo variables observations stored in text files containing (lon, lat, value) into grids.
-  - uses inverse distance interpolation
-  - input file names must use format: \<var\>YYYYMMDDHHMI_YYYYMMDDHHMISS.txt
+  - uses by default angular distance weighting (ADW) interpolation with the option to use other interpolation schemes
+  - input file names should use format: \<var\>YYYYMMDDHHMI_YYYYMMDDHHMISS.txt but it can be changed in the configuration files
   - option to store all interpolated grids in a single NetCDF4 file
   - option to store each interpolated grid in a GeoTIFF file
   - output files are compressed
   - grids are setup in the configuration folder and are defined by a dem.nc file
   - meteo variables parameters are defined in the same configuration folder
 
+* __[decumulate](#decumulate)__ is a tool that performs the decumulation of daily kiwis files into the respective 4 grids of 6hourly precipitation kiwis files in order to increase the station density or to fill in 6hourly gaps.
+  - While processing the 4 grids of 6hourly precipitation Day1 12:00, 18:00 and Day2 00:00, 06:00 we will use the daily precipitation of the corresponding period meaning Day2 06:00 to decumulate its values where there is missing 6hourly precipitation.
+  - For each daily precipitation observation from one of the providers above, if there is no 6h observation in a radius of 1.5 km, insert the daily value divided by 4 in all 4 6hourly datasets.
+  - If there is one or more 6hourly stations in the radius and the station have less then 4 values, insert the missing values in the corresponding 6hourly dataset by and changing its value using the formula (PR - Sum(PR6)) / (number of missing values), if and only if the resulting value is positive (>=0).
+  - Daily stations that have a real 6h station in the radius (1.5km) that is complete, meaning it has all four 6hourly values. The decumulation is NOT done.
+  - Do NOT decumulate the MARS stations without neighbors that have in the grid, a DWDSynop station with the same WMO Number, because they are actually the same station even though they might not be exactly within the defined radius.
+  - If there are more than one 6h station in the radius, select according to the following rules by order:
+    1. get the one with the highest number of slots
+    2. get the one with the lowest positive difference to the 24h value
+    3. get the one on the top
+
 * __[cddmap](#cddmap)__ is a tool to generate correlation decay distance (CDD) maps starting from station timeseries
 
 * __[ncextract](#ncextract)__ is a tool to extract values from NetCDF4 (or GRIB) file(s) at specific coordinates.
 
-* __[catchstats](#catchstats)__ calculates catchment statistics (mean, sum, std, min, max...) from NetCDF4 files given masks created with [`cutmaps`](#cutmaps:-a-NetCDF-files-cookie-cutter).
+* __[catchstats](#catchstats)__ calculates catchment statistics (mean, sum, std, min, max...) from NetCDF4 files given masks created with [cutmaps](#cutmaps).
+
+* __[lfcoords](#lfcoords)__ is a tool that finds the appropriate coordinates in the LISFLOOD river network for any point (gauging station, dam...).
+
+* __[mctrivers](#mctrivers)__ creates a river mask for MCT diffusive river routing in LISFLOOD.
+> **Note**: PCRaster must be installed in the Conda environment.
 
 The package contains convenient classes for reading/writing:
 
@@ -77,31 +96,31 @@ The easy way is to use conda environment as they incapsulate C dependencies as w
 
 Otherwise, ensure you have properly installed the following software:
 
-- Python 3.5+
+- Python 3.8+
 - GDAL C library and software
 - NetCDF4 C library
 
-#### Install
+### Install
+
 If you use conda, create a new env (or use an existing one) and install gdal and lisflood-utilities:
 
 ```bash
-conda create --name myenv python=3.7 -c conda-forge
+conda create --name myenv python=3.8 -c conda-forge
 conda activate myenv
-conda install -c conda-forge pcraster eccodes gdal
+conda install -c conda-forge pcraster eccodes "gdal<=3.5.3"
 pip install lisflood-utilities
 ```
 
-If you don't use conda but a straight python3 virtualenv:
+If you don't use conda but a straight Python3 virtualenv:
 
 ```bash
 source /path/myenv/bin/activate
 pip install lisflood-utilities
 ```
 
-If GDAL library fails to install, ensure to install the same package version of the
-C library you have on your system. You may also need to setup paths to gdal headers.
+If GDAL library fails to install, ensure to install the same package version of the C library you have on your system. You may also need to setup paths to GDAL headers.
 
-To check which version of GDAL libraries you have installed on your computer, use gdal-config
+To check which version of GDAL libraries you have installed on your computer, use `gdal-config`
 
 ```bash
 sudo apt-get install libgdal-dev libgdal
@@ -111,7 +130,7 @@ gdal-config --version  # 3.0.1
 pip install GDAL==3.0.1
 ```
 
-Note: if you previously installed an older version of the lisflood-utilities, it is highly recommended to remove it before installing the newest version:
+> **Note:** if you previously installed an older version of `lisflood-utilities`, it is highly recommended to remove it before installing the newest version:
 
 ```bash
 pip uninstall lisflood-utilities
@@ -521,7 +540,32 @@ The utility **pcr2nc** can be used to convert a map in pcraster format into NetC
 ## gridding
 
 This tool is used to interpolate meteo variables observations stored in text files containing (lon, lat, value) into grids.
-It uses inverse distance interpolation method from pyg2p.
+It uses by default angular distance weighting interpolation method from pyg2p.
+
+A system of filters is provided to be used to parse and filter the input Kiwis files so they get prepared for processing.
+Below there's the current available filters but some more can be developed for specific necessities.
+
+### Available Filters
+
+> __KiwisFilter:__
+> Base class to filter Kiwis files metadata and obtain a dataframe containing only the coordinates and values to be used for interpolation.
+> It implements the basic rules for parsing the Kiwis format.
+> 
+> __ObservationsKiwisFilter:__
+> Class to filter Kiwis files metadata for stations that contain another station in the vicinity.
+> Expects to have in filter_args a dictionary containing the provider ID whose stations we want to filter (as key) and the radius (in decimal degrees) to find the vicinity station from other providers (as value).
+> 
+> __ProvidersKiwisFilter:__
+> Class to filter Kiwis files metadata for stations that belong to a list of providers and inside a defined list of time intervals.
+> Expects to have in filter_args a dictionary containing the provider ID whose stations we want to filter (as key) and an array of pairs of start and end dates defining the intervals to filter the station from.
+> filter_args = {1121: [('1992-01-02 06:00:00', '1993-01-01 06:00:00'), ('1995-01-02 06:00:00', '1996-01-01 06:00:00')]}
+> 
+> __SolarRadiationLimitsKiwisFilter:__
+> Class to filter Solar Radiation Kiwis files whose data coordinates are both less equal a defined latitude and values less equal a defined threshold.
+> This was developed to avoid wrong values of zero daily solar radiation in EFAS domain bellow 66 degrees Latitude (empirical).
+> Expects to have in filter_args a dictionary containing the definition of the limits using the keys EXCLUDE_BELLOW_LATITUDE and EXCLUDE_BELLOW_VALUE.
+> In case any of the exclude values are not present or empty it will use the default values of 70.0 Latitude and 0.0 Daily Solar Radiation.
+
 
 #### Requirements
 python3, pyg2p
@@ -538,14 +582,14 @@ The tool requires four mandatory command line input arguments:
 - -c, --conf: Set the grid configuration type to use. Right now only 5x5km, 1arcmin are available.
 - -v, --var: Set the variable to be processed. Right now only variables pr,pd,tn,tx,ws,rg,pr6,ta6 are available.
 
-The input folder must contain the meteo observation in text files with file name format:  \<var\>YYYYMMDDHHMI_YYYYMMDDHHMISS.txt
-The files must contain the columns longitude, latitude, observation_value is separated by TAB and without the header.
+The input folder must contain the meteo observations in text files in KIWIS format that will be parsed, filtered and the tool will generate another text file in TSV format with name pattern:  \<var\>YYYYMMDDHHMI_YYYYMMDDHHMISS.txt
+These TSV files contain all the observation that will be used in the interpolation and have the columns longitude, latitude, observation_value separated by TAB and without the header.
 Not mandatory but could help to store the files in a folder structure like: ./YYYY/MM/DD/\<var\>YYYYMMDDHHMI_YYYYMMDDHHMISS.txt
 
 Example of command that will generate a NetCDF file containing the precipitation (pr) grids for March 2023:
 
 ```bash
-gridding -i /meteo/pr/2023/ -o /meteo/pr/pr_MARCH_2023.nc -c 1arcmin -v pr -s 202303010600 -e 202304010600
+gridding -i /meteo/pr/2023/ -o /meteo/pr/pr_MARCH_2023.nc --pathconf /path/to/configuration/ -c 1arcmin -v pr -s 202303010600 -e 202304010600
 ```
 
 The input and output arguments are listed below and can be seen by using the help flag.
@@ -555,24 +599,31 @@ gridding --help
 ```
 
 ```text
-usage: gridding [-h] -i input_folder -o {output_folder, NetCDF_file} -c
-                {5x5km, 1arcmin,...} -v {pr,pd,tn,tx,ws,rg,...}
+usage: gridding [-h] -i /path/to/pr200102150600_all.kiwis
+                [-o /path/to/pr2001.nc] -c {5x5km, 1arcmin,...}
+                [-p /path/to/config] -v {pr,pd,tn,tx,ws,rg,...}
                 [-d files2process.txt] [-s YYYYMMDDHHMISS] [-e YYYYMMDDHHMISS]
-                [-q] [-t] [-f]
+                [-q] [-t] [-n] [-f] [-u] [-g]
+                [-m ['nearest', 'invdist', 'adw', 'cdd', 'bilinear', 'triangulation', 'bilinear_delaunay']]
+                [-r ['0', '1', '2', '3', '4', '5']] [-b]
 
 version v0.1 ($Mar 28, 2023 16:01:00$) This script interpolates meteo input
-variables data into either a single NETCDF4 file or one GEOTIFF file per
-timestep. The resulting NetCDF is CF-1.6 compliant.
+variables data into a single NETCDF4 file and, if selected, generates also a
+GEOTIFF file per timestep. The resulting netCDF is CF-1.6 compliant.
 
 optional arguments:
   -h, --help            show this help message and exit
-  -i input_folder, --in input_folder
-                        Set input folder path with kiwis/point files
-  -o {output_folder, NetCDF_file}, --out {output_folder, NetCDF_file}
-                        Set output folder base path for the tiff files or the
-                        NetCDF file path.
+  -i /path/to/pr200102150600_all.kiwis, --in /path/to/pr200102150600_all.kiwis
+                        Set a single input kiwis file or folder path
+                        containing all the kiwis files.
+  -o /path/to/pr2001.nc, --out /path/to/pr2001.nc
+                        Set the output netCDF file path containing all the
+                        timesteps between start and end dates.
   -c {5x5km, 1arcmin,...}, --conf {5x5km, 1arcmin,...}
                         Set the grid configuration type to use.
+  -p /path/to/config, --pathconf /path/to/config
+                        Overrides the base path where the configurations are
+                        stored.
   -v {pr,pd,tn,tx,ws,rg,...}, --var {pr,pd,tn,tx,ws,rg,...}
                         Set the variable to be processed.
   -d files2process.txt, --dates files2process.txt
@@ -585,14 +636,139 @@ optional arguments:
                         the config file]
   -e YYYYMMDDHHMISS, --end YYYYMMDDHHMISS
                         Set the end date and time until which data is imported
-                        [default: 20230421060000]
+                        [default: 20240611060000]
   -q, --quiet           Set script output into quiet mode [default: False]
-  -t, --tiff            Outputs a tiff file per timestep instead of the
-                        default single NetCDF [default: False]
-  -f, --force           Force write to existing file. TIFF files will be
-                        overwritten and NetCDF file will be appended.
+  -t, --tiff            Outputs a tiff file per timestep [default: False]
+  -n, --netcdf          Outputs a single netCDF with all the timesteps
                         [default: False]
+  -f, --force           Force write to existing file. TIFF files will be
+                        overwritten and netCDF file will be appended.
+                        [default: False]
+  -u, --useexisting     Force to use existing point/txt filenames, so these
+                        files will be used for gridding. [default: False]
+  -g, --getexistingtiff
+                        Force to use existing tiff files instead of
+                        interpolating the values again. [default: False]
+  -m ['nearest', 'invdist', 'adw', 'cdd', 'bilinear', 'triangulation', 'bilinear_delaunay'], --mode ['nearest', 'invdist', 'adw', 'cdd', 'bilinear', 'triangulation', 'bilinear_delaunay']
+                        Set interpolation mode. [default: adw]
+  -r ['0', '1', '2', '3', '4', '5'], --ramsavemode ['0', '1', '2', '3', '4', '5']
+                        Set memory save mode level. Used to reduce memory
+                        usage [default: 0]
+  -b, --broadcast       When set, computations will run faster in full
+                        broadcasting mode but require more memory. [default:
+                        False]
+
 ```
+
+
+## decumulate
+
+This tool performs the decumulation of daily KiWIS files into the respective 4 slots of 6-hourly precipitation KiWIS files to increase station density or fill 6-hourly gaps.
+The program is independent of the new interpolation tool, as it will be applied in the pre-processing of gridding and will be used only for historical grids, not in near-real-time (NRT) processing.
+
+Basic functionality includes:
+1. Reading 1 daily KiWIS file and 4 corresponding 6-hourly KiWIS files
+2. Applying filters defined in the configuration files to the daily and 6-hourly files
+3. Calculating decumulated values from the daily file
+4. Writing 4 new 6-hourly KiWIS files, including decumulated values
+
+### Explanation of the algorithm
+
+The algorithm works like it is described in the following steps:
+1. While processing the 4 grids of 6-hourly precipitation (Day 1, 12:00 and 18:00, and Day 2, 00:00 and 06:00), the script uses the daily precipitation of the corresponding period (Day 2, 06:00) to decumulate its values where there is missing 6-hourly precipitation.
+2. The script applies filters defined in the configuration files to the daily and 6-hourly files, ensuring that only values with good or suspicious quality are used.
+3. For each daily precipitation observation from one of the providers to be decumulated, if there is no 6-hourly observation within a 1.5 km radius, the daily value is divided by 4 and inserted into all 4 6-hourly datasets.
+4. If there is one or more 6-hourly stations within the radius and the station has fewer than 4 values, the missing values are inserted into the corresponding 6-hourly dataset by changing its value using the formula (PR - Sum(PR6)) / (number of missing values), but only if the resulting value is positive (≥ 0).
+5. Decumulation is not performed for daily stations that have a real 6-hourly station within the 1.5 km radius that is complete, meaning it has all four 6-hourly values.
+6. Decumulation is not performed for MARS stations without neighbors within the radius that have a DWDSynop station with the same WMO number in the grid, as they are actually the same station, even if they are not exactly within the defined radius.
+7. If there are multiple 6-hourly stations within the radius, the script selects one according to the following rules, in order:
+    a. The station with the highest number of slots (up to 3 slots)
+    b. The station with the lowest positive difference to the 24-hour value
+    c. The top station
+
+#### Configuration
+A new property, KIWIS_FILTER_DECUMULATION_CONFIG, is required in the daily precipitation configuration file (config_pr.txt). This enables configuration of decumulation intervals, associated providers, and a radius around each station. If another complete 6-hourly station is within this radius, decumulation will be avoided.
+
+#### Requirements
+python3, gridding
+
+### Usage
+
+> __Note:__ This guide assumes you have installed the program with pip tool.
+> If you cloned the source code instead, just substitute the executable `decumulate` with `python bin/decumulate` that is in the root folder of the cloned project.
+
+The tool requires five mandatory command line input arguments:
+
+- -d, --pr24h: Set the input kiwis file folder containing daily precipitation.
+- -g, --pr6h": Set the input kiwis file folder containing 6 hourly precipitation.
+- -c, --conf: Set the grid configuration type to use (5x5km, 1arcmin,...).
+- -v, --var24h: Set the daily variable to be processed (pr, ta,...).
+- -6, --var6h: Set the 6hourly variable to be processed (pr6, ta6,...).
+
+The input folder must contain the meteo observation in KIWIS files with file name format:  \<var\>YYYYMMDDHHMI_all.kiwis
+The file name pattern can be changed in the configuration files.
+Not mandatory but could help to store the files in a folder structure like: ./YYYY/MM/DD/\<var\>YYYYMMDDHHMI_all.kiwis
+
+Example of command that decumulates the daily precipitation (pr) grids for 2005-12-26 06:00 and inserts the decumulated values into the respective 6hourly files (pr6) (2005-12-25 12:00, 2005-12-25 18:00, 2005-12-26 00:00, 2005-12-26 06:00):
+
+```bash
+decumulate --pathconf /path/to/configuration/ --conf 1arcmin --var24h pr --var6h pr6 --out /path/to/output/pr6 --pr24h /path/to/input/pr/ --pr6h /path/to/input/pr6/ -s 20051226000000 -e 20051226060001
+```
+
+The input and output arguments are listed below and can be seen by using the help flag.
+
+```bash
+decumulate --help
+```
+
+```text
+usage: decumulate [-h] -d /path/to/pr -g /path/to/pr6
+                  [-o /path/to/output/folder] -c {5x5km, 1arcmin,...}
+                  [-p /path/to/config] -v {pr,ta,...} -6 {pr6,ta6,...}
+                  [-s YYYYMMDDHHMISS] [-e YYYYMMDDHHMISS] [-b] [-q]
+
+version v0.1 ($Mar 14, 2024 16:01:00$) This script performs the decumulation
+of daily kiwis files into the respective 6hourly precipitation kiwis files in
+order to increase the station density or to fill in 6hourly gaps. JIRA Issue:
+EMDCC-1484
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -d /path/to/pr, --pr24h /path/to/pr
+                        Set the input kiwis file folder containing daily
+                        precipitation.
+  -g /path/to/pr6, --pr6h /path/to/pr6
+                        Set the input kiwis file folder containing 6 hourly
+                        precipitation.
+  -o /path/to/output/folder, --out /path/to/output/folder
+                        Set the output folder where the resulting 6h kiwis
+                        will be stored. If this folder is not set, it will
+                        change the input kiwis.
+  -c {5x5km, 1arcmin,...}, --conf {5x5km, 1arcmin,...}
+                        Set the grid configuration type to use.
+  -p /path/to/config, --pathconf /path/to/config
+                        Overrides the base path where the configurations are
+                        stored.
+  -v {pr,ta,...}, --var24h {pr,ta,...}
+                        Set the daily variable to be processed.
+  -6 {pr6,ta6,...}, --var6h {pr6,ta6,...}
+                        Set the 6hourly variable to be processed.
+  -s YYYYMMDDHHMISS, --start YYYYMMDDHHMISS
+                        Set the start date and time from which data is
+                        imported [default: date defining the time units inside
+                        the config file]
+  -e YYYYMMDDHHMISS, --end YYYYMMDDHHMISS
+                        Set the end date and time until which data is imported
+                        [default: None]
+  -b, --boi             Indicate that the daily timesteps are at the beginning
+                        of the interval [default: False]
+  -q, --quiet           Set script output into quiet mode [default: False]
+
+```
+
+__IMPORTANT:__ The output folder will contain the same folder structure as the 6h input folder. Just a reminder that If you don't set the output folder it will overwrite the input files.
+
+
 
 
 ## cddmap
@@ -604,7 +780,11 @@ python3, pyg2p
 
 ### Usage
 
+```text
+
 cddmap [directory]/[--analyze]/[--merge-and-filter-jsons]/--generatemap] [--start first_station] [--end last_station] [--parallel] [--only-extract-timeseries timeseries_keys_file] [--maxdistance max_distance_in_km]
+
+```
 
 The tool requires an input argument indicating the station timeseries main folder, and calculates the CDD for each stations as well as correlations and distances files. Outputs the results in a txt file containing station coordinates and CDD values.
 After creating the CDD txt file, it can be used with one of the following commands:
@@ -753,9 +933,200 @@ The structure of the output depends on whether the input files include a tempora
 * If the input files DO NOT have a time dimension, the output has a single dimension: the catchment ID. It contains as many variables as the combinations of input variables and statistics. For instance, if the input variables are "elevation" and "gradient" and three statistics are required ("mean", "max", "min"), the output will contain 6 variables: "elevation_mean", "elevation_max", "elevation_min", "gradient_mean", "gradient_max" and "gradient_min".
 * If the input files DO have a time dimension, the output has two dimensions: the catchment ID and time. The number of variables follows the same structure explained in the previous point. For instance, if the input files are daily maps of precipitation (variable name "pr") and we calculate the mean and total precipitation over the catchment, the output will contain two dimensions ("ID", "time") and two variables ("pr_mean", "pr_sum").
 
+## lfcoords
+
+This tool finds the appropriate coordinates in the LISFLOOD river network of any point, provided that the catchment area is known. A thourough explanation of the method can be found in [Burek and Smilovic (2023)](https://essd.copernicus.org/articles/15/5617/2023/).
+
+First, it uses the original coordinates and catchment area to find the most accurate pixel in a high-resolution map. [Burek and Smilovic (2023)](https://essd.copernicus.org/articles/15/5617/2023/) use MERIT [(Yamazaki et al., 2019)](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2019WR024873), which has a spatial resolution of 3 arc-seconds. The result of this first step is, for every point, a new value of coordinates and area, and two shapefiles: the catchment polygons and the new points in the high-resolution grid.
+
+Second, it finds the pixel in the low-resolution grid (LISFLOOD static maps) that better matches the catchment shape derived in the previous step. As a result, for each point we obtain a new value of coordinates and area, and two new shapefiles: the catchment polygons and the points in the low-resolution grid.
+
+## Inputs
+
+The tool requires 5 inputs:
+
+* A CSV file of the stations to be located in the LISFLOOD grid. This file must contain four columns with four specific names: 'ID', 'area' in km2, 'lat', 'lon'. Below you find an example of the stations CSV file:
+
+```csv
+ID,area,lat,lon
+429,35399,49.018,12.144
+436,26448,48.947,12.015
+439,37687,48.88,12.747
+```
+
+* A map of the local drainage directions in high-resolution, e.g., MERIT.
+* A map of the upstream area in high-resolution, e.g., MERIT. The units of this map must be km2, same units as the _area_ field in the CSV file.
+* A map of the local drainage directions in low-resolution, i.e., the LISFLOOD static map.
+* A map of the upstream area in low-resolution, i.e., the LISFLOOD static map. The units of this map are m2 (instead of km2), as these are the units used in LISFLOOD; the code converts internally this map into km2.
+
+All maps can be provided either in TIFF or NetCDF format.
+
+## Outputs
+
+The tool saves the outputs in the folder specified in the configuration file (`output_folder`). Within this folder, it will create a series of shapefiles:
+
+* Intermediate results:
+    * A point shapefile with the original location of the points. In the example, it will be named *stations.shp*.
+    * A point shapefile with the updated location of the points in the finer grid. In the example, it will be named *stations_3sec.shp*.
+    * A polygon shapefile with the catchments delineated in the finer grid for each of the points. In the example, it will be named *catchments_3sec.shp*.
+   
+* Final results for the LISFLOOD grid:
+    * A point shapefile with the updated location of the points in the LISFLOOD grid. In the example, it will be named *stations_3min.shp*.
+    * A polygon shapefile with the catchment delineated in the LISFLOOD grid for each of the points. In the example, it will be named *catchments_3min.shp*.
+
+The attribute table of the final point layer contains 6 new columns defining the coordinates and catchment area in both the high-resolution (`3sec` in the example) and low-resolution grids (`3min` in the example). Example:
+
+|ID |area |area_3min|area_3sec|lat   |lat_3min|lat_3sec |lon   |lon_3min|lon_3sec |
+|---|-----|---------|---------|------|--------|---------|------|--------|---------|
+|429|35399|    35216|    35344|49.018|  49.025|49.022083|12.144|12.125  |12.143750|
+|436|26448|    26334|    26394|48.947|  48.925|48.946250|12.015|12.025  |12.014583|
+|439|37687|    37540|    37605|48.880|  48.925|48.879583|12.747|12.675  |12.746250|
+
+The tool checks for conflicts in the relocation of the points both in the finer and coarser grids. If two or more points are in the same location, or if the absolute/relative error are beyond the limits specified in the configuration file, the tool will create another shapefile (*conflicts_3min.shp* in the example) with only the conflicting points, so that the user can fix the issue manually.
+
+## Configuration file
+
+The configuration file defines the input files, the folder where the resulting shapefiles will be saved, and some thresholds used in the process. A template of the configuration file can be found [here](https://github.com/ec-jrc/lisflood-utilities/blob/lfcoords/src/lisfloodutilities/lfcoords/config.yml). Below you find an example:
+
+```yml
+input:
+    points: points.csv # ID, lat, lon, area
+    ldd_fine: ldd_MERIT.tif
+    upstream_fine: uparea_MERIT.tif # km2
+    ldd_coarse: ldd_LISFLOOD.tif
+    upstream_coarse: uparea_LISFLOOD.nc # m2
+            
+output_folder: ./shapefiles/
+
+conditions:
+    min_area: 200 # km2
+    abs_error: 50 # km2
+    pct_error: 1 # %
+```
+
+## Usage
+
+### In the command prompt
+
+The tool can be executed from the command prompt by indicating a configuration file.
+
+```text
+usage: lfcoords.py [-h] -c CONFIG_FILE
+
+Correct the coordinates of a set of stations to match the river network in the
+LISFLOOD static map.
+First, it uses a reference value of catchment area to find the most accurate
+pixel in a high-resolution map.
+Second, it finds the pixel in the low-resolution map that better matches the
+catchment shape derived from the high-resolution map.
+
+options:
+  -h, --help
+                          show this help message and exit
+  -c CONFIG_FILE, --config-file CONFIG FILE
+                          path to the YML configuration file
+```
+
+**Examples**
+
+The tool can be executed from the command prompt by indicating a configuration file:
+
+```bash
+lfcoords --config-file config.yml
+```
+
+### In a Python script
+
+The functions that compose the `lfcoords` tool can be imported in a Python script:
+
+```Python
+# import functions
+from lisfloodutilities.lfcoords import Config, read_input_files
+from lisfloodutilities.lfcoords.finer_grid import coordinates_fine
+from lisfloodutilities.lfcoords.coarser_grid import coordinates_coarse
+
+# read the configuration file
+cfg = Config(CONFIG_FILE)
+
+# read the input files
+# inputs = read_input_files(cfg)
+# or any other option to read the inputs
+
+# find coordinates in high-resolution (HR) grid
+points_HR, polygons_HR = coordinates_fine(
+    cfg,
+    points,
+    ldd_fine,
+    upstream_fine,
+    save=False
+)
+
+# find coordinates in LISFLOOD
+points_LF, polygons_LF = coordinates_coarse(
+    cfg,
+    points_HR,
+    polygons_HR,
+    ldd_lisflood,
+    upstream_lisflod,
+    reservoirs=False,
+    save=False
+)
+```
+
+## mctrivers
+
+This tool builds a mask of mild sloping rivers for use in LISFLOOD with MCT diffusive river routing. It takes LISFLOOD channels slope map (changrad.nc), the LDD (ldd.nc), the upstream drained area map (upArea.nc) and the catchment/domain mask (mask.nc), and outputs a bolean mask (chanmct.nc).
+Pixels where riverbed gradient < threshold (--slope) are added to the mask if their drainage area is large enough (--minuparea) and they also have at least --nloops consecutive downstream pixels that meet the same condition for slope (drainage area will be met as downstream the area increases).
+
+### Usage
+
+The tool requires the following mandatory input arguments:
+
+- `-i`, `--changradfile`: LISFLOOD channels gradient map (changrad.nc)
+- `-l`, `--LDDfile`: LISFLOOD local drain direction file (ldd.nc)
+- `-u`, `--uparea`: LISFLOOD Uustream area file (upArea.nc)
+
+The tool can take the following additional input arguments:
+
+- `-m`, `--maskfile`: LISFLOOD mask or domain file (mask.nc; if not given, all domain is considered valid)
+- `-S`, `--slope`: Riverbed slope threshold to use MCT diffusive wave routing (default:  0.001)
+- `-N`, `--nloops`: Number of consecutive downstream grid cells that also need to comply with the slope requirement for including a grid cell in the MCT rivers mask (default: 5)
+- `-U`, `--minuparea`: Minimum upstream drainage area for a pixel to be included in the MCT rivers mask (uses the same units as in the -u file) (default: 0)
+- `-E`, `--coordsnames`: Coordinates names for lat, lon (in this order with space!) used in the netcdf files. The function checks for 3 commonly used names (x, lon, rlon for longitudes, and y, lat, rlat for latitudes). Therefere, it is recommended to keep the default value.
+
+The tool generates the following outputs (when called from command line as main script):
+
+- `-O`, `--outputfilename`: Output file containing the rivers mask where LISFLOOD can use the MCT diffusive wave routing  (default: chanmct.nc)
+
+It can be used either from command line, or also as a python function. Below follow some examples:
+
+Example of command that will generate an MCT rivers mask with pixels where riverbed slope < 0.001 (same as default), drainage area > 500 kms and at least 5 (same as default) downstream pixels meet the same two conditions, considering the units of the upArea.nc file are given in kms:
+
+```bash
+mctrivers -i changrad.nc -l ldd.nc -u upArea.nc -O chanmct.nc -U 500
+```
+
+```python
+# no data are saved when called inside python
+from lisfloodutilities.mctrivers.mctrivers import mct_mask
+mct_mask_ds = mct_mask(channels_slope_file='changrad.nc', ldd_file='ldd.nc', uparea_file='upArea.nc', minuparea=500)
+```
+
+Example of command that will generate an MCT rivers mask with pixels where riverbed slope < 0.0005, drainage area > 0 (same as default) kms and at least 3 downstream pixels meet the same two conditions. Also a mask (mask.nc) will be used, and the coords names in the nc files are "Lat1", "Lon1" for lat, lon respectively:
+
+```bash
+mctrivers -i changrad.nc -l ldd.nc -u upArea.nc -O chanmct.nc -m mask.nc -E Lat1 Lon1 -S 0.0005 -N 3 
+```
+
+```python
+from lisfloodutilities.mctrivers.mctrivers import mct_mask
+mct_mask_ds = mct_mask(channels_slope_file='changrad.nc', ldd_file='ldd.nc', uparea_file='upArea.nc', mask_file='mask.nc', slp_threshold=0.0005, nloops=3, coords=["Lat1", "Lon1"])
+```
+
+
 ## Using `lisfloodutilities` programmatically 
 
-You can use lisflood utilities in your python programs. As an example, the script below creates the mask map for a set of stations (stations.txt). The mask map is a boolean map with 1 and 0. 1 is used for all (and only) the pixels hydrologically connected to one of the stations. The resulting mask map is in pcraster format.
+You can use lisflood utilities in your Python programs. As an example, the script below creates the mask map for a set of stations (_stations.txt_). The mask map is a boolean map with 1 and 0. 1 is used for all (and only) the pixels hydrologically connected to one of the stations. The resulting mask map is in PCRaster format.
 
 ```python
 from lisfloodutilities.cutmaps.cutlib import mask_from_ldd
@@ -771,5 +1142,3 @@ mask, outlets_nc, maskmap_nc = mask_from_ldd(ldd_pcr, stations)
 mask_map = PCRasterMap(mask)
 print(mask_map.data)
 ```
-
-
