@@ -130,14 +130,16 @@ setup_args = dict(
                 'define_waterregions: Define Water Regions consistent with calibration points; '
                 'verify_waterregions: Verify that the Water Regions map is consistent with the map of the calibration catchments; '
                 'cutmaps: cut netCDF files; '
+                'catchstats: calculates catchment statistics; '
                 'compare: compare two set of netCDF files; '
-                'thresholds: compute discharge return period thresholds; '
-                'gridding: interpolate meteo variables observations; '
+                'cutmaps: cut netCDF files; '
                 'decumulate: decumulate daily grids into 6 hourly grids in kiwis format; '
+                'gridding: interpolate meteo variables observations; '
+                'lfcoords: finds coordinates in the LISFLOOD grid; '
+                'mctrivers: creates a river mask for MCT diffusive river routing in LISFLOOD; '
                 'download_timeseries: download timeseries data from WISKI API; '
                 'ncextract: extract values from netCDF files; '
-                'catchstats: calculates catchment statistics; '
-                'mctrivers: creates a river mask for MCT diffusive river routing in LISFLOOD; '
+                'thresholds: compute discharge return period thresholds; '
                 'rainbomb: Correct rainbombs from precipitation netCDF files; '
                 'generate_neighbours: Generate neighbours information for rainbomb correction; ',
     long_description=long_description,
@@ -156,13 +158,13 @@ setup_args = dict(
                       'earthkit-hydro==1.1.0',
                       'earthkit-meteo>=0.5.1,<0.6.0',
                       'earthkit-utils>=0.1.2,<0.2.0'],
-    author="Valerio Lorini, Stefania Grimaldi, Carlo Russo, Goncalo Gomes, Domenico Nappo, Lorenzo Alfieri",
-    author_email="valerio.lorini@ec.europa.eu,stefania.grimaldi@ec.europa.eu,carlo.russo@ext.ec.europa.eu,goncalo.ramos-gomes@ext.ec.europa.eu,domenico.nappo@gmail.com,lorenzo.alfieri@ec.europa.eu",
+    author="Valerio Lorini, Stefania Grimaldi, Carlo Russo, Goncalo Gomes, Domenico Nappo, Lorenzo Alfieri, Jesús Casado Rodríguez",
+    author_email="valerio.lorini@ec.europa.eu,stefania.grimaldi@ec.europa.eu,carlo.russo@ext.ec.europa.eu,goncalo.ramos-gomes@ext.ec.europa.eu,domenico.nappo@gmail.com,lorenzo.alfieri@ec.europa.eu,jesus.casado-rodriguez@ec.europa.eu",
     keywords=['netCDF4', 'PCRaster', 'mapstack', 'lisflood', 'efas', 'glofas', 'ecmwf', 'copernicus'],
     license='EUPL 1.2',
     url='https://github.com/ec-jrc/lisflood-utilities',
     scripts=['bin/pcr2nc', 'bin/cutmaps', 'bin/compare', 'bin/nc2pcr', 'bin/thresholds', 'bin/gridding', 'bin/decumulate', 'bin/download_timeseries',
-             'bin/cddmap', 'bin/ncextract','bin/catchstats','bin/mctrivers','bin/rainbomb', 'bin/generate_neighbours'],
+             'bin/cddmap', 'bin/ncextract','bin/catchstats','bin/mctrivers','bin/lfcoords','bin/rainbomb', 'bin/generate_neighbours'],
     zip_safe=True,
     classifiers=[
           # complete classifier list: http://pypi.python.org/pypi?%3Aaction=list_classifiers
