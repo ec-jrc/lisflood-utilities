@@ -16,6 +16,7 @@ authors = [
     {name = "Goncalo Gomes", email = "goncalo.ramos-gomes@ext.ec.europa.eu"},
     {name = "Domenico Nappo", email = "domenico.nappo@gmail.com"},
     {name = "Lorenzo Alfieri", email = "lorenzo.alfieri@ec.europa.eu"},
+    {name = "Jesús Casado Rodríguez", email = "jesus.casado-rodriguez@ec.europa.eu"},
 ]
 keywords = ["netCDF4", "PCRaster", "mapstack", "lisflood", "efas", "glofas", "ecmwf", "copernicus"]
 classifiers = [
