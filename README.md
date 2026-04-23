@@ -85,6 +85,8 @@ NetCDF, PCRaster and TSS files.
 
 * __[rainbomb](#rainbomb)__ is a tool to correct rainbomb artifacts in ERA5 daily precipitation data. A rainbomb is an unrealistically high rainfall value at a single grid point that is not supported by surrounding points. This utility identifies and corrects such artifacts by comparing each grid point against its neighbours and applying threshold-based corrections. The input file must be in the standard ERA5 resolution of approximately 31 km or 0.25 arc-degrees.
 
+* __[generate_neighbours](#generate_neighbours)__ is a tool to generate neighbour indices for each grid point. It is used to reduce the computation time for the rainbomb correction by pre-computing and storing the indices of neighbours for each grid point. The resulting file is used as a parameter for the rainbomb tool.
+
 > **Note**: PCRaster must be installed in the Conda environment.
 
 The package contains convenient classes for reading/writing:
