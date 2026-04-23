@@ -7,6 +7,7 @@ coverage>=6.0
 dask>=2022.2.0
 eccodes-python>=0.9.7
 exceptiongroup>=1.1.1
+fiona==1.9.6
 fsspec>=2023.1.0
 geopandas>=0.12.2
 geopy>=2.4.1

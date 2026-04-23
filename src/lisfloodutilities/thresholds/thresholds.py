@@ -104,13 +104,13 @@ def gumbel_parameters_moments(
         - 'sigma': xarray DataArray of the estimated scale parameters
         - 'mu': xarray DataArray of the estimated location parameters
     """
-
+ 
     # estimate parameters
     sigma = np.sqrt(6) / np.pi * dis.std(dim=dim, ddof=1, skipna=True)
     mu = dis.mean(dim=dim, skipna=True) - np.euler_gamma * sigma
 
     # create dataset
-    coords = {coord: values for coord, values in dis_max.coords.items() if coord != dim}
+    coords = {coord: values for coord, values in dis.max(dim=dim, skipna=True).coords.items() if coord != dim}
     try:
         dims = [dim for dim in list(coords) if dim not in ['lat', 'lon']]
     except:
@@ -143,7 +143,7 @@ def gumbel_parameters_lmoments(dis_max: xr.DataArray, dim: str = 'time') -> xr.D
     """
 
     # estimate parameters
-    lambda_coef = lmoments(dis_max)
+    lambda_coef = lmoments(dis_max.values)
     sigma = lambda_coef[1] / np.log(2)
     mu = lambda_coef[0] - sigma * np.euler_gamma
 
@@ -300,7 +300,7 @@ def main(argv=sys.argv):
     dis = read_discharge(args.discharge)
     print(dis)
 
-    return_periods = np.array([1.5, 2, 5, 10, 20, 50, 100, 200, 500])
+    return_periods = [1.5, 2, 5, 10, 20, 50, 100, 200, 500]
 
     thresholds = compute_thresholds_gumbel(dis, return_periods)
 

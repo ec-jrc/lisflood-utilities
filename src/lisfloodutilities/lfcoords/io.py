@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 def read_flowdir(
     path: Union[str, Path], 
-    ftype: Optional[Literal['d8', 'ldd', 'nextxy', 'infer']] = 'infer'
+    ftype: Literal['d8', 'ldd', 'nextxy', 'infer'] = 'infer'
 ) -> Tuple[pyflwdir.FlwdirRaster, str]:
     """
     Reads a flow direction raster and converts it into a PyFlwdir object.

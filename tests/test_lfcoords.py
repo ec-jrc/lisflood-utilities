@@ -24,7 +24,7 @@ def test_basin_delineation(base_path, cfg):
     Validates that both fine and coarse delineation match the 
     pre-computed GeoJSONs.
     """
-    
+
     # Compute test values
     test_fine, basins_fine = coordinates_fine(cfg, save=False)
     test_coarse, _ = coordinates_coarse(cfg,

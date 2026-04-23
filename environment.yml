@@ -201,6 +201,7 @@ dependencies:
       - eccodes-python==0.9.9
       - exceptiongroup==1.2.2
       - findlibs==0.1.0
+      - fiona==1.9.6
       - fsspec==2025.2.0
       - geographiclib==2.0
       - geopy==2.4.1
