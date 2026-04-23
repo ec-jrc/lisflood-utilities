@@ -112,7 +112,7 @@ class UploadCommandTest(UploadCommand):
         os.system('{} setup.py sdist'.format(sys.executable))
 
         self.print_console('Uploading the package to test PyPI via Twine...')
-        os.system('twine upload --repository testpypi dist/*')
+        os.system('twine upload --repository testpypi dist/* --verbose')
 
         sys.exit()
 
@@ -127,13 +127,12 @@ setup_args = dict(
                 'catchstats: calculates catchment statistics; '
                 'compare: compare two set of netCDF files; '
                 'cutmaps: cut netCDF files; '
-                'decumulate: decumulate daily grids into 6 hourly grids in kiwis format; '
+                'decumulate: decumulate daily grids into 6 hourly grids; '
                 'gridding: interpolate meteo variables observations; '
-                'lfcoords: finds coordinates in the LISFLOOD grid; '
-                'mctrivers: creates a river mask for MCT diffusive river routing in LISFLOOD; '
-                'nc2pcr: Convert netCDF files ot PCRaster format; '
+                'lfcoords: finds coords in the LISFLOOD grid; '
+                'mctrivers: river mask for MCT routing; '
+                'nc2pcr, pcr2nc: Converts netCDF and PCRaster formats; '
                 'ncextract: extract values from netCDF files; '
-                'pcr2nc: Convert PCRaster files to netCDF CF 1.6; '
                 'thresholds: compute discharge return period thresholds; ',
     long_description=long_description,
     long_description_content_type='text/markdown',
