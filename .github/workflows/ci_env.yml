@@ -1,8 +1,6 @@
 name: Lisflood Utilities Unit Tests
 
-on:
-  push:
-    branches: [main, master]
+on: [push]
 
 jobs:
   tests:
