@@ -152,8 +152,8 @@ setup_args = dict(
                       # Better to install GDAL manually before to install lisflood-utilities package
                       # 'GDAL=={}'.format(gdal_version),
                       'gdal<=3.5.3',
-                      'netCDF4>=1.7.2', 'toolz', 'xarray>=2024.7.0',
-                      'dask', 'pandas>=2.3.3', 'pyg2p>=3.2.8',
+                      'netCDF4>=1.7.4', 'toolz', 'xarray>=2024.7.0',
+                      'dask', 'pandas>=2.3.3', 'pyg2p>=3.2.9',
                       'earthkit-data>=0.18.6,<0.19.0',
                       'earthkit-hydro==1.1.0',
                       'earthkit-meteo>=0.5.1,<0.6.0',

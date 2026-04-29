@@ -32,7 +32,7 @@ partd>=1.4.2
 pluggy>=1.6.0
 pycparser>=3.0
 pyflwdir>=0.5.10
-pyg2p>=3.2.8
+pyg2p>=3.2.9
 pyproj>=3.7.1
 pytest>=9.0.2
 pytest-cov>=7.0.0
@@ -45,7 +45,7 @@ rasterio>=1.4.4
 rioxarray>=0.19.0
 scikit-image>=0.25.2
 scipy>=1.15.3
-setuptools<71.0.0
+setuptools<82
 six>=1.17.0
 tomli>=2.4.0
 toolz>=1.1.0
