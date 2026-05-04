@@ -112,7 +112,7 @@ class UploadCommandTest(UploadCommand):
         os.system('{} setup.py sdist'.format(sys.executable))
 
         self.print_console('Uploading the package to test PyPI via Twine...')
-        os.system('twine upload --repository testpypi dist/*')
+        os.system('twine upload --repository testpypi dist/* --verbose')
 
         sys.exit()
 
@@ -125,23 +125,20 @@ setup_args = dict(
     python_requires='>=3.10',
     packages=find_packages('src'),
     description='A set of utilities for lisflood users. '
-                'pcr2nc: Convert PCRaster files to netCDF CF 1.6; '
-                'nc2pcr: Convert netCDF files to PCRaster format; '
-                'define_waterregions: Define Water Regions consistent with calibration points; '
-                'verify_waterregions: Verify that the Water Regions map is consistent with the map of the calibration catchments; '
+                'define_waterregions, verify_waterregions: Water Regions consistent with calibration points; '
                 'cutmaps: cut netCDF files; '
                 'catchstats: calculates catchment statistics; '
                 'compare: compare two set of netCDF files; '
-                'cutmaps: cut netCDF files; '
-                'decumulate: decumulate daily grids into 6 hourly grids in kiwis format; '
+                'decumulate: decumulate daily grids into 6 hourly grids; '
                 'gridding: interpolate meteo variables observations; '
-                'lfcoords: finds coordinates in the LISFLOOD grid; '
-                'mctrivers: creates a river mask for MCT diffusive river routing in LISFLOOD; '
-                'download_timeseries: download timeseries data from WISKI API; '
+                'lfcoords: finds coords in the LISFLOOD grid; '
+                'mctrivers: river mask for MCT routing; '
+                'nc2pcr, pcr2nc: Converts netCDF and PCRaster formats; '
                 'ncextract: extract values from netCDF files; '
-                'thresholds: compute discharge return period thresholds; '
-                'rainbomb: Correct rainbombs from precipitation netCDF files; '
-                'generate_neighbours: Generate neighbours information for rainbomb correction; ',
+                'download_timeseries: download data from WISKI API; '
+                'rainbomb: Correct rainbombs; '
+                'thresholds: discharge return period thresholds; '
+                'generate_neighbours: neighbours for rainbomb correction; ',            
     long_description=long_description,
     long_description_content_type='text/markdown',
     setup_requires=[

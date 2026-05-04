@@ -19,7 +19,7 @@ from . import Config
 from .io import read_shapefiles
 from .utils import find_conflicts
 from .finer_grid import coordinates_fine
-from coarser_grid import coordinates_coarse
+from .coarser_grid import coordinates_coarse
 
 
 def main():
