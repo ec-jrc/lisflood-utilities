@@ -198,7 +198,7 @@ def get_cuts(cuts=None, cuts_indices=None, mask=None):
         elif ext == '.nc':
             x_min, x_max, y_min, y_max = bbox_from_netcdf(mask)
         else:
-            logger.error('Mask map format not recognized. Must be .nc. Found %s', ext)
+            logger.error('Mask map format not recognized. Must be either .map or .nc. Found %s', ext)
             sys.exit(1)
         logger.info('MASK: \nmin x: %s \nmax x: %s \nmin y: %s \nmax y: %s', x_min, x_max, y_min, y_max)
     elif cuts:
