@@ -83,7 +83,7 @@ Install main lisflood-utilities package in a conda environment:
 ```bash
 conda create --name <env> python=3.10 -c conda-forge
 conda activate <env>
-conda install -c conda-forge pcraster eccodes "gdal<=3.5.3"
+conda install -c conda-forge eccodes "gdal<=3.5.3"
 pip install lisflood-utilities
 ```
 Then clone the repository:

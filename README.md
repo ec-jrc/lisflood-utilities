@@ -39,9 +39,7 @@ Here's a list of utilities you can find in lisflood-utilities package.
   - a bounding box of matrix indices
   - an existing boolean area mask
   - a list of stations and a LDD ("local drain direction" in NetCDF format)
-  
-> **Note**: PCRaster must be installed in the Conda environment.
- 
+   
 * __[compare](#compare)__ is a package containing a set of simple Python classes that helps to compare 
 NetCDF, PCRaster and TSS files.
 
@@ -87,8 +85,6 @@ NetCDF, PCRaster and TSS files.
 
 * __[generate_neighbours](#generate_neighbours)__ is a tool to generate neighbour indices for each grid point. It is used to reduce the computation time for the rainbomb correction by pre-computing and storing the indices of neighbours for each grid point. The resulting file is used as a parameter for the rainbomb tool.
 
-> **Note**: PCRaster must be installed in the Conda environment.
-
 The package contains convenient classes for reading/writing:
 
 * PCRasterMap
@@ -114,7 +110,7 @@ If you use conda, create a new env (or use an existing one) and install gdal and
 ```bash
 conda create --name myenv python=3.10 -c conda-forge
 conda activate myenv
-conda install -c conda-forge pcraster eccodes "gdal<=3.5.3"
+conda install -c conda-forge eccodes "gdal<=3.5.3"
 pip install lisflood-utilities
 ```
 
@@ -150,7 +146,7 @@ pip install -e./
 ### Usage
 
 > __Note:__ This guide assumes you have installed the program with pip tool.
-> If you cloned the source code instead, just substitute the executable `pcr2nc` with `python pcr2nc_script.py` that is in the root folder of the cloned project.
+> If you cloned the source code instead, just substitute the executable `pcr2nc` with `python bin/pcr2nc` from the root folder of the cloned project.
 
 The tool takes three command line input arguments:
 

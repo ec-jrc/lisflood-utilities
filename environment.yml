@@ -150,7 +150,6 @@ dependencies:
   - openssl=3.1.8=h7b32b05_0
   - packaging=26.0=pyhcf101f3_0
   - pango=1.50.14=hd33c08f_0
-  - pcraster=4.4.0=py310hdd7d5f1_1
   - pcre2=10.40=hc3806b6_0
   - pip=26.0.1=pyh8b19718_0
   - pixman=0.46.4=h54a6638_1

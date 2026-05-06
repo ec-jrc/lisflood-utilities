@@ -26,7 +26,7 @@ jobs:
     - name: Install system dependencies
       shell: bash -el {0}
       run: |
-        conda install -c conda-forge "gcc>=12.1.0" "gdal<=3.5.3" eccodes pcraster hdf5
+        conda install -c conda-forge "gcc>=12.1.0" "gdal<=3.5.3" eccodes hdf5
 
     - name: Install dependencies
       shell: bash -el {0}

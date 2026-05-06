@@ -26,6 +26,8 @@ import numpy as np
 
 from dask.diagnostics.progress import ProgressBar
 
+from lisfloodutilities.readers.pcr import PCRasterMap
+
 from .helpers import (col2netcdf, array_to_nc_from_clone, bbox_from_netcdf,
                       get_river_network_from_map,
                       COORDINATE_NAMES, LATITUDE_NAMES, LATITUDE_NAME_PAIR)
@@ -186,7 +188,14 @@ def get_cuts(cuts=None, cuts_indices=None, mask=None):
         if not os.path.isfile(mask):
             raise FileNotFoundError('Wrong input mask: %s not a file' % mask)
         maskname, ext = os.path.splitext(mask)
-        if ext == '.nc':
+        if ext == '.map':
+            mask = PCRasterMap(mask)
+            lats = mask.lats
+            lons = mask.lons
+            mask.close()
+            x_min, x_max = float(np.min(lons)), float(np.max(lons))
+            y_min, y_max = float(np.min(lats)), float(np.max(lats))
+        elif ext == '.nc':
             x_min, x_max, y_min, y_max = bbox_from_netcdf(mask)
         else:
             logger.error('Mask map format not recognized. Must be .nc. Found %s', ext)
