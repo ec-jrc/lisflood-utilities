@@ -37,7 +37,7 @@ def getarg():
                         help='Number of consecutive downstream MCT gridcells to be an MCT cell (default = 5)')
     parser.add_argument('-U', '--minuparea', type=float, required=False, default=0,
                         help='Minimum upstream area (same units as in the -u file) for including a cell in the final Muskingum mask (default 0)')
-    parser.add_argument('-E', '--coordsnames', type=str, nargs='+', required=False, default="None",
+    parser.add_argument('-E', '--coordsnames', type=str, nargs='+', required=False, default=[],
                         help='Coords names for lat, lon (in this order with space!) from the netcdf files used')
     parser.add_argument('-O', '--outputfilename', type=str, required=False, default="chanmct.nc",
                         help='Output file (chanmct.nc)')
