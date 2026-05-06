@@ -134,7 +134,7 @@ class TestCutlib(TestWithCleaner):
 
 
     def test_get_cuts_withmaskpcr(self):
-        maskfile = 'tests/data/masks/asia.nc'
+        maskfile = 'tests/data/masks/asia.map'
         x_min, x_max, y_min, y_max = get_cuts(mask=maskfile)
         x_minr, x_maxr, y_minr, y_maxr = np.round(x_min, 3), np.round(x_max, 3), np.round(y_min, 3), np.round(y_max, 3)
         assert (x_minr, x_maxr, y_minr, y_maxr) == (58.65, 179.95, 0.65, 81.25)
