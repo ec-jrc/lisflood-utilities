@@ -8,7 +8,7 @@ src_dir = os.path.normpath(os.path.join(current_dir, '../src/'))
 if os.path.exists(src_dir):
     sys.path.append(src_dir)
 
-from lisfloodutilities.rainbomb import main_script # type: ignore
+from lisfloodutilities.rainbomb import rainbomb_correction_main_script # type: ignore
 
 if __name__ == '__main__':
-    main_script()
+    rainbomb_correction_main_script()

@@ -291,11 +291,11 @@ def main(argv=sys.argv):
         prog=prog,
     )
     parser.add_argument(
-        "-d", "--discharge", help="Input discharge files (annual maxima)"
+        "-d", "--discharge", required=True, help="Input discharge files (annual maxima)"
     )
-    parser.add_argument("-o", "--output", help="Output thresholds file")
+    parser.add_argument("-o", "--output", required=True, help="Output thresholds file")
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv[1:])
 
     dis = read_discharge(args.discharge)
     print(dis)
