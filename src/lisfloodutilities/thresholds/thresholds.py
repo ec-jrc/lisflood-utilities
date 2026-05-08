@@ -280,6 +280,37 @@ def compute_thresholds_gumbel(
 
     return xr.merge([parameters, thresholds])
 
+def write_thresholds(ds: xr.Dataset, out_file: str, split: bool = False):
+    """Write thresholds dataset to netcdf file(s).
+
+    Parameters:
+    -----------
+    ds: xarray.Dataset
+        The dataset containing thresholds to write
+    out_file: str
+        The output file path. When split is True, this will be used as a base name
+        with suffixes added for each variable group
+    split: bool
+        If True, write each main variable group to a separate file.
+        The filename will be constructed as: {out_file}_{var_group}.nc
+        Default is False (single file output)
+    """
+    if split:
+        # Get the base path without extension
+        base_path = out_file.rsplit('.nc', 1)[0] if out_file.endswith('.nc') else out_file
+
+        # Define variable groups
+        data_vars = list(ds.data_vars.keys())
+
+        # Write files
+        for var in data_vars:
+            var_ds = ds[var]
+            var_out = f"{base_path}_{var}.nc"
+            print(f"Writing {var} to {var_out}")
+            var_ds.to_netcdf(var_out)
+    else:
+        print(f"Writing {out_file}")
+        ds.to_netcdf(out_file)
 
 def main(argv=sys.argv):
     prog = os.path.basename(argv[0])
@@ -295,6 +326,12 @@ def main(argv=sys.argv):
         "-d", "--discharge", required=True, help="Input discharge files (annual maxima)"
     )
     parser.add_argument("-o", "--output", required=True, help="Output thresholds file")
+    parser.add_argument(
+        "-s", "--split",
+        action="store_true",
+        default=False,
+        help="Split output into multiple netcdf files (one per variable)"
+    )
 
     args = parser.parse_args(argv[1:])
 
@@ -305,7 +342,7 @@ def main(argv=sys.argv):
 
     thresholds = compute_thresholds_gumbel(dis, return_periods)
 
-    thresholds.to_netcdf(args.output)
+    write_thresholds(thresholds, args.output, split=args.split)
 
 
 def main_script():
