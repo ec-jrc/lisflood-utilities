@@ -14,11 +14,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the Licence for the specific language governing permissions and limitations under the Licence.
 
 """
-from nine import IS_PYTHON2
-if IS_PYTHON2:
-    from pathlib2 import Path
-else:
-    from pathlib import Path
+from pathlib import Path
 
 import pytest
 import shutil
@@ -111,8 +107,8 @@ class TestComparators:
         pass
 
     def test_tss(self):
+        comp = TSSComparator(array_equal=True)
         with pytest.raises(AssertionError) as excinfo:
-            comp = TSSComparator(array_equal=True)
             comp.compare_files('tests/data/folder_a/qLakeOut.tss', 'tests/data/folder_b/qLakeOut.tss')
 
         assert 'tests/data/folder_a/qLakeOut.tss different from tests/data/folder_b/qLakeOut.tss' in str(excinfo.value)
@@ -143,11 +139,19 @@ class TestComparators:
         comp.compare_files('tests/data/folder_a/test_tol_ok_1.tss', 'tests/data/folder_b/test_tol_ok_2.tss')
         with pytest.raises(AssertionError) as excinfo:
             comp.compare_files('tests/data/folder_a/test_tol_fail_1.tss', 'tests/data/folder_b/test_tol_fail_2.tss')
-        assert 'Not equal to tolerance rtol=0.001, atol=0.0001\n\nMismatched elements: 1 / 2 (50%)\nMax absolute difference: 0.007' in str(excinfo.value)
+        error_msg = str(excinfo.value)
+        assert 'Not equal to tolerance rtol=0.001, atol=0.0001' in error_msg
+        assert 'Mismatched elements: 1 / 2 (50%)' in error_msg
+        assert 'Max absolute difference' in error_msg
+        assert '0.007' in error_msg
         comp = TSSComparator(for_testing=True, rtol=0.00001, atol=0.000001)
         with pytest.raises(AssertionError) as excinfo:
             comp.compare_files('tests/data/folder_a/test_tol_ok_1.tss', 'tests/data/folder_b/test_tol_ok_2.tss')
-        assert 'Not equal to tolerance rtol=1e-05, atol=1e-06\n\nMismatched elements: 1 / 2 (50%)\nMax absolute difference: 5.e-05' in str(excinfo.value)
+        error_msg = str(excinfo.value)
+        assert 'Not equal to tolerance rtol=1e-05, atol=1e-06' in error_msg
+        assert 'Mismatched elements: 1 / 2 (50%)' in error_msg
+        assert 'Max absolute difference' in error_msg
+        assert '5.e-05' in error_msg
 
     def test_pcr(self):
         comp = PCRComparator(for_testing=True)

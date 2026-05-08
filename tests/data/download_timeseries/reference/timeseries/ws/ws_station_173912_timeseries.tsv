@@ -1,0 +1,13 @@
+# station_id:	173912
+# site_no:	1221
+# site_name:	ARPASIM
+# station_no:	6035
+# station_name:	Ferrara urbana
+# station_latitude:	44.832498
+# station_longitude:	11.621138
+# rows:	4
+# Timestamp	Value	Quality Code
+2026-03-20T00:00:00.000Z	3.60	40
+2026-03-21T00:00:00.000Z	2.40	40
+2026-03-22T00:00:00.000Z	1.70	40
+2026-03-23T00:00:00.000Z	2.40	40

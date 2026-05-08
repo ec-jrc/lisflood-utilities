@@ -17,11 +17,7 @@ Usage: compare -a /workarea/datatests/modela_results/ -b /workarea/datatests/mod
 
 import argparse
 import sys
-from nine import IS_PYTHON2
-if IS_PYTHON2:
-    from pathlib2 import Path
-else:
-    from pathlib import Path
+from pathlib import Path
 
 import numpy as np
 

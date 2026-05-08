@@ -1,0 +1,10 @@
+# test for a single map (not a time series)
+variable:
+  shortname: ldd
+  description: Used in hydrology to define the direction of water flow from each cell to one of its eight neighboring cells
+  longname: Local Drain Direction
+  units: 1-9
+source: JRC E.1 Space, Security, Migration
+reference: JRC E.1 Space, Security, Migration
+geographical:
+  datum: WGS84

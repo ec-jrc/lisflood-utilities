@@ -1,0 +1,14 @@
+# station_id:	173905
+# site_no:	1221
+# site_name:	ARPASIM
+# station_no:	2307
+# station_name:	Carpineta
+# station_latitude:	44.089031
+# station_longitude:	12.27459
+# rows:	5
+# Timestamp	Value	Quality Code
+2026-03-20T18:00:00.000Z	16.57	40
+2026-03-21T18:00:00.000Z	16.83	40
+2026-03-22T18:00:00.000Z	12.46	40
+2026-03-23T18:00:00.000Z	16.16	40
+2026-03-24T18:00:00.000Z	18.74	40

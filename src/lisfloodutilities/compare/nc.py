@@ -6,14 +6,10 @@ from typing import Iterable
 
 import numpy as np
 from netCDF4 import Dataset, date2index
-from nine import IS_PYTHON2
 
 from ..readers import PCRasterMap
 
-if IS_PYTHON2:
-    from pathlib2 import Path
-else:
-    from pathlib import Path
+from pathlib import Path
 
 from .. import logger
 from ..writers import NetCDFWriter

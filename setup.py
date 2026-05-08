@@ -122,35 +122,46 @@ setup_args = dict(
     package_dir={'': 'src/'},
     package_data={'lisfloodutilities': ['VERSION']},
     version=version,
+    python_requires='>=3.10',
     packages=find_packages('src'),
-    description='A set of utilities for lisflood users. '
-                'catchstats: calculates catchment statistics; '
-                'compare: compare two set of netCDF files; '
-                'cutmaps: cut netCDF files; '
-                'decumulate: decumulate daily grids into 6 hourly grids; '
-                'gridding: interpolate meteo variables observations; '
-                'lfcoords: finds coords in the LISFLOOD grid; '
-                'mctrivers: river mask for MCT routing; '
-                'nc2pcr, pcr2nc: Converts netCDF and PCRaster formats; '
-                'ncextract: extract values from netCDF files; '
-                'thresholds: compute discharge return period thresholds; ',
+    description='A set of utilities for lisflood users.'
+                'define_waterregions, verify_waterregions;'
+                'cutmaps: cut netCDFs;'
+                'catchstats: get statistics;'
+                'compare: compare netCDFs;'
+                'decumulate: daily into 6h grids;'
+                'gridding: interpolate meteo vars;'
+                'lfcoords: finds in grids;'
+                'mctrivers: MCT routing mask;'
+                'nc2pcr, pcr2nc: Converts netCDF-PCRaster;'
+                'ncextract: extract netCDF;'
+                'download_timeseries: from WISKI API;'
+                'rainbomb: Correct rainbombs;'
+                'thresholds: discharge thresholds;'
+                'generate_neighbours: rainbomb correction neighbours;',
     long_description=long_description,
     long_description_content_type='text/markdown',
     setup_requires=[
             'setuptools>=41.0', 'numpy',
     ],
-    install_requires=['numpy', 'pyyaml>=5.4',
+    install_requires=['numpy>=1.18.2,<2.0.0', 'PyYAML>=6.0.3',
                       # Can create corrupted environment if using conda,
                       # Better to install GDAL manually before to install lisflood-utilities package
                       # 'GDAL=={}'.format(gdal_version),
-                      'netCDF4>=1.5.3', 'toolz', 'xarray>=0.15.1',
-                      'dask', 'pandas>=0.25.1', 'nine', 'pyg2p'],
+                      'gdal<=3.5.3',
+                      'netCDF4>=1.7.4', 'toolz', 'xarray>=2024.7.0',
+                      'dask', 'pandas>=2.3.3', 'pyg2p>=3.2.9',
+                      'earthkit-data>=0.18.6,<0.19.0',
+                      'earthkit-hydro==1.1.0',
+                      'earthkit-meteo>=0.5.1,<0.6.0',
+                      'earthkit-utils>=0.1.2,<0.2.0'],
     author="Valerio Lorini, Stefania Grimaldi, Carlo Russo, Goncalo Gomes, Domenico Nappo, Lorenzo Alfieri, Jesús Casado Rodríguez",
     author_email="valerio.lorini@ec.europa.eu,stefania.grimaldi@ec.europa.eu,carlo.russo@ext.ec.europa.eu,goncalo.ramos-gomes@ext.ec.europa.eu,domenico.nappo@gmail.com,lorenzo.alfieri@ec.europa.eu,jesus.casado-rodriguez@ec.europa.eu",
     keywords=['netCDF4', 'PCRaster', 'mapstack', 'lisflood', 'efas', 'glofas', 'ecmwf', 'copernicus'],
     license='EUPL 1.2',
     url='https://github.com/ec-jrc/lisflood-utilities',
-    scripts=['bin/pcr2nc', 'bin/cutmaps', 'bin/compare', 'bin/nc2pcr', 'bin/thresholds', 'bin/gridding', 'bin/decumulate', 'bin/cddmap', 'bin/ncextract','bin/catchstats','bin/mctrivers','bin/lfcoords'],
+    scripts=['bin/pcr2nc', 'bin/cutmaps', 'bin/compare', 'bin/nc2pcr', 'bin/thresholds', 'bin/gridding', 'bin/decumulate', 'bin/download_timeseries',
+             'bin/cddmap', 'bin/ncextract','bin/catchstats','bin/mctrivers','bin/lfcoords','bin/rainbomb', 'bin/generate_neighbours'],
     zip_safe=True,
     classifiers=[
           # complete classifier list: http://pypi.python.org/pypi?%3Aaction=list_classifiers

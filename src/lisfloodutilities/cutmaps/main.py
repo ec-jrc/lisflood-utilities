@@ -20,12 +20,27 @@ import argparse
 import os
 import shutil
 import sys
+from pathlib import Path
+from typing import Optional, List, Union
 
 from .. import version, logger
-from .cutlib import mask_from_ldd, get_filelist, get_cuts, cutmap
-from ..nc2pcr import convert
+from .cutlib import (mask_from_ldd, get_filelist, get_cuts, cutmap,
+                     MASK_VALUE, SMALL_MASK_FILENAME, FULL_MASK_FILENAME, OUTLETS_FILENAME)
+from .helpers import COORDINATE_NAMES, TIME_NAMES
 from netCDF4 import Dataset 
 import numpy as np
+
+# Variables that should be excluded from mask processing.
+EXCLUDED_VAR_NAMES = {
+    "crs",
+    "wgs_1984",
+    "lambert_azimuthal_equal_area",
+    "lambert_conformal_conic"
+}
+
+# Add coordinate and time coordinate names to the exclusion set
+EXCLUDED_VAR_NAMES.update(COORDINATE_NAMES)
+EXCLUDED_VAR_NAMES.update(TIME_NAMES)
 
 
 def parse_and_check_args(parser, cliargs):
@@ -41,10 +56,23 @@ def parse_and_check_args(parser, cliargs):
     return args
 
 def get_arg_coords(value):
+    """Parse coordinate values from command line argument.
+    
+    Args:
+        value: String containing 4 space-separated values (coordinates or indices)
+        
+    Returns:
+        Map object yielding the parsed values as int or float
+        
+    Raises:
+        argparse.ArgumentTypeError: If the value doesn't contain exactly 4 values
+    """
     apply = float if '.' in value else int  # user can provide coords (float) or matrix indices bbox (int)
     values = value.split()
     if len(values) != 4:
-        raise argparse.ArgumentError
+        raise argparse.ArgumentTypeError(
+            f"Expected 4 values, got {len(values)}: '{value}'"
+        )
     values = map(apply, values)
     return values
 
@@ -58,15 +86,13 @@ class ParserHelpOnError(argparse.ArgumentParser):
         group_mask = self.add_argument_group(title='Cut with a provided mask or a bounding box or '
                                                    'create mask cookie-cutter on-fly from stations list and ldd map')
         group_filelist = self.add_mutually_exclusive_group(required=True)
-        group_mask.add_argument("-m", "--mask", help='mask file cookie-cutter, .map if pcraster, .nc if netcdf')
+        group_mask.add_argument("-m", "--mask", help='mask file cookie-cutter in pcraster (.map) or netcdf (.nc) format')
         group_mask.add_argument("-c", "--cuts", help='Cut coordinates in the form "lonmin lonmax latmin latmax" using coordinates bounding box', type=get_arg_coords)
         group_mask.add_argument("-i", "--cuts_indices", help='Cut coordinates in the form "imin imax jmin jmax" using matrix indices', type=get_arg_coords)
-        group_mask.add_argument("-l", "--ldd", help='Path to LDD file')
+        group_mask.add_argument("-l", "--ldd", help='Path to LDD file in netcdf format (.nc)')
         group_mask.add_argument("-N", "--stations",
                                 help='Path to stations.txt file.'
                                      'Read documentation to know about the format')
-        group_mask.add_argument("-C", "--clonemap",
-                                help='Path to PCRaster clonemap; used to convert ldd.nc to ldd.map')
 
         group_filelist.add_argument("-f", "--folder", help='Directory with netCDF files to be cut')
         group_filelist.add_argument("-F", "--file", help='netCDF file to be cut')
@@ -87,29 +113,87 @@ def main(cliargs):
     mask = args.mask
     cuts = args.cuts
     cuts_indices = args.cuts_indices
+    mask_nc = None
 
     ldd = args.ldd
     stations = args.stations
 
+    # =========================================================================
+    # Input Path Handling with Validation and Error Handling
+    # =========================================================================
+    # Extract input paths from arguments with proper validation
     input_folder = args.folder
     input_file = args.file
     static_data_folder = args.subdir
     overwrite = args.overwrite
     pathout = args.outpath
+
+    # Validate input sources - ensure at least one input is provided
+    # This provides early failure with clear error messages
+    if not any([input_folder, input_file, static_data_folder]):
+        parser.error(
+            'No input source specified. Please provide one of: '
+            '--folder, --file, or --subdir'
+        )
+
+    # Validate input_folder if provided - check existence and accessibility
+    if input_folder:
+        input_folder_path = Path(input_folder)
+        if not input_folder_path.exists():
+            raise FileNotFoundError(
+                f"Input folder does not exist: {input_folder}"
+            )
+        if not input_folder_path.is_dir():
+            raise NotADirectoryError(
+                f"Input path is not a directory: {input_folder}"
+            )
+        # Resolve to absolute path for consistent handling
+        input_folder = str(input_folder_path.resolve())
+
+    # Validate input_file if provided
+    if input_file:
+        input_file_path = Path(input_file)
+        if not input_file_path.exists():
+            raise FileNotFoundError(
+                f"Input file does not exist: {input_file}"
+            )
+        if not input_file_path.is_file():
+            raise ValueError(
+                f"Input path is not a file: {input_file}"
+            )
+        # Resolve to absolute path for consistent handling
+        input_file = str(input_file_path.resolve())
+
+    # Validate static_data_folder if provided
+    if static_data_folder:
+        static_data_path = Path(static_data_folder)
+        if not static_data_path.exists():
+            raise FileNotFoundError(
+                f"Static data folder does not exist: {static_data_folder}"
+            )
+        if not static_data_path.is_dir():
+            raise NotADirectoryError(
+                f"Static data path is not a directory: {static_data_folder}"
+            )
+        # Resolve to absolute path for consistent handling
+        static_data_folder = str(static_data_path.resolve())
+
+    # Validate output path
+    pathout_path = Path(pathout)
+    if pathout_path.exists() and not pathout_path.is_dir():
+        raise ValueError(
+            f"Output path exists but is not a directory: {pathout}"
+        )
     if not os.path.exists(pathout):
         logger.warning('\nOutput folder %s not existing. Creating it...', pathout)
         os.mkdir(pathout)
     if ldd and stations:
         logger.info('\nTry to produce a mask from LDD and stations points: %s %s', ldd, stations)
-        if ldd.endswith('.nc'):
-            # convert ldd.nc to a pcraster map as we are going to use pcraster commands
-            clonemap = args.clonemap
-            ldd = convert(ldd, '.map', clonemap=clonemap)
         mask, outlets_nc, mask_nc = mask_from_ldd(ldd, stations)
-        # copy outlets.nc (produced from stations txt file) and the new mask to output folder
-        shutil.copy(outlets_nc, os.path.join(pathout, 'my_outlets.nc'))
-        shutil.copy(mask, os.path.join(pathout, 'my_mask.map'))
-        shutil.copy(mask_nc, os.path.join(pathout, 'my_mask.nc'))
+        # copy outlets (produced from stations txt file) and the new mask to output folder
+        shutil.copy(outlets_nc, os.path.join(pathout, OUTLETS_FILENAME))
+        shutil.copy(mask, os.path.join(pathout, SMALL_MASK_FILENAME))
+        shutil.copy(mask_nc, os.path.join(pathout, FULL_MASK_FILENAME))
 
     x_min, x_max, y_min, y_max = get_cuts(cuts=cuts, cuts_indices=cuts_indices, mask=mask)
     logger.info('\n\nCutting using: %s\n Files to cut from: %s\n Output: %s\n Overwrite existing: %s\n\n',
@@ -148,30 +232,41 @@ def main(cliargs):
 
         cutmap(file_to_cut, fileout, x_min, x_max, y_min, y_max, use_coords=(cuts_indices is None))
         if ldd and stations:
-            with Dataset(os.path.join(pathout, 'my_mask.nc'),'r',format='NETCDF4_CLASSIC')  as mask_map:  
-                for k in mask_map.variables.keys():        
-                    if (k !='x'  and k !='y'  and k !='lat'  and k !='lon'):
-                        mask_map_values=mask_map.variables[k][:] 
-            with Dataset(fileout,'r+',format='NETCDF4_CLASSIC') as file_out:                                    
-                for name, variable in file_out.variables.items():
-                    data=[]   
-                    if (variable.dtype != '|S1' and name != 'crs' and name != 'wgs_1984' and name != 'lambert_azimuthal_equal_area'): 
-                        k = name
-                        data=file_out.variables[k][:] 
-                    
-                        if (len(data.shape)==2):
-                            values=[]
-                            values=file_out.variables[k][:]              
-                            values2=np.where(mask_map_values==1,values,np.nan)
-                            file_out.variables[k][:] = values2
-                            
-                        if (len(data.shape)>2):
-                            for t in np.arange(data.shape[0]):
-                                values=[]
-                                values=file_out.variables[k][:][t]               
-                                values2=np.where(mask_map_values==1,values,np.nan)
-                                file_out.variables[k][t,:,:] = values2
-                                   
+            mask_map_values = None
+            with Dataset(os.path.join(pathout, SMALL_MASK_FILENAME),'r',format='NETCDF4_CLASSIC')  as mask_map:  
+                for var_name in mask_map.variables.keys():
+                    if (var_name not in COORDINATE_NAMES):
+                        mask_map_values=mask_map.variables[var_name][:] 
+            with Dataset(fileout,'r+',format='NETCDF4_CLASSIC') as file_out:
+                for output_var_name, variable in file_out.variables.items():
+                    # Skip string variables and known coordinate/reference variables.
+                    if variable.dtype == '|S1' or output_var_name in EXCLUDED_VAR_NAMES:
+                        continue
+
+                    # Retrieve scaling metadata (if any)
+                    scale_factor = getattr(variable, 'scale_factor', None)
+                    add_offset = getattr(variable, 'add_offset', None)
+                    fill_value = getattr(variable, '_FillValue', np.nan)
+
+                    # Apply scale/offset to the fill value so that NaNs are encoded correctly.
+                    if fill_value is not None and scale_factor is not None and add_offset is not None:
+                        fill_value = fill_value * scale_factor + add_offset
+
+                    # Load data once
+                    data = variable[:]
+
+                    if data.ndim == 2:
+                        # 2‑D case (e.g., raster)
+                        values = variable[:]
+                        masked = np.where(mask_map_values == MASK_VALUE, values, fill_value)
+                        variable[:] = masked
+                    else:
+                        # 3‑D case (e.g., time‑series of rasters)
+                        for t in range(data.shape[0]):
+                            values = variable[t]
+                            masked = np.where(mask_map_values == MASK_VALUE, values, fill_value)
+                            variable[t, :, :] = masked
+
 def main_script():
     sys.exit(main(sys.argv[1:]))
 

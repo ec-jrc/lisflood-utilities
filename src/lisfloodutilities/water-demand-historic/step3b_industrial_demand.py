@@ -99,7 +99,7 @@ def main():
 
     # Loop over vars
     vars = ['elec','mfg']
-    Huang_withdrawal = np.zeros((len(vars),360,720,480),dtype=np.single)*np.NaN
+    Huang_withdrawal = np.zeros((len(vars),360,720,480),dtype=np.single)*np.nan
     for vv in np.arange(len(vars)):
         var = vars[vv]
         
@@ -208,7 +208,7 @@ def main():
             #--------------------------------------------------------------------------
         
             # Spatially downscale annual country withdrawals using population data
-            data_annual_map = np.zeros(mapsize_global,dtype=np.single)*np.NaN
+            data_annual_map = np.zeros(mapsize_global,dtype=np.single)*np.nan
             for jj in np.arange(country_codes.shape[0]):
                 country_code = country_codes.iloc[jj]['country-code']
                 mask = country_code_map==country_code
@@ -237,8 +237,8 @@ def main():
             #--------------------------------------------------------------------------
         
             # Compute p coefficients for temporally downscaling thermoelectric (see Huang et al., 2018)        
-            p_b, p_it = np.zeros(mapsize_global,dtype=np.single)*np.NaN,np.zeros(mapsize_global,dtype=np.single)*np.NaN
-            p_h, p_c, p_u = np.zeros(mapsize_global,dtype=np.single)*np.NaN,np.zeros(mapsize_global,dtype=np.single)*np.NaN,np.zeros(mapsize_global,dtype=np.single)*np.NaN
+            p_b, p_it = np.zeros(mapsize_global,dtype=np.single)*np.nan,np.zeros(mapsize_global,dtype=np.single)*np.nan
+            p_h, p_c, p_u = np.zeros(mapsize_global,dtype=np.single)*np.nan,np.zeros(mapsize_global,dtype=np.single)*np.nan,np.zeros(mapsize_global,dtype=np.single)*np.nan
             for jj in np.arange(country_codes.shape[0]):
                 country_code = country_codes.iloc[jj]['country-code']
                 country_name = country_codes.iloc[jj]['name']
@@ -259,8 +259,8 @@ def main():
             p_h, p_c, p_u = fill(p_h), fill(p_c), fill(p_u)
             
             # Load HDD and CDD data
-            hdd_monthly_maps = np.zeros((mapsize_global[0],mapsize_global[1],12),dtype=np.single)*np.NaN
-            cdd_monthly_maps = np.zeros((mapsize_global[0],mapsize_global[1],12),dtype=np.single)*np.NaN
+            hdd_monthly_maps = np.zeros((mapsize_global[0],mapsize_global[1],12),dtype=np.single)*np.nan
+            cdd_monthly_maps = np.zeros((mapsize_global[0],mapsize_global[1],12),dtype=np.single)*np.nan
             for month in np.arange(1,13):
                 npz = np.load(os.path.join(config['output_folder'],'step3a_industrial_demand','hdd',str(year)+str(month).zfill(2)+'.npz'))
                 hdd_monthly_maps[:,:,month-1] = imresize_mean(npz['data'],mapsize_global)+10**-6
@@ -268,7 +268,7 @@ def main():
                 cdd_monthly_maps[:,:,month-1] = imresize_mean(npz['data'],mapsize_global)+10**-6
 
             # Temporally downscale annual withdrawals
-            data_monthly_maps = np.zeros((mapsize_global[0],mapsize_global[1],12),dtype=np.single)*np.NaN
+            data_monthly_maps = np.zeros((mapsize_global[0],mapsize_global[1],12),dtype=np.single)*np.nan
             for month in np.arange(1,13):
                 month_ndays = monthrange(year,month)[1]
                 if varname=='ene':
@@ -278,7 +278,7 @@ def main():
                     cdd_annual_sum = np.sum(cdd_monthly_maps,axis=2)
                     
                     # Temporally downscale withdrawals following Huang et al. (2018) equations 7 to 10
-                    data_monthly_map = np.zeros(mapsize_global,dtype=np.single)*np.NaN
+                    data_monthly_map = np.zeros(mapsize_global,dtype=np.single)*np.nan
                     mask = (hdd_annual_sum<650) & (cdd_annual_sum<450)
                     data_monthly_map[mask] = month_ndays*data_annual_map[mask]/365.25                
                     mask = (hdd_annual_sum>=650) & (cdd_annual_sum<450)
@@ -351,7 +351,7 @@ def main():
         #     year=1979
         #     ii=0
 
-        #     data_monthly_maps = np.zeros((mapsize_global[0],mapsize_global[1],12),dtype=np.single)*np.NaN
+        #     data_monthly_maps = np.zeros((mapsize_global[0],mapsize_global[1],12),dtype=np.single)*np.nan
         #     for month in np.arange(1,13):
         #         month_ndays = monthrange(year,month)[1]
         #         data_monthly_maps[:,:,month-1] = data[month-1,:,:]*month_ndays
@@ -361,8 +361,8 @@ def main():
         #     #--------------------------------------------------------------------------
         
         #     # Compute p coefficients for temporally downscaling thermoelectric (see Huang et al., 2018)        
-        #     p_b, p_it = np.zeros(mapsize_global,dtype=np.single)*np.NaN,np.zeros(mapsize_global,dtype=np.single)*np.NaN
-        #     p_h, p_c, p_u = np.zeros(mapsize_global,dtype=np.single)*np.NaN,np.zeros(mapsize_global,dtype=np.single)*np.NaN,np.zeros(mapsize_global,dtype=np.single)*np.NaN
+        #     p_b, p_it = np.zeros(mapsize_global,dtype=np.single)*np.nan,np.zeros(mapsize_global,dtype=np.single)*np.nan
+        #     p_h, p_c, p_u = np.zeros(mapsize_global,dtype=np.single)*np.nan,np.zeros(mapsize_global,dtype=np.single)*np.nan,np.zeros(mapsize_global,dtype=np.single)*np.nan
         #     for jj in np.arange(country_codes.shape[0]):
         #         country_code = country_codes.iloc[jj]['country-code']
         #         country_name = country_codes.iloc[jj]['name']
@@ -383,8 +383,8 @@ def main():
         #     p_h, p_c, p_u = fill(p_h), fill(p_c), fill(p_u)
             
         #     # Load HDD and CDD data
-        #     hdd_monthly_maps = np.zeros((mapsize_global[0],mapsize_global[1],12),dtype=np.single)*np.NaN
-        #     cdd_monthly_maps = np.zeros((mapsize_global[0],mapsize_global[1],12),dtype=np.single)*np.NaN
+        #     hdd_monthly_maps = np.zeros((mapsize_global[0],mapsize_global[1],12),dtype=np.single)*np.nan
+        #     cdd_monthly_maps = np.zeros((mapsize_global[0],mapsize_global[1],12),dtype=np.single)*np.nan
         #     for month in np.arange(1,13):
         #         npz = np.load(os.path.join(config['output_folder'],'step3a_industrial_demand','hdd',str(year)+str(month).zfill(2)+'.npz'))
         #         hdd_monthly_maps[:,:,month-1] = imresize_mean(npz['data'],mapsize_global)+10**-6
@@ -392,7 +392,7 @@ def main():
         #         cdd_monthly_maps[:,:,month-1] = imresize_mean(npz['data'],mapsize_global)+10**-6
 
         #     # Temporally downscale annual withdrawals
-        #     data_annual_map = np.zeros(mapsize_global,dtype=np.single)*np.NaN
+        #     data_annual_map = np.zeros(mapsize_global,dtype=np.single)*np.nan
         #     for month in np.arange(1,13):
         #         month_ndays = monthrange(year,month)[1]
                 

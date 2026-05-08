@@ -14,6 +14,19 @@ LONG_NAME = Daily Calculated Radiation
 
 KIWIS_FILTER_PLUGIN_CLASSES = {'SolarRadiationLimitsKiwisFilter': {'EXCLUDE_BELLOW_LATITUDE': 66.0, 'EXCLUDE_BELLOW_VALUE': 0.0}}
 
+[KISTERS_API]
+
+# Identification of the timeseries inside the API. Identifies the variable to be downloaded.
+API_TIMESERIES_ID: 236118
+
+# Setup of the Hour to download the metadata from.
+# Each variable have a specific hour for the data availability
+API_TIMESERIES_TIME_TO_DOWNLOAD: 00
+
+# Identifies which data should be downloaded from the timeseries. Total, Average, Min, Max, ...
+# Example: "*/*/Precip/6h.Total" to get the total precipitation
+API_TIMESERIES_PATH_WILDCARD: */*/SunRad/Day.Energy
+
 [VAR_TIME]
 
 UNIT = days since 1990-01-02 00:00:00.0

@@ -2,15 +2,18 @@
 #   It takes LISFLOOD channels slope map (changrad.nc), the LDD (ldd.nc) and mask of the catchment/domain.
 #   Pixels where river slope < threshold are added to the mask, if drainage area is large enough.
 #   A minimum number of consecutive mild sloping downstream pixels is required for a pixel to be added to the mask.
-#   It requires PCRaster.
-#   
+#   Uses xarray and numpy instead of PCRaster.
+#
 #   Usage:
 #   mctrivers.py -i changrad.nc -l ec_ldd.nc -m mask.nc -u upArea.nc -E y x -S 0.001 -N 5 -U 500 -O chanmct.nc
 
-
+import tempfile
+import os
+from typing import List, Tuple
 import xarray as xr
-import pcraster as pcr
-import numpy as np
+from earthkit.hydro import distance, move, upstream
+from lisfloodutilities.cutmaps.helpers import get_river_network_from_map
+from .helpers import copy_coordinates_and_attributes, lddrepair, X_COORD_NAMES, Y_COORD_NAMES
 
 
 def getarg():
@@ -34,7 +37,7 @@ def getarg():
                         help='Number of consecutive downstream MCT gridcells to be an MCT cell (default = 5)')
     parser.add_argument('-U', '--minuparea', type=float, required=False, default=0,
                         help='Minimum upstream area (same units as in the -u file) for including a cell in the final Muskingum mask (default 0)')
-    parser.add_argument('-E', '--coordsnames', type=str, nargs='+', required=False, default="None",
+    parser.add_argument('-E', '--coordsnames', type=str, nargs='+', required=False, default=[],
                         help='Coords names for lat, lon (in this order with space!) from the netcdf files used')
     parser.add_argument('-O', '--outputfilename', type=str, required=False, default="chanmct.nc",
                         help='Output file (chanmct.nc)')
@@ -42,12 +45,13 @@ def getarg():
     return args
 
     
-def mct_mask(channels_slope_file, ldd_file, uparea_file, mask_file='', 
-             slp_threshold=0.001, nloops=5, minuparea=0, coords_names='None'):
+def mct_mask(channels_slope_file: str, ldd_file: str, uparea_file: str, mask_file: str = '',
+             slp_threshold: float = 0.001, nloops: int = 5, minuparea: float = 0,
+             coords_names: List[str] = []) -> xr.DataArray:
     """
     
-    Builds a mask of mild sloping rivers for use in LISFLOOD with MCT diffusive river routing. It takes LISFLOOD channels slope map (changrad.nc), the LDD (ldd.nc), 
-    the upstream drained area map (upArea.nc) and the catchment/domain mask (mask.nc), and outputs a bolean mask (chanmct.nc). Pixels where riverbed gradient < threshold 
+    Builds a mask of mild sloping rivers for use in LISFLOOD with MCT diffusive river routing. It takes LISFLOOD channels slope map (changrad.nc), the LDD (ldd.nc),
+    the upstream drained area map (upArea.nc) and the catchment/domain mask (mask.nc), and outputs a bolean mask (chanmct.nc). Pixels where riverbed gradient < threshold
     (slp_threshold) are added to the mask if their drainage area is large enough (minuparea) and they also have at least nloops consecutive downstream pixels that meet
     the same condition for slope (drainage area will be met as downstream the area increases).
 
@@ -61,160 +65,231 @@ def mct_mask(channels_slope_file, ldd_file, uparea_file, mask_file='',
     slp_threshold: Riverbed slope threshold to use MCT diffusive wave routing (default: 0.001)
     nloops: Number of consecutive downstream grid cells that also need to comply with the slope requirement for including a grid cell in the MCT rivers mask (default: 5)
     minuparea: Minimum upstream drainage area for a pixel to be included in the MCT rivers mask (uses the same units as in the -u file) (default: 0)
-    coords_names: Coordinates names for lat, lon (in this order as list) used in the the netcdf files (default: 'None'; checks for commonly used names ['x', 'lon', 'rlon'], similar for lat names)
+    coords_names: Coordinates names for lat, lon (in this order as list) used in the the netcdf files (default: []; checks for commonly used names ['x', 'lon', 'rlon'], similar for lat names)
     outputfile: Output file containing the rivers mask where LISFLOOD can use the MCT diffusive wave routing (default: chanmct.nc)
     
-    Example for generating an MCT rivers mask with pixels where riverbed slope < 0.001, drainage area > 500 kms and at least 5 downstream pixels meet the same 
+    Example for generating an MCT rivers mask with pixels where riverbed slope < 0.001, drainage area > 500 kms and at least 5 downstream pixels meet the same
     two conditions, considering the units of the upArea.nc file are given in kms:
     
-    mct_mask(channels_slope_file='changrad.nc', ldd_file='ldd.nc', uparea_file='upArea.nc', mask_file='mask.nc', 
+    mct_mask(channels_slope_file='changrad.nc', ldd_file='ldd.nc', uparea_file='upArea.nc', mask_file='mask.nc',
              slp_threshold=0.001, nloops=5, minuparea=500, coords_names=['y' , 'x'])
     """
-    # ---------------- Read LDD (Note that for EFAS5 there is small shift of values for CH)
-    LD = xr.open_dataset(ldd_file)
-    
-    # ---------------- Auxiliary variables
-    x_checks = ['lon', 'x', 'rlon']
-    y_checks = ['lat', 'y', 'rlat']
-    if coords_names == "None":
-        x_proj = set(list(LD.coords)) & set(x_checks)
-        y_proj = set(list(LD.coords)) & set(y_checks)
-    
-        if len(x_proj)!=1 or len(y_proj)!=1:
-            print('Input dataset coords names for lat/lon are not as expected.')
-            print(f'The available coords are: {list(LD.coords)}')
-            print(f'The checked names are {y_checks} and {x_checks} for lat and lon respectively.')
-            print('Please use -E argument and give the coords names !with space in between! in order: lan lon')
-            exit(1)
-        
-        x_proj = list(x_proj)[0]
-        y_proj = list(y_proj)[0]
-    else:
-        y_proj, x_proj = coords_names
-    
-    # ---------------- Process channels slope netcdf
-    # proprocess CH dataset for having correct format
-    CH = xr.open_dataset(channels_slope_file)
-    old_name = [i for i in list(CH.data_vars) if sorted(CH[i].dims)==sorted([x_proj, y_proj])]
-    CH = CH.rename({old_name[0]: "changrad"})  # only 1 variable complies with the above check
-    CH['changrad'] = CH['changrad'].transpose(y_proj, x_proj)  # make sure dims order is as pcraster needs
 
-    # ---------------- Set clone map for pcraster
+    # ---------------- Read LDD to get coordinates and repair it before creating network
+    LD_ds = xr.open_dataset(ldd_file)
+    x_proj, y_proj = extract_coords(LD_ds, coords_names)
+
+    # Prepare LDD and repair it BEFORE creating the river network
+    LD = prepare_dataset(LD_ds, x_proj, y_proj, 'ldd')
+    LD = LD['ldd']  # Extract as Dataarray
+
+    # sometimes the masked value is flagged not with NaN (e.g., with cutmaps it was flagged with 0)
+    # LDD takes only integer values 1-9, so any other value needs to be masked
+    LD = LD.fillna(-1)  # fill NaN so it can be converted to integer with no issues
+    LD = LD.astype('int')
+    LD = LD.where((LD > 0) & (LD < 10)).fillna(-1)
+
+    # Create river network from original LDD to use in the lddrepair function in case of failure.
+    # This is needed because if there are cycles in the LDD, the downstream and path functions will fail, 
+    # and without the river network we can't run the lddrepair function to fix the LDD.;
+    # This will help to ensure that the repaired LDD is hydrologically consistent
+    try:
+        network = get_river_network_from_map(ldd_file)
+    except Exception as e:
+        print(f"Error occurred while creating river network the LDD might have cycles. Trying to repair it: {e}")
+        # If there is an error, we can still attempt to repair the LDD without the network,
+        # but it may not be as effective in fixing cycles.
+        ldd_array = LD.values.astype(int)  # Ensure integer type
+        ldd_array = lddrepair(ldd_array)  # Repair LDD to remove cycles
+        
+        # Save repaired LDD to a temporary file for river network creation
+        with tempfile.NamedTemporaryFile(suffix='.nc', delete=False) as tmp:
+            tmp_path = tmp.name
+        
+        # Create a new dataset with the repaired LDD
+        LD_repaired = xr.DataArray(
+            ldd_array,
+            dims=[y_proj, x_proj],
+            # coords={y_proj: LD.coords[y_proj], x_proj: LD.coords[x_proj]}
+        )
+        LD_repaired.name = 'ldd'
+        LD_repaired = copy_coordinates_and_attributes(source=LD_ds, target=LD_repaired,
+                                                      y_proj=y_proj, x_proj=x_proj)
+        LD_repaired.to_netcdf(tmp_path)
+        LD_ds.close()
+
+        # Create river network from repaired LDD
+        network = get_river_network_from_map(tmp_path, export=False)
+
+        # Reload repaired LDD for further processing
+        LD_ds = xr.open_dataset(tmp_path)
+        LD = prepare_dataset(LD_ds, x_proj, y_proj, 'ldd')
+        LD = LD['ldd']
+        LD = LD.fillna(-1)
+        LD = LD.astype('int')
+        LD = LD.where((LD > 0) & (LD < 10)).fillna(-1)
+        ldd_array = LD.values.astype(int)
+        LD_ds.close()
+        LD_ds = None
+        # Clean up temporary file
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+    if LD_ds is not None:
+        LD_ds.close()
+
+    # ---------------- Process channels slope netcdf
+    CH = xr.open_dataset(channels_slope_file)
+    CH = prepare_dataset(CH, x_proj, y_proj, 'changrad')
+
     # get number of rows and columns
     rows, cols = CH.sizes[y_proj], CH.sizes[x_proj]
 
-    # get coords of map corners
-    x_all = CH.variables[x_proj]
-    y_all = CH.variables[y_proj]
-    x1 = x_all[0]
-    x2 = x_all[-1]
-    y1 = y_all[0]
+    # get coords of map
+    x_all = CH.variables[x_proj].values
+    y_all = CH.variables[y_proj].values
 
-    # calc cell size
-    cell_size = np.abs(x2 - x1) / (cols - 1)
-    # calc coords
-    x = x1 - cell_size / 2
-    y = y1 + cell_size / 2
-
-    # set the clone map for pcraster
-    pcr.setclone(rows, cols, cell_size, x, y)
-
-    # ---------------- Create rivers mask
-    rivers_mask = (CH.changrad < slp_threshold)*1
+    # ---------------- Create rivers mask (Step 1: Flag all grid cells with slope lower than threshold)
+    rivers_mask = (CH.changrad < slp_threshold).astype(int)
     CH.close()
-
-    # convert the xarray to pcraster
-    rivers_mask_pcr = pcr.numpy2pcr(pcr.Scalar, rivers_mask.values, 0) 
-
-    # ---------------- Process LDD
-    old_name = [i for i in list(LD.data_vars) if sorted(LD[i].dims)==sorted([x_proj, y_proj])]
-    LD = LD.rename({old_name[0]: "ldd"})['ldd']  # only 1 variable complies with above if
-
-    # sometimes the masked value is flagged not with NaN (e.g., with cutmaps it was flagged with 0)
-    # pcr.Ldd takes only integer values 1-9, so any other value needs to be masked
-    LD = LD.fillna(-1)  # fill NaN so it can be converted to integer with no issues
-    LD = LD.astype('int')
-    LD = LD.where((LD>0) & (LD<10)).fillna(-1)
-    
-    # convert the xarray to pcraster
-    LD = LD.transpose(y_proj, x_proj)  # make sure dims order is as pcraster needs
-    ldd_pcr = pcr.numpy2pcr(pcr.Ldd, LD.values, -1)  # missing values in the np are flagged as -1
-
-    # repair the ldd; needed in case ldd is created from cutmaps, so outlet is not flagged with 5 (pit) 
-    ldd_pcr = pcr.lddrepair(ldd_pcr)
-    
 
     # ---------------- Read upstream area
     UA = xr.open_dataset(uparea_file)
-    old_name = [i for i in list(UA.data_vars) if sorted(UA[i].dims)==sorted([x_proj, y_proj])]
-    UA = UA.rename({old_name[0]: "domain"})['domain']  # only 1 variable complies with the above if statement
-    
-    # convert the xarray to pcraster
-    UA = UA>=minuparea # check that the area is over the minimum
-    minarea_bool_pcr = pcr.numpy2pcr(pcr.Boolean, UA.values, 0)
+    UA = prepare_dataset(UA, x_proj, y_proj, 'domain')
+    UA = UA['domain']  # Extract as Dataarray
+
+    # check that the area is over the minimum
+    minarea_bool = (UA >= minuparea).astype(int)
     UA.close()
-    
+
     # ---------------- Read domain/basin (mask) area
-    try:
-        MX = xr.open_dataset(mask_file)
-        old_name = [i for i in list(MX.data_vars) if sorted(MX[i].dims)==sorted([x_proj, y_proj])]
-        MX = MX.rename({old_name[0]: "domain"})['domain']  # only 1 variable complies with the above if statement
-    except:
-        print(f'The given mask path {mask_file} is not a valid path. All domain read from LDD file {ldd_file} is considered vaid.')
-        MX = LD.copy(deep=True)
+    # Create domain mask from LDD - valid cells are those with valid LDD (1-9)
+    # First, reload LDD to create the domain mask
+    LD_for_mask_ds = xr.open_dataset(ldd_file)
+    LD_for_mask = prepare_dataset(LD_for_mask_ds, x_proj, y_proj, 'ldd')
+    LD_for_mask = LD_for_mask['ldd']
+    LD_for_mask = LD_for_mask.fillna(0)  # Fill NaN with 0
+    LD_for_mask = LD_for_mask.where((LD_for_mask > 0) & (LD_for_mask < 10))  # Valid LDD values are 1-9
+
+    if mask_file:
+        try:
+            MX = xr.open_dataset(mask_file)
+            MX = prepare_dataset(MX, x_proj, y_proj, 'domain')
+            MX = MX['domain']  # Extract as Dataarray
+            # Combine with LDD mask
+            MX = MX * LD_for_mask
+        except:
+            print(f'The given mask path {mask_file} is not a valid path. Using LDD domain from {ldd_file}.')
+            MX = LD_for_mask
+    else:
+        print(f'No mask file provided. Using LDD domain from {ldd_file}.')
+        MX = LD_for_mask
 
     # use the exact same coords from channel slope file, just in case there are precision differences
     MX = MX.assign_coords({x_proj: x_all, y_proj: y_all})
-    LD.close()  # close ther LD file, after the check of mask availability
-    
+
     # ---------------- Loop on the basin pixels to find how many MCT pixels they have downstream
     # initiate a counter with 1 in cells that fit the slope criteria and 0 elsewhere
-    sum_rivers_pcr = rivers_mask_pcr
-    
+    sum_rivers = rivers_mask.values.copy()
+
     # set the initial value of the 'downstream' pixels
-    downstream_cells_pcr = rivers_mask_pcr
-    
-    # Loop nloops times and use downstream function to find out if each cell has nloop MCT cells downstream
-    # Downstream function gives the value in the downstream pixel in a map:
-    # here it gives 1 if the downstream pixel is Muskingum, zero otherwise.
-    # Note that for pits it always gives its own value so we need to mask out all pits as ann intermidiate step
-    
-    # modify data, so that the most downstream point is masked out (otherwise the below loop gives for all points the same value)
-    downstream_actual_mask_pcr = pcr.downstreamdist(ldd_pcr)
-    downstream_actual_mask_pcr = pcr.ifthenelse(downstream_actual_mask_pcr == 0, pcr.boolean(0), pcr.boolean(1))
-    downstream_actual_mask_pcr = pcr.scalar(downstream_actual_mask_pcr)
-    
+    downstream_cells = rivers_mask.values.copy()
+
+    # Calculates the maximum distance to all points from the river network sinks
+    downstreamdist = distance.to_sink(network, path='shortest')
+    # Create mask for valid downstream cells (not pits)
+    # A pit has ldd value 5, downstreamdist returns 0 for pits
+    downstream_actual_mask = (downstreamdist > 0).astype(int)
+
     # The loop is used to count how many pixels are MCT downstream, as at each loop we move the values 1 pixel upstream
     # At the end of the loop, each element of the array has the number of downstream MCT pixels for that pixel
-    for loops in range(0, nloops):
+    for loops in range(nloops):
         # get the value on the downstream cell and put it in a mask
-        downstream_cells_pcr = pcr.downstream(ldd_pcr, downstream_cells_pcr)
-        downstream_cells_pcr = downstream_cells_pcr*downstream_actual_mask_pcr
-        sum_rivers_pcr = sum_rivers_pcr + downstream_cells_pcr
-        
+        downstream_cells = move.upstream(network, downstream_cells, return_type='gridded')
+        downstream_cells = downstream_cells * downstream_actual_mask
+        sum_rivers = sum_rivers + downstream_cells
+
     # ---------------- Generate a new MCT rivers mask
     # Pixels with nloops downstream MCT pixels plus their self (nloops+1 in total) go to the MCT river mask
-    mct_mask_pcr = pcr.ifthenelse(sum_rivers_pcr == nloops+1, pcr.boolean(1), pcr.boolean(0))
+    mct_mask_np = (sum_rivers == nloops + 1).astype(int)
     
     # Keep only the cells over the minimum area
-    mct_mask_pcr = pcr.ifthenelse(minarea_bool_pcr, mct_mask_pcr, pcr.boolean(0))
+    mct_mask_np = mct_mask_np * minarea_bool.values
     
     # Use path function to include in the MCT mask all pixels downstream of an MCT pixel
     # path requires boolean 0-1. If there are NaNs then it gives wrong results!
-    mct_mask_pcr = pcr.pcr2numpy(mct_mask_pcr, 0)  # get the numpy from pcr
-    mct_mask_pcr = pcr.numpy2pcr(pcr.Boolean, mct_mask_pcr, -1)  # convert to Boolean with no NaN (-1 is not possible)
-    mct_mask_pcr = pcr.path(ldd_pcr, mct_mask_pcr)  # get the actual paths
-    
+    # mct_mask_np = path(ldd_array, mct_mask_np)
+    mct_mask_np = upstream.max(network, mct_mask_np, return_type='gridded').values.astype(int)
+
     # ---------------- Generate the output file
-    mct_mask_np = pcr.pcr2numpy(mct_mask_pcr, 0)
-    MCT = MX.fillna(0)*0+mct_mask_np
-    MX.close()
+    MCT = xr.DataArray(
+        mct_mask_np,
+        dims=[y_proj, x_proj]
+        # coords={y_proj: y_all, x_proj: x_all}
+    )
     MCT.name = 'mct_mask'
-    
+
+    # Copy coordinates and projection attributes from the source dataset to preserve CRS information
+    MCT = copy_coordinates_and_attributes(source=LD_for_mask_ds, target=MCT, y_proj=y_proj, x_proj=x_proj)
+
     # mask final data with the mask_file
     MCT = MCT.where(MX.notnull())
-    
+    MX.close()
+    LD_for_mask_ds.close()
+
     return MCT
+
+
+def extract_coords(ds: xr.Dataset, coords_names: List[str] = []) -> Tuple[str, str]:
+    x_proj, y_proj = '', ''
+    # Determine coordinate names: use provided names or auto-detect from dataset
+    if len(coords_names) == 0:
+        # Auto-detect coordinates by matching against known patterns
+        available_coords = set(ds.coords)
+        x_matches = available_coords.intersection(X_COORD_NAMES)
+        y_matches = available_coords.intersection(Y_COORD_NAMES)
+        
+        if len(x_matches) != 1 or len(y_matches) != 1:
+            raise ValueError(
+                f"Unable to uniquely identify coordinates. "
+                f"Found {len(x_matches)} x-coords: {x_matches}, "
+                f"{len(y_matches)} y-coords: {y_matches}. "
+                f"Available: {list(available_coords)}. "
+                f"Please specify coordinates explicitly using the -E argument "
+                f"(format: 'lat lon')."
+            )
+        
+        x_proj = str(next(iter(x_matches)))
+        y_proj = str(next(iter(y_matches)))
+    elif len(coords_names) == 2:
+        # Use provided coordinates (y, x order as per documentation)
+        y_proj, x_proj = coords_names
+    else:
+        raise ValueError(
+            f"coords_names must have 0 or 2 elements, got {len(coords_names)}: {coords_names}"
+        )
+        
+    return x_proj, y_proj
+
+
+def prepare_dataset(ds: xr.Dataset, x_proj: str, y_proj: str, new_name: str) -> xr.Dataset:
+    """
+    Change the name of the variable in the dataset that has dimensions matching x_proj and y_proj to new_name.
+    Make sure to transpose the variable to have the correct order of dimensions (y_proj, x_proj) for consistency with downstream processing.
+    This is needed for the pcraster conversion.
+    """
+    # Use set comparison instead of sorted() to avoid type issues with Hashable
+    # and to handle dimension order differences
+    old_name = [i for i in list(ds.data_vars) if set(ds[i].dims) == {x_proj, y_proj}]
+    if not old_name:
+        raise ValueError("No variable found with dimensions matching x and y coordinates")
+    if len(old_name) > 1:
+        import warnings
+        warnings.warn(f"Multiple variables match the dimension check: {old_name}. Using first one: {old_name[0]}")
+    ds = ds.rename({old_name[0]: new_name}) # only 1 variable complies with the above check
+    ds[new_name] = ds[new_name].transpose(y_proj, x_proj)  # Ensure correct order of dimensions
+    return ds
 
 
 def main():

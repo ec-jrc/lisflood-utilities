@@ -93,7 +93,7 @@ def main():
 
     # Loop over vars
     vars = ['elec','mfg','liv']
-    table_Huang_withdrawal = np.zeros((len(vars),country_codes.shape[0],len(years)),dtype=np.single)*np.NaN
+    table_Huang_withdrawal = np.zeros((len(vars),country_codes.shape[0],len(years)),dtype=np.single)*np.nan
     for vv in np.arange(len(vars)):
         var = vars[vv]
         
@@ -105,10 +105,10 @@ def main():
         dset.close()
 
         # Reproject data
-        Huang_withdrawal = np.zeros((360,720,raw_data.shape[0]),dtype=np.single)*np.NaN
+        Huang_withdrawal = np.zeros((360,720,raw_data.shape[0]),dtype=np.single)*np.nan
         rows,cols = latlon2rowcol(raw_lat,raw_lon,0.5,90,-180)
         for ii in np.arange(raw_data.shape[0]):    
-            reprojected = np.zeros((360,720),dtype=np.single)*np.NaN
+            reprojected = np.zeros((360,720),dtype=np.single)*np.nan
             reprojected[rows,cols] = raw_data[ii,:]
             Huang_withdrawal[:,:,ii] = reprojected
 
@@ -146,7 +146,7 @@ def main():
     t0 = time.time()
 
     # Determine centroid coordinates for each country
-    country_centroid_lats, country_centroid_lons = np.zeros((country_codes.shape[0],))*np.NaN, np.zeros((country_codes.shape[0],))*np.NaN
+    country_centroid_lats, country_centroid_lons = np.zeros((country_codes.shape[0],))*np.nan, np.zeros((country_codes.shape[0],))*np.nan
     for jj in np.arange(country_codes.shape[0]):
         country_code = country_codes.iloc[jj]['country-code']
         mask = country_code_map==country_code
@@ -156,11 +156,11 @@ def main():
 
     # Determine closest neighbors for each country
     from geopy.distance import great_circle
-    closest_codes = np.zeros((country_codes.shape[0],country_codes.shape[0]))*np.NaN
-    closest_indices = np.zeros((country_codes.shape[0],country_codes.shape[0]),dtype=int)*np.NaN
+    closest_codes = np.zeros((country_codes.shape[0],country_codes.shape[0]))*np.nan
+    closest_indices = np.zeros((country_codes.shape[0],country_codes.shape[0]),dtype=int)*np.nan
     for jj in np.arange(country_codes.shape[0]):
         if np.isnan(country_centroid_lats[jj]): continue
-        distances = np.zeros((country_codes.shape[0],),dtype=np.single)*np.NaN
+        distances = np.zeros((country_codes.shape[0],),dtype=np.single)*np.nan
         for kk in np.arange(country_codes.shape[0]):
             if np.isnan(country_centroid_lats[kk]) or (jj==kk): continue
             distances[kk] = great_circle((country_centroid_lats[jj],country_centroid_lons[jj]),(country_centroid_lats[kk],country_centroid_lons[kk])).meters/1000
@@ -188,8 +188,8 @@ def main():
     wwd_ps = src.read(1).astype(np.single)
     src.close()
 
-    vassolo_doll_withdrawal_manufacturing = np.zeros((country_codes.shape[0],),dtype=np.single)*np.NaN
-    vassolo_doll_withdrawal_thermoelectric = np.zeros((country_codes.shape[0],),dtype=np.single)*np.NaN
+    vassolo_doll_withdrawal_manufacturing = np.zeros((country_codes.shape[0],),dtype=np.single)*np.nan
+    vassolo_doll_withdrawal_thermoelectric = np.zeros((country_codes.shape[0],),dtype=np.single)*np.nan
     for jj in np.arange(country_codes.shape[0]):
         country_code = country_codes.iloc[jj]['country-code']
         mask = country_code_map_360x720==country_code
@@ -240,8 +240,8 @@ def main():
     lohrmann['Country'] = lohrmann['Country'].replace(rename_list[:,0],rename_list[:,1])
 
     # Compute aggregate capacities and withdrawals for each country
-    table_lohrmann_plant_capacity = np.zeros((country_codes.shape[0],),dtype=np.single)*np.NaN
-    table_lohrmann_plant_withdrawal = np.zeros((country_codes.shape[0],),dtype=np.single)*np.NaN
+    table_lohrmann_plant_capacity = np.zeros((country_codes.shape[0],),dtype=np.single)*np.nan
+    table_lohrmann_plant_withdrawal = np.zeros((country_codes.shape[0],),dtype=np.single)*np.nan
     for jj in np.arange(country_codes.shape[0]):
         country_name = country_codes.iloc[jj]['name']
         sel = (lohrmann['Country'].values==country_name) & (lohrmann['Seawater-cooling'].values==False)
@@ -266,7 +266,7 @@ def main():
     eia_db.iloc[:,1] = [elem.replace('        ', '') for elem in eia_db.iloc[:,1]] # Remove leading spaces in country names
 
     # Add electricity source column
-    eia_db['source'] = np.NaN
+    eia_db['source'] = np.nan
     for mm in np.arange(eia_db.shape[0]):
         if 'electricity' in eia_db.iloc[mm,1]:
             source = eia_db.iloc[mm,1]
@@ -330,8 +330,8 @@ def main():
     generation_source_keywords = ["nuclear electricity net generation","fossil fuels electricity net generation","geothermal electricity net generation","biomass and waste electricity net generation"]
 
     # Compute sums for each country
-    table_eia_electricity_capacity = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.NaN
-    table_eia_electricity_generation = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.NaN
+    table_eia_electricity_capacity = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.nan
+    table_eia_electricity_generation = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.nan
     for jj in np.arange(country_codes.shape[0]):
         country_name = country_codes.iloc[jj]['name']
         columns = eia_db.columns.tolist()
@@ -364,7 +364,7 @@ def main():
 
     aquastat = pd.read_csv(os.path.join(config['aquastat_folder'],'aquastat_clean.csv'),index_col=False)
 
-    table_aquastat_industry_withdrawal = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.NaN
+    table_aquastat_industry_withdrawal = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.nan
     for jj in np.arange(country_codes.shape[0]):
         country_code = country_codes.iloc[jj]['country-code']    
         for ii in np.arange(len(years)):
@@ -388,8 +388,8 @@ def main():
     worldbank_mva = pd.read_csv(mva_file,skiprows=4)
 
     # Values for each country and year
-    table_worldbank_gdp = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.NaN
-    table_worldbank_mva = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.NaN
+    table_worldbank_gdp = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.nan
+    table_worldbank_mva = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.nan
     for jj in np.arange(country_codes.shape[0]):
         country_acronym = country_codes.iloc[jj]['alpha-3']
         sel = worldbank_mva['Country Code']==country_acronym
@@ -447,8 +447,8 @@ def main():
         ],dtype=object)
 
     # Values for each country and year
-    table_gcam_withdrawal_industry = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.NaN
-    table_gcam_withdrawal_thermoelectric = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.NaN
+    table_gcam_withdrawal_industry = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.nan
+    table_gcam_withdrawal_thermoelectric = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.nan
     for jj in np.arange(country_codes.shape[0]):
         country_name = country_codes.iloc[jj]['name']
         
@@ -507,11 +507,11 @@ def main():
     gcam_output = pd.read_csv(os.path.join(config['gcam_folder'],'elec_consumption.csv'))
 
     # Values for each country and year
-    table_gcam_elec_building = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.NaN
-    table_gcam_elec_trans_ind = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.NaN
-    table_gcam_elec_heating = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.NaN
-    table_gcam_elec_cooling = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.NaN
-    table_gcam_elec_other = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.NaN
+    table_gcam_elec_building = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.nan
+    table_gcam_elec_trans_ind = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.nan
+    table_gcam_elec_heating = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.nan
+    table_gcam_elec_cooling = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.nan
+    table_gcam_elec_other = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.nan
     for jj in np.arange(country_codes.shape[0]):
         country_name = country_codes.iloc[jj]['name']
         
@@ -569,9 +569,9 @@ def main():
     ii_1995 = years.tolist().index(1995)
     ii_2015 = years.tolist().index(2015)    
 
-    table_withdrawal_industry = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.NaN
-    table_withdrawal_manufacturing = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.NaN
-    table_withdrawal_thermoelectric = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.NaN
+    table_withdrawal_industry = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.nan
+    table_withdrawal_manufacturing = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.nan
+    table_withdrawal_thermoelectric = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.nan
     table_withdrawal_data_source = [None]*country_codes.shape[0]
     for jj in np.arange(country_codes.shape[0]):
         country_code = country_codes.iloc[jj]['country-code']
@@ -731,7 +731,7 @@ def main():
             
             # Load MSWX air temperature data for entire month
             ndays = monthrange(year,month)[1]
-            mswx_month = np.zeros((1800,3600,ndays),dtype=np.single)*np.NaN
+            mswx_month = np.zeros((1800,3600,ndays),dtype=np.single)*np.nan
             for day in np.arange(1,ndays+1):
                 if year<1979:   #MSWX dataset starts from 1979
                     try:

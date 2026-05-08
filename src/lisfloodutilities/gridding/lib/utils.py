@@ -15,17 +15,17 @@ import os
 import csv
 import pickle
 from pathlib import Path
-# from pyproj import Transformer
 from argparse import ArgumentTypeError
 import configparser as ConfigParser
 import numpy as np
 import numpy.ma as ma
 import pandas as pd
-import rasterio
-from decimal import *
+import rasterio # type: ignore
+from decimal import Decimal, getcontext
 from datetime import datetime, timedelta
+from typing import Optional
 from collections import OrderedDict
-from scipy.spatial import cKDTree
+from scipy.spatial import cKDTree # type: ignore
 from pyg2p import Loggable
 from pyg2p.main.readers.netcdf import NetCDFReader
 from pyg2p.main.interpolation.scipy_interpolation_lib import ScipyInterpolation
@@ -82,7 +82,7 @@ class Dem(Printable):
         reader = NetCDFReader(self._dem_map)
         self.nrows = reader._rows
         self.ncols = reader._cols
-        self.mv = reader.mv.astype(np.float32)
+        self.mv = np.float32(reader.mv)
         self.values = reader.values.astype(np.float32)
         self.lats, self.lons = reader.get_lat_lon_values()
         self.lats = self.lats.astype(np.float64)
@@ -115,14 +115,14 @@ class FileUtils(Printable):
         return datetime.strptime(file_timestamp, FileUtils.DATE_PATTERN_CONDENSED)
 
     def processable_file(self, file_timestamp: datetime, dates_to_process: dict = {},
-                         start_date: datetime = None, end_date: datetime = None) -> bool:
+                         start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> bool:
         is_processable_date = True
         if len(dates_to_process) > 0:
             is_processable_date = file_timestamp in dates_to_process
         return (start_date is not None and start_date <= file_timestamp and
                 end_date is not None and file_timestamp <= end_date and is_processable_date)
 
-    def read_processing_dates_file(self, file_path: str = None) -> dict:
+    def read_processing_dates_file(self, file_path: Optional[str] = None) -> dict:
         dates_list = []
         if file_path is not None:
             with open(file_path) as in_file:
@@ -154,6 +154,7 @@ class FileUtils(Printable):
             raise ArgumentTypeError(f'{self.var_code} is not a valid variable code.')
         return search_path
 
+    @staticmethod
     def file_type(fname: str) -> str:
         if not fname:
             raise ArgumentTypeError('You must insert a path.')
@@ -164,6 +165,7 @@ class FileUtils(Printable):
             raise ArgumentTypeError(f'Invalid file path: {p}')
         return fname
 
+    @staticmethod
     def folder_type(fname: str) -> str:
         if not fname:
             raise ArgumentTypeError('You must insert a path.')
@@ -171,9 +173,11 @@ class FileUtils(Printable):
             raise ArgumentTypeError(f'{fname} is not a valid path')
         return fname
 
+    @staticmethod
     def is_file_path(file_path: Path) -> bool:
         return len(file_path.suffix) > 0
 
+    @staticmethod
     def file_or_folder(fname: str) -> str:
         if not fname:
             raise ArgumentTypeError('You must insert a path.')
@@ -189,8 +193,9 @@ class Config(Printable):
                            'bilinear': 4, 'triangulation': 3, 'bilinear_delaunay': 4}
     # Allows splitting the grid to interpolate into several parts and run isolated interpolations for each
     MEMORY_SAVE_MODES = {'0': None, '1': 2, '2': 4, '3': 10, '4': 20, '5': 50}
-    def __init__(self, config_filename: str, start_date: datetime = None, end_date: datetime = None,
-                 quiet_mode: bool = False, interpolation_mode: str = 'adw', memory_save_mode: str = '0'):
+    def __init__(self, config_filename: str, start_date: Optional[datetime] = None,
+                 end_date: Optional[datetime] = None, quiet_mode: bool = False,
+                 interpolation_mode: str = 'adw', memory_save_mode: str = '0'):
         super().__init__(quiet_mode)
         self.COLUMN_HEIGHT = "height"
         self.COLUMN_VALUE = "value"
@@ -231,7 +236,7 @@ class Config(Printable):
             'weights_mode': 'All' # 'OnlyTOP10'
         }
 
-    def __setup_dates(self, start_date: datetime = None, end_date: datetime = None):
+    def __setup_dates(self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None):
         netcdf_var_time_unit_pattern = self.get_config_field('VAR_TIME','UNIT_PATTERN')
         if start_date is None:
             time_units = self.get_config_field('VAR_TIME','UNIT')
@@ -292,7 +297,7 @@ class Config(Printable):
             self.print_msg(f'Saved height from DEM: {self._dem_height_correction_file}')
             self.print_msg('Create KDtree DEM')
             transformed_coordinates = (df_dem[self.COLUMN_LON].values, df_dem[self.COLUMN_LAT].values)
-            self.DEM_HEIGHT_CORRECTION_QUERY = cKDTree(data=np.vstack(transformed_coordinates).T, copy_data=True)
+            self.DEM_HEIGHT_CORRECTION_QUERY = cKDTree(data=np.vstack(transformed_coordinates).T, copy_data=True) # type: ignore
             pickle.dump(self.DEM_HEIGHT_CORRECTION_QUERY, self._dem_height_correction_kdt_file.open("wb"))
             self.print_msg(f'Saved creating KDtree DEM: {self._dem_height_correction_kdt_file}')
             self.print_msg(f'Writing file: {self._dem_interpolation_file}')
@@ -385,15 +390,51 @@ class Config(Printable):
         return self.get_config_field('GENERIC', 'POINTS_TIMESTAMP_PATTERN')
 
     @property
-    def force_time(self) -> str:
+    def force_time(self) -> Optional[str | None]:
         """
-        Gets the value of time to force when reading the filenames in case the input files cannot have the time component on their names.
-        This is a workaround only to allow operating with daily files provided without the time component. 
+        Gets the value of time to force when reading the filenames in case the
+        input files cannot have the time component on their names.
+        This is a workaround only to allow operating with daily files provided
+        without the time component. 
         """
         try:
             return self.get_config_field('VAR_TIME', 'FORCE_TIME')
         except Exception as e:
             return None
+
+    @property
+    def api_url(self) -> str:
+        """
+        Returns the URL of the API to download the data from.
+        """
+        return self.get_config_field('KISTERS_API', 'API_URL')
+
+    @property
+    def api_timeseries_id(self) -> str:
+        """
+        Returns the timeseries ID to download the data from.
+        Identification of the timeseries inside the API.
+        Identifies the variable to be downloaded.
+        """
+        return self.get_config_field('KISTERS_API', 'API_TIMESERIES_ID')
+
+    @property
+    def api_timeseries_time_to_download(self) -> str:
+        """
+        Returns the time to download the metadata from.
+        Setup of the Hour to download the metadata from.
+        Each variable have a specific hour for the data availability
+        """
+        return self.get_config_field('KISTERS_API', 'API_TIMESERIES_TIME_TO_DOWNLOAD')
+
+    @property
+    def api_timeseries_path_wildcard(self) -> str:
+        """
+        Returns the path wildcard to identify which data should be downloaded from the timeseries.
+        Identifies which data should be downloaded from the timeseries. Total, Average, Min, Max, ...
+        Example: "*/*/Precip/6h.Total" to get the total precipitation.
+        """
+        return self.get_config_field('KISTERS_API', 'API_TIMESERIES_PATH_WILDCARD')
 
 
 class GriddingUtils(Printable):
@@ -411,7 +452,7 @@ class GriddingUtils(Printable):
                 stations = np.array([df[self.conf.COLUMN_LON], df[self.conf.COLUMN_LAT]]).T
                 _, idx = self.conf.DEM_HEIGHT_CORRECTION_QUERY.query(stations)
                 df["hs"] = self.conf.DEM_HEIGHT_CORRECTION[idx]
-            df[self.conf.COLUMN_VALUE] += df["hs"] * self.conf.height_correction_factor
+            df[self.conf.COLUMN_VALUE] += df["hs"] * float(self.conf.height_correction_factor)
             self.print_msg('Finish height correction')
         return df
 
@@ -430,7 +471,7 @@ class GriddingUtils(Printable):
         result = result.filled()
         return result
 
-    def prepare_grid(self, result: np.ndarray, grid_shape: np.ndarray) -> np.ndarray:
+    def prepare_grid(self, result: np.ndarray, grid_shape: Tuple[int, ...]) -> np.ndarray:
         # Pack data
         if self.unit_conversion != 1.0:
             result = result * self.unit_conversion
@@ -455,7 +496,10 @@ class GriddingUtils(Printable):
         current_grid[np.where(current_grid > self.conf.value_max)] = np.nan
         count_grid_nan = np.count_nonzero(np.isnan(current_grid))
         if count_dem_nan != count_grid_nan:
-            self.print_msg(f"WARNING: The grid interpolated from file {filename.name} contains different NaN values ({count_grid_nan}) than the DEM ({count_dem_nan}). diff: {count_grid_nan - count_dem_nan}")
+            self.print_msg(
+                f"WARNING: The grid interpolated from file {filename.name} contains different NaN values "
+                f"({count_grid_nan}) than the DEM ({count_dem_nan}). diff: {count_grid_nan - count_dem_nan}"
+            )
 
     def read_tiff(self, tiff_filepath: Path) -> np.ndarray:
         # This method could be implemented on a GDALReader class
@@ -473,7 +517,7 @@ class GriddingUtils(Printable):
         grid_x, grid_y = self.conf.dem.lons, self.conf.dem.lats
         df = pd.read_csv(filename, header=None,
                          names=[self.conf.COLUMN_LON, self.conf.COLUMN_LAT, self.conf.COLUMN_VALUE],
-                         na_values=self.conf.VALUE_NAN, sep=FileUtils.CSV_DELIMITER)
+                         na_values=[str(self.conf.VALUE_NAN)], sep=FileUtils.CSV_DELIMITER)
         df = self.correct_height(df)
         self.print_msg('Starting interpolation')
         x = df[self.conf.COLUMN_LON].values
@@ -531,7 +575,7 @@ class KiwisLoader(Printable):
         # Number of files to be read/processed simultaneously. for non daily vars time frequency is in hours
         self.read_files_step = 1 if self.is_daily_var else int(24 / self.time_frequency)
         self.files_list_dic = OrderedDict()
-        self.files_list = None
+        self.files_list = iter([])
         self.files_cache = StackFIFO()
         self.filter_classes = self.__get_filter_classes()
 
@@ -546,7 +590,10 @@ class KiwisLoader(Printable):
             self.__load_next_batch_of_files()
             self.__process_next_batch_of_files()
         # Get next file
-        filepath_kiwis, filepath_points, kiwis_timestamps = self.files_cache.pop()
+        cached_item = self.files_cache.pop()
+        if cached_item is None:
+            raise StopIteration
+        filepath_kiwis, filepath_points, kiwis_timestamps = cached_item
         return filepath_points, kiwis_timestamps
 
     def __load_next_batch_of_files(self):
@@ -621,6 +668,7 @@ class KiwisLoader(Printable):
         plugins_columns_dic = eval(plugins_columns_def)
         plugins_columns = OrderedDict(plugins_columns_dic)
         module_name = 'lisfloodutilities.gridding.lib.filters'
+        class_name = ''
         try:
             for plugin in plugins:
                 class_name = plugin
@@ -665,7 +713,7 @@ class KiwisLoader(Printable):
             file_timestamp = datetime.combine(file_timestamp.date(), new_time)
         return file_timestamp
 
-    def __processable_file(self, file_timestamp: datetime, start_date: datetime = None, end_date: datetime = None) -> bool:
+    def __processable_file(self, file_timestamp: datetime, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> bool:
         is_processable_date = True
         if len(self.dates_to_process) > 0:
             is_processable_date = file_timestamp in self.dates_to_process

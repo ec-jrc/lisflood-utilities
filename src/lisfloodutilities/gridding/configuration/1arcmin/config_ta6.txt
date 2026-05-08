@@ -23,6 +23,19 @@ LONG_NAME = 6 Hourly Average Temperature
 # 1329 - ERA5-land
 KIWIS_FILTER_PLUGIN_CLASSES = {'ObservationsKiwisFilter': {'1329': 700.0}, 'ProvidersKiwisFilter': {'1323': [('2022-01-01 06:00:00', '2023-12-31 06:00:00')]}}
 
+[KISTERS_API]
+
+# Identification of the timeseries inside the API. Identifies the variable to be downloaded.
+API_TIMESERIES_ID: 1417496
+
+# Setup of the Hour to download the metadata from.
+# Each variable have a specific hour for the data availability
+API_TIMESERIES_TIME_TO_DOWNLOAD: 06
+
+# Identifies which data should be downloaded from the timeseries. Total, Average, Min, Max, ...
+# Example: "*/*/Precip/6h.Total" to get the total precipitation
+API_TIMESERIES_PATH_WILDCARD: */*/AT/6h.Mean
+
 [VAR_TIME]
 
 UNIT_PATTERN = hours since %%Y-%%m-%%d %%H:%%M:%%S.%%f

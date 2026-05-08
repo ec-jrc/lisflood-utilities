@@ -23,24 +23,20 @@ import logging
 from lisfloodutilities.cutmaps.main import get_arg_coords
 
 logging.basicConfig(format="%(threadName)s:%(message)s")
-from lisfloodutilities import IS_PYTHON2
 from lisfloodutilities.cutmaps.cutlib import get_filelist, get_cuts, cutmap, mask_from_ldd
 from lisfloodutilities.nc2pcr import convert as nc2pcr_convert
 from lisfloodutilities.compare.nc import NetCDFComparator
 
 from . import TestWithCleaner
 
-if IS_PYTHON2:
-    from pathlib2 import Path
-else:
-    from pathlib import Path
+from pathlib import Path
 
 
 class TestCutlib(TestWithCleaner):
 
     def test_getfiles_to_cut_file(self):
         res = get_filelist(input_file='tests/data/folder_a/ta.nc')
-        assert ['tests/data/folder_a/ta.nc'] == res
+        assert [Path('tests/data/folder_a/ta.nc')] == res
 
     def test_getfiles_to_cut_folder(self):
         res = sorted(get_filelist(input_folder='tests/data/folder_a'))
@@ -116,7 +112,7 @@ class TestCutlib(TestWithCleaner):
         assert (x_min, x_max, y_min, y_max) == (res_x_min, res_x_max, res_y_min, res_y_max)
 
     def test_get_cuts_withmaskfile_compare(self):
-        maskfile = 'tests/data/submask/subcatchment_mask.map'
+        maskfile = 'tests/data/submask/subcatchment_mask.nc'
         x_min, x_max, y_min, y_max = get_cuts(mask=maskfile)
         assert (x_min, x_max, y_min, y_max) == (4052500.0, 4232500.0, 2332500.0, 2542500.0)
         fin = 'tests/data/submask/dis.nc'
@@ -156,10 +152,10 @@ class TestCutlib(TestWithCleaner):
         assert (x_minr, x_maxr, y_minr, y_maxr) == (res_x_min, res_x_max, res_y_min, res_y_max)
 
     def test_get_cuts_ldd(self):
-        ldd_pcr = 'tests/data/cutmaps/ldd_eu.map'
+        ldd = 'tests/data/cutmaps/ldd_eu.nc'
         stations = 'tests/data/cutmaps/stations.txt'
 
-        mask, outlets_points, mask_nc = mask_from_ldd(ldd_pcr, stations)
+        mask, outlets_points, mask_nc = mask_from_ldd(ldd, stations)
         self.cleanups.append((os.unlink, (mask,)))
         self.cleanups.append((os.unlink, (outlets_points,)))
         self.cleanups.append((os.unlink, (mask_nc,)))
@@ -179,22 +175,49 @@ class TestCutlib(TestWithCleaner):
             res_y_max = np.max(lats)
         assert (x_min, x_max, y_min, y_max) == (res_x_min, res_x_max, res_y_min, res_y_max)
 
+    def test_get_cuts_ldd_3arcmin(self):
+        ldd = 'tests/data/cutmaps/ldd_3arcmin.nc'
+        stations = 'tests/data/cutmaps/stations_3arcmin.txt'
+
+        mask, outlets_points, mask_nc = mask_from_ldd(ldd, stations)
+        self.cleanups.append((os.unlink, (mask,)))
+        self.cleanups.append((os.unlink, (outlets_points,)))
+        self.cleanups.append((os.unlink, (mask_nc,)))
+
+        x_min, x_max, y_min, y_max = get_cuts(mask=mask)
+        x_minr, x_maxr, y_minr, y_maxr = np.round(x_min, 3), np.round(x_max, 3), np.round(y_min, 3), np.round(y_max, 3)
+
+        assert_msg = 'Unexpected cuts from LDD with 3 arcmin resolution'
+        assert (x_minr, x_maxr, y_minr, y_maxr) == (10.225, 12.175, 42.975, 44.275), assert_msg
+
+        fin = 'tests/data/cutmaps/ldd_3arcmin.nc'
+        fout = 'tests/data/cutmaps/area_cut_3arcmin.nc'
+        cutmap(fin, fout, x_min, x_max, y_min, y_max)
+        self.cleanups.append((os.unlink, (fout,)))
+        with Dataset(fout) as nc:
+            lons = nc.variables['x'][:]
+            lats = nc.variables['y'][:]
+            res_x_min = np.round(np.min(lons), 3)
+            res_y_min = np.round(np.min(lats), 3)
+            res_x_max = np.round(np.max(lons), 3)
+            res_y_max = np.round(np.max(lats), 3)
+
+        assert_msg = 'Unexpected cuts from cutmap with LDD with 3 arcmin resolution'
+        assert (x_minr, x_maxr, y_minr, y_maxr) == (res_x_min, res_x_max, res_y_min, res_y_max), assert_msg
+
     def test_get_cuts_ldd_onestation(self):
-        # this tests the case when LDD is in netCDF format as well
+        # this tests the case when LDD is in netCDF format
         ldd = 'tests/data/cutmaps/ldd_eu.nc'
         stations = 'tests/data/cutmaps/stations2.txt'
-
-        ldd_pcr_path = 'tests/data/cutmaps/ldd_eu_test.map'
-        nc2pcr_convert(ldd, ldd_pcr_path, is_ldd=True)
-
-        self.cleanups.append((os.unlink, (ldd_pcr_path,)))
-
-        mask, outlets_points, mask_nc = mask_from_ldd(ldd_pcr_path, stations)
+    
+        mask, outlets_points, mask_nc = mask_from_ldd(ldd, stations)
         self.cleanups.append((os.unlink, (mask,)))  # produced by mask_from_ldd
         self.cleanups.append((os.unlink, (outlets_points,)))  # produced by mask_from_ldd
         self.cleanups.append((os.unlink, (mask_nc,)))  # produced by mask_from_ldd
         x_min, x_max, y_min, y_max = get_cuts(mask=mask)
-        assert (x_min, x_max, y_min, y_max) == (4347500.0, 4372500.0, 1282500.0, 1307500.0)
+
+        assert_msg = 'Unexpected cuts from LDD with ETRS89 projection and one station'
+        assert (x_min, x_max, y_min, y_max) == (4347500.0, 4372500.0, 1282500.0, 1307500.0), assert_msg
 
         fout = 'tests/data/cutmaps/ldd_eu_cut.nc'
         self.cleanups.append((os.unlink, (fout,)))
@@ -208,4 +231,5 @@ class TestCutlib(TestWithCleaner):
             res_x_max = np.max(lons)
             res_y_max = np.max(lats)
 
-        assert (x_min, x_max, y_min, y_max) == (res_x_min, res_x_max, res_y_min, res_y_max)
+        assert_msg = 'Unexpected cuts from cutmap with LDD with ETRS89 projection and one station'
+        assert (x_min, x_max, y_min, y_max) == (res_x_min, res_x_max, res_y_min, res_y_max), assert_msg

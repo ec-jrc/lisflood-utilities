@@ -18,6 +18,8 @@ import numpy as np
 import xarray as xr
 from typing import Tuple, Union, List, Literal
 
+from lisfloodutilities.cutmaps.helpers import COORDINATE_NAMES
+
 
 def lmoments(values: np.ndarray) -> np.ndarray:
     """
@@ -111,10 +113,7 @@ def gumbel_parameters_moments(
 
     # create dataset
     coords = {coord: values for coord, values in dis.max(dim=dim, skipna=True).coords.items() if coord != dim}
-    try:
-        dims = [dim for dim in list(coords) if dim not in ['lat', 'lon']]
-    except:
-        dims = [dim for dim in list(coords) if dim not in ['y', 'x']]
+    dims = [cur_dim for cur_dim in list(coords) if cur_dim not in COORDINATE_NAMES]
     parameters = xr.Dataset({
         'sigma': xr.DataArray(sigma, dims=dims, coords=coords),
         'mu': xr.DataArray(mu, dims=dims, coords=coords)
@@ -148,14 +147,13 @@ def gumbel_parameters_lmoments(dis_max: xr.DataArray, dim: str = 'time') -> xr.D
     mu = lambda_coef[0] - sigma * np.euler_gamma
 
     # create dataset
-    coords = {coord: values for coord, values in dis_max.coords.items() if coord != dim}
-    try:
-        dims = [dim for dim in list(coords) if dim not in ['lat', 'lon']]
-    except:
-        dims = [dim for dim in list(coords) if dim not in ['y', 'x']]
+    # Get spatial coordinates (excluding the time dimension)
+    spatial_coords = {coord: values for coord, values in dis_max.coords.items() if coord != dim}
+    # Get spatial dimensions
+    spatial_dims = [dim_name for dim_name in dis_max.dims if dim_name != dim]
     parameters = xr.Dataset({
-        'sigma': xr.DataArray(sigma, dims=dims, coords=coords),
-        'mu': xr.DataArray(mu, dims=dims, coords=coords)
+        'sigma': xr.DataArray(sigma, dims=spatial_dims, coords=spatial_coords),
+        'mu': xr.DataArray(mu, dims=spatial_dims, coords=spatial_coords)
     })
 
     return parameters
@@ -207,7 +205,7 @@ def read_discharge(in_files):
 
 def unmask_array(mask, template, data):
     data_unmask = np.empty_like(template)
-    data_unmask[...] = np.NaN
+    data_unmask[...] = np.nan
     data_unmask[mask] = data
     return data_unmask
 
@@ -263,8 +261,11 @@ def compute_thresholds_gumbel(
     """
 
     # filter points with NaN in the first value
-    mask = np.isfinite(dis_max.isel({dim: 0}))
-    dis_max_masked = dis_max.where(mask, drop=True)
+    # Use xarray's where to keep the DataArray structure with coordinates
+    # Note: We don't use drop=True as it can cause IndexError with dimension coordinates
+    first_timestep = dis_max.isel({dim: 0})
+    mask = first_timestep.notnull()
+    dis_max_masked = dis_max.where(mask)
 
     print("Computing Gumbel coefficients")
     if method.lower() == 'l-moments':
@@ -291,11 +292,11 @@ def main(argv=sys.argv):
         prog=prog,
     )
     parser.add_argument(
-        "-d", "--discharge", help="Input discharge files (annual maxima)"
+        "-d", "--discharge", required=True, help="Input discharge files (annual maxima)"
     )
-    parser.add_argument("-o", "--output", help="Output thresholds file")
+    parser.add_argument("-o", "--output", required=True, help="Output thresholds file")
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv[1:])
 
     dis = read_discharge(args.discharge)
     print(dis)

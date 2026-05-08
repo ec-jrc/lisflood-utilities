@@ -83,7 +83,7 @@ class TestNetCDFMap:
         variables = {n: v for n, v in test_file.data}
         assert len(variables) == 1
         assert variables['areaOrigin'].shape == (5, 12)
-        assert np.alltrue(variables['areaOrigin'])
+        assert np.all(variables['areaOrigin'])
         coordinates = test_file.coordinates
         assert len(coordinates) == 2
         assert np.round(np.min(coordinates['y']), 2) == 53.05

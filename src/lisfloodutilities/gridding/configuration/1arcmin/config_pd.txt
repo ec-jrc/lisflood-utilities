@@ -15,6 +15,19 @@ DATA_TYPE_PACKED = i2
 STANDARD_NAME = water_vapor_partial_pressure_in_air
 LONG_NAME = Daily Average Vapor Pressure
 
+[KISTERS_API]
+
+# Identification of the timeseries inside the API. Identifies the variable to be downloaded.
+API_TIMESERIES_ID: 236119
+
+# Setup of the Hour to download the metadata from.
+# Each variable have a specific hour for the data availability
+API_TIMESERIES_TIME_TO_DOWNLOAD: 00
+
+# Identifies which data should be downloaded from the timeseries. Total, Average, Min, Max, ...
+# Example: "*/*/Precip/6h.Total" to get the total precipitation
+API_TIMESERIES_PATH_WILDCARD: */*/VP/1440min.Cmd.P
+
 [VAR_TIME]
 
 UNIT = days since 1990-01-02 00:00:00.0

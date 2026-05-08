@@ -23,6 +23,19 @@ LONG_NAME = Daily Maximum Temperature
 # 1329 - ERA5-land
 KIWIS_FILTER_PLUGIN_CLASSES = {'ObservationsKiwisFilter': {'1329': 700.0}, 'ProvidersKiwisFilter': {'1323': [('2022-01-01 18:00:00', '2023-12-31 18:00:00')]}}
 
+[KISTERS_API]
+
+# Identification of the timeseries inside the API. Identifies the variable to be downloaded.
+API_TIMESERIES_ID: 236116
+
+# Setup of the Hour to download the metadata from.
+# Each variable have a specific hour for the data availability
+API_TIMESERIES_TIME_TO_DOWNLOAD: 18
+
+# Identifies which data should be downloaded from the timeseries. Total, Average, Min, Max, ...
+# Example: "*/*/Precip/6h.Total" to get the total precipitation
+API_TIMESERIES_PATH_WILDCARD: */*/AT/Day.Max
+
 [VAR_TIME]
 
 UNIT = days since 1990-01-01 18:00:00.0

@@ -18,11 +18,7 @@ See the Licence for the specific language governing permissions and limitations 
 from lisfloodutilities.readers import PCRasterReader
 from lisfloodutilities.writers.nc import NetCDFWriter
 
-from nine import IS_PYTHON2
-if IS_PYTHON2:
-    from pathlib2 import Path
-else:
-    from pathlib import Path
+from pathlib import Path
 
 def convert(dataset, output, metadata):
 

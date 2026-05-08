@@ -63,8 +63,10 @@ def read_inputmaps(inputmaps: Union[str, Path]) -> xr.Dataset:
 
     try:
         # for dynamic maps
+        # Note: parallel=True can cause segmentation faults with netCDF4 library
+        # due to thread-safety issues. Using parallel=False for stability.
         ds = xr.open_mfdataset(filepaths, chunks='auto',
-                               parallel=True, engine='netcdf4')
+                               parallel=False, engine='netcdf4')
         # chunks is set to auto for general purpose processing
         # it could be optimized depending on input NetCDF
     except:

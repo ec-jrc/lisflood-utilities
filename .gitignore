@@ -58,6 +58,7 @@ src/lisfloodutilities/gridding/configuration/**/*.wgs
 tests/data/gridding/meteo_out/**/*.nc
 tests/data/gridding/meteo_out/**/*.tiff
 tests/data/gridding/meteo_out/**/*.kiwis
+!src/lisfloodutilities/rainbomb/**/*.nc
 .settings
 .project
 .pydevproject

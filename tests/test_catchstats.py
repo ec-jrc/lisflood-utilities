@@ -14,7 +14,9 @@ class TestCatchStats(unittest.TestCase):
         maps = read_inputmaps(self.path / 'maps')
         masks = read_masks(self.path / 'masks')
         weight = read_pixarea(self.path / 'pixarea_iberian_01min.nc')
-        test = catchment_statistics(maps, masks, ['mean', 'std', 'min', 'max', 'count'], weight=weight, output=None).to_pandas()
+        result = catchment_statistics(maps, masks, ['mean', 'std', 'min', 'max', 'count'], weight=weight, output=None)
+        assert result is not None, "catchment_statistics returned None when output=None"
+        test = result.to_dataframe()
 
         # load expected values
         expected = pd.read_csv(self.path / 'expected.csv', index_col='id')
