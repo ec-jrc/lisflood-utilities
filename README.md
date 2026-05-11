@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20122991.svg)](https://doi.org/10.5281/zenodo.20122991)
+
 # Lisflood Utilities
 
 This repository hosts source code of LISFLOOD utilities.
