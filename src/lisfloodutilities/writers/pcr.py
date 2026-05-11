@@ -98,11 +98,9 @@ class PCRasterWriter:
         rs = mem_ds.GetRasterBand(1)
         if self.flipped_y:
             # when we do not use a clone map, we need to flip up down values
-            # not clear..it should be done always since PCRaster y coordinates are upside down.
             filled_values = np.flipud(filled_values)
         if self.flipped_x:
-            # when we do not use a clone map, we need to flip up down values
-            # not clear..it should be done always since PCRaster y coordinates are upside down.
+            # when we do not use a clone map, we need to flip left rigth values
             filled_values = np.fliplr(filled_values)
         rs.WriteArray(filled_values)
         # FIXME this set missing value statement is ignored once file is written on disk
