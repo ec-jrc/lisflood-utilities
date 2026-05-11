@@ -1,9 +1,11 @@
+import os
 import numpy as np
 import unittest
 import xarray as xr
 
 from lisfloodutilities.thresholds import lmoments, gumbel_parameters_moments, \
     gumbel_parameters_lmoments, gumbel_function
+from lisfloodutilities.thresholds.thresholds import main
 
 
 class TestLMoments(unittest.TestCase):
@@ -99,3 +101,91 @@ class TestGumbelFunction(unittest.TestCase):
         print(result)
         truth = np.array([0.36651292, 0.90272046, 1.24589932, 1.49993999])
         np.testing.assert_allclose(result, truth, rtol=1e-6, err_msg="Expected gumbel function output does not match")
+
+class TestFullTool(unittest.TestCase):
+    def test_without_split(self):
+        # Test the full tool without splitting the data
+        # Get the absolute paths for input, output, and reference files
+        base_path = os.path.dirname(__file__)
+        input_file = os.path.join(base_path, 'data/thresholds/input/dis_yearmax.nc')
+        output_file = os.path.join(base_path, 'data/thresholds/output/dis_THRESHOLDS.nc')
+        reference_file = os.path.join(base_path, 'data/thresholds/reference/dis_THRESHOLDS.nc')
+
+        # Create output directory if it doesn't exist
+        os.makedirs(os.path.dirname(output_file), exist_ok=True)
+
+        # Call the main function with the argv array of parameters
+        argv = [
+            'thresholds',
+            '--discharge', input_file,
+            '--output', output_file
+        ]
+        main(argv)
+
+        # Read output and reference netcdf files
+        output_ds = xr.open_dataset(output_file)
+        reference_ds = xr.open_dataset(reference_file)
+
+        # Compare corresponding variables of output and reference
+        for var in output_ds.data_vars:
+            self.assertIn(var, reference_ds.data_vars, f"Variable {var} not found in reference")
+            np.testing.assert_allclose(
+                output_ds[var].values,
+                reference_ds[var].values,
+                rtol=1e-5,
+                err_msg=f"Variable {var} does not match reference"
+            )
+
+        # Close datasets
+        output_ds.close()
+        reference_ds.close()
+
+    def test_with_split(self):
+        # Test the full tool with splitting the data
+        # Get the absolute paths for input, output, and reference files
+        base_path = os.path.dirname(__file__)
+        input_file = os.path.join(base_path, 'data/thresholds/input/dis_yearmax.nc')
+        output_file = os.path.join(base_path, 'data/thresholds/output/dis_THRESHOLDS.nc')
+        reference_dir = os.path.join(base_path, 'data/thresholds/reference')
+
+        # Create output directory if it doesn't exist
+        os.makedirs(os.path.dirname(output_file), exist_ok=True)
+
+        # Call the main function with the argv array of parameters including --split
+        argv = [
+            'thresholds',
+            '--discharge', input_file,
+            '--output', output_file,
+            '--split'
+        ]
+        main(argv)
+
+        # Get the base path without extension
+        base_path = output_file.rsplit('.nc', 1)[0]
+
+        # List of expected split files based on the reference directory
+        expected_vars = ['mu', 'sigma', 'rp_1.5', 'rp_2', 'rp_5', 'rp_10', 'rp_20', 'rp_50', 'rp_100', 'rp_200', 'rp_500']
+
+        # Compare each split output file with the corresponding reference file
+        for var in expected_vars:
+            split_output_file = f"{base_path}_{var}.nc"
+            reference_file = os.path.join(reference_dir, f"dis_THRESHOLDS_{var}.nc")
+
+            # Read output and reference netcdf files
+            output_ds = xr.open_dataset(split_output_file)
+            reference_ds = xr.open_dataset(reference_file)
+
+            # Compare the data variable
+            output_var = list(output_ds.data_vars)[0]
+            self.assertIn(output_var, reference_ds.data_vars, f"Variable {output_var} not found in reference")
+
+            np.testing.assert_allclose(
+                output_ds[output_var].values,
+                reference_ds[output_var].values,
+                rtol=1e-5,
+                err_msg=f"Variable {output_var} does not match reference"
+            )
+
+            # Close datasets
+            output_ds.close()
+            reference_ds.close()
