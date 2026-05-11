@@ -58,7 +58,7 @@ def read_points(inputcsv: Union[str, Path]) -> xr.Dataset:
         poi_xr = poi_df.set_index(idx_col)[[x_coord, y_coord]].to_xarray()
         rename_dim = {idx_col: col for col in original_columns if col.lower() == idx_col}
         poi_xr = poi_xr.rename({idx_col: 'id'})
-    except:
+    except Exception as e:
         raise ValueError(f"Could not read CSV properly. Please check the format.\nDetails: {e}")
         
     return poi_xr
@@ -97,6 +97,7 @@ def read_inputmaps(
     
     directory = Path(directory)
     filepaths = []
+    engine = None
     for pattern, engine in pattern_engine.items():
         filepaths = list(directory.glob(pattern))
         if filepaths:
@@ -109,7 +110,9 @@ def read_inputmaps(
     
     try:
         # load dataset
-        maps = xr.open_mfdataset(filepaths, engine=engine, chunks='auto', parallel=True)
+        # Note: parallel=True can cause segmentation faults with netCDF4 library
+        # due to thread-safety issues. Using parallel=False for stability.
+        maps = xr.open_mfdataset(filepaths, engine=engine, chunks='auto', parallel=False)
         # Note: chunks is set to auto for general purpose processing
         #       it could be optimized depending on input NetCDF
     except Exception as e:

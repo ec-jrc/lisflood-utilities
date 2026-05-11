@@ -2,7 +2,8 @@ import os
 import shutil
 import xarray as xr
 
-from lisfloodutilities.mctrivers.mctrivers import mct_mask
+from lisfloodutilities.mctrivers.helpers import lddrepair
+from lisfloodutilities.mctrivers.mctrivers import extract_coords, mct_mask, prepare_dataset
 
 
 def mk_path_out(p):
@@ -35,9 +36,9 @@ class TestMctMask():
         mct_final.to_netcdf(outputfile, encoding={"mct_mask": {'_FillValue': 0, 'dtype': 'int8'}})
         
         # compare the generated mask with the reference one
-        ref_file = self.out_path_ref+'/mctmask.nc'
+        ref_file = os.path.join(self.out_path_ref, 'mctmask.nc')
         reference = xr.open_dataset(ref_file)
-        out_file = self.out_path_run+'/mctmask.nc'
+        out_file = os.path.join(self.out_path_run, 'mctmask.nc')
         generated = xr.open_dataset(out_file)
         # check if same based on https://docs.xarray.dev/en/stable/generated/xarray.DataArray.equals.html
         all_equal = reference.equals(generated)
@@ -54,13 +55,35 @@ class TestMctMask():
 
 class TestMctrivers(TestMctMask):
 
-    # slp_threshold = 0.001
-    # nloops = 5
-    # minuparea = 500*10**6
-    # coords_names = 'None'
-
     def test_mctrivers_etrs89(self):
-        self.run(0.001, 5, 500*10**6, 'None', 'LF_ETRS89_UseCase')
+        self.run(0.001, 5, 500*10**6, [], 'LF_ETRS89_UseCase')
 
     def test_mctrivers_latlon(self):
         self.run(0.001, 5, 500*10**6, ['lat', 'lon'], 'LF_lat_lon_UseCase')
+    
+    def test_lddrepair(self):
+        case_name = 'LF_lat_lon_UseCase'
+        ldd_path = os.path.join(self.case_dir, case_name, 'ldd.nc')
+        ldd_repaired_path = os.path.join(self.case_dir, case_name, 'ldd_repaired.nc')
+        coords_names = ['lat', 'lon']
+        LD_ds = xr.open_dataset(ldd_path)
+        x_proj, y_proj = extract_coords(LD_ds, coords_names)
+        LD = prepare_dataset(LD_ds, x_proj, y_proj, 'ldd')
+        LD = LD['ldd']
+        LD = LD.fillna(-1)
+        LD = LD.astype('int')
+        LD = LD.where((LD > 0) & (LD < 10)).fillna(-1)
+        ldd_array = LD.values.astype(int)
+        ldd_array = lddrepair(ldd_array)
+
+        LD_REPAIRED_ds = xr.open_dataset(ldd_repaired_path)
+        LD_REPAIRED = prepare_dataset(LD_REPAIRED_ds, x_proj, y_proj, 'ldd_repaired')
+        LD_REPAIRED = LD_REPAIRED['ldd_repaired']
+        LD_REPAIRED = LD_REPAIRED.fillna(-1)
+        LD_REPAIRED = LD_REPAIRED.astype('int')
+        ldd_repaired_array = LD_REPAIRED.values.astype(int)
+
+        LD_ds.close()  # needs to be closed otherwise the out folder can't be deleted
+        LD_REPAIRED_ds.close()  # needs to be closed otherwise the out folder can't be deleted
+
+        assert (ldd_array == ldd_repaired_array).all(), 'LDD repair did not produce the expected output. Please check the generated repaired LDD and compare it with the expected repaired LDD.'

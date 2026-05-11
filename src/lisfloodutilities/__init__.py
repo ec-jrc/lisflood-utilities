@@ -20,7 +20,6 @@ import sysconfig
 import sys
 import logging
 
-IS_PYTHON2 = sys.version_info[0] == 2
 pkg_dir = os.path.join(sysconfig.get_paths()['purelib'], 'lisfloodutilities')
 version_file = os.path.join(pkg_dir, 'VERSION') if os.path.exists(pkg_dir) else './src/lisfloodutilities/VERSION'
 if os.path.exists(version_file):

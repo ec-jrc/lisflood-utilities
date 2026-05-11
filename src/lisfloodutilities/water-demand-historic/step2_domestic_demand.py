@@ -81,10 +81,10 @@ def main():
     raw_lon = np.array(dset.variables['lon'][:])
     dset.close()
 
-    Huang_withdrawal = np.zeros((360,720,raw_data.shape[0]),dtype=np.single)*np.NaN
+    Huang_withdrawal = np.zeros((360,720,raw_data.shape[0]),dtype=np.single)*np.nan
     rows,cols = latlon2rowcol(raw_lat,raw_lon,0.5,90,-180)
     for ii in np.arange(raw_data.shape[0]):    
-        reprojected = np.zeros((360,720),dtype=np.single)*np.NaN
+        reprojected = np.zeros((360,720),dtype=np.single)*np.nan
         reprojected[rows,cols] = raw_data[ii,:]
         Huang_withdrawal[:,:,ii] = reprojected
         
@@ -143,7 +143,7 @@ def main():
         print('Computating population for each country and year')
         t0 = time.time()
 
-        table_population = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.NaN
+        table_population = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.nan
         for ii in np.arange(len(years)):
             print(str(years[ii]))
             npz = np.load(os.path.join(config['output_folder'],'step1_population_density',str(years[ii])+'.npz'))    
@@ -172,7 +172,7 @@ def main():
     # sort the dataframe by year to allow fao_years extrapolations
     aquastat.sort_values(by=['Area', 'm49', 'Variable', 'Year'], ignore_index=True, inplace=True)
 
-    table_aquastat_domestic_withdrawal_interp = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.NaN
+    table_aquastat_domestic_withdrawal_interp = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.nan
     for jj in np.arange(country_codes.shape[0]):
         country_code = country_codes.iloc[jj]['country-code']
 
@@ -235,6 +235,7 @@ def main():
     
     # List of USGS NWIS water use files
     files = glob.glob(os.path.join(config['usgs_water_use_folder'],'water_use*'))
+    df_country = pd.DataFrame()  # Initialize to avoid "possibly unbound" warning
     for ii in np.arange(len(files)):
         file = files[ii]
         df_state = pd.read_csv(file,comment='#',skiprows=2, sep='\t')
@@ -242,17 +243,17 @@ def main():
         df_state.replace("-", "", regex=True, inplace=True)
         df_state.replace(r'^\s*$', np.nan,regex=True, inplace=True) # Turn empty strings into NaN
         df_state = df_state.astype(object)
-        if ii==0: 
+        if ii==0:
             df_country = df_state
         else:
             df_country = pd.merge(df_country,df_state,how="outer")
     
     # Loop over states and load water use data
-    table_usgs_domestic_withdrawal = np.zeros((state_codes.shape[0],len(years)),dtype=np.single)*np.NaN
-    table_usgs_manufacturing_withdrawal = np.zeros((state_codes.shape[0],len(years)),dtype=np.single)*np.NaN
-    table_usgs_thermoelectric_withdrawal = np.zeros((state_codes.shape[0],len(years)),dtype=np.single)*np.NaN
-    table_usgs_thermoelectric_generated = np.zeros((state_codes.shape[0],len(years)),dtype=np.single)*np.NaN
-    table_usgs_livestock_withdrawal = np.zeros((state_codes.shape[0],len(years)),dtype=np.single)*np.NaN
+    table_usgs_domestic_withdrawal = np.zeros((state_codes.shape[0],len(years)),dtype=np.single)*np.nan
+    table_usgs_manufacturing_withdrawal = np.zeros((state_codes.shape[0],len(years)),dtype=np.single)*np.nan
+    table_usgs_thermoelectric_withdrawal = np.zeros((state_codes.shape[0],len(years)),dtype=np.single)*np.nan
+    table_usgs_thermoelectric_generated = np.zeros((state_codes.shape[0],len(years)),dtype=np.single)*np.nan
+    table_usgs_livestock_withdrawal = np.zeros((state_codes.shape[0],len(years)),dtype=np.single)*np.nan
     for jj in np.arange(state_codes.shape[0]):
         state_id = state_codes['st'][jj]
         state_name = state_codes['stname'][jj]
@@ -342,7 +343,7 @@ def main():
         pop_map = npz['data']
 
         # Load MSWX air temperature data
-        mswx_monthly = np.zeros((mapsize_global[0],mapsize_global[1],12),dtype=np.single)*np.NaN
+        mswx_monthly = np.zeros((mapsize_global[0],mapsize_global[1],12),dtype=np.single)*np.nan
         for month in np.arange(1,13):
             if year<1979:  #MSWX dataset starts from 1979
                 dset = Dataset(os.path.join(config['mswx_folder'],'Past','Temp','Monthly',str(1979)+str(month).zfill(2)+'.nc'))
@@ -359,7 +360,7 @@ def main():
         #   Produce map of water demand per person
         #--------------------------------------------------------------------------    
     
-        withdrawal_per_capita_map = np.zeros(mapsize_global,dtype=np.single)*np.NaN
+        withdrawal_per_capita_map = np.zeros(mapsize_global,dtype=np.single)*np.nan
         for jj in np.arange(country_codes.shape[0]):
             country_code = country_codes.iloc[jj]['country-code']
             mask = country_code_map==country_code

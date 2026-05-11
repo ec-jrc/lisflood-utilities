@@ -37,7 +37,7 @@ def load_country_code_map(filepath,mapsize):
     country_code_map = resize(country_code_map,mapsize,order=0,mode='edge',anti_aliasing=False)
     # apply the fill algorithm to fill the gaps of the Disputed Territories (code>1000), so that the fill algorithm will set each pixel value to their nearest neighbour
     country_code_map = fill(country_code_map, country_code_map>1000) # CR: check here: the fill algorithm includes also zero as a neighbour country code, so that isles and some land area will be replaced by ocean
-    country_code_map[country_code_map==0] = np.NaN
+    country_code_map[country_code_map==0] = np.nan
     
     return country_code_map
     

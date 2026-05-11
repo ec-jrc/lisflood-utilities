@@ -1,0 +1,38 @@
+#[PROPERTIES]
+
+VAR_CODE = wx
+CELL_METHODS = time: mean
+UNIT = m/s
+UNIT_CONVERSION = 1.0
+VALUE_MIN = 0
+VALUE_MAX = 150
+VALUE_SCALE = 0.1
+VALUE_OFFSET = 0.0
+DATA_TYPE_PACKED = i2
+STANDARD_NAME = wind_speed_maximum
+LONG_NAME = Daily Maximum Wind Speed
+
+[KISTERS_API]
+
+# Identification of the timeseries inside the API. Identifies the variable to be downloaded.
+API_TIMESERIES_ID: 236117
+
+# Setup of the Hour to download the metadata from.
+# Each variable have a specific hour for the data availability
+API_TIMESERIES_TIME_TO_DOWNLOAD: 00
+
+# Identifies which data should be downloaded from the timeseries. Total, Average, Min, Max, ...
+# Example: "*/*/Precip/6h.Total" to get the total precipitation
+API_TIMESERIES_PATH_WILDCARD: */*/WSpeed/Day.Max
+
+[VAR_TIME]
+
+UNIT = days since 1990-01-02 00:00:00.0
+FREQUENCY = 1
+
+# Used to force the time value when it is not defined in the filename. Format: HHMM
+# FORCE_TIME = 0000
+
+# Used to allow moving the files 1 day forward for variables (WS, RG, PD, PR?)
+OFFSET_FILE_DATE = 1
+

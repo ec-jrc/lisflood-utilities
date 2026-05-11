@@ -20,12 +20,7 @@ import cftime
 import itertools
 from typing import Iterable
 
-from nine import IS_PYTHON2
-
-if IS_PYTHON2:
-    from pathlib2 import Path
-else:
-    from pathlib import Path
+from pathlib import Path
 
 from .. import logger
 
@@ -34,7 +29,7 @@ class Comparator(object):
     """
 
     """
-    glob_expr = None
+    glob_expr = ['*']
 
     def __init__(self, array_equal=False, for_testing=False):
         """
@@ -78,5 +73,5 @@ class Comparator(object):
 
             self.compare_files(fa.as_posix(), fb.as_posix(), timestep)
 
-    def compare_files(self, fa, fb, timestep=None):
+    def compare_files(self, file_a, file_b, timestep=None):
         raise NotImplementedError()

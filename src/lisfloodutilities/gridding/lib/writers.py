@@ -18,10 +18,11 @@ import copy
 from argparse import ArgumentTypeError
 from pathlib import Path
 from datetime import datetime, timedelta
+from typing import Optional, Callable, Any
 from netCDF4 import Dataset, default_fillvals, date2num, num2date
 from netCDF4._netCDF4 import Variable as NetCDF4Variable
 from osgeo import osr, gdal
-from lisfloodutilities.gridding.lib.utils import Printable, Config, FileUtils
+from lisfloodutilities.gridding.lib.utils import Printable, FileUtils, Config
 from lisfloodutilities import version
 
 
@@ -31,6 +32,7 @@ class OutputWriter(Printable):
         super().__init__(quiet_mode)
         self.filepath = None
         self.overwrite_file = overwrite_file
+        self.current_timestamp = None
         self.conf = conf
         self.__setup_metadata()
 
@@ -91,7 +93,7 @@ class OutputWriter(Printable):
     def setup_grid(self, grid: np.ndarray) -> np.ndarray:
         raise NotImplementedError
 
-    def write(self, grid: np.ndarray, timestamp: datetime = None, print_stats: bool = True):
+    def write(self, grid: np.ndarray, timestamp: Optional[datetime] = None, print_stats: bool = True):
         raise NotImplementedError
 
     def write_timestep(self, grid: np.ndarray, timestep: int = -1):
@@ -122,16 +124,15 @@ class NetCDFWriter(OutputWriter):
         self.calendar_time_unit = self.conf.start_date.strftime(self.netcdf_var_time_unit_pattern)
         # Write index not set yet
         self.write_idx = -1
-        self.current_timestamp = None
         self.is_new_file = False
 
     def open(self, out_filename: Path):
         super().open(out_filename)
-        if not os.path.isfile(self.filepath):
+        if self.filepath is not None and not os.path.isfile(self.filepath):
             self.nf = Dataset(self.filepath, 'w', format=self.NETCDF_DATASET_FORMAT)
             self.__setup_netcdf_metadata()
             self.is_new_file = True
-        elif self.overwrite_file:
+        elif self.filepath is not None and self.overwrite_file:
             self.nf = Dataset(self.filepath, 'r+', clobber=True, format=self.NETCDF_DATASET_FORMAT)
         else:
             raise ArgumentTypeError(f'File {self.filepath} already exists. Use --force flag to append.')
@@ -146,11 +147,11 @@ class NetCDFWriter(OutputWriter):
         values[np.isnan(values)] = self.conf.VALUE_NAN * self.conf.scale_factor + self.conf.add_offset
         return values
 
-    def write(self, grid: np.ndarray, timestamp: datetime = None, print_stats: bool = True):
+    def write(self, grid: np.ndarray, timestamp: Optional[datetime] = None, print_stats: bool = True):
         timestep = -1
         if timestamp is not None:
             self.current_timestamp = timestamp.strftime(FileUtils.DATE_PATTERN_SEPARATED)
-            timestep = date2num(timestamp, self.calendar_time_unit, self.calendar_type)
+            timestep = int(date2num(timestamp, self.calendar_time_unit, self.calendar_type))
         else:
             self.current_timestamp = None
         cur_grid = self.setup_grid(grid, print_stats)
@@ -161,14 +162,16 @@ class NetCDFWriter(OutputWriter):
             if not self.opened():
                 raise Exception("netCDF Dataset was not initialized. If file already exists, use --force flag to append.")
             self.__set_write_index(timestep)
-            self.nf.variables[self.netcdf_var_time][self.write_idx] = timestep
-            self.nf.variables[self.var_code][self.write_idx, :, :] = grid
+            if self.nf is not None:
+                self.nf.variables[self.netcdf_var_time][self.write_idx] = timestep
+                self.nf.variables[self.var_code][self.write_idx, :, :] = grid
 
     def __set_write_index(self, timestep: int):
         if not self.is_new_file:
             # Writing into an existing file need to calculate write index
-            time_array = self.nf.variables[self.netcdf_var_time][:].tolist()
-            self.write_idx = time_array.index(timestep)
+            if self.nf is not None:
+                time_array = self.nf.variables[self.netcdf_var_time][:].tolist()
+                self.write_idx = time_array.index(timestep)
         elif self.write_idx >= 0:
             self.write_idx += 1
         else:
@@ -183,13 +186,70 @@ class NetCDFWriter(OutputWriter):
             self.nf.close()
         self.nf = None
 
-    def __set_property(self, netcdf_var: NetCDF4Variable, property: str, section: str, option: str, conversion_function=str):
-        value = self.conf.get_config_field(section, option).strip()
-        if len(value) > 0:
-            setattr(netcdf_var, property, conversion_function(value))
+    def __set_property(
+        self,
+        netcdf_var: NetCDF4Variable,
+        attr_name: str,
+        section: str,
+        option: str,
+        conversion_function: Callable[[str], Any] = str,
+    ) -> bool:
+        """
+        Set a property on a NetCDF variable with optional type conversion.
+        
+        Args:
+            netcdf_var: The NetCDF variable to set the property on.
+            attr_name: The name of the attribute to set on the variable.
+            section: The configuration section to read from.
+            option: The configuration option to read.
+            conversion_function: A callable to convert the config value (default: str).
+        
+        Returns:
+            True if the property was set successfully, False otherwise.
+        
+        Raises:
+            ValueError: If the conversion function fails to convert the value.
+            TypeError: If conversion_function is not callable.
+        """
+        # Ensure conversion_function is callable
+        if not callable(conversion_function):
+            raise TypeError(
+                f"conversion_function must be callable, got {type(conversion_function).__name__}"
+            )
+        
+        try:
+            raw_value = self.conf.get_config_field(section, option)
+        except (KeyError, AttributeError, ValueError) as e:
+            self.print_msg(f"Config field not found: {section}/{option} - {e}")
+            return False
+        
+        if raw_value is None:
+            return False
+        
+        value = raw_value.strip()
+        if not value:
+            return False
+        
+        try:
+            converted_value = conversion_function(value)
+        except (ValueError, TypeError) as e:
+            func_name = getattr(conversion_function, '__name__', repr(conversion_function))
+            self.print_msg(
+                f"Conversion failed for {section}/{option}: "
+                f"'{value}' -> {func_name} - {e}"
+            )
+            raise ValueError(
+                f"Failed to convert config value '{value}' for {attr_name} "
+                f"using {func_name}"
+            ) from e
+        
+        setattr(netcdf_var, attr_name, converted_value)
+        return True
 
-    def __setup_netcdf_metadata(self, start_date: datetime = None):
+    def __setup_netcdf_metadata(self, start_date: Optional[datetime] = None):
         # General Attributes
+        if self.nf is None:
+            return
         self.nf.history = f'Created {self.time_created}'
         self.nf.Conventions = self.NETCDF_CONVENTIONS
         self.nf.Source_Software = self.Source_Software
@@ -282,7 +342,6 @@ class GDALWriter(OutputWriter):
 
     def __init__(self, conf: Config, overwrite_file: bool = False, quiet_mode: bool = False):
         super().__init__(conf, overwrite_file, quiet_mode)
-        self.current_timestamp = None
         self.driver_gtiff = gdal.GetDriverByName("GTiff")
 
     def setup_dataset_metadata(self, ds: gdal.Dataset) -> gdal.Dataset:
@@ -313,7 +372,7 @@ class GDALWriter(OutputWriter):
             self.print_grid_statistics(values)
         return grid
 
-    def write(self, grid: np.ndarray, timestamp: datetime = None, print_stats: bool = True):
+    def write(self, grid: np.ndarray, timestamp: Optional[datetime] = None, print_stats: bool = True):
         if timestamp is not None:
             self.current_timestamp = timestamp.strftime(FileUtils.DATE_PATTERN_SEPARATED)
         else:
@@ -325,7 +384,7 @@ class GDALWriter(OutputWriter):
     def write_timestep(self, grid: np.ndarray, timestep: int = -1):
         if not self.opened():
             raise Exception("Dataset was not initialized.")
-        if self.overwrite_file or not self.filepath.is_file():
+        if self.overwrite_file or (self.filepath is not None and not self.filepath.is_file()):
             self.print_msg(f'Generating file: {self.filepath}')
             size_lats, size_lons = grid.shape
             ds = self.driver_gtiff.Create(str(self.filepath), size_lons, size_lats, 1, gdal.GDT_Int16, options=['COMPRESS=LZW'])

@@ -21,6 +21,19 @@ LONG_NAME = 6 Hourly Accumulated Precipitation
 # 1329 - ERA5-land
 # KIWIS_FILTER_PLUGIN_CLASSES = {'DowgradedObservationsKiwisFilter': {'1304': 1.0, '1302': 1.0, '1295': 1.0}, 'ObservationsKiwisFilter': {'1303': 100.0, '1329': 100.0}}
 
+[KISTERS_API]
+
+# Identification of the timeseries inside the API. Identifies the variable to be downloaded.
+API_TIMESERIES_ID: 1417495
+
+# Setup of the Hour to download the metadata from.
+# Each variable have a specific hour for the data availability
+API_TIMESERIES_TIME_TO_DOWNLOAD: 06
+
+# Identifies which data should be downloaded from the timeseries. Total, Average, Min, Max, ...
+# Example: "*/*/Precip/6h.Total" to get the total precipitation
+API_TIMESERIES_PATH_WILDCARD: */*/Precip/6h.Total
+
 
 [VAR_TIME]
 

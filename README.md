@@ -38,10 +38,8 @@ Here's a list of utilities you can find in lisflood-utilities package.
   - a bounding box of coordinates
   - a bounding box of matrix indices
   - an existing boolean area mask
-  - a list of stations and a LDD ("local drain direction" in NetCDF or PCRaster format)
-  
-> **Note**: PCRaster must be installed in the Conda environment.
- 
+  - a list of stations and a LDD ("local drain direction" in NetCDF format)
+   
 * __[compare](#compare)__ is a package containing a set of simple Python classes that helps to compare 
 NetCDF, PCRaster and TSS files.
 
@@ -71,6 +69,8 @@ NetCDF, PCRaster and TSS files.
     2. get the one with the lowest positive difference to the 24h value
     3. get the one on the top
 
+* __[download_timeseries](#download_timeseries)__ is a tool to download timeseries of meteo variables observations from KIsters API and store them in text files in KIWI format containing the stations metadata and observations to be later used as input to generate meteo grids.
+
 * __[cddmap](#cddmap)__ is a tool to generate correlation decay distance (CDD) maps starting from station timeseries
 
 * __[ncextract](#ncextract)__ is a tool to extract values from NetCDF4 (or GRIB) file(s) at specific coordinates.
@@ -80,7 +80,10 @@ NetCDF, PCRaster and TSS files.
 * __[lfcoords](#lfcoords)__ is a tool that finds the appropriate coordinates in the LISFLOOD river network for any point (gauging station, dam...).
 
 * __[mctrivers](#mctrivers)__ creates a river mask for MCT diffusive river routing in LISFLOOD.
-> **Note**: PCRaster must be installed in the Conda environment.
+
+* __[rainbomb](#rainbomb)__ is a tool to correct rainbomb artifacts in ERA5 daily precipitation data. A rainbomb is an unrealistically high rainfall value at a single grid point that is not supported by surrounding points. This utility identifies and corrects such artifacts by comparing each grid point against its neighbours and applying threshold-based corrections. The input file must be in the standard ERA5 resolution of approximately 31 km or 0.25 arc-degrees.
+
+* __[generate_neighbours](#generate_neighbours)__ is a tool to generate neighbour indices for each grid point. It is used to reduce the computation time for the rainbomb correction by pre-computing and storing the indices of neighbours for each grid point. The resulting file is used as a parameter for the rainbomb tool.
 
 The package contains convenient classes for reading/writing:
 
@@ -96,7 +99,7 @@ The easy way is to use conda environment as they incapsulate C dependencies as w
 
 Otherwise, ensure you have properly installed the following software:
 
-- Python 3.8+
+- Python 3.10+
 - GDAL C library and software
 - NetCDF4 C library
 
@@ -105,9 +108,9 @@ Otherwise, ensure you have properly installed the following software:
 If you use conda, create a new env (or use an existing one) and install gdal and lisflood-utilities:
 
 ```bash
-conda create --name myenv python=3.8 -c conda-forge
+conda create --name myenv python=3.10 -c conda-forge
 conda activate myenv
-conda install -c conda-forge pcraster eccodes "gdal<=3.5.3"
+conda install -c conda-forge eccodes "gdal<=3.5.3"
 pip install lisflood-utilities
 ```
 
@@ -143,7 +146,7 @@ pip install -e./
 ### Usage
 
 > __Note:__ This guide assumes you have installed the program with pip tool.
-> If you cloned the source code instead, just substitute the executable `pcr2nc` with `python pcr2nc_script.py` that is in the root folder of the cloned project.
+> If you cloned the source code instead, just substitute the executable `pcr2nc` with `python bin/pcr2nc` from the root folder of the cloned project.
 
 The tool takes three command line input arguments:
 
@@ -270,7 +273,7 @@ This tool cuts NetCDF files using either a mask, a bounding box, or a list of st
 The tool requires a series of arguments:
 
 * The area to be extracted can be defined in one of the following ways:
-    - `-m`, `--mask`: a mask map (either PCRaster or NetCDF format).
+    - `-m`, `--mask`: a mask map (in NetCDF format).
     - `-i`, `--cuts_indices`: a bounding box defined by matrix indices in the form `-i imin imax jmin jmax` (the indices must be integers).
     - `-c`, `--cuts`: a bounding box defined by coordinates in the form `-c xmin xmax ymin ymax` (the coordinates can be integer or floating point numbers; x = longitude, y = latitude).
     - `-N`, `-stations`: a list of stations included in a tab separated text file. This approach requires a LDD (local drain direction) map as an extra input, defined with the argument `-l` (`-ldd`).
@@ -326,19 +329,7 @@ The TXT file with stations must have a specific format as in the example below. 
 The following command will cut all the maps in a specific folder (`-f` argument) given a LDD map (`-l` argument) and the previous text file (`-N` argument), and save the results in a folder defined by the argument `-o`.
 
 ```bash
-cutmaps -f /home/projects/lisflood-eu -l ldd.map -N stations.txt -o /Work/Tunisia/cutmaps
-```
-
-If the LDD is in NetCDF format, it will be first converted into PCRaster format.
-
-```bash
 cutmaps -f /home/projects/lisflood-eu -l ldd.nc -N stations.txt -o /Work/Tunisia/cutmaps
-``` 
-
-If you experience problems, you can try to pass a path to a PCRaster clone map using the `-C` argument.
-
-```bash
-cutmaps -f /home/projects/lisflood-eu -l ldd.nc -C area.map -N stations.txt -o /Work/Tunisia/cutmaps
 ```
 
 ### Output
@@ -437,16 +428,16 @@ More specifically, this utility can be used to:
 It is here reminded that when calibrating a catchment which is a subset of a larger computational domain, and the option wateruse is switched on, then the option groudwatersmooth must be switched off. The explanation of this requirement is provided in the chapter [Water use](https://ec-jrc.github.io/lisflood-model/2_18_stdLISFLOOD_water-use/) of the LISFLOOD documentation. 
 
 #### Requirements
-python3, pcraster 4.3. The protocol was tested on Linux.
+python3, The protocol was tested on Linux.
 
 ### define_waterregions
 This utility allows to create a  water region map which is consistent with a set of calibration points. The protocol was created by Ad De Roo (Unit D2, Joint Research Centre).
 
 #### Input 
 - List of the coordinates of the calibration points. This list must be provided in a .txt file with three columns: LONGITUDE(or x), LATITUDE(or y), point ID.
-- LDD map can be in NetCDF format or pcraster format. When using pcraster format, the following condition must be satisfied: *PCRASTER_VALUESCALE=VS_LDD*. 
-- Countries map in NetCDF format or pcraster format. When using pcraster format, the following condition must be satisfied: *PCRASTER_VALUESCALE=VS_NOMINAL*. This map shows the political boundaries of the Countries, each Coutry is identified by using a unique ID. This map is used to ensure that the water regions are not split accross different Countries.
-- Map of the initial definition of the water regions in NetCDF format or pcraster format. When using pcraster format, the following condition must be satisfied: *PCRASTER_VALUESCALE=VS_NOMINAL*. This map is used to attribute a water region to areas not included in the calibration catchments. In order to create this map, the user can follow the guidelines provided [here](https://ec-jrc.github.io/lisflood-model/2_18_stdLISFLOOD_water-use/).
+- LDD map is in NetCDF format.
+- Countries map in NetCDF format. This map shows the political boundaries of the Countries, each Coutry is identified by using a unique ID. This map is used to ensure that the water regions are not split accross different Countries.
+- Map of the initial definition of the water regions in NetCDF format. This map is used to attribute a water region to areas not included in the calibration catchments. In order to create this map, the user can follow the guidelines provided [here](https://ec-jrc.github.io/lisflood-model/2_18_stdLISFLOOD_water-use/).
 - file *.yaml* or *.json* to define the metadata of the output water regions map in NetCDF format. An example of the structure of these files is provided [here](tests/data/waterregions)
 
 ##### Input data provided by this utility:
@@ -454,21 +445,21 @@ This utility provides three maps of [Countries IDs](tests/data/waterregions): 1a
 
 #### Output
 Map of the water regions which is consistent with the calibration catchments. In other words, each water region is entirely included in one calibration catchment.  The test to check the consistency between the newly created water regions map and the calibration catchments is implemented internally by the code and the outcome of the test is printed on the screen. 
-In the output map, each water region is identified by a unique ID. The format of the output map can be NetCDF or pcraster.
+In the output map, each water region is identified by a unique ID. The format of the output map is NetCDF.
 
 #### Usage
 The following command lines allow to produce a water region map which is consistent with the calibration points (only one commad line is required: each one of the command lines below shows a different combination of input files format):
 
-*python define_waterregions.py -p calib_points_test.txt -l ldd_test.map -C countries_id_test.map -w waterregions_initial_test.map -o my_new_waterregions.map* <br>
+*python define_waterregions.py -p calib_points_test.txt -l ldd_test.nc -C countries_id_test.nc -w waterregions_initial_test.nc -o my_new_waterregions.nc* <br>
 
 *python define_waterregions.py -p calib_points_test.txt -l ldd_test.nc -C countries_id_test.nc -w waterregions_initial_test.nc -o my_new_waterregions.nc -m metadata.test.json* <br>
 
-*python define_waterregions.py -p calib_points_test.txt -l ldd_test.map -C countries_id_test.nc -w waterregions_initial_test.map -o my_new_waterregions.nc -m metadata.test.yaml* <br>
+*python define_waterregions.py -p calib_points_test.txt -l ldd_test.nc -C countries_id_test.nc -w waterregions_initial_test.nc -o my_new_waterregions.nc -m metadata.test.yaml* <br>
 
 
-The input maps can be in nectdf format or pcraster format (the same command line can accept a mix of pcraster and NetCDF formats).It is imperative to write the file name in full, that is including the extension (which can be either ".nc" or ".map").<br>
-The utility can return either a pcraster file or a NetCDF file. The users select their preferred format by specifying the extension of the file in the output option (i.e. either ".nc" or ".map"). <br>
-The metadata file in .yaml format must be provided only if the output file is in NetCDF format.<br>
+The input maps are in nectdf format. It is imperative to write the file name in full, that is including the extension.<br>
+The utility returns a NetCDF file.<br>
+The metadata file in .yaml format can be provided to allow specific metadata for the output file in NetCDF format.<br>
 
 The code internally verifies that the each one of the newly created water regions is entirely included  within one calibration catchments. If this condition is satisfied, the follwing message in printed out: *“OK! Each water region is completely included inside one calibration catchment”*. If the condition is not satisfied, the error message is *“ERROR: The  water regions WR are included in more than one calibration catchment”*. Moreover, the code provides the list of the water regions WR and the calibration catchments that do not meet the requirment. This error highlight a problem in the input data: the user is recommended to check (and correct) the list of calibration points and the input maps.
 
@@ -769,6 +760,105 @@ optional arguments:
 __IMPORTANT:__ The output folder will contain the same folder structure as the 6h input folder. Just a reminder that If you don't set the output folder it will overwrite the input files.
 
 
+
+
+## download_timeseries
+
+This tool downloads timeseries of meteo variables observations from the WISKI API and stores them in text files in KIWI format. The downloaded data contains station metadata and observations, which can later be used as input to generate meteo grids using the [gridding](#gridding) tool.
+
+The download process consists of four main steps:
+1. Download metadata from the API (station information, coordinates, quality codes)
+2. Download the list of stations and filter them to keep only those in the EFAS domain
+3. Download timeseries data for each station for the specified time period
+4. Merge the timeseries data with metadata to create KIWI format files
+
+#### Requirements
+python3, configuration files in the gridding configuration folder
+
+### Usage
+
+> __Note:__ This guide assumes you have installed the program with pip tool.
+> If you cloned the source code instead, just substitute the executable `download_timeseries` with `python bin/download_timeseries` that is in the root folder of the cloned project.
+
+The tool requires two mandatory command line input arguments:
+
+- `variable`: The variable to download (e.g., pr6, ta6, pr, tx, tn, pd, ws, rg, wx)
+- -c, --conf: Set the grid configuration type to use (5x5km, 1arcmin,...)
+
+Optional arguments:
+- -p, --pathconf: Overrides the base path where the configurations are stored
+- --base-path: Base path for output files (default: /tmp/download_timeseries)
+- --start: Start date (YYYY-MM-DD, default: 1989-12-31)
+- --end: End date (YYYY-MM-DD, default: current date)
+- --no-metadata: Skip downloading metadata
+- --no-stations: Skip downloading station list
+- --no-data: Skip downloading station data
+- --no-merge: Skip merging timeseries with metadata
+- --verbose: Enable verbose logging
+- --api-key: API key for authentication (if not provided, uses the environment variable KIWI_API_KEY)
+
+Example of command that will download precipitation timeseries (pr6) for January 2024:
+
+```bash
+download_timeseries pr6 -c 1arcmin --start 2024-01-01 --end 2024-01-31 --api-key YOUR_API_KEY
+```
+
+Example of command that will download temperature timeseries (ta6) for a specific date range:
+
+```bash
+download_timeseries ta6 -c 1arcmin --start 2024-12-31 --end 2026-01-02 --base-path /path/to/output
+```
+
+The input and output arguments are listed below and can be seen by using the help flag:
+
+```bash
+download_timeseries --help
+```
+
+```text
+usage: download_timeseries.py [-h] variable -c {5x5km, 1arcmin,...}
+                               [-p /path/to/config] [--base-path BASE_PATH]
+                               [--start START] [--end END] [--no-metadata]
+                               [--no-stations] [--no-data] [--no-merge]
+                               [--verbose] [--api-key API_KEY]
+
+Download timeseries data from WISKI API
+
+positional arguments:
+  variable              Variable to download (e.g., pr6, ta6, pr, tx, tn, pd,
+                        ws, rg, wx)
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -c {5x5km, 1arcmin,...}, --conf {5x5km, 1arcmin,...}
+                        Set the grid configuration type to use.
+  -p /path/to/config, --pathconf /path/to/config
+                        Overrides the base path where the configurations are
+                        stored.
+  --base-path BASE_PATH
+                        Base path for output files (default: /tmp/download_timeseries)
+  --start START         Start date (YYYY-MM-DD, default: 1989-12-31)
+  --end END             End date (YYYY-MM-DD, default: current date)
+  --no-metadata         Skip downloading metadata
+  --no-stations         Skip downloading station list
+  --no-data             Skip downloading station data
+  --no-merge            Skip merging timeseries with metadata
+  --verbose             Enable verbose logging
+  --api-key API_KEY     API key for authentication (if not provided, uses
+                        the environment variable KIWI_API_KEY)
+
+```
+
+#### Output
+
+The tool creates the following output files in the specified base path:
+
+- `{variable}_timeseries_metadata.tsv`: Metadata file with station information
+- `{variable}_stations_to_download.tsv`: Filtered list of stations in the EFAS domain
+- `timeseries/{variable}/`: Folder containing individual station timeseries files
+- `meteo/{variable}/`: Folder containing the final KIWI format files organized by year/month/day
+
+The KIWI format files can be used directly as input to the [gridding](#gridding) tool for interpolation.
 
 
 ## cddmap
@@ -1124,9 +1214,213 @@ mct_mask_ds = mct_mask(channels_slope_file='changrad.nc', ldd_file='ldd.nc', upa
 ```
 
 
-## Using `lisfloodutilities` programmatically 
+## rainbomb
 
-You can use lisflood utilities in your Python programs. As an example, the script below creates the mask map for a set of stations (_stations.txt_). The mask map is a boolean map with 1 and 0. 1 is used for all (and only) the pixels hydrologically connected to one of the stations. The resulting mask map is in PCRaster format.
+This tool corrects rainbomb artifacts in ERA5 daily precipitation data. A rainbomb is an unrealistically high rainfall value at a single grid point that is not supported by surrounding points. This utility identifies and corrects such artifacts by comparing each grid point against its neighbours and applying threshold-based corrections.
+
+The correction algorithm works as follows:
+1. For each grid point, the maximum precipitation value from its closest neighbours is computed
+2. If the central point's value exceeds the maximum neighbour value by more than the upper buffer threshold (c_max), the value is replaced entirely with the neighbour maximum
+3. If the excess is between the intermediate buffer (c_interm) and upper buffer (c_max), the value is linearly interpolated based on the relative difference
+4. Otherwise, the original value is kept unchanged
+
+The buffer thresholds (c_interm and c_max) are derived from long-term SEAS5 data and vary based on the rainfall intensity bin assigned to each point.
+
+### Requirements
+
+python3, climetlab, xarray, pandas, numpy
+
+### Usage
+
+> __Note:__ This guide assumes you have installed the program with pip tool.
+> If you cloned the source code instead, just substitute the executable `rainbomb` with `python bin/rainbomb` that is in the root folder of the cloned project.
+
+The tool requires the following mandatory input arguments:
+
+- `-i`, `--input_file`: Input file for correction (raw ERA5 in NetCDF or GRIB format)
+- `-o`, `--output_file`: Output file (corrected ERA5 in the same format as the input: NetCDF or GRIB)
+
+The tool requires either:
+
+- `-d`, `--parent_dir`: Parent directory where the auxiliary data for the rainbomb correction are located
+
+Or individual auxiliary files:
+
+- `-n`, `--neighbours_file`: Path to the neighbours data file (NetCDF)
+- `-t`, `--thresholds_file`: Path to the thresholds CSV file
+
+Additional options:
+
+- `--set-grib-date`: Set the correct date in the GRIB output file based on the input NetCDF or GRIB time coordinate
+- `--skip-conversion`: Skip the unit conversion from m to mm (assumes input data is already in mm)
+- `-p`, `--precipitation-variable`: Name of the precipitation variable in the input dataset (defaults to 'tp')
+- `-v`, `--verbose`: Print progress information
+
+Example of command that will correct rainbombs in an ERA5 NetCDF file:
+
+```bash
+rainbomb -i /path/to/input/era5_precip.nc -o /path/to/output/era5_precip_corrected.nc -d /path/to/auxiliary/data/
+```
+
+Example with GRIB input and output:
+
+```bash
+rainbomb -i /path/to/input/era5_precip.grb -o /path/to/output/era5_precip_corrected.grb -d /path/to/auxiliary/data/
+```
+
+Example with individual auxiliary files:
+
+```bash
+rainbomb -i /path/to/input/era5_precip.nc -o /path/to/output/era5_precip_corrected.nc -n neighbours.nc -t thresholds.csv
+```
+
+The input and output arguments are listed below and can be seen by using the help flag:
+
+```bash
+rainbomb --help
+```
+
+```text
+usage: rainbomb [-h] -i INPUT_FILE -o OUTPUT_FILE [-d PARENT_DIR]
+                [-n NEIGHBOURS_FILE] [-t THRESHOLDS_FILE]
+                [--set-grib-date] [--skip-conversion]
+                [-p PRECIPITATION_VARIABLE] [-v]
+
+Script for correcting ERA5 single-grid rainbombs for daily fields.
+
+A rainbomb is an unrealistically high rainfall value at a single grid point
+that is not supported by surrounding points. This utility identifies and
+corrects such artifacts by comparing each grid point against its neighbours
+and applying threshold-based corrections.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -i INPUT_FILE, --input_file INPUT_FILE
+                        Input file for correction (raw ERA5 in NetCDF or GRIB
+                        format)
+  -o OUTPUT_FILE, --output_file OUTPUT_FILE
+                        Output file (corrected ERA5 in same format as input:
+                        NetCDF or GRIB)
+  -d PARENT_DIR, --parent_dir PARENT_DIR
+                        Parent directory where the auxiliary data for the
+                        rainbomb correction are located. Ignored if individual
+                        auxiliary files are specified.
+  -n NEIGHBOURS_FILE, --neighbours_file NEIGHBOURS_FILE
+                        Path to the neighbours data file (NetCDF). If not
+                        provided, defaults to 'neighbours_era5_closest.nc' in
+                        parent_dir.
+  -t THRESHOLDS_FILE, --thresholds_file THRESHOLDS_FILE
+                        Path to the thresholds CSV file. If not provided,
+                        defaults to 'thresholds.csv' in parent_dir.
+  --set-grib-date       Set the correct date in the GRIB output file based
+                        on the input NetCDF or GRIB time coordinate
+  --skip-conversion     Skip the unit conversion from m to mm (assumes input
+                        data is already in mm) and skip the conversion from
+                        mm back to m at the end
+  -p PRECIPITATION_VARIABLE, --precipitation-variable PRECIPITATION_VARIABLE
+                        Name of the precipitation variable in the input
+                        dataset. If not provided, defaults to 'tp'
+  -v, --verbose         Print progress information
+```
+
+It can also be used as a Python function:
+
+```python
+from lisfloodutilities.rainbomb import correct_rainbomb_dataset
+
+correct_rainbomb_dataset(
+    input_file='/path/to/input/era5_precip.nc',
+    output_file='/path/to/output/era5_precip_corrected.nc',
+    parent_dir='/path/to/auxiliary/data/',
+    verbose=True,
+    set_grib_date_flag=True,
+    precipitation_variable='tp'  # Optional: defaults to 'tp'
+)
+```
+
+### Recent Changes
+
+The rainbomb tool has been updated with the following improvements:
+
+- **NetCDF Support**: The tool now supports both NetCDF and GRIB input/output formats. The output format is automatically determined from the input file extension.
+- **Removed Template File**: The separate GRIB template file is no longer required. When the input is GRIB, the tool uses the input file itself as the template.
+- **Improved GRIB Metadata**: Added proper stepRange handling for GRIB output files.
+- **Skip Conversion Option**: Added `--skip-conversion` flag for cases where input data is already in millimetres.
+- **Optimized Processing**: Improved rainbomb detection and correction logic using numpy operations for better performance.
+- **Custom Precipitation Variable**: Added `-p`/`--precipitation-variable` option to allow overriding the default precipitation variable name ('tp') in the input dataset.
+
+
+### generate_neighbours
+
+This script generates neighbour indices for each grid point. It is used to reduce the computation time for the rainbomb correction by pre-computing and storing the indices of neighbours for each grid point. The neighbours on east/west are always the closest points in the same latitude. For north and south, there are two methods available:
+
+- **Rectangle method**: Keeps all points that lie within the longitudinal range of west-east neighbours
+- **Closest method**: Keeps only the closest north and south neighbour (can be 1 or 2 if same distance north/south-west and north/south-east of the point)
+
+The output consists of two NetCDF files:
+- `neighbours_<product>_rectangle.nc`: Neighbours using the rectangle method (up to 3 north/south neighbours)
+- `neighbours_<product>_closest.nc`: Neighbours using the closest method (up to 2 north/south neighbours)
+
+#### Requirements
+
+python3, xarray, pandas, numpy, tqdm
+
+#### Usage
+
+> __Note:__ This guide assumes you have installed the program with pip tool.
+> If you cloned the source code instead, just substitute the executable `generate_neighbours` with `python bin/generate_neighbours` that is in the root folder of the cloned project.
+
+The tool requires the following arguments:
+
+- `-d`, `--directory`: Work directory containing the auxiliary data files and the output files. The directory should contain the sample file `<product>_sample.grb` depending on the product used.
+- `-p`, `--product`: Product to be used: era5, seasonal (default: era5)
+
+Example command:
+
+```bash
+generate_neighbours -d /path/to/auxiliary/data/ -p era5
+```
+
+The help flag shows all available options:
+
+```bash
+generate_neighbours --help
+```
+
+```text
+usage: generate_neighbours [-h] -d DIRECTORY [-p PRODUCT]
+
+Script for generating neighbour indices for each grid point.
+
+For reducing the time of the computations for the rainbomb correction,
+this script keeps the indices of the neighbours for each grid point.
+Thus, the correction script can iterate directly over each point and its
+neighbours. The neighbours on east/west are always the closest points in
+the same latitude. For the north and south, the search is done to the next
+upper/lower latitude and there are 3 methods used:
+- Keep all points that lie within the longitudinal range of west-east based
+  on the west & east neighbours
+- Keep the closest north and south neighbour (can be 1 or even 2 if same
+  distance north/south-west of the point and north/south-east)
+- Keep all points that have smaller distance than the maximum distance from
+  the reference point to its west/east neighbour
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -d DIRECTORY, --directory DIRECTORY
+                        Work directory containing the auxiliary data files
+                        and the output files. The directory should contain
+                        the sample file '<product>_sample.grb' depending on
+                        the product used.
+  -p PRODUCT, --product PRODUCT
+                        Product to be used: era5,seasonal; the default is
+                        era5
+```
+
+
+## Using `lisfloodutilities` programmatically
+
+You can use lisflood utilities in your python programs. As an example, the script below creates the mask map for a set of stations (stations.txt). The mask map is a boolean map with 1 and 0. 1 is used for all (and only) the pixels hydrologically connected to one of the stations. The resulting mask map is in netCDF format.
 
 ```python
 from lisfloodutilities.cutmaps.cutlib import mask_from_ldd
@@ -1134,11 +1428,10 @@ from lisfloodutilities.nc2pcr import convert
 from lisfloodutilities.readers import PCRasterMap
 
 ldd = 'tests/data/cutmaps/ldd_eu.nc'
-clonemap = 'tests/data/cutmaps/area_eu.map'
 stations = 'tests/data/cutmaps/stations.txt'
 
-ldd_pcr = convert(ldd, clonemap, 'tests/data/cutmaps/ldd_eu_test.map', is_ldd=True)[0]
-mask, outlets_nc, maskmap_nc = mask_from_ldd(ldd_pcr, stations)
-mask_map = PCRasterMap(mask)
+mask, outlets_nc, maskmap_nc = mask_from_ldd(ldd, stations)
+mask_pcr = convert(mask, 'tests/data/cutmaps/mask.map', is_ldd=False)[0]
+mask_map = PCRasterMap(mask_pcr)
 print(mask_map.data)
 ```

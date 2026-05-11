@@ -101,8 +101,8 @@ def main():
 
     aquastat = pd.read_csv(os.path.join(config['aquastat_folder'],'aquastat_clean.csv'),index_col=False)
 
-    table_aquastat_irrigation_withdrawal = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.NaN
-    table_aquastat_agriculture_withdrawal = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.NaN
+    table_aquastat_irrigation_withdrawal = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.nan
+    table_aquastat_agriculture_withdrawal = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.nan
     for jj in np.arange(country_codes.shape[0]):
         country_code = country_codes.iloc[jj]['country-code']    
         for ii in np.arange(len(years)):
@@ -115,7 +115,7 @@ def main():
     
     # Compute livestock withdrawal as difference between agriculture and irrigation
     table_aquastat_withdrawal_livestock = table_aquastat_agriculture_withdrawal-table_aquastat_irrigation_withdrawal
-    table_aquastat_withdrawal_livestock[table_aquastat_withdrawal_livestock<0] = np.NaN
+    table_aquastat_withdrawal_livestock[table_aquastat_withdrawal_livestock<0] = np.nan
     
     # Save to csv
     pd.DataFrame(table_aquastat_irrigation_withdrawal,index=country_codes['name'],columns=years).to_csv(os.path.join(config['output_folder'],'step4_livestock_demand','tables','aquastat_irrigation_withdrawal.csv'))
@@ -142,12 +142,12 @@ def main():
         ],dtype=object)
 
     # Load data for each species
-    glw_mass_maps = np.zeros((mapsize_global[0],mapsize_global[1],len(glw_table)),dtype=np.single)*np.NaN
+    glw_mass_maps = np.zeros((mapsize_global[0],mapsize_global[1],len(glw_table)),dtype=np.single)*np.nan
     for ii in np.arange(len(glw_table)):
         src = rasterio.open(os.path.join(config['glw_folder'],'5_'+glw_table[ii][0]+'_2010_Da.tif'))
         data = np.array(src.read(1).astype(np.single))
         src.close()
-        data[data==-np.Inf] = np.NaN
+        data[data==-np.Inf] = np.nan
         data[np.isnan(data)] = 0
         mapsize_native = data.shape
         data = resize(data,mapsize_global)*mapsize_native[0]/mapsize_global[0] # Number of animals per grid-cell
@@ -165,7 +165,7 @@ def main():
     print('-------------------------------------------------------------------------------')
     print('Computating GLW total livestock mass for each country')
     t0 = time.time()
-    table_glw_livestock_mass = np.zeros((country_codes.shape[0],),dtype=np.single)*np.NaN
+    table_glw_livestock_mass = np.zeros((country_codes.shape[0],),dtype=np.single)*np.nan
     for jj in np.arange(country_codes.shape[0]):
         country_code = country_codes.iloc[jj]['country-code']
         mask = country_code_map==country_code
@@ -217,7 +217,7 @@ def main():
         ],dtype=object)
 
     # Values for each country and year
-    table_gcam_glw_withdrawal_livestock = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.NaN
+    table_gcam_glw_withdrawal_livestock = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.nan
     for jj in np.arange(country_codes.shape[0]):
         country_name = country_codes.iloc[jj]['name']
         
@@ -315,7 +315,7 @@ def main():
 
     # Loop over vars
     vars = ['liv']
-    Huang_withdrawal = np.zeros((len(vars),360,720,480),dtype=np.single)*np.NaN
+    Huang_withdrawal = np.zeros((len(vars),360,720,480),dtype=np.single)*np.nan
     for vv in np.arange(len(vars)):
         var = vars[vv]
         
@@ -343,7 +343,7 @@ def main():
     #   represent the difference between agriculture and irrigation estimates).
     ############################################################################
 
-    table_livestock_industry = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.NaN
+    table_livestock_industry = np.zeros((country_codes.shape[0],len(years)),dtype=np.single)*np.nan
     for jj in np.arange(country_codes.shape[0]):
         country_code = country_codes.iloc[jj]['country-code']
         country_name = country_codes.iloc[jj]['name']
@@ -421,7 +421,7 @@ def main():
         #--------------------------------------------------------------------------
     
         # Spatially downscale annual country withdrawals using GLW total livestock mass grid
-        data_annual_map = np.zeros(mapsize_global,dtype=np.single)*np.NaN
+        data_annual_map = np.zeros(mapsize_global,dtype=np.single)*np.nan
         for jj in np.arange(country_codes.shape[0]):
             country_code = country_codes.iloc[jj]['country-code']
             mask = country_code_map==country_code
