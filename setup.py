@@ -23,7 +23,7 @@ To upload new package on PyPi Test:
 twine upload --repository-url https://test.pypi.org/legacy/ dist/*
 
 Test package install
-pip install --index-url https://test.pypi.org/simple/ lisflood-utilities==0.11.7
+pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple lisflood-utilities==1.0.0
 
 Installation with pip:
 pip install lisflood-utilities
