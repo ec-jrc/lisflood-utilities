@@ -1,4 +1,4 @@
-[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.20122991-blue.svg)](https://doi.org/10.5281/zenodo.20122991)
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.20122990-blue.svg)](https://doi.org/10.5281/zenodo.20122990)
 
 # Lisflood Utilities
 
