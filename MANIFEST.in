@@ -1,2 +1,3 @@
 include src/lisfloodutilities/VERSION
 include LICENSE
+include requirements.txt
