@@ -1,5 +1,5 @@
 """
-Copyright 2019-2020 European Union
+Copyright 2019-2026 European Union
 
 Licensed under the EUPL, Version 1.2 or as soon they will be approved by the European Commission  subsequent versions of the EUPL (the "Licence");
 
@@ -61,6 +61,10 @@ def _get_gdal_version():
 
 
 gdal_version = _get_gdal_version()
+req_file = 'requirements.txt'
+requirements = [l for l in open(req_file).readlines() if l and not l.startswith('#')]
+# GDAL requirement is commented to avoid fixing GDAL version in pypi package
+# requirements += ['GDAL=={}'.format(gdal_version)]
 
 
 class UploadCommand(Command):
@@ -144,17 +148,7 @@ setup_args = dict(
     setup_requires=[
             'setuptools>=41.0', 'numpy',
     ],
-    install_requires=['numpy>=1.18.2,<2.0.0', 'PyYAML>=6.0.3',
-                      # Can create corrupted environment if using conda,
-                      # Better to install GDAL manually before to install lisflood-utilities package
-                      # 'GDAL=={}'.format(gdal_version),
-                      'gdal<=3.5.3',
-                      'netCDF4>=1.7.4', 'toolz', 'xarray>=2024.7.0',
-                      'dask', 'pandas>=2.3.3', 'pyg2p>=3.2.9',
-                      'earthkit-data>=0.18.6,<0.19.0',
-                      'earthkit-hydro==1.1.0',
-                      'earthkit-meteo>=0.5.1,<0.6.0',
-                      'earthkit-utils>=0.1.2,<0.2.0'],
+    install_requires=requirements,
     author="Valerio Lorini, Stefania Grimaldi, Carlo Russo, Goncalo Gomes, Domenico Nappo, Lorenzo Alfieri, Jesús Casado Rodríguez, Giuseppe Baiamonte, Corentin Carton de Wiart, Cinzia Mazzetti, Nikolaos Mastrantonas",
     author_email="valerio.lorini@europarl.europa.eu,ste.grimaldi.i@gmail.com,crl.russo@hotmail.com,goncalo.ramos-gomes@ext.ec.europa.eu,domenico.nappo@gmail.com,Lorenzo.Alfieri@cimafoundation.org,chus.casado.88@gmail.com,giuseppe.baiamonte@ext.ec.europa.eu,Corentin.Carton@ecmwf.int,Cinzia.Mazzetti@ecmwf.int,nikolaos.mastrantonas@ecmwf.int",
     keywords=['netCDF4', 'PCRaster', 'mapstack', 'lisflood', 'efas', 'glofas', 'ecmwf', 'copernicus'],
