@@ -42,7 +42,7 @@ vignettes/*.pdf
 *.py[cod]
 
 *.yaml
-*.json
+.vscode/
 dist/
 *.egg-info/
 **/build/
