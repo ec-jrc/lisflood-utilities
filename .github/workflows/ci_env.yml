@@ -4,10 +4,10 @@ on: [push]
 
 jobs:
   tests:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.10"]
+        python-version: ["3.12"]
 
     steps:
     - name: Checkout github repo
@@ -16,7 +16,7 @@ jobs:
       uses: conda-incubator/setup-miniconda@v3
       with:
         auto-update-conda: true
-        python-version: "3.10"
+        python-version: "3.12"
         miniforge-version: latest
 
     - name: Conda info
@@ -26,7 +26,7 @@ jobs:
     - name: Install system dependencies
       shell: bash -el {0}
       run: |
-        conda install -c conda-forge "gcc>=12.1.0" "gdal<=3.5.3" eccodes hdf5
+        conda install -c conda-forge "gcc>=12.1.0" gdal eccodes hdf5
 
     - name: Install dependencies
       shell: bash -el {0}
