@@ -18,6 +18,7 @@ import os
 import numpy as np
 from netCDF4 import Dataset
 import logging
+import tempfile
 
 from lisfloodutilities.cutmaps.main import get_arg_coords
 
@@ -25,6 +26,7 @@ logging.basicConfig(format="%(threadName)s:%(message)s")
 from lisfloodutilities.cutmaps.cutlib import get_filelist, get_cuts, cutmap, mask_from_ldd
 from lisfloodutilities.nc2pcr import convert as nc2pcr_convert
 from lisfloodutilities.compare.nc import NetCDFComparator
+from lisfloodutilities.cutmaps.main import main
 
 from . import TestWithCleaner
 
@@ -232,3 +234,64 @@ class TestCutlib(TestWithCleaner):
 
         assert_msg = 'Unexpected cuts from cutmap with LDD with ETRS89 projection and one station'
         assert (x_min, x_max, y_min, y_max) == (res_x_min, res_x_max, res_y_min, res_y_max), assert_msg
+
+
+    def test_main_with_ldd_and_stations(self):
+        # Paths to test data
+        ldd_path = Path('tests/data/cutmaps/ldd_eu.nc')
+        stations_path = Path('tests/data/cutmaps/stations.txt')
+        reference_folder = Path('tests/data/cutmaps/reference')
+        temp_output = Path(tempfile.gettempdir(), 'temp_output_cutmaps')
+        temp_output.mkdir(exist_ok=True)
+        # Input file to cut (use the same LDD file for simplicity)
+        input_file = ldd_path
+
+        # Temprorary files that will be created by the main function based on the input file location
+        path_input_file = input_file.parent
+        mask_file = path_input_file / 'mask_full.nc'
+        outlets_points_file = path_input_file / 'outlets.nc'
+        mask_nc_file = path_input_file / 'mask_small.nc'
+
+        # Build CLI arguments
+        args = [
+            '-l', str(ldd_path),
+            '-N', str(stations_path),
+            '-F', str(input_file),
+            '-o', str(temp_output),
+            '-W'  # allow overwrite if file already exists
+        ]
+
+        # Run the main function
+        main(args)
+
+        # Register cleanup for temporary files created by the main function
+        self.cleanups.append((os.unlink, (mask_file,)))  # produced by mask_from_ldd
+        self.cleanups.append((os.unlink, (outlets_points_file,)))  # produced by mask_from_ldd
+        self.cleanups.append((os.unlink, (mask_nc_file,)))  # produced by mask_from_ldd
+
+        # Expected output file name matches the input file basename
+        output_file = temp_output / input_file.name
+        assert output_file.is_file(), f"Output file {output_file} not created"
+
+        # Verify that mask files have been copied to the output directory
+        small_mask_out = temp_output / 'mask_small.nc'
+        full_mask_out = temp_output / 'mask_full.nc'
+        outlets_out = temp_output / 'outlets.nc'
+        for f in (small_mask_out, full_mask_out, outlets_out):
+            assert f.is_file(), f"Expected mask file {f} not found"
+
+        # Basic sanity check: open the output NetCDF and ensure at least one variable exists
+        with Dataset(output_file) as ds:
+            assert len(ds.variables) > 0, "No variables found in output NetCDF"
+        
+        # refrence files
+        small_mask_ref = reference_folder / 'mask_small.nc'
+        full_mask_ref = reference_folder / 'mask_full.nc'
+        outlets_ref = reference_folder / 'outlets.nc'
+        output_ref = reference_folder / input_file.name
+
+        # Compare the output files with the reference files
+        comparator = NetCDFComparator(array_equal=True, for_testing=True)
+        for out, ref in ((small_mask_out, small_mask_ref), (full_mask_out, full_mask_ref), (outlets_out, outlets_ref), (output_file, output_ref)):
+            comparator.compare_files(out, ref)
+
