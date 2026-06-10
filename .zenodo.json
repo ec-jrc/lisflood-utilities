@@ -1,60 +1,59 @@
 {
-  "metadata": {
-    "title": "ec-jrc/lisflood-utilities: A set of utilities for lisflood users",
-    "description": "Lisflood‑utilities is a set of utilities for lisflood users: define_waterregions, verify_waterregions, cutmaps, catchstats, compare, decumulate, gridding, lfcoords, mctrivers, nc2pcr, pcr2nc, ncextract, download_timeseries, rainbomb, thresholds, generate_neighbours.",
-    "creators": [
-      {
-        "name": "Russo, Carlo",
-        "affiliation": "Joint Research Centre",
-        "orcid": "0000-0001-8296-4345"
-      },
-      {
-        "name": "Gomes, Gonçalo",
-        "affiliation": "Joint Research Centre",
-        "orcid": "0000-0001-8536-6623"
-      },
-      {
-        "name": "Nappo, Domenico",
-        "affiliation": "AM-FLOW"
-      },
-      {
-        "name": "Casado Rodríguez, Jesus",
-        "affiliation": "KAJO Services",
-        "orcid": "0000-0002-6607-1413"
-      },
-      {
-        "name": "Grimaldi, Stefania",
-        "affiliation": "Joint Research Centre",
-        "orcid": "0000-0002-7025-7624"
-      },
-      {
-        "name": "Carton de Wiart, Corentin",
-        "affiliation": "European Centre for Medium-Range Weather Forecasts",
-        "orcid": "0000-0002-0681-2224"
-      },
-      {
-        "name": "Mazzetti, Cinzia",
-        "affiliation": "European Centre for Medium-Range Weather Forecasts",
-        "orcid": "0000-0003-3622-1967"
-      },
-      {
-        "name": "Baiamonte, Giuseppe"
-      },
-      {
-        "name": "Mastrantonas, Nikolaos",
-        "affiliation": "European Centre for Medium-Range Weather Forecasts",
-        "orcid": "0000-0002-2430-3634"
-      },
-      {
-        "name": "Lorini, Valerio",
-        "affiliation": "European Parliament",
-        "orcid": "0000-0003-2148-5476"
-      },
-      {
-        "name": "Lorenzo, Alfieri",
-        "affiliation": "CIMA Research Foundation",
-        "orcid": "0000-0002-3616-386X"
-      }
-    ]
-  }
+  "title": "ec-jrc/lisflood-utilities: A set of utilities for lisflood users",
+  "description": "Lisflood‑utilities is a set of utilities for lisflood users: define_waterregions, verify_waterregions, cutmaps, catchstats, compare, decumulate, gridding, lfcoords, mctrivers, nc2pcr, pcr2nc, ncextract, download_timeseries, rainbomb, thresholds, generate_neighbours.",
+  "creators": [
+    {
+      "name": "Russo, Carlo",
+      "affiliation": "Joint Research Centre",
+      "orcid": "0000-0001-8296-4345"
+    },
+    {
+      "name": "Gomes, Gonçalo",
+      "affiliation": "Joint Research Centre",
+      "orcid": "0000-0001-8536-6623"
+    },
+    {
+      "name": "Nappo, Domenico",
+      "affiliation": "AM-FLOW"
+    },
+    {
+      "name": "Casado Rodríguez, Jesus",
+      "affiliation": "KAJO Services",
+      "orcid": "0000-0002-6607-1413"
+    },
+    {
+      "name": "Grimaldi, Stefania",
+      "affiliation": "Joint Research Centre",
+      "orcid": "0000-0002-7025-7624"
+    },
+    {
+      "name": "Carton de Wiart, Corentin",
+      "affiliation": "European Centre for Medium-Range Weather Forecasts",
+      "orcid": "0000-0002-0681-2224"
+    },
+    {
+      "name": "Mazzetti, Cinzia",
+      "affiliation": "European Centre for Medium-Range Weather Forecasts",
+      "orcid": "0000-0003-3622-1967"
+    },
+    {
+      "name": "Baiamonte, Giuseppe"
+    },
+    {
+      "name": "Mastrantonas, Nikolaos",
+      "affiliation": "European Centre for Medium-Range Weather Forecasts",
+      "orcid": "0000-0002-2430-3634"
+    },
+    {
+      "name": "Lorini, Valerio",
+      "affiliation": "European Parliament",
+      "orcid": "0000-0003-2148-5476"
+    },
+    {
+      "name": "Lorenzo, Alfieri",
+      "affiliation": "CIMA Research Foundation",
+      "orcid": "0000-0002-3616-386X"
+    }
+  ],
+  "upload_type": "software"
 }

@@ -1,0 +1,60 @@
+cff-version: 1.2.0
+title: LISFLOOD Utilities
+message: "If you use this software, please cite it using the information below."
+ 
+type: software
+ 
+authors:
+  - family-names: Russo
+    given-names: Carlo
+    orcid: https://orcid.org/0000-0001-8296-4345
+    affiliation: Joint Research Centre
+ 
+  - family-names: Gomes
+    given-names: Gonçalo
+    orcid: https://orcid.org/0000-0001-8536-6623
+    affiliation: Joint Research Centre
+ 
+  - family-names: Nappo
+    given-names: Domenico
+    affiliation: AM-FLOW
+ 
+  - family-names: Casado Rodríguez
+    given-names: Jesus
+    orcid: https://orcid.org/0000-0002-6607-1413
+    affiliation: KAJO Services
+ 
+  - family-names: Grimaldi
+    given-names: Stefania
+    orcid: https://orcid.org/0000-0002-7025-7624
+    affiliation: Joint Research Centre
+ 
+  - family-names: Carton de Wiart
+    given-names: Corentin
+    orcid: https://orcid.org/0000-0002-0681-2224
+    affiliation: European Centre for Medium-Range Weather Forecasts
+ 
+  - family-names: Mazzetti
+    given-names: Cinzia
+    orcid: https://orcid.org/0000-0003-3622-1967
+    affiliation: European Centre for Medium-Range Weather Forecasts
+ 
+  - family-names: Baiamonte
+    given-names: Giuseppe
+ 
+  - family-names: Mastrantonas
+    given-names: Nikolaos
+    orcid: https://orcid.org/0000-0002-2430-3634
+    affiliation: European Centre for Medium-Range Weather Forecasts
+ 
+  - family-names: Lorini
+    given-names: Valerio
+    orcid: https://orcid.org/0000-0003-2148-5476
+    affiliation: European Parliament
+ 
+  - family-names: Lorenzo
+    given-names: Alfieri
+    orcid: https://orcid.org/0000-0002-3616-386X
+    affiliation: CIMA Research Foundation
+ 
+repository-code: https://github.com/ec-jrc/lisflood-utilities
