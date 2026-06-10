@@ -172,7 +172,7 @@ class KiwisFilter:
         status_list = []
         if status_strings:
             for crnt_string in status_strings:
-                match = re.match("(\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d): (.*)", crnt_string)
+                match = re.match(r"(\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d): (.*)", crnt_string)
                 if match:
                     date_str, status = match.groups()
                     datetime_list.append(dt.strptime(date_str, "%Y-%m-%d %H:%M:%S"))

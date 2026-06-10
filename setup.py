@@ -150,7 +150,6 @@ setup_args = dict(
     ],
     install_requires=requirements,
     author="Valerio Lorini, Stefania Grimaldi, Carlo Russo, Goncalo Gomes, Domenico Nappo, Lorenzo Alfieri, Jesús Casado Rodríguez, Giuseppe Baiamonte, Corentin Carton de Wiart, Cinzia Mazzetti, Nikolaos Mastrantonas",
-    author_email="valerio.lorini@europarl.europa.eu,ste.grimaldi.i@gmail.com,crl.russo@hotmail.com,goncalo.ramos-gomes@ext.ec.europa.eu,domenico.nappo@gmail.com,Lorenzo.Alfieri@cimafoundation.org,chus.casado.88@gmail.com,giuseppe.baiamonte@ext.ec.europa.eu,Corentin.Carton@ecmwf.int,Cinzia.Mazzetti@ecmwf.int,nikolaos.mastrantonas@ecmwf.int",
     keywords=['netCDF4', 'PCRaster', 'mapstack', 'lisflood', 'efas', 'glofas', 'ecmwf', 'copernicus'],
     license='EUPL 1.2',
     url='https://github.com/ec-jrc/lisflood-utilities',

@@ -1,5 +1,5 @@
 """
-Copyright 2019-2020 European Union
+Copyright 2019-2026 European Union
 
 Licensed under the EUPL, Version 1.2 or as soon they will be approved by the European Commission  subsequent versions of the EUPL (the "Licence");
 
@@ -28,6 +28,7 @@ from .cutlib import (mask_from_ldd, get_filelist, get_cuts, cutmap,
                      MASK_VALUE, SMALL_MASK_FILENAME, FULL_MASK_FILENAME, OUTLETS_FILENAME)
 from .helpers import COORDINATE_NAMES, TIME_NAMES
 from netCDF4 import Dataset 
+import xarray as xr
 import numpy as np
 
 # Variables that should be excluded from mask processing.
@@ -75,6 +76,20 @@ def get_arg_coords(value):
         )
     values = map(apply, values)
     return values
+
+def load_mask_file(mask_path: str) -> Optional[np.ndarray]:
+    mask_map_values = None
+    try:
+        with xr.open_dataset(mask_path, engine='netcdf4') as mask_ds:
+            mask_var = next(
+                        (mask_ds[var] for var in mask_ds.data_vars if var not in COORDINATE_NAMES),
+                        None,
+                    )
+            if mask_var is not None:
+                mask_map_values = mask_var.values  # Load into memory once.
+    except Exception as exc:  # pragma: no cover – defensive programming.
+        logger.exception("Failed to read mask file %s: %s", mask_path, exc)
+    return mask_map_values
 
 class ParserHelpOnError(argparse.ArgumentParser):
     def error(self, message):
@@ -232,11 +247,9 @@ def main(cliargs):
 
         cutmap(file_to_cut, fileout, x_min, x_max, y_min, y_max, use_coords=(cuts_indices is None))
         if ldd and stations:
-            mask_map_values = None
-            with Dataset(os.path.join(pathout, SMALL_MASK_FILENAME),'r',format='NETCDF4_CLASSIC')  as mask_map:  
-                for var_name in mask_map.variables.keys():
-                    if (var_name not in COORDINATE_NAMES):
-                        mask_map_values=mask_map.variables[var_name][:] 
+            mask_path = os.path.join(pathout, SMALL_MASK_FILENAME)
+            mask_map_values = load_mask_file(mask_path)
+
             with Dataset(fileout,'r+',format='NETCDF4_CLASSIC') as file_out:
                 for output_var_name, variable in file_out.variables.items():
                     # Skip string variables and known coordinate/reference variables.
