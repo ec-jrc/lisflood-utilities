@@ -627,13 +627,20 @@ def write_output_nc(out_path: Union[Path, str], clone_path: Union[Path, str], po
         # We assume the clone has coordinate variables named exactly as the
         # dimensions (common convention).
         try:
-            coord_x = src.variables[dim_x][:]      # e.g. easting or longitude
-            coord_y = src.variables[dim_y][:]      # e.g. northing or latitude
+            # Retrieve raw coordinate variables (could be edge or centre values)
+            raw_coord_x = src.variables[dim_x][:]
+            raw_coord_y = src.variables[dim_y][:]
         except KeyError as exc:
             raise KeyError(
                 f"Clone file {clone_path} does not contain coordinate variables "
                 f"named after its dimensions ({dim_x}, {dim_y})."
             ) from exc
+
+        # Shift coordinates to cell centers if they are edge values (common in some clones).
+        # This is done by averaging adjacent coordinate values.
+        coords_were_shifted_to_center = True
+        coord_x = (raw_coord_x[:-1] + raw_coord_x[1:]) / 2.0
+        coord_y = (raw_coord_y[:-1] + raw_coord_y[1:]) / 2.0
 
         diff_x = np.diff(coord_x)
         diff_y = np.diff(coord_y)
@@ -648,16 +655,18 @@ def write_output_nc(out_path: Union[Path, str], clone_path: Union[Path, str], po
         # Determine the order of the y axis (ascending or descending)
         # This is important for correctly mapping the y coordinates to row indices.
         # Initialize defaults in case diff_y is neither strictly increasing nor decreasing
+        # Ascending order (e.g. latitude increasing from south to north)
         sorted_y_side = "left"
         sorted_y_offset = 0
-        if np.all(diff_y >= 0):
-            # Ascending order (e.g. latitude increasing from south to north)
-            sorted_y_side = "left"
-            sorted_y_offset = 0
-        elif np.all(diff_y <= 0):
+        if np.all(diff_y < 0):
             # Descending order (e.g. northing decreasing from top to bottom)
             sorted_y_side = "right"
-            sorted_y_offset = 1
+            sorted_y_offset = 1 if coords_were_shifted_to_center else 0 # If coordinates were shifted to center, we need to adjust the offset for searchsorted
+
+        # Determine X sorting side and offset similar to Y handling
+        # Fallback to left with no offset if not strictly monotonic
+        sorted_x_side = "left"
+        sorted_x_offset = 0
 
         resolution_x = np.round(np.abs(coord_x[1] - coord_x[0]), decimals=2)
         resolution_y = np.round(np.abs(coord_y[1] - coord_y[0]), decimals=2)
@@ -702,7 +711,7 @@ def write_output_nc(out_path: Union[Path, str], clone_path: Union[Path, str], po
         coord_x_sorted = np.sort(coord_x)
 
         # X values
-        col_idx = np.searchsorted(coord_x_sorted, xs, side="left")
+        col_idx = np.searchsorted(coord_x_sorted, xs, side=sorted_x_side) - sorted_x_offset
         
         # Adjust indices that fall on the right edge
         col_idx = np.clip(col_idx, 0, nx - 1)
