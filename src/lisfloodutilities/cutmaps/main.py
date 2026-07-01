@@ -32,11 +32,25 @@ import xarray as xr
 import numpy as np
 
 # Variables that should be excluded from mask processing.
+# Common NetCDF projection/CRS variable names
 EXCLUDED_VAR_NAMES = {
     "crs",
     "wgs_1984",
     "lambert_azimuthal_equal_area",
-    "lambert_conformal_conic"
+    "lambert_conformal_conic",
+    "spatial_ref",
+    "rotated_pole",
+    "albers_conical_equal_area",
+    "polar_stereographic",
+    "transverse_mercator",
+    "oblique_mercator",
+    "lambert_cylindrical_equal_area",
+    "latitude_longitude",
+    "geostationary",
+    "crs_wkt",
+    "projection",
+    "grid_mapping",
+    "esri_pe_string",
 }
 
 # Add coordinate and time coordinate names to the exclusion set
