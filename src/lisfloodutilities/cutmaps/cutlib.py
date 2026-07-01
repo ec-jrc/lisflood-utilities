@@ -34,7 +34,7 @@ from .. import version, logger
 
 from earthkit.hydro import catchments
 
-encoding_netcdf_vars = {'zlib': False}
+encoding_netcdf_vars = {'zlib': True, 'complevel': 4}
 
 # Value used to identify the masked cells
 MASK_VALUE = 1
