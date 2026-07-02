@@ -92,18 +92,78 @@ def get_arg_coords(value):
     return values
 
 def load_mask_file(mask_path: str) -> Optional[np.ndarray]:
-    mask_map_values = None
+    """Load mask values from a NetCDF mask file.
+
+    Args:
+        mask_path: Path to the mask NetCDF file.
+
+    Returns:
+        NumPy array with mask values, or None if loading fails.
+    """
     try:
         with xr.open_dataset(mask_path, engine='netcdf4') as mask_ds:
             mask_var = next(
-                        (mask_ds[var] for var in mask_ds.data_vars if var not in COORDINATE_NAMES),
-                        None,
-                    )
+                (mask_ds[var] for var in mask_ds.data_vars if var not in COORDINATE_NAMES),
+                None,
+            )
             if mask_var is not None:
-                mask_map_values = mask_var.values  # Load into memory once.
+                return mask_var.values  # Load into memory once.
     except Exception as exc:  # pragma: no cover – defensive programming.
         logger.exception("Failed to read mask file %s: %s", mask_path, exc)
-    return mask_map_values
+    return None
+
+
+def _apply_variable_mask(
+    variable,
+    mask_values: np.ndarray,
+) -> None:
+    """Apply a mask to a NetCDF variable, replacing masked values with fill_value.
+
+    This function handles both 2D (raster) and 3D (time-series of rasters) data.
+    It preserves the variable's scale_factor and add_offset attributes when
+    computing the encoded fill value.
+
+    Args:
+        variable: NetCDF4 Variable object to mask.
+        mask_values: 2D NumPy array with mask values (1 = keep, other = fill).
+    """
+    # Skip string variables and known coordinate/reference variables.
+    if variable.dtype == np.dtype('|S1') or variable._name in EXCLUDED_VAR_NAMES:
+        return
+
+    # Retrieve scaling metadata (if any).
+    scale_factor = getattr(variable, 'scale_factor', None)
+    add_offset = getattr(variable, 'add_offset', None)
+    fill_value = getattr(variable, '_FillValue', np.nan)
+
+    # Apply scale/offset to the fill value so that NaNs are encoded correctly.
+    if (
+        fill_value is not None
+        and fill_value == fill_value  # NaN-safe check
+        and scale_factor is not None
+        and add_offset is not None
+    ):
+        fill_value = fill_value * scale_factor + add_offset
+
+    # Load data once and apply mask in a single vectorised operation.
+    data = variable[:]
+
+    if data.ndim == 2:
+        # 2‑D case (e.g., raster).
+        masked = np.where(mask_values == MASK_VALUE, data, fill_value)
+        variable[:] = masked
+    elif data.ndim == 3:
+        # 3‑D case (e.g., time‑series of rasters).
+        # Reshape mask to broadcast across the time axis, then apply in one call.
+        mask_3d = mask_values[np.newaxis, :, :]
+        masked = np.where(mask_3d == MASK_VALUE, data, fill_value)
+        variable[:] = masked
+    else:
+        logger.warning(
+            "Skipping variable '%s' with unsupported dimensionality %d",
+            variable._name,
+            data.ndim,
+        )
 
 class ParserHelpOnError(argparse.ArgumentParser):
     def error(self, message):
@@ -259,40 +319,25 @@ def main(cliargs):
             logger.warning('%s already existing. This file will not be overwritten', fileout)
             continue
 
+        logger.info(f"## Processing file (cutmap): {file_to_cut} -> {fileout}")
         cutmap(file_to_cut, fileout, x_min, x_max, y_min, y_max, use_coords=(cuts_indices is None))
+        logger.info(f"## Finished processing file (cutmap): {file_to_cut} -> {fileout}")
         if ldd and stations:
+            logger.info(f"## Applying mask to file: {fileout}")
             mask_path = os.path.join(pathout, SMALL_MASK_FILENAME)
             mask_map_values = load_mask_file(mask_path)
 
-            with Dataset(fileout,'r+',format='NETCDF4_CLASSIC') as file_out:
+            if mask_map_values is None:
+                logger.error(f"Failed to load mask file: {mask_path}")
+                continue
+
+            with Dataset(fileout, 'r+', format='NETCDF4_CLASSIC') as file_out:
                 for output_var_name, variable in file_out.variables.items():
-                    # Skip string variables and known coordinate/reference variables.
-                    if variable.dtype == '|S1' or output_var_name in EXCLUDED_VAR_NAMES:
-                        continue
-
-                    # Retrieve scaling metadata (if any)
-                    scale_factor = getattr(variable, 'scale_factor', None)
-                    add_offset = getattr(variable, 'add_offset', None)
-                    fill_value = getattr(variable, '_FillValue', np.nan)
-
-                    # Apply scale/offset to the fill value so that NaNs are encoded correctly.
-                    if fill_value is not None and scale_factor is not None and add_offset is not None:
-                        fill_value = fill_value * scale_factor + add_offset
-
-                    # Load data once
-                    data = variable[:]
-
-                    if data.ndim == 2:
-                        # 2‑D case (e.g., raster)
-                        values = variable[:]
-                        masked = np.where(mask_map_values == MASK_VALUE, values, fill_value)
-                        variable[:] = masked
-                    else:
-                        # 3‑D case (e.g., time‑series of rasters)
-                        for t in range(data.shape[0]):
-                            values = variable[t]
-                            masked = np.where(mask_map_values == MASK_VALUE, values, fill_value)
-                            variable[t, :, :] = masked
+                    _apply_variable_mask(
+                        variable=variable,
+                        mask_values=mask_map_values,
+                    )
+            logger.info(f"## Finished applying mask to file: {fileout}")
 
 def main_script():
     sys.exit(main(sys.argv[1:]))

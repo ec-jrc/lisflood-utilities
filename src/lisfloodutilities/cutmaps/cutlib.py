@@ -85,28 +85,28 @@ def cutmap(f, fileout, x_min, x_max, y_min, y_max, use_coords = True):
     # adding global attributes only if the file contains variables
     try:
         # Open the newly created file in append mode
-        nc_out = xr.open_dataset(fileout, mode='a', decode_cf=False)
-        if nc_out.data_vars:
-            nc_out.attrs = nc.attrs
-            nc_out.attrs['history'] = 'lisfloodutilities cutmaps {} {} \n {}'.format(
-                version, datetime.datetime.now().strftime('%Y-%m-%d %H:%M'), nc_out.attrs.get('history', '')
-            )
-            nc_out.attrs['conventions'] = 'CF-1.6'
-            nc_out.attrs['institution'] = 'JRC E1'
-            nc_out.attrs['source_software'] = 'lisfloodutilities cutmaps {}'.format(version)
-            nc_out.attrs.pop('Source_Software', None)
-            nc_out.attrs.pop('Institution', None)
-            nc_out.attrs.pop('Conventions', None)
-            logger.info('Writing additional attrs to: %s - %s', fileout, nc_out.attrs)
-            del_res = nc_out.to_netcdf(fileout, mode='a', compute=False)
-            if hasattr(nc_out, 'compute'):
-                with ProgressBar(dt=0.1):
-                    _ = del_res.compute()
-        nc_out.close()
+        with xr.open_dataset(fileout, mode='a', decode_cf=False) as nc_out:
+            if nc_out.data_vars:
+                nc_out.attrs = nc.attrs
+                nc_out.attrs['history'] = 'lisfloodutilities cutmaps {} {} \n {}'.format(
+                    version, datetime.datetime.now().strftime('%Y-%m-%d %H:%M'), nc_out.attrs.get('history', '')
+                )
+                nc_out.attrs['conventions'] = 'CF-1.6'
+                nc_out.attrs['institution'] = 'JRC E1'
+                nc_out.attrs['source_software'] = 'lisfloodutilities cutmaps {}'.format(version)
+                nc_out.attrs.pop('Source_Software', None)
+                nc_out.attrs.pop('Institution', None)
+                nc_out.attrs.pop('Conventions', None)
+                logger.info('Writing additional attrs to: %s - %s', fileout, nc_out.attrs)
+                del_res = nc_out.to_netcdf(fileout, mode='a', compute=False, encoding={var: encoding_netcdf_vars})
+                if hasattr(del_res, 'compute'):
+                    with ProgressBar(dt=0.1):
+                        _ = del_res.compute()
     except Exception as e:
         logger.warning('Cannot add global attributes to %s - %s', fileout, e)
     finally:
         nc.close()
+    logger.info(f"## Finished processing variable '{var}' and saved to {fileout}")
 
 
 def open_dataset(file_path: Union[Path, str]) -> Tuple[xr.Dataset, int]:
