@@ -21,15 +21,25 @@ import os
 import shutil
 import sys
 from pathlib import Path
-from typing import Optional, List, Union
+from typing import Optional, List, Union, NoReturn
 
-from .. import version, logger
-from .cutlib import (mask_from_ldd, get_filelist, get_cuts, cutmap,
-                     MASK_VALUE, SMALL_MASK_FILENAME, FULL_MASK_FILENAME, OUTLETS_FILENAME)
-from .helpers import COORDINATE_NAMES, TIME_NAMES
-from netCDF4 import Dataset 
 import xarray as xr
 import numpy as np
+
+from dask.diagnostics.progress import ProgressBar
+
+from .. import version, logger
+from .cutlib import (
+    mask_from_ldd,
+    get_filelist,
+    get_cuts,
+    cutmap,
+    MASK_VALUE,
+    SMALL_MASK_FILENAME,
+    FULL_MASK_FILENAME,
+    OUTLETS_FILENAME,
+)
+from .helpers import COORDINATE_NAMES, TIME_NAMES
 
 # Variables that should be excluded from mask processing.
 # Common NetCDF projection/CRS variable names
@@ -58,40 +68,72 @@ EXCLUDED_VAR_NAMES.update(COORDINATE_NAMES)
 EXCLUDED_VAR_NAMES.update(TIME_NAMES)
 
 
-def parse_and_check_args(parser, cliargs):
+def parse_and_check_args(parser: argparse.ArgumentParser, cliargs: List[str]) -> argparse.Namespace:
+    """Parse and validate command-line arguments.
+
+    Args:
+        parser: ArgumentParser instance with configured arguments.
+        cliargs: List of command-line arguments to parse.
+
+    Returns:
+        Parsed arguments namespace.
+
+    Raises:
+        SystemExit: If argument validation fails.
+    """
     args = parser.parse_args(cliargs)
-    if (args.mask!=None) + (args.cuts!=None) + (args.cuts_indices!=None) > 1:
-        parser.error('[--mask | --cuts | --cuts_indices] arguments are mutually exclusive')
-    if not (args.mask or args.cuts or args.cuts_indices) and not (args.ldd and args.stations):
-        parser.error('(--mask | --cuts | --cuts_indices | [--ldd, --stations]) You need to pass mask path or cuts coordinates '
-                     'or a list of stations along with LDD path')
-    if (args.mask or args.cuts or args.cuts_indices) and (args.ldd or args.stations):
-        parser.error('(--mask | --cuts | --cuts_indices | [--ldd, --stations]) '
-                     '--mask, --cuts, --cuts_indices and --ldd and --stations arguments are mutually exclusive')
+
+    # Check mutual exclusivity of mask-related arguments
+    mask_args_count = sum([
+        args.mask is not None,
+        args.cuts is not None,
+        args.cuts_indices is not None,
+    ])
+    if mask_args_count > 1:
+        parser.error("[--mask | --cuts | --cuts_indices] arguments are mutually exclusive")
+
+    # Check that at least one mask/cut method is provided
+    has_mask_method = args.mask or args.cuts or args.cuts_indices
+    has_ldd_stations = args.ldd and args.stations
+    if not has_mask_method and not has_ldd_stations:
+        parser.error(
+            "(--mask | --cuts | --cuts_indices | [--ldd, --stations]) "
+            "You need to pass mask path or cuts coordinates "
+            "or a list of stations along with LDD path"
+        )
+
+    # Check mutual exclusivity between mask methods and ldd/stations
+    if has_mask_method and has_ldd_stations:
+        parser.error(
+            "(--mask | --cuts | --cuts_indices | [--ldd, --stations]) "
+            "--mask, --cuts, --cuts_indices and --ldd and --stations arguments are mutually exclusive"
+        )
+
     return args
 
-def get_arg_coords(value):
+
+def get_arg_coords(value: str) -> map:
     """Parse coordinate values from command line argument.
-    
+
     Args:
-        value: String containing 4 space-separated values (coordinates or indices)
-        
+        value: String containing 4 space-separated values (coordinates or indices).
+
     Returns:
-        Map object yielding the parsed values as int or float
-        
+        Map object yielding the parsed values as int or float.
+
     Raises:
-        argparse.ArgumentTypeError: If the value doesn't contain exactly 4 values
+        argparse.ArgumentTypeError: If the value doesn't contain exactly 4 values.
     """
-    apply = float if '.' in value else int  # user can provide coords (float) or matrix indices bbox (int)
+    apply_type = float if "." in value else int
     values = value.split()
     if len(values) != 4:
         raise argparse.ArgumentTypeError(
             f"Expected 4 values, got {len(values)}: '{value}'"
         )
-    values = map(apply, values)
-    return values
+    return map(apply_type, values)
 
-def load_mask_file(mask_path: str) -> Optional[np.ndarray]:
+
+def load_mask_file(mask_path: Union[str, Path]) -> Optional[np.ndarray]:
     """Load mask values from a NetCDF mask file.
 
     Args:
@@ -101,40 +143,52 @@ def load_mask_file(mask_path: str) -> Optional[np.ndarray]:
         NumPy array with mask values, or None if loading fails.
     """
     try:
-        with xr.open_dataset(mask_path, engine='netcdf4') as mask_ds:
+        with xr.open_dataset(mask_path, engine="netcdf4") as mask_ds:
             mask_var = next(
                 (mask_ds[var] for var in mask_ds.data_vars if var not in COORDINATE_NAMES),
                 None,
             )
             if mask_var is not None:
                 return mask_var.values  # Load into memory once.
-    except Exception as exc:  # pragma: no cover – defensive programming.
+    except Exception as exc:  # pragma: no cover - defensive programming.
         logger.exception("Failed to read mask file %s: %s", mask_path, exc)
     return None
 
 
-def _apply_variable_mask(
-    variable,
+def _apply_variable_mask_xarray(
+    dataset: xr.Dataset,
+    var_name: str,
     mask_values: np.ndarray,
 ) -> None:
-    """Apply a mask to a NetCDF variable, replacing masked values with fill_value.
+    """Apply a mask to an xarray DataArray variable, replacing masked values with fill_value.
 
     This function handles both 2D (raster) and 3D (time-series of rasters) data.
     It preserves the variable's scale_factor and add_offset attributes when
     computing the encoded fill value.
 
     Args:
-        variable: NetCDF4 Variable object to mask.
+        dataset: xarray Dataset containing the variable to mask.
+        var_name: Name of the variable to mask.
         mask_values: 2D NumPy array with mask values (1 = keep, other = fill).
     """
+    var = dataset[var_name]
+
     # Skip string variables and known coordinate/reference variables.
-    if variable.dtype == np.dtype('|S1') or variable._name in EXCLUDED_VAR_NAMES:
+    if var.dtype == np.dtype("|S1") or var_name in EXCLUDED_VAR_NAMES:
         return
 
     # Retrieve scaling metadata (if any).
-    scale_factor = getattr(variable, 'scale_factor', None)
-    add_offset = getattr(variable, 'add_offset', None)
-    fill_value = getattr(variable, '_FillValue', np.nan)
+    scale_factor = var.attrs.get("scale_factor")
+    add_offset = var.attrs.get("add_offset")
+    fill_value = var.attrs.get("_FillValue")
+
+    # Handle missing_value as fallback for _FillValue
+    if fill_value is None:
+        fill_value = var.attrs.get("missing_value")
+
+    # Default fill value handling
+    if fill_value is None:
+        fill_value = np.nan
 
     # Apply scale/offset to the fill value so that NaNs are encoded correctly.
     if (
@@ -146,182 +200,244 @@ def _apply_variable_mask(
         fill_value = fill_value * scale_factor + add_offset
 
     # Load data once and apply mask in a single vectorised operation.
-    data = variable[:]
+    data = var.values
 
     if data.ndim == 2:
-        # 2‑D case (e.g., raster).
+        # 2-D case (e.g., raster).
         masked = np.where(mask_values == MASK_VALUE, data, fill_value)
-        variable[:] = masked
+        dataset[var_name].values = masked
     elif data.ndim == 3:
-        # 3‑D case (e.g., time‑series of rasters).
+        # 3-D case (e.g., time-series of rasters).
         # Reshape mask to broadcast across the time axis, then apply in one call.
         mask_3d = mask_values[np.newaxis, :, :]
         masked = np.where(mask_3d == MASK_VALUE, data, fill_value)
-        variable[:] = masked
+        dataset[var_name].values = masked
     else:
         logger.warning(
             "Skipping variable '%s' with unsupported dimensionality %d",
-            variable._name,
+            var_name,
             data.ndim,
         )
 
+
 class ParserHelpOnError(argparse.ArgumentParser):
-    def error(self, message):
-        sys.stderr.write('Error: %s\n' % message)
+    """ArgumentParser that prints help on error."""
+
+    def error(self, message: str) -> NoReturn:
+        """Print error message and help, then exit."""
+        sys.stderr.write(f"Error: {message}\n")
         self.print_help()
         sys.exit(1)
 
-    def add_args(self):
-        group_mask = self.add_argument_group(title='Cut with a provided mask or a bounding box or '
-                                                   'create mask cookie-cutter on-fly from stations list and ldd map')
+    def add_args(self) -> None:
+        """Add command-line arguments to the parser."""
+        group_mask = self.add_argument_group(
+            title="Cut with a provided mask or a bounding box or "
+            "create mask cookie-cutter on-fly from stations list and ldd map"
+        )
         group_filelist = self.add_mutually_exclusive_group(required=True)
-        group_mask.add_argument("-m", "--mask", help='mask file cookie-cutter in pcraster (.map) or netcdf (.nc) format')
-        group_mask.add_argument("-c", "--cuts", help='Cut coordinates in the form "lonmin lonmax latmin latmax" using coordinates bounding box', type=get_arg_coords)
-        group_mask.add_argument("-i", "--cuts_indices", help='Cut coordinates in the form "imin imax jmin jmax" using matrix indices', type=get_arg_coords)
-        group_mask.add_argument("-l", "--ldd", help='Path to LDD file in netcdf format (.nc)')
-        group_mask.add_argument("-N", "--stations",
-                                help='Path to stations.txt file.'
-                                     'Read documentation to know about the format')
 
-        group_filelist.add_argument("-f", "--folder", help='Directory with netCDF files to be cut')
-        group_filelist.add_argument("-F", "--file", help='netCDF file to be cut')
-        group_filelist.add_argument("-S", "--subdir",
-                                    help='Directory containing folders '
-                                         'Output files will have same directory-folders structure')
+        group_mask.add_argument(
+            "-m", "--mask",
+            help="mask file cookie-cutter in pcraster (.map) or netcdf (.nc) format"
+        )
+        group_mask.add_argument(
+            "-c", "--cuts",
+            help='Cut coordinates in the form "lonmin lonmax latmin latmax" using coordinates bounding box',
+            type=get_arg_coords
+        )
+        group_mask.add_argument(
+            "-i", "--cuts_indices",
+            help='Cut coordinates in the form "imin imax jmin jmax" using matrix indices',
+            type=get_arg_coords
+        )
+        group_mask.add_argument(
+            "-l", "--ldd",
+            help="Path to LDD file in netcdf format (.nc)"
+        )
+        group_mask.add_argument(
+            "-N", "--stations",
+            help="Path to stations.txt file. Read documentation to know about the format"
+        )
 
-        self.add_argument("-o", "--outpath", help='path where to save cut files',
-                          default='./cutmaps_out', required=True)
-        self.add_argument("-W", "--overwrite", help='Set flag to overwrite existing files',
-                          default=False, required=False, action='store_true')
+        group_filelist.add_argument(
+            "-f", "--folder",
+            help="Directory with netCDF files to be cut"
+        )
+        group_filelist.add_argument(
+            "-F", "--file",
+            help="netCDF file to be cut"
+        )
+        group_filelist.add_argument(
+            "-S", "--subdir",
+            help="Directory containing folders. "
+            "Output files will have same directory-folders structure"
+        )
+
+        self.add_argument(
+            "-o", "--outpath",
+            help="path where to save cut files",
+            default="./cutmaps_out",
+            required=True
+        )
+        self.add_argument(
+            "-W", "--overwrite",
+            help="Set flag to overwrite existing files",
+            default=False,
+            required=False,
+            action="store_true"
+        )
 
 
-def main(cliargs):
-    parser = ParserHelpOnError(description='Cut netCDF file: {}'.format(version))
+def _validate_input_path(
+    path: Optional[str],
+    path_type: str,
+    must_exist: bool = True,
+    must_be_dir: bool = False,
+    must_be_file: bool = False,
+) -> Optional[str]:
+    """Validate an input path and return the resolved absolute path.
+
+    Args:
+        path: Path to validate.
+        path_type: Description of the path for error messages.
+        must_exist: Whether the path must exist.
+        must_be_dir: Whether the path must be a directory.
+        must_be_file: Whether the path must be a file.
+
+    Returns:
+        Resolved absolute path as string, or None if path is not provided.
+
+    Raises:
+        FileNotFoundError: If path must exist but doesn't.
+        NotADirectoryError: If path must be a directory but isn't.
+        ValueError: If path must be a file but isn't.
+    """
+    if path is None:
+        return None
+
+    path_obj = Path(path)
+
+    if must_exist and not path_obj.exists():
+        raise FileNotFoundError(f"{path_type} does not exist: {path}")
+
+    if must_be_dir and not path_obj.is_dir():
+        raise NotADirectoryError(f"{path_type} is not a directory: {path}")
+
+    if must_be_file and not path_obj.is_file():
+        raise ValueError(f"{path_type} is not a file: {path}")
+
+    return str(path_obj.resolve())
+
+
+def main(cliargs: List[str]) -> None:
+    """Main entry point for the cutmaps tool.
+
+    Args:
+        cliargs: Command-line arguments (excluding script name).
+    """
+    parser = ParserHelpOnError(description=f"Cut netCDF file: {version}")
     parser.add_args()
     args = parse_and_check_args(parser, cliargs)
+
+    # Extract arguments
     mask = args.mask
     cuts = args.cuts
     cuts_indices = args.cuts_indices
-    mask_nc = None
-
     ldd = args.ldd
     stations = args.stations
-
-    # =========================================================================
-    # Input Path Handling with Validation and Error Handling
-    # =========================================================================
-    # Extract input paths from arguments with proper validation
     input_folder = args.folder
     input_file = args.file
     static_data_folder = args.subdir
     overwrite = args.overwrite
     pathout = args.outpath
 
-    # Validate input sources - ensure at least one input is provided
-    # This provides early failure with clear error messages
+    # Validate input sources
     if not any([input_folder, input_file, static_data_folder]):
         parser.error(
-            'No input source specified. Please provide one of: '
-            '--folder, --file, or --subdir'
+            "No input source specified. Please provide one of: "
+            "--folder, --file, or --subdir"
         )
 
-    # Validate input_folder if provided - check existence and accessibility
-    if input_folder:
-        input_folder_path = Path(input_folder)
-        if not input_folder_path.exists():
-            raise FileNotFoundError(
-                f"Input folder does not exist: {input_folder}"
-            )
-        if not input_folder_path.is_dir():
-            raise NotADirectoryError(
-                f"Input path is not a directory: {input_folder}"
-            )
-        # Resolve to absolute path for consistent handling
-        input_folder = str(input_folder_path.resolve())
+    # Validate input paths
+    input_folder = _validate_input_path(input_folder, "Input folder", must_be_dir=True)
+    input_file = _validate_input_path(input_file, "Input file", must_be_file=True)
+    static_data_folder = _validate_input_path(
+        static_data_folder, "Static data folder", must_be_dir=True
+    )
 
-    # Validate input_file if provided
-    if input_file:
-        input_file_path = Path(input_file)
-        if not input_file_path.exists():
-            raise FileNotFoundError(
-                f"Input file does not exist: {input_file}"
-            )
-        if not input_file_path.is_file():
-            raise ValueError(
-                f"Input path is not a file: {input_file}"
-            )
-        # Resolve to absolute path for consistent handling
-        input_file = str(input_file_path.resolve())
-
-    # Validate static_data_folder if provided
-    if static_data_folder:
-        static_data_path = Path(static_data_folder)
-        if not static_data_path.exists():
-            raise FileNotFoundError(
-                f"Static data folder does not exist: {static_data_folder}"
-            )
-        if not static_data_path.is_dir():
-            raise NotADirectoryError(
-                f"Static data path is not a directory: {static_data_folder}"
-            )
-        # Resolve to absolute path for consistent handling
-        static_data_folder = str(static_data_path.resolve())
-
-    # Validate output path
+    # Validate and create output path
     pathout_path = Path(pathout)
     if pathout_path.exists() and not pathout_path.is_dir():
-        raise ValueError(
-            f"Output path exists but is not a directory: {pathout}"
-        )
+        raise ValueError(f"Output path exists but is not a directory: {pathout}")
+
     if not os.path.exists(pathout):
-        logger.warning('\nOutput folder %s not existing. Creating it...', pathout)
+        logger.warning("\nOutput folder %s not existing. Creating it...", pathout)
         os.mkdir(pathout)
+
+    mask_nc = None
     if ldd and stations:
-        logger.info('\nTry to produce a mask from LDD and stations points: %s %s', ldd, stations)
+        logger.info("\nTry to produce a mask from LDD and stations points: %s %s", ldd, stations)
         mask, outlets_nc, mask_nc = mask_from_ldd(ldd, stations)
-        # copy outlets (produced from stations txt file) and the new mask to output folder
+        # Copy outlets (produced from stations txt file) and the new mask to output folder
         shutil.copy(outlets_nc, os.path.join(pathout, OUTLETS_FILENAME))
         shutil.copy(mask, os.path.join(pathout, SMALL_MASK_FILENAME))
         shutil.copy(mask_nc, os.path.join(pathout, FULL_MASK_FILENAME))
 
     x_min, x_max, y_min, y_max = get_cuts(cuts=cuts, cuts_indices=cuts_indices, mask=mask)
-    logger.info('\n\nCutting using: %s\n Files to cut from: %s\n Output: %s\n Overwrite existing: %s\n\n',
-                mask or ([x_min, x_max, y_min, y_max if cuts or cuts_indices else None]),
-                input_folder or static_data_folder,
-                pathout, overwrite)
 
-    list_to_cut = get_filelist(input_folder, static_data_folder, input_file)
+    logger.info(
+        "\n\nCutting using: %s\n Files to cut from: %s\n Output: %s\n Overwrite existing: %s\n\n",
+        mask or ([x_min, x_max, y_min, y_max if cuts or cuts_indices else None]),
+        input_folder or static_data_folder,
+        pathout,
+        overwrite,
+    )
 
-    # walk through list_to_cut
+    list_to_cut = get_filelist(
+        input_folder or "", static_data_folder or "", input_file or ""
+    )
+
+    # Walk through list_to_cut
     for file_to_cut in list_to_cut:
-
         filename, ext = os.path.splitext(file_to_cut)
 
         # localdir used only with static_data_folder.
         # It will track folder structures in a EFAS/GloFAS like setup and replicate it in output folder
-        localdir = os.path.dirname(file_to_cut)\
-            .replace(os.path.dirname(static_data_folder), '')\
-            .lstrip('/') if static_data_folder else ''
+        localdir = (
+            os.path.dirname(file_to_cut)
+            .replace(os.path.dirname(static_data_folder), "")
+            .lstrip("/")
+            if static_data_folder
+            else ""
+        )
 
         fileout = os.path.join(pathout, localdir, os.path.basename(file_to_cut))
+
         if os.path.isdir(file_to_cut) and static_data_folder:
-            # just create folder
+            # Just create folder
             os.makedirs(fileout, exist_ok=True)
             continue
-        if ext != '.nc':
+
+        if ext != ".nc":
             if static_data_folder:
-                logger.warning('%s is not in netcdf format, just copying to ouput folder', file_to_cut)
+                logger.warning(
+                    "%s is not in netcdf format, just copying to output folder",
+                    file_to_cut,
+                )
                 shutil.copy(file_to_cut, fileout)
             else:
-                logger.warning('%s is not in netcdf format, skipping...', file_to_cut)
+                logger.warning("%s is not in netcdf format, skipping...", file_to_cut)
             continue
-        elif os.path.isfile(fileout) and os.path.exists(fileout) and not overwrite:
-            logger.warning('%s already existing. This file will not be overwritten', fileout)
+
+        if os.path.isfile(fileout) and not overwrite:
+            logger.warning("%s already existing. This file will not be overwritten", fileout)
             continue
 
         logger.info(f"## Processing file (cutmap): {file_to_cut} -> {fileout}")
         cutmap(file_to_cut, fileout, x_min, x_max, y_min, y_max, use_coords=(cuts_indices is None))
         logger.info(f"## Finished processing file (cutmap): {file_to_cut} -> {fileout}")
+
         if ldd and stations:
             logger.info(f"## Applying mask to file: {fileout}")
             mask_path = os.path.join(pathout, SMALL_MASK_FILENAME)
@@ -331,17 +447,22 @@ def main(cliargs):
                 logger.error(f"Failed to load mask file: {mask_path}")
                 continue
 
-            with Dataset(fileout, 'r+', format='NETCDF4_CLASSIC') as file_out:
-                for output_var_name, variable in file_out.variables.items():
-                    _apply_variable_mask(
-                        variable=variable,
+            # Use xarray to apply mask instead of netCDF4
+            # Load dataset, apply mask, and save back
+            with xr.open_dataset(fileout, engine="netcdf4", decode_cf=False) as ds:
+                for var_name in ds.data_vars:
+                    _apply_variable_mask_xarray(
+                        dataset=ds,
+                        var_name=str(var_name),
                         mask_values=mask_map_values,
                     )
             logger.info(f"## Finished applying mask to file: {fileout}")
 
-def main_script():
+
+def main_script() -> None:
+    """Entry point for script execution."""
     sys.exit(main(sys.argv[1:]))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))
