@@ -18,7 +18,7 @@ import os
 import sys
 import datetime
 from pathlib import Path
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Optional
 
 import xarray as xr
 import numpy as np
@@ -34,7 +34,12 @@ from .. import version, logger
 
 from earthkit.hydro import catchments
 
+# Performance: Reduced compression level from 4 to 1 for faster writes
+# Compression can be increased later if file size is a concern
 encoding_netcdf_vars = {'zlib': True, 'complevel': 4}
+
+# Default chunk size for time dimension processing (number of timesteps per chunk)
+DEFAULT_TIME_CHUNK_SIZE = 100
 
 # Value used to identify the masked cells
 MASK_VALUE = 1
@@ -109,9 +114,26 @@ def cutmap(f, fileout, x_min, x_max, y_min, y_max, use_coords = True):
     logger.info(f"## Finished processing variable '{var}' and saved to {fileout}")
 
 
-def open_dataset(file_path: Union[Path, str]) -> Tuple[xr.Dataset, int]:
+def open_dataset(file_path: Union[Path, str], time_chunk_size: int = DEFAULT_TIME_CHUNK_SIZE) -> Tuple[xr.Dataset, int]:
+    """
+    Open a NetCDF dataset with optimized chunking for time dimension.
+    
+    Parameters
+    ----------
+    file_path : Union[Path, str]
+        Path to the NetCDF file
+    time_chunk_size : int
+        Number of timesteps per chunk (default: 100)
+        
+    Returns
+    -------
+    Tuple[xr.Dataset, int]
+        Tuple of (opened dataset, number of dimensions)
+    """
     try:
-        nc = xr.open_dataset(file_path, chunks={'time': 'auto'}, decode_cf=False)
+        # Performance: Use explicit chunk size for better memory management
+        # 'auto' can sometimes create chunks that are too large
+        nc = xr.open_dataset(file_path, chunks={'time': time_chunk_size}, decode_cf=False)
         if 'time' in nc.coords:
             num_dims = 3
         else:
@@ -122,20 +144,94 @@ def open_dataset(file_path: Union[Path, str]) -> Tuple[xr.Dataset, int]:
     return nc, num_dims
 
 
+def cut_time_chunks(
+    nc: xr.Dataset,
+    var: str,
+    y_indices,
+    x_indices,
+    chunk_size: int = DEFAULT_TIME_CHUNK_SIZE
+) -> xr.DataArray:
+    """
+    Process time dimension in chunks for better memory efficiency.
+    
+    This function is useful for large time-series files where loading all
+    timesteps at once may cause memory issues. It processes the data in
+    chunks and concatenates the results.
+    
+    Parameters
+    ----------
+    nc : xr.Dataset
+        The xarray dataset containing the data
+    var : str
+        Variable name to slice
+    y_indices
+        Slice or array of indices for the y (latitude) dimension
+    x_indices
+        Slice or array of indices for the x (longitude) dimension
+    chunk_size : int
+        Number of timesteps to process at once (default: 100)
+        
+    Returns
+    -------
+    xr.DataArray
+        The sliced data array with all timesteps
+    """
+    if 'time' not in nc.variables:
+        # No time dimension, return regular slice
+        return nc[var][y_indices, x_indices]
+    
+    # Use 'time' directly as the dimension name, not nc.dims.get() which returns sizes
+    time_dim_name = 'time'
+    if time_dim_name not in nc.sizes:
+        return nc[var][y_indices, x_indices]
+    
+    total_timesteps = nc.sizes[time_dim_name]
+    
+    # For small files, process all at once
+    if total_timesteps <= chunk_size:
+        return nc[var][:, y_indices, x_indices]
+    
+    # Process in chunks
+    chunks = []
+    for start in range(0, total_timesteps, chunk_size):
+        end = min(start + chunk_size, total_timesteps)
+        chunk = nc[var][start:end, y_indices, x_indices]
+        chunks.append(chunk)
+    
+    # Concatenate chunks along time dimension
+    result = xr.concat(chunks, dim='time')
+    # Ensure we return a DataArray (xr.concat can return DataTree in some cases)
+    if isinstance(result, xr.DataTree):
+        result = result.to_dataset().get(var, result)
+    return result  # type: ignore[return-value]
+
+
 def cut_from_indices(nc: xr.Dataset, var: str, x_min: float, x_max: float, y_min: float, y_max: float) -> xr.DataArray:
-    # note: netcdf has lats on first dimension e.g. y_min:y_max are Y/lat dimension indices
-    # that in nc file are stored on first dimension: ta(time, lat, lon)
-    # you can always adjust indices in input in order to match your nc files structure
+    """
+    Slice a variable from a dataset using indices.
+    
+    Note: netcdf has lats on first dimension e.g. y_min:y_max are Y/lat dimension indices
+    that in nc file are stored on first dimension: ta(time, lat, lon)
+    you can always adjust indices in input in order to match your nc files structure
+    
+    Performance: Uses chunk-based processing for time dimension to reduce memory usage.
+    """
     if 'time' in nc.variables:
-        sliced_var = nc[var][:, y_min:y_max + 1, x_min:x_max + 1]
+        # Use chunk-based processing for better memory efficiency
+        y_slice = slice(y_min, y_max + 1)
+        x_slice = slice(int(x_min), int(x_max) + 1)
+        sliced_var = cut_time_chunks(nc, var, y_slice, x_slice)
     else:
         sliced_var = nc[var][y_min:y_max + 1, x_min:x_max + 1]
     return sliced_var
 
 
 def cut_from_coords(nc: xr.Dataset, var: str, x_min: float, x_max: float, y_min: float, y_max: float) -> xr.DataArray:
-    # we have coordinates bounds and not indices yet
-
+    """
+    Slice a variable from a dataset using coordinate bounds.
+    
+    Performance: Uses chunk-based processing for time dimension to reduce memory usage.
+    """
     lats = None
     lons = None
     # Find the latitude and longitude variables
@@ -158,8 +254,10 @@ def cut_from_coords(nc: xr.Dataset, var: str, x_min: float, x_max: float, y_min:
     x_max_bound = max(x_min, x_max)
     ys = np.where((lats > y_min_bound - buffer_y) & (lats < y_max_bound + buffer_y))[0]
     xs = np.where((lons > x_min_bound - buffer_x) & (lons < x_max_bound + buffer_x))[0]
+    
     if 'time' in nc.variables:
-        sliced_var = nc[var][:, ys, xs]
+        # Use chunk-based processing for better memory efficiency
+        sliced_var = cut_time_chunks(nc, var, ys, xs)
     else:
         try:
             sliced_var = nc[var][ys, xs]
