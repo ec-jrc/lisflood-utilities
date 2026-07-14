@@ -20,6 +20,7 @@ import argparse
 import os
 import shutil
 import sys
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 from typing import Optional, List, Union, NoReturn
 
@@ -220,6 +221,88 @@ def _apply_variable_mask_xarray(
         )
 
 
+def _process_single_file(
+    file_to_cut: str,
+    pathout: str,
+    static_data_folder: Optional[str],
+    x_min, x_max, y_min, y_max: float,
+    use_coords: bool,
+    overwrite: bool,
+    ldd: Optional[str],
+    stations: Optional[str],
+) -> Optional[str]:
+    """Process a single file for cutting and masking.
+    
+    Args:
+        file_to_cut: Path to the file to process.
+        pathout: Output directory path.
+        static_data_folder: Static data folder path (for directory structure).
+        x_min, x_max, y_min, y_max: Cut coordinates.
+        use_coords: Whether to use coordinates (True) or indices (False).
+        overwrite: Whether to overwrite existing files.
+        ldd: Path to LDD file (if using mask from LDD/stations).
+        stations: Path to stations file (if using mask from LDD/stations).
+    
+    Returns:
+        Path to the processed file, or None if skipped/failed.
+    """
+    filename, ext = os.path.splitext(file_to_cut)
+    
+    # localdir used only with static_data_folder.
+    localdir = (
+        os.path.dirname(file_to_cut)
+        .replace(os.path.dirname(static_data_folder), "")
+        .lstrip("/")
+        if static_data_folder
+        else ""
+    )
+    
+    fileout = os.path.join(pathout, localdir, os.path.basename(file_to_cut))
+    
+    if os.path.isdir(file_to_cut) and static_data_folder:
+        os.makedirs(fileout, exist_ok=True)
+        return None
+    
+    if ext != ".nc":
+        if static_data_folder:
+            logger.warning(
+                "%s is not in netcdf format, just copying to output folder",
+                file_to_cut,
+            )
+            shutil.copy(file_to_cut, fileout)
+        else:
+            logger.warning("%s is not in netcdf format, skipping...", file_to_cut)
+        return None
+    
+    if os.path.isfile(fileout) and not overwrite:
+        logger.warning("%s already existing. This file will not be overwritten", fileout)
+        return None
+    
+    logger.info(f"## Processing file (cutmap): {file_to_cut} -> {fileout}")
+    cutmap(file_to_cut, fileout, x_min, x_max, y_min, y_max, use_coords=use_coords)
+    logger.info(f"## Finished processing file (cutmap): {file_to_cut} -> {fileout}")
+    
+    if ldd and stations:
+        logger.info(f"## Applying mask to file: {fileout}")
+        mask_path = os.path.join(pathout, SMALL_MASK_FILENAME)
+        mask_map_values = load_mask_file(mask_path)
+        
+        if mask_map_values is None:
+            logger.error(f"Failed to load mask file: {mask_path}")
+            return fileout  # Return anyway, cut was successful
+        
+        with xr.open_dataset(fileout, engine="netcdf4", decode_cf=False) as ds:
+            for var_name in ds.data_vars:
+                _apply_variable_mask_xarray(
+                    dataset=ds,
+                    var_name=str(var_name),
+                    mask_values=mask_map_values,
+                )
+        logger.info(f"## Finished applying mask to file: {fileout}")
+    
+    return fileout
+
+
 class ParserHelpOnError(argparse.ArgumentParser):
     """ArgumentParser that prints help on error."""
 
@@ -398,65 +481,53 @@ def main(cliargs: List[str]) -> None:
         input_folder or "", static_data_folder or "", input_file or ""
     )
 
-    # Walk through list_to_cut
-    for file_to_cut in list_to_cut:
-        filename, ext = os.path.splitext(file_to_cut)
-
-        # localdir used only with static_data_folder.
-        # It will track folder structures in a EFAS/GloFAS like setup and replicate it in output folder
-        localdir = (
-            os.path.dirname(file_to_cut)
-            .replace(os.path.dirname(static_data_folder), "")
-            .lstrip("/")
-            if static_data_folder
-            else ""
-        )
-
-        fileout = os.path.join(pathout, localdir, os.path.basename(file_to_cut))
-
-        if os.path.isdir(file_to_cut) and static_data_folder:
-            # Just create folder
-            os.makedirs(fileout, exist_ok=True)
-            continue
-
-        if ext != ".nc":
-            if static_data_folder:
-                logger.warning(
-                    "%s is not in netcdf format, just copying to output folder",
-                    file_to_cut,
-                )
-                shutil.copy(file_to_cut, fileout)
-            else:
-                logger.warning("%s is not in netcdf format, skipping...", file_to_cut)
-            continue
-
-        if os.path.isfile(fileout) and not overwrite:
-            logger.warning("%s already existing. This file will not be overwritten", fileout)
-            continue
-
-        logger.info(f"## Processing file (cutmap): {file_to_cut} -> {fileout}")
-        cutmap(file_to_cut, fileout, x_min, x_max, y_min, y_max, use_coords=(cuts_indices is None))
-        logger.info(f"## Finished processing file (cutmap): {file_to_cut} -> {fileout}")
-
-        if ldd and stations:
-            logger.info(f"## Applying mask to file: {fileout}")
-            mask_path = os.path.join(pathout, SMALL_MASK_FILENAME)
-            mask_map_values = load_mask_file(mask_path)
-
-            if mask_map_values is None:
-                logger.error(f"Failed to load mask file: {mask_path}")
-                continue
-
-            # Use xarray to apply mask instead of netCDF4
-            # Load dataset, apply mask, and save back
-            with xr.open_dataset(fileout, engine="netcdf4", decode_cf=False) as ds:
-                for var_name in ds.data_vars:
-                    _apply_variable_mask_xarray(
-                        dataset=ds,
-                        var_name=str(var_name),
-                        mask_values=mask_map_values,
-                    )
-            logger.info(f"## Finished applying mask to file: {fileout}")
+    # Walk through list_to_cut with parallel processing
+    num_files = len(list_to_cut)
+    use_coords = cuts_indices is None
+    
+    # Use parallel processing for multiple files, sequential for single file
+    if num_files > 1:
+        # Determine number of workers (use at most 4 to avoid overwhelming the system)
+        max_workers = min(4, num_files)
+        logger.info(f"Processing {num_files} files with {max_workers} parallel workers")
+        
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+            futures = {
+                executor.submit(
+                    _process_single_file,
+                    str(file_to_cut),
+                    pathout,
+                    static_data_folder,
+                    x_min, x_max, y_min, y_max,
+                    use_coords,
+                    overwrite,
+                    ldd,
+                    stations,
+                ): file_to_cut
+                for file_to_cut in list_to_cut
+            }
+            
+            for future in as_completed(futures):
+                file_to_cut = futures[future]
+                try:
+                    result = future.result()
+                    if result:
+                        logger.info(f"Successfully processed: {result}")
+                except Exception as exc:
+                    logger.error(f"File {file_to_cut} generated an exception: {exc}")
+    else:
+        # Single file - process sequentially
+        for file_to_cut in list_to_cut:
+            _process_single_file(
+                str(file_to_cut),
+                pathout,
+                static_data_folder,
+                x_min, x_max, y_min, y_max,
+                use_coords,
+                overwrite,
+                ldd,
+                stations,
+            )
 
 
 def main_script() -> None:
