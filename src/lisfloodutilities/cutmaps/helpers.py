@@ -1,6 +1,3 @@
-import os
-import argparse
-import sys
 import time
 from pathlib import Path
 from typing import List, Tuple, Union, Optional, Any
@@ -193,14 +190,18 @@ def copy_clone_geometry(src_ds: Dataset, dst_ds: Dataset) -> Dataset:
     # ----------- dimensions -------------------------------------------------
     for dim_name, dim in src_ds.dimensions.items():
         dst_ds.createDimension(dim_name, (len(dim) if not dim.isunlimited() else None))
-    total_dimensions = len(src_ds.dimensions.items())
+    # Use the maximum number of dimensions across all variables to identify the
+    # main data variable. This avoids copying the main raster when extra dimensions
+    # exist (e.g. from CRS/projection variables with their own dimensions).
+    max_var_dimensions = max(len(var.dimensions) for var in src_ds.variables.values()) if src_ds.variables else 0
     # ----------- coordinate variables ---------------------------------------
     # We copy everything that is not the main data variable (i.e. any
     # variable whose dimensions are a subset of the dimensions we just created).
     for var_name, var in src_ds.variables.items():
-        # Skip data variables that have more than one dimension (e.g. the raster itself).
-        # Most clones only have coordinate variables (e.g. lat, lon, x, y, time).
-        if len(var.dimensions) < total_dimensions:
+        # Skip data variables that have the same dimensionality as the main variable
+        # (e.g. the raster itself). Only coordinate variables (e.g. lat, lon, x, y, time)
+        # and auxiliary variables (e.g. CRS) with fewer dimensions are copied.
+        if len(var.dimensions) < max_var_dimensions:
             # Create the variable with the same datatype and attributes.
             new_var = dst_ds.createVariable(
                 var_name,
@@ -226,9 +227,12 @@ def get_crs(ds: Dataset) -> CRS:
     crs_var = None
     # If it exists, identify the variable containing the grid mapping
     for v in ds.variables.values():
-        if (getattr(v, "grid_mapping_name", None) is not None or
-            getattr(v, "grid_mapping", None) is not None):
+        if getattr(v, "grid_mapping_name", None) is not None:
             crs_var = v
+            break
+        crs_var_tmp = getattr(v, "grid_mapping", None)
+        if (crs_var_tmp is not None and hasattr(ds.variables[crs_var_tmp], "grid_mapping_name")):
+            crs_var = crs_var_tmp
             break
 
     proj_wkt = None

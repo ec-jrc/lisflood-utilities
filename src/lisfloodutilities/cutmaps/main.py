@@ -20,7 +20,7 @@ import argparse
 import os
 import shutil
 import sys
-from concurrent.futures import ProcessPoolExecutor, as_completed
+import warnings
 from pathlib import Path
 from typing import Optional, List, Union, NoReturn
 
@@ -178,6 +178,17 @@ def _apply_variable_mask_xarray(
     if var.dtype == np.dtype("|S1") or var_name in EXCLUDED_VAR_NAMES:
         return
 
+    # Skip variables with duplicate dimension names (e.g. string/label variables
+    # encoded with repeated character dimensions like ('string1', 'string1')).
+    # These are not spatial rasters and cannot be masked.
+    if len(var.dims) != len(set(var.dims)):
+        logger.debug(
+            "Skipping variable '%s' with duplicate dimensions %s",
+            var_name,
+            var.dims,
+        )
+        return
+
     # Retrieve scaling metadata (if any).
     scale_factor = var.attrs.get("scale_factor")
     add_offset = var.attrs.get("add_offset")
@@ -291,13 +302,27 @@ def _process_single_file(
             logger.error(f"Failed to load mask file: {mask_path}")
             return fileout  # Return anyway, cut was successful
         
-        with xr.open_dataset(fileout, engine="netcdf4", decode_cf=False) as ds:
-            for var_name in ds.data_vars:
-                _apply_variable_mask_xarray(
-                    dataset=ds,
-                    var_name=str(var_name),
-                    mask_values=mask_map_values,
-                )
+        # Load dataset, apply mask, then write back to a temp file and replace
+        # Suppress xarray warning about duplicate dimension names in string/label
+        # variables — we skip those variables during mask application.
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message="Duplicate dimension names present",
+                category=UserWarning,
+            )
+            with xr.open_dataset(fileout, engine="netcdf4", decode_cf=False) as ds:
+                for var_name in ds.data_vars:
+                    _apply_variable_mask_xarray(
+                        dataset=ds,
+                        var_name=str(var_name),
+                        mask_values=mask_map_values,
+                    )
+                # Write the masked dataset to a temporary file
+                tmp_file = fileout + ".tmp"
+                ds.to_netcdf(tmp_file)
+        # Replace original with the masked version
+        os.replace(tmp_file, fileout)
         logger.info(f"## Finished applying mask to file: {fileout}")
     
     return fileout
@@ -481,44 +506,14 @@ def main(cliargs: List[str]) -> None:
         input_folder or "", static_data_folder or "", input_file or ""
     )
 
-    # Walk through list_to_cut with parallel processing
+    # Process files sequentially to avoid deadlocks
     num_files = len(list_to_cut)
     use_coords = cuts_indices is None
     
-    # Use parallel processing for multiple files, sequential for single file
-    if num_files > 1:
-        # Determine number of workers (use at most 4 to avoid overwhelming the system)
-        max_workers = min(4, num_files)
-        logger.info(f"Processing {num_files} files with {max_workers} parallel workers")
-        
-        with ProcessPoolExecutor(max_workers=max_workers) as executor:
-            futures = {
-                executor.submit(
-                    _process_single_file,
-                    str(file_to_cut),
-                    pathout,
-                    static_data_folder,
-                    x_min, x_max, y_min, y_max,
-                    use_coords,
-                    overwrite,
-                    ldd,
-                    stations,
-                ): file_to_cut
-                for file_to_cut in list_to_cut
-            }
-            
-            for future in as_completed(futures):
-                file_to_cut = futures[future]
-                try:
-                    result = future.result()
-                    if result:
-                        logger.info(f"Successfully processed: {result}")
-                except Exception as exc:
-                    logger.error(f"File {file_to_cut} generated an exception: {exc}")
-    else:
-        # Single file - process sequentially
-        for file_to_cut in list_to_cut:
-            _process_single_file(
+    logger.info(f"Processing {num_files} files sequentially")
+    for file_to_cut in list_to_cut:
+        try:
+            result = _process_single_file(
                 str(file_to_cut),
                 pathout,
                 static_data_folder,
@@ -528,6 +523,10 @@ def main(cliargs: List[str]) -> None:
                 ldd,
                 stations,
             )
+            if result:
+                logger.info(f"Successfully processed: {result}")
+        except Exception as exc:
+            logger.error(f"File {file_to_cut} generated an exception: {exc}")
 
 
 def main_script() -> None:

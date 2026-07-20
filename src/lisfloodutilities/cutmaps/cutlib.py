@@ -51,19 +51,45 @@ OUTLETS_FILENAME = 'outlets.nc'
 
 
 def cutmap(f, fileout, x_min, x_max, y_min, y_max, use_coords = True):
+    """
+    Cut a map from a NetCDF file using coordinates or indices.
+
+    Parameters
+    ----------
+    f : str
+        Input NetCDF file path
+    fileout : str
+        Output NetCDF file path
+    x_min, x_max, y_min, y_max : float
+        Bounding box coordinates or indices
+    use_coords : bool, optional
+        If True, use coordinates; if False, use indices (default: True)
+
+    Returns
+    -------
+    None
+        Writes the cropped NetCDF file to disk
+    """
+    logger.info(f"## Starting to cut map from {f} to {fileout}")
+    if not os.path.exists(f):
+        raise IOError(f'File not found: {f}')
     nc, num_dims = open_dataset(f)
     var = str([v for v in nc.variables if len(nc.variables[v].dims) == num_dims][0])
     logger.info('Variable: %s', var)
-    
+    logger.info('Cropping %s from %s to %s', var, (x_min, y_min), (x_max, y_max))
+    if 'time' in nc.dims:
+        logger.info('Time dimension found: %s', nc.sizes['time'])
+    logger.info('Using coordinates: %s', use_coords)
+    sliced_var = None
     if use_coords:
-        # bounding box input from user  # FIXME weak isinstance test
+        if any(isinstance(val, int) for val in [x_min, x_max, y_min, y_max]):
+            raise ValueError('box values must be float when using cut_from_coords')
         sliced_var = cut_from_coords(nc, var, x_min, x_max, y_min, y_max)
+    elif any(isinstance(val, float) for val in [x_min, x_max, y_min, y_max]):
+        raise ValueError('box values must be integer when using cut_indices')
     else:
-        if isinstance(x_min, float):
-            raise ValueError('box values must be integer when using cut_indices')
-        else:
-            # user provides with indices directly (not coordinates)
-            sliced_var = cut_from_indices(nc, var, x_min, x_max, y_min, y_max)
+        # user provides with indices directly (not coordinates)
+        sliced_var = cut_from_indices(nc, var, x_min, x_max, y_min, y_max)
 
     if sliced_var is not None:
         if 'missing_value' in sliced_var.encoding:
@@ -71,7 +97,8 @@ def cutmap(f, fileout, x_min, x_max, y_min, y_max, use_coords = True):
         logger.info('Creating: %s', fileout)
         # encoding_netcdf_vars['scale_factor'] = sliced_var.attrs.get('scale_factor')
         # encoding_netcdf_vars['add_offset'] = sliced_var.attrs.get('add_offset')
-        delayed_obj = sliced_var.to_netcdf(fileout, compute=False, encoding={var: encoding_netcdf_vars})
+        delayed_obj = sliced_var.to_netcdf(fileout, compute=False,
+                                           encoding={var: encoding_netcdf_vars})
         if hasattr(delayed_obj, 'compute'):
             with ProgressBar(dt=0.1):
                 _ = delayed_obj.compute()
@@ -81,8 +108,24 @@ def cutmap(f, fileout, x_min, x_max, y_min, y_max, use_coords = True):
         varname = grid_mapping
         varproj = nc.variables[varname]
         logger.info('Writing projection variable: %s - %s', varname, varproj.attrs)
-        del_res = xr.DataArray(name=varname, data=varproj.data,
-                               dims=varproj.dims, attrs=varproj.attrs).to_netcdf(fileout, mode='a', compute=False)
+        # Write CRS as a scalar variable to avoid duplicate dimension name warnings
+        # CRS/projection variables are metadata-only (no meaningful array data)
+        dims = varproj.dims
+        logger.info('Writing projection variable with dims: %s', dims)
+        # Handle potential duplicate dimension names in CRS variables 
+        if len(dims) > 1:
+            unique_dims = list(dict.fromkeys(dims))  # Preserves order while removing duplicates
+            if len(unique_dims) < len(dims):
+                dims = tuple(unique_dims)
+                logger.info('Deduplicated CRS dimensions to: %s', dims)
+        # Handle case where CRS variable has repeated dimension names (GDAL/CDO artifacts)
+        if len(dims) > 1 and dims[0] == dims[1]:
+            dims = (dims[0],)
+            logger.info('Fixed duplicate CRS dims to: %s', dims)
+        # Write the projection variable with proper dimensions
+        proj_data = varproj.data
+        del_res = xr.DataArray(name=varname, data=proj_data, dims=dims,
+                               attrs=varproj.attrs).to_netcdf(fileout, mode='a', compute=False)
         if hasattr(del_res, 'compute'):
             with ProgressBar(dt=0.1):
                 _ = del_res.compute()
