@@ -17,6 +17,7 @@ A tool to cut netcdf files
 """
 
 import argparse
+import logging
 import os
 import shutil
 import sys
@@ -395,6 +396,13 @@ class ParserHelpOnError(argparse.ArgumentParser):
             required=False,
             action="store_true"
         )
+        self.add_argument(
+            "-v", "--verbose",
+            help="Show detailed info messages during processing",
+            default=False,
+            required=False,
+            action="store_true"
+        )
 
 
 def _validate_input_path(
@@ -447,6 +455,12 @@ def main(cliargs: List[str]) -> None:
     parser = ParserHelpOnError(description=f"Cut netCDF file: {version}")
     parser.add_args()
     args = parse_and_check_args(parser, cliargs)
+
+    # Set logger verbosity based on --verbose flag
+    if not args.verbose:
+        logger.setLevel(logging.WARNING)
+    else:
+        logger.setLevel(logging.INFO)
 
     # Extract arguments
     mask = args.mask
