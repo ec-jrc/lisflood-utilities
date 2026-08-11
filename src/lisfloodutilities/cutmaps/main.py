@@ -145,13 +145,19 @@ def load_mask_file(mask_path: Union[str, Path]) -> Optional[np.ndarray]:
         NumPy array with mask values, or None if loading fails.
     """
     try:
-        with xr.open_dataset(mask_path, engine="netcdf4") as mask_ds:
-            mask_var = next(
-                (mask_ds[var] for var in mask_ds.data_vars if var not in COORDINATE_NAMES),
-                None,
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message="Duplicate dimension names present",
+                category=UserWarning,
             )
-            if mask_var is not None:
-                return mask_var.values  # Load into memory once.
+            with xr.open_dataset(mask_path, engine="netcdf4") as mask_ds:
+                mask_var = next(
+                    (mask_ds[var] for var in mask_ds.data_vars if var not in COORDINATE_NAMES),
+                    None,
+                )
+                if mask_var is not None:
+                    return mask_var.values  # Load into memory once.
     except Exception as exc:  # pragma: no cover - defensive programming.
         logger.exception("Failed to read mask file %s: %s", mask_path, exc)
     return None

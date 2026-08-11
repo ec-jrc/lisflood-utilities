@@ -1,4 +1,5 @@
 import time
+import warnings
 from pathlib import Path
 from typing import List, Tuple, Union, Optional, Any
 import numpy as np
@@ -344,7 +345,13 @@ def bbox_from_netcdf(path: Path, time_index: int = 0) -> Tuple[float, float, flo
     Returns:
     min_x, max_x, min_y, max_y
     """
-    ds = xr.open_dataset(path)
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="Duplicate dimension names present",
+            category=UserWarning,
+        )
+        ds = xr.open_dataset(path)
     var_names = [n for n,da in ds.data_vars.items() if len(da.dims)>1]
     var_name = var_names[0]
     da = ds[var_name]
