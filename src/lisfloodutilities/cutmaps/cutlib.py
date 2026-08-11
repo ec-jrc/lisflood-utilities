@@ -17,6 +17,7 @@ See the Licence for the specific language governing permissions and limitations 
 import os
 import sys
 import datetime
+import warnings
 from pathlib import Path
 from typing import List, Tuple, Union, Optional
 
@@ -124,8 +125,14 @@ def cutmap(f, fileout, x_min, x_max, y_min, y_max, use_coords = True):
             logger.info('Fixed duplicate CRS dims to: %s', dims)
         # Write the projection variable with proper dimensions
         proj_data = varproj.data
-        del_res = xr.DataArray(name=varname, data=proj_data, dims=dims,
-                               attrs=varproj.attrs).to_netcdf(fileout, mode='a', compute=False)
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message="Duplicate dimension names present",
+                category=UserWarning,
+            )
+            del_res = xr.DataArray(name=varname, data=proj_data, dims=dims,
+                                   attrs=varproj.attrs).to_netcdf(fileout, mode='a', compute=False)
         if hasattr(del_res, 'compute'):
             with ProgressBar(dt=0.1):
                 _ = del_res.compute()
@@ -133,23 +140,29 @@ def cutmap(f, fileout, x_min, x_max, y_min, y_max, use_coords = True):
     # adding global attributes only if the file contains variables
     try:
         # Open the newly created file in append mode
-        with xr.open_dataset(fileout, mode='a', decode_cf=False) as nc_out:
-            if nc_out.data_vars:
-                nc_out.attrs = nc.attrs
-                nc_out.attrs['history'] = 'lisfloodutilities cutmaps {} {} \n {}'.format(
-                    version, datetime.datetime.now().strftime('%Y-%m-%d %H:%M'), nc_out.attrs.get('history', '')
-                )
-                nc_out.attrs['conventions'] = 'CF-1.6'
-                nc_out.attrs['institution'] = 'JRC E1'
-                nc_out.attrs['source_software'] = 'lisfloodutilities cutmaps {}'.format(version)
-                nc_out.attrs.pop('Source_Software', None)
-                nc_out.attrs.pop('Institution', None)
-                nc_out.attrs.pop('Conventions', None)
-                logger.info('Writing additional attrs to: %s - %s', fileout, nc_out.attrs)
-                del_res = nc_out.to_netcdf(fileout, mode='a', compute=False, encoding={var: encoding_netcdf_vars})
-                if hasattr(del_res, 'compute'):
-                    with ProgressBar(dt=0.1):
-                        _ = del_res.compute()
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message="Duplicate dimension names present",
+                category=UserWarning,
+            )
+            with xr.open_dataset(fileout, mode='a', decode_cf=False) as nc_out:
+                if nc_out.data_vars:
+                    nc_out.attrs = nc.attrs
+                    nc_out.attrs['history'] = 'lisfloodutilities cutmaps {} {} \n {}'.format(
+                        version, datetime.datetime.now().strftime('%Y-%m-%d %H:%M'), nc_out.attrs.get('history', '')
+                    )
+                    nc_out.attrs['conventions'] = 'CF-1.6'
+                    nc_out.attrs['institution'] = 'JRC E1'
+                    nc_out.attrs['source_software'] = 'lisfloodutilities cutmaps {}'.format(version)
+                    nc_out.attrs.pop('Source_Software', None)
+                    nc_out.attrs.pop('Institution', None)
+                    nc_out.attrs.pop('Conventions', None)
+                    logger.info('Writing additional attrs to: %s - %s', fileout, nc_out.attrs)
+                    del_res = nc_out.to_netcdf(fileout, mode='a', compute=False, encoding={var: encoding_netcdf_vars})
+                    if hasattr(del_res, 'compute'):
+                        with ProgressBar(dt=0.1):
+                            _ = del_res.compute()
     except Exception as e:
         logger.warning('Cannot add global attributes to %s - %s', fileout, e)
     finally:
@@ -173,17 +186,23 @@ def open_dataset(file_path: Union[Path, str], time_chunk_size: int = DEFAULT_TIM
     Tuple[xr.Dataset, int]
         Tuple of (opened dataset, number of dimensions)
     """
-    try:
-        # Performance: Use explicit chunk size for better memory management
-        # 'auto' can sometimes create chunks that are too large
-        nc = xr.open_dataset(file_path, chunks={'time': time_chunk_size}, decode_cf=False)
-        if 'time' in nc.coords:
-            num_dims = 3
-        else:
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="Duplicate dimension names present",
+            category=UserWarning,
+        )
+        try:
+            # Performance: Use explicit chunk size for better memory management
+            # 'auto' can sometimes create chunks that are too large
+            nc = xr.open_dataset(file_path, chunks={'time': time_chunk_size}, decode_cf=False)
+            if 'time' in nc.coords:
+                num_dims = 3
+            else:
+                num_dims = 2
+        except Exception:  # file has no time component
             num_dims = 2
-    except Exception:  # file has no time component
-        num_dims = 2
-        nc = xr.open_dataset(file_path, decode_cf=False)
+            nc = xr.open_dataset(file_path, decode_cf=False)
     return nc, num_dims
 
 
