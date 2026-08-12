@@ -18,9 +18,11 @@ A tool to cut netcdf files
 
 import argparse
 import logging
+import multiprocessing
 import os
 import shutil
 import sys
+import time
 import warnings
 from pathlib import Path
 from typing import Optional, List, Union, NoReturn
@@ -42,6 +44,11 @@ from .cutlib import (
     OUTLETS_FILENAME,
 )
 from .helpers import COORDINATE_NAMES, TIME_NAMES
+
+# Maximum number of retry attempts for a frozen file before giving up
+MAX_RETRIES = 3
+# Timeout in seconds: if output file doesn't change for this duration, consider processing frozen
+FREEZE_TIMEOUT_SECONDS = 300
 
 # Variables that should be excluded from mask processing.
 # Common NetCDF projection/CRS variable names
@@ -335,6 +342,196 @@ def _process_single_file(
     return fileout
 
 
+def _run_process_single_file_worker(
+    result_queue: multiprocessing.Queue,
+    file_to_cut: str,
+    pathout: str,
+    static_data_folder: Optional[str],
+    x_min, x_max, y_min, y_max,
+    use_coords: bool,
+    overwrite: bool,
+    ldd: Optional[str],
+    stations: Optional[str],
+) -> None:
+    """Worker function that runs _process_single_file in a child process.
+
+    Communicates the result (or exception) back through a multiprocessing Queue.
+    """
+    try:
+        result = _process_single_file(
+            file_to_cut, pathout, static_data_folder,
+            x_min, x_max, y_min, y_max,
+            use_coords, overwrite, ldd, stations,
+        )
+        result_queue.put(("ok", result))
+    except Exception as exc:
+        result_queue.put(("error", str(exc)))
+
+
+def _get_output_file_path(
+    file_to_cut: str,
+    pathout: str,
+    static_data_folder: Optional[str],
+) -> str:
+    """Compute the expected output file path for a given input file.
+
+    This mirrors the logic in _process_single_file for determining fileout.
+    """
+    localdir = (
+        os.path.dirname(file_to_cut)
+        .replace(os.path.dirname(static_data_folder), "")
+        .lstrip("/")
+        if static_data_folder
+        else ""
+    )
+    return os.path.join(pathout, localdir, os.path.basename(file_to_cut))
+
+
+def _process_with_watchdog(
+    file_to_cut: str,
+    pathout: str,
+    static_data_folder: Optional[str],
+    x_min, x_max, y_min, y_max,
+    use_coords: bool,
+    overwrite: bool,
+    ldd: Optional[str],
+    stations: Optional[str],
+    freeze_timeout: int = FREEZE_TIMEOUT_SECONDS,
+    max_retries: int = MAX_RETRIES,
+) -> Optional[str]:
+    """Process a single file with watchdog monitoring for frozen operations.
+
+    Runs _process_single_file in a child process and monitors progress by checking
+    the output file's modification time. If the file doesn't change for longer than
+    freeze_timeout seconds, the process is killed, the output file is deleted, and
+    processing is retried. After max_retries failed attempts, raises a RuntimeError.
+
+    Args:
+        file_to_cut: Path to the file to process.
+        pathout: Output directory path.
+        static_data_folder: Static data folder path.
+        x_min, x_max, y_min, y_max: Cut coordinates or indices.
+        use_coords: Whether to use coordinates or indices.
+        overwrite: Whether to overwrite existing files.
+        ldd: Path to LDD file.
+        stations: Path to stations file.
+        freeze_timeout: Seconds without progress before considering the process frozen.
+        max_retries: Maximum number of retry attempts.
+
+    Returns:
+        Path to the processed file, or None if skipped.
+
+    Raises:
+        RuntimeError: If processing fails after max_retries attempts due to freezing.
+    """
+    fileout = _get_output_file_path(file_to_cut, pathout, static_data_folder)
+
+    for attempt in range(1, max_retries + 1):
+        logger.info(
+            "Processing file (attempt %d/%d): %s",
+            attempt, max_retries, file_to_cut,
+        )
+
+        result_queue = multiprocessing.Queue()
+        proc = multiprocessing.Process(
+            target=_run_process_single_file_worker,
+            args=(
+                result_queue, file_to_cut, pathout, static_data_folder,
+                x_min, x_max, y_min, y_max,
+                use_coords, overwrite, ldd, stations,
+            ),
+        )
+        proc.start()
+
+        # Monitor the process for freezes
+        last_activity_time = time.time()
+        last_file_mtime = None
+        frozen = False
+
+        while proc.is_alive():
+            # Check if the output file has been modified
+            try:
+                if os.path.exists(fileout):
+                    current_mtime = os.path.getmtime(fileout)
+                    if last_file_mtime is None or current_mtime != last_file_mtime:
+                        last_file_mtime = current_mtime
+                        last_activity_time = time.time()
+                # Also check for .tmp files (used during mask application)
+                tmp_file = fileout + ".tmp"
+                if os.path.exists(tmp_file):
+                    tmp_mtime = os.path.getmtime(tmp_file)
+                    if tmp_mtime != last_file_mtime:
+                        last_activity_time = time.time()
+            except OSError:
+                pass  # File may be in flux
+
+            # Check if we've exceeded the freeze timeout
+            elapsed_since_activity = time.time() - last_activity_time
+            if elapsed_since_activity > freeze_timeout:
+                frozen = True
+                logger.warning(
+                    "WATCHDOG: Processing of %s appears frozen "
+                    "(no progress for %d seconds). Killing process (attempt %d/%d).",
+                    file_to_cut, freeze_timeout, attempt, max_retries,
+                )
+                proc.kill()
+                proc.join(timeout=10)
+                if proc.is_alive():
+                    proc.terminate()
+                    proc.join(timeout=5)
+                break
+
+            # Check result queue for early completion
+            if not result_queue.empty():
+                break
+
+            time.sleep(2)  # Poll every 2 seconds
+
+        # If process finished naturally
+        if not frozen:
+            proc.join(timeout=10)
+            if not result_queue.empty():
+                status, result = result_queue.get_nowait()
+                if status == "ok":
+                    return result
+                else:
+                    logger.error(
+                        "Error processing %s: %s", file_to_cut, result
+                    )
+                    # Non-freeze error, don't retry with watchdog logic
+                    raise RuntimeError(
+                        f"Error processing {file_to_cut}: {result}"
+                    )
+            # Process ended without putting result in queue (crashed?)
+            logger.warning(
+                "Process for %s ended unexpectedly (exit code: %s)",
+                file_to_cut, proc.exitcode,
+            )
+            frozen = True  # Treat as a failure worth retrying
+
+        # Clean up the output file after a frozen/failed attempt
+        for f_path in (fileout, fileout + ".tmp"):
+            if os.path.exists(f_path):
+                try:
+                    os.remove(f_path)
+                    logger.info("Deleted incomplete output file: %s", f_path)
+                except OSError as e:
+                    logger.warning("Could not delete %s: %s", f_path, e)
+
+        if attempt < max_retries:
+            logger.info(
+                "Retrying file %s (next attempt: %d/%d)...",
+                file_to_cut, attempt + 1, max_retries,
+            )
+
+    # All retries exhausted
+    raise RuntimeError(
+        f"FATAL: Processing of file '{file_to_cut}' froze {max_retries} times "
+        f"(no progress for {freeze_timeout}s each time). Giving up. "
+        f"This file may be corrupted or too large to process."
+    )
+
+
 class ParserHelpOnError(argparse.ArgumentParser):
     """ArgumentParser that prints help on error."""
 
@@ -405,6 +602,16 @@ class ParserHelpOnError(argparse.ArgumentParser):
         self.add_argument(
             "-v", "--verbose",
             help="Show detailed info messages during processing",
+            default=False,
+            required=False,
+            action="store_true"
+        )
+        self.add_argument(
+            "-t", "--freeze-timeout",
+            help="Enable freeze detection watchdog. If a file does not advance "
+                 f"for more than {FREEZE_TIMEOUT_SECONDS} seconds, it is killed "
+                 f"and retried up to {MAX_RETRIES} times. "
+                 "Without this flag, processing runs without timeout monitoring.",
             default=False,
             required=False,
             action="store_true"
@@ -526,27 +733,49 @@ def main(cliargs: List[str]) -> None:
         input_folder or "", static_data_folder or "", input_file or ""
     )
 
-    # Process files sequentially to avoid deadlocks
+    # Process files sequentially
     num_files = len(list_to_cut)
     use_coords = cuts_indices is None
-    
-    logger.info(f"Processing {num_files} files sequentially")
+    freeze_timeout_enabled = args.freeze_timeout
+
+    if freeze_timeout_enabled:
+        logger.info(f"Processing {num_files} files with watchdog monitoring "
+                    f"(freeze timeout: {FREEZE_TIMEOUT_SECONDS}s, max retries: {MAX_RETRIES})")
+    else:
+        logger.info(f"Processing {num_files} files sequentially")
+
     for file_to_cut in list_to_cut:
         try:
-            result = _process_single_file(
-                str(file_to_cut),
-                pathout,
-                static_data_folder,
-                x_min, x_max, y_min, y_max,
-                use_coords,
-                overwrite,
-                ldd,
-                stations,
-            )
+            if freeze_timeout_enabled:
+                result = _process_with_watchdog(
+                    str(file_to_cut),
+                    pathout,
+                    static_data_folder,
+                    x_min, x_max, y_min, y_max,
+                    use_coords,
+                    overwrite,
+                    ldd,
+                    stations,
+                )
+            else:
+                result = _process_single_file(
+                    str(file_to_cut),
+                    pathout,
+                    static_data_folder,
+                    x_min, x_max, y_min, y_max,
+                    use_coords,
+                    overwrite,
+                    ldd,
+                    stations,
+                )
             if result:
                 logger.info(f"Successfully processed: {result}")
+        except RuntimeError as exc:
+            logger.error(str(exc))
+            sys.exit(1)
         except Exception as exc:
             logger.error(f"File {file_to_cut} generated an exception: {exc}")
+            sys.exit(1)
 
 
 def main_script() -> None:
