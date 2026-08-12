@@ -33,11 +33,6 @@ import numpy as np
 from dask.diagnostics.progress import ProgressBar
 
 from .. import version, logger
-
-# Maximum number of retry attempts for a frozen file before giving up
-MAX_RETRIES = 3
-# Timeout in seconds: if output file doesn't change for this duration, consider processing frozen
-FREEZE_TIMEOUT_SECONDS = 60
 from .cutlib import (
     mask_from_ldd,
     get_filelist,
@@ -49,6 +44,11 @@ from .cutlib import (
     OUTLETS_FILENAME,
 )
 from .helpers import COORDINATE_NAMES, TIME_NAMES
+
+# Maximum number of retry attempts for a frozen file before giving up
+MAX_RETRIES = 3
+# Timeout in seconds: if output file doesn't change for this duration, consider processing frozen
+FREEZE_TIMEOUT_SECONDS = 60
 
 # Variables that should be excluded from mask processing.
 # Common NetCDF projection/CRS variable names
