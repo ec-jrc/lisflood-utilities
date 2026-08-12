@@ -48,7 +48,7 @@ from .helpers import COORDINATE_NAMES, TIME_NAMES
 # Maximum number of retry attempts for a frozen file before giving up
 MAX_RETRIES = 3
 # Timeout in seconds: if output file doesn't change for this duration, consider processing frozen
-FREEZE_TIMEOUT_SECONDS = 300
+FREEZE_TIMEOUT_SECONDS = 120
 
 # Variables that should be excluded from mask processing.
 # Common NetCDF projection/CRS variable names
@@ -606,6 +606,16 @@ class ParserHelpOnError(argparse.ArgumentParser):
             required=False,
             action="store_true"
         )
+        self.add_argument(
+            "-t", "--freeze-timeout",
+            help="Enable freeze detection watchdog. If a file does not advance "
+                 f"for more than {FREEZE_TIMEOUT_SECONDS} seconds, it is killed "
+                 f"and retried up to {MAX_RETRIES} times. "
+                 "Without this flag, processing runs without timeout monitoring.",
+            default=False,
+            required=False,
+            action="store_true"
+        )
 
 
 def _validate_input_path(
@@ -723,24 +733,41 @@ def main(cliargs: List[str]) -> None:
         input_folder or "", static_data_folder or "", input_file or ""
     )
 
-    # Process files sequentially with watchdog monitoring
+    # Process files sequentially
     num_files = len(list_to_cut)
     use_coords = cuts_indices is None
-    
-    logger.info(f"Processing {num_files} files with watchdog monitoring "
-                f"(freeze timeout: {FREEZE_TIMEOUT_SECONDS}s, max retries: {MAX_RETRIES})")
+    freeze_timeout_enabled = args.freeze_timeout
+
+    if freeze_timeout_enabled:
+        logger.info(f"Processing {num_files} files with watchdog monitoring "
+                    f"(freeze timeout: {FREEZE_TIMEOUT_SECONDS}s, max retries: {MAX_RETRIES})")
+    else:
+        logger.info(f"Processing {num_files} files sequentially")
+
     for file_to_cut in list_to_cut:
         try:
-            result = _process_with_watchdog(
-                str(file_to_cut),
-                pathout,
-                static_data_folder,
-                x_min, x_max, y_min, y_max,
-                use_coords,
-                overwrite,
-                ldd,
-                stations,
-            )
+            if freeze_timeout_enabled:
+                result = _process_with_watchdog(
+                    str(file_to_cut),
+                    pathout,
+                    static_data_folder,
+                    x_min, x_max, y_min, y_max,
+                    use_coords,
+                    overwrite,
+                    ldd,
+                    stations,
+                )
+            else:
+                result = _process_single_file(
+                    str(file_to_cut),
+                    pathout,
+                    static_data_folder,
+                    x_min, x_max, y_min, y_max,
+                    use_coords,
+                    overwrite,
+                    ldd,
+                    stations,
+                )
             if result:
                 logger.info(f"Successfully processed: {result}")
         except RuntimeError as exc:
