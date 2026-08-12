@@ -48,7 +48,7 @@ from .helpers import COORDINATE_NAMES, TIME_NAMES
 # Maximum number of retry attempts for a frozen file before giving up
 MAX_RETRIES = 3
 # Timeout in seconds: if output file doesn't change for this duration, consider processing frozen
-FREEZE_TIMEOUT_SECONDS = 60
+FREEZE_TIMEOUT_SECONDS = 120
 
 # Variables that should be excluded from mask processing.
 # Common NetCDF projection/CRS variable names
