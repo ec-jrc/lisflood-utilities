@@ -30,6 +30,7 @@ from typing import Optional, List, Union, NoReturn
 import xarray as xr
 import numpy as np
 
+import dask
 from dask.diagnostics.progress import ProgressBar
 
 from .. import version, logger
@@ -75,6 +76,104 @@ EXCLUDED_VAR_NAMES = {
 # Add coordinate and time coordinate names to the exclusion set
 EXCLUDED_VAR_NAMES.update(COORDINATE_NAMES)
 EXCLUDED_VAR_NAMES.update(TIME_NAMES)
+
+
+def _is_nfs_path(path: Union[str, Path]) -> bool:
+    """Check if a path resides on an NFS filesystem.
+
+    Uses /proc/mounts (Linux) to determine the filesystem type of the mount
+    point that contains the given path. Handles autofs-managed NFS mounts
+    by also checking whether the mount source references /etc/auto.nfs or
+    the actual underlying mount is NFS.
+
+    Args:
+        path: File or directory path to check.
+
+    Returns:
+        True if the path is on an NFS (nfs, nfs4, or autofs-backed NFS)
+        filesystem, False otherwise.
+    """
+    try:
+        resolved = Path(path).resolve()
+    except (OSError, ValueError):
+        return False
+
+    try:
+        with open("/proc/mounts", "r") as f:
+            mounts = f.readlines()
+    except (OSError, IOError):
+        # /proc/mounts not available (non-Linux or restricted environment)
+        return False
+
+    # Find the longest matching mount point for the resolved path.
+    # Track both the best match and any NFS mount that matches
+    # (autofs may mount the NFS volume with a longer path than the autofs entry).
+    best_match = ""
+    best_fstype = ""
+    best_source = ""
+    for line in mounts:
+        parts = line.split()
+        if len(parts) < 3:
+            continue
+        source = parts[0]
+        mount_point = parts[1]
+        fstype = parts[2]
+        # Check if the resolved path starts with this mount point
+        if (str(resolved) == mount_point or
+                str(resolved).startswith(mount_point.rstrip("/") + "/")):
+            if len(mount_point) >= len(best_match):
+                best_match = mount_point
+                best_fstype = fstype
+                best_source = source
+
+    fstype_lower = best_fstype.lower()
+
+    # Direct NFS mount
+    if fstype_lower in ("nfs", "nfs4"):
+        return True
+
+    # autofs mount backed by NFS (source is /etc/auto.nfs or similar auto.nfs* file)
+    if fstype_lower == "autofs" and "auto.nfs" in best_source.lower():
+        return True
+
+    return False
+
+
+def _configure_nfs_workarounds(*paths: Optional[str]) -> None:
+    """Enable HDF5/dask workarounds if any of the given paths reside on NFS.
+
+    On NFS filesystems, HDF5 file locking can cause intermittent hangs because
+    the NFS lock daemon may be slow or unresponsive. Additionally, dask's default
+    threaded scheduler can amplify the problem by opening the same file from many
+    threads simultaneously.
+
+    This function:
+    - Sets HDF5_USE_FILE_LOCKING=FALSE to disable advisory locks.
+    - Switches dask to the synchronous scheduler to avoid concurrent file access.
+
+    These are only applied when at least one path is on NFS and the user has not
+    already set HDF5_USE_FILE_LOCKING explicitly.
+
+    Args:
+        *paths: Paths to check (None values are skipped).
+    """
+    any_nfs = any(_is_nfs_path(p) for p in paths if p is not None)
+    if not any_nfs:
+        return
+
+    if "HDF5_USE_FILE_LOCKING" not in os.environ:
+        os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
+        logger.info(
+            "NFS filesystem detected. Setting HDF5_USE_FILE_LOCKING=FALSE "
+            "to prevent potential hangs."
+        )
+
+    # Use synchronous scheduler to avoid multi-threaded NFS lock contention.
+    dask.config.set(scheduler="synchronous")
+    logger.info(
+        "NFS filesystem detected. Using dask synchronous scheduler "
+        "to avoid concurrent file access."
+    )
 
 
 def parse_and_check_args(parser: argparse.ArgumentParser, cliargs: List[str]) -> argparse.Namespace:
@@ -709,6 +808,10 @@ def main(cliargs: List[str]) -> None:
     if not os.path.exists(pathout):
         logger.warning("\nOutput folder %s not existing. Creating it...", pathout)
         os.mkdir(pathout)
+
+    # Apply NFS workarounds (disable HDF5 locking, use synchronous dask scheduler)
+    # if any of the input/output paths reside on an NFS filesystem.
+    _configure_nfs_workarounds(input_folder, input_file, static_data_folder, pathout)
 
     mask_nc = None
     if ldd and stations:
