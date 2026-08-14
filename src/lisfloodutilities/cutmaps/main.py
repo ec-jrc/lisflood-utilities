@@ -128,8 +128,9 @@ def _is_nfs_path(path: Union[str, Path]) -> bool:
 
     fstype_lower = best_fstype.lower()
 
-    # Direct NFS mount
-    if fstype_lower in ("nfs", "nfs4"):
+    # Direct NFS mount or XFS for BDAP
+    # (XFS is sometimes used for NFS exports)
+    if fstype_lower in ("nfs", "nfs4", "xfs"):
         return True
 
     # autofs mount backed by NFS (source is /etc/auto.nfs or similar auto.nfs* file)

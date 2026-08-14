@@ -1,3 +1,4 @@
+import contextlib
 import time
 import warnings
 from pathlib import Path
@@ -7,6 +8,34 @@ from netCDF4 import Dataset
 import xarray as xr
 from pyproj import CRS
 from earthkit.hydro import river_network, data_structures
+
+from dask.utils import format_time
+from dask.diagnostics.progress import ProgressBar
+
+
+class LabelledProgressBar(ProgressBar):
+    """A dask ProgressBar that displays a label (e.g. filename) alongside the progress."""
+
+    def __init__(self, label: str = '', *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Truncate long labels to keep the bar readable
+        max_label_len = 40
+        if len(label) > max_label_len:
+            label = '...' + label[-(max_label_len - 3):]
+        self._label = label
+
+    def _draw_bar(self, frac, elapsed):
+        """Draw the progress bar with the label."""
+        bar = "#" * int(self._width * frac)
+        percent = int(100 * frac)
+        elapsed_str = format_time(elapsed)
+        msg = "\r[{0:<{1}}] | {2}% Completed | {3} | {4}".format(
+            bar, self._width, percent, elapsed_str, self._label
+        )
+        with contextlib.suppress(ValueError):
+            if self._file is not None:
+                self._file.write(msg)
+                self._file.flush()
 
 
 LATITUDE_VARIABLES = ['y', 'lat', 'latitude', 'nlat', 'lats', 'latitudes']

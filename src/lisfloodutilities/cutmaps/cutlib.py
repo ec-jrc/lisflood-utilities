@@ -24,12 +24,10 @@ from typing import List, Tuple, Union, Optional
 import xarray as xr
 import numpy as np
 
-from dask.diagnostics.progress import ProgressBar
-
 from lisfloodutilities.readers.pcr import PCRasterMap
 
 from .helpers import (col2netcdf, array_to_nc_from_clone, bbox_from_netcdf,
-                      get_river_network_from_map,
+                      get_river_network_from_map, LabelledProgressBar,
                       COORDINATE_NAMES, LATITUDE_NAMES, LATITUDE_NAME_PAIR)
 from .. import version, logger
 
@@ -101,7 +99,7 @@ def cutmap(f, fileout, x_min, x_max, y_min, y_max, use_coords = True):
         delayed_obj = sliced_var.to_netcdf(fileout, compute=False,
                                            encoding={var: encoding_netcdf_vars})
         if hasattr(delayed_obj, 'compute'):
-            with ProgressBar(dt=0.1):
+            with LabelledProgressBar(label=os.path.basename(fileout), dt=0.1):
                 _ = delayed_obj.compute()
 
     grid_mapping = sliced_var.attrs.get('grid_mapping')
@@ -134,7 +132,7 @@ def cutmap(f, fileout, x_min, x_max, y_min, y_max, use_coords = True):
             del_res = xr.DataArray(name=varname, data=proj_data, dims=dims,
                                    attrs=varproj.attrs).to_netcdf(fileout, mode='a', compute=False)
         if hasattr(del_res, 'compute'):
-            with ProgressBar(dt=0.1):
+            with LabelledProgressBar(label=os.path.basename(fileout), dt=0.1):
                 _ = del_res.compute()
 
     # adding global attributes only if the file contains variables
@@ -161,7 +159,7 @@ def cutmap(f, fileout, x_min, x_max, y_min, y_max, use_coords = True):
                     logger.info('Writing additional attrs to: %s - %s', fileout, nc_out.attrs)
                     del_res = nc_out.to_netcdf(fileout, mode='a', compute=False, encoding={var: encoding_netcdf_vars})
                     if hasattr(del_res, 'compute'):
-                        with ProgressBar(dt=0.1):
+                        with LabelledProgressBar(label=os.path.basename(fileout), dt=0.1):
                             _ = del_res.compute()
     except Exception as e:
         logger.warning('Cannot add global attributes to %s - %s', fileout, e)
