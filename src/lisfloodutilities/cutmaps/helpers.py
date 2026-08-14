@@ -25,17 +25,46 @@ class LabelledProgressBar(ProgressBar):
         self._label = label
 
     def _draw_bar(self, frac, elapsed):
-        """Draw the progress bar with the label."""
+        """Draw the progress bar with the label, with aligned columns."""
         bar = "#" * int(self._width * frac)
         percent = int(100 * frac)
-        elapsed_str = format_time(elapsed)
-        msg = "\r[{0:<{1}}] | {2}% Completed | {3} | {4}".format(
+        elapsed_str = self._format_elapsed(elapsed)
+        msg = "\r[{0:<{1}}] | {2:>3d}% Completed | {3} | {4}".format(
             bar, self._width, percent, elapsed_str, self._label
         )
         with contextlib.suppress(ValueError):
             if self._file is not None:
                 self._file.write(msg)
                 self._file.flush()
+
+    @staticmethod
+    def _format_elapsed(elapsed):
+        """Format elapsed time into a fixed-width 10-character string.
+
+        Examples:
+            '  100.43 ms'  ->  not possible, ms values are < 1000
+            '  456.12 ms'
+            '    1.50 s '
+            '   59.99 s '
+            '    1.23 m '
+            '   12.34 m '
+            '    1.00 hr'
+        """
+        if elapsed < 1:
+            # milliseconds: value up to 999.99
+            val = elapsed * 1000
+            return f"{val:>6.2f} ms "
+        elif elapsed < 60:
+            # seconds: value up to 59.99
+            return f"{elapsed:>6.2f} s  "
+        elif elapsed < 3600:
+            # minutes
+            val = elapsed / 60
+            return f"{val:>6.2f} m  "
+        else:
+            # hours
+            val = elapsed / 3600
+            return f"{val:>6.2f} hr "
 
 
 LATITUDE_VARIABLES = ['y', 'lat', 'latitude', 'nlat', 'lats', 'latitudes']
