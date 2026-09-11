@@ -35,7 +35,6 @@ import os
 import sys
 import time
 import logging
-from collections import OrderedDict
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import urllib.request
@@ -579,30 +578,6 @@ def download_station_data(conf: Config, variable: str, base_path: str, start_per
     return downloaded_files
 
 
-# Fallback cap when the OS open-file limit cannot be determined.
-DEFAULT_MAX_OPEN_FILES = 512
-# Headroom of file descriptors reserved for stdio, logging, input files, etc.
-OPEN_FILES_HEADROOM = 64
-
-
-def _compute_max_open_files() -> int:
-    """Compute a safe cap on the number of simultaneously open output files,
-    based on the OS soft limit for open file descriptors (RLIMIT_NOFILE),
-    leaving headroom for other descriptors the process needs. Falls back to a
-    conservative default on platforms where the limit cannot be queried."""
-    try:
-        import resource
-        soft_limit, _hard_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
-        if soft_limit <= 0:
-            return DEFAULT_MAX_OPEN_FILES
-        # Use ~75% of the available budget after reserving headroom.
-        budget = max(soft_limit - OPEN_FILES_HEADROOM, 1)
-        return max(int(budget * 3 // 4), 1)
-    except (ImportError, ValueError, OSError):
-        # resource is unavailable (e.g. on Windows) or the limit is unusable.
-        return DEFAULT_MAX_OPEN_FILES
-
-
 def merge_timeseries_with_metadata(conf: Config, variable: str, base_path: str, 
                                     start_period: str, end_period: str,
                                     do_merge: bool = True) -> None:
@@ -644,143 +619,114 @@ def merge_timeseries_with_metadata(conf: Config, variable: str, base_path: str,
             station_id = fields[indices[METADATA_COL_STATION_ID]]
             metadata_dict[station_id] = line.rstrip(NEWLINE)
     
-    # Process each timeseries file
+    # Collect all timeseries files
     timeseries_files = []
     if os.path.exists(base_folder_timeseries):
         for f in os.listdir(base_folder_timeseries):
             if f.endswith('_timeseries.tsv'):
                 timeseries_files.append(os.path.join(base_folder_timeseries, f))
     
-    # Bounded LRU cache of open kiwi file handles keyed by file path. Opening/
-    # closing a file for every single data line is very expensive when there are
-    # thousands of output files, so we keep handles open and reuse them. To avoid
-    # exhausting the OS open-file limit we cap the number of simultaneously open
-    # handles and close the least-recently-used one when the cap is reached.
-    max_open_files = _compute_max_open_files()
-    logger.info(f"Caching up to {max_open_files} open output files")
+    # Read all the timeseries grouping the station rows by cur_datetime, so that
+    # every output KIWI file (associated with a single timestep) is opened and
+    # written only once instead of being reopened for every station row.
+    # To keep the memory footprint low we only store the minimal data needed
+    # (station_id, cur_value, cur_qcode); the merge with the (much larger)
+    # metadata row is done later, at write time.
+    # Structure: { cur_datetime: [(station_id, cur_value, cur_qcode), ...] }
+    rows_by_datetime = {}
+    
+    for cur_filename in sorted(timeseries_files):
+        base_name = os.path.basename(cur_filename)
+        # Extract station_id from filename: pr6_station_12345_timeseries.tsv
+        match = re.search(r'station_(\d+)_timeseries', base_name)
+        if not match:
+            continue
+            
+        station_id = match.group(1)
+        metadata_row = metadata_dict.get(station_id, "")
+        
+        if not metadata_row:
+            logger.warning(f"No metadata found for station {station_id}")
+            continue
+        
+        logger.info(f"Processing file: {cur_filename}")
+        
+        # Read the timeseries data
+        try:
+            with open(cur_filename, 'r', encoding='utf-8') as f:
+                data_lines = f.readlines()
+            
+            # Skip header (first 9 lines) data starts from line 10 (index 9)
+            data_start = TIMESERIES_FILE_HEADER_LINES
+            
+            for line in data_lines[data_start:]:
+                fields = line.rstrip(NEWLINE).split(COLUMN_SEPARATOR)
 
-    # Ordered by access recency: least-recently-used first, most-recent last.
-    open_kiwi_files = OrderedDict()
-    # Folders already created, to avoid redundant makedirs calls.
-    created_folders = set()
-    # Files that have already been created during this run. Used to decide
-    # whether a (re)opened file needs its header written and whether it should
-    # be truncated ('w') or appended to ('a') after an eviction.
-    created_files = set()
+                if len(fields) < MAX_TIMESERIES_FIELDS:
+                    continue
 
-    def get_kiwi_file(kiwi_file_path, working_folder):
-        """Return an open file handle for kiwi_file_path, creating it (and its
-        folder and header) on first access. Uses a bounded LRU cache so we never
-        exceed the OS open-file limit; evicted files are transparently reopened
-        in append mode when written to again."""
-        handle = open_kiwi_files.get(kiwi_file_path)
-        if handle is not None:
-            # Mark as most-recently-used.
-            open_kiwi_files.move_to_end(kiwi_file_path)
-            return handle
+                cur_timestep = fields[TIMESERIES_IDX_TIMESTAMP]
+                cur_value = fields[TIMESERIES_IDX_VALUE]
+                cur_qcode = fields[TIMESERIES_IDX_QCODE]
+                
+                # Skip empty values
+                if not cur_value or not cur_timestep:
+                    continue
 
-        if working_folder not in created_folders:
-            os.makedirs(working_folder, exist_ok=True)
-            created_folders.add(working_folder)
+                cur_datetime = datetime.strptime(cur_timestep, TIMESERIES_TIMESTAMP_FORMAT)
 
-        # Evict least-recently-used handles until we have room for a new one.
-        while len(open_kiwi_files) >= max_open_files:
-            _evicted_path, evicted_handle = open_kiwi_files.popitem(last=False)
-            try:
-                evicted_handle.close()
-            except Exception as e:
-                logger.error(f"Error closing output file: {e}")
+                if cur_datetime.year < start_year or cur_datetime.year > end_year:
+                    continue
 
-        if kiwi_file_path in created_files:
-            # File was created earlier this run and then evicted: reopen in
-            # append mode so we keep existing content and don't rewrite header.
-            handle = open(kiwi_file_path, 'a', encoding='utf-8')
-        else:
-            # First time we touch this file: truncate/create and write header.
-            handle = open(kiwi_file_path, 'w', encoding='utf-8')
-            handle.write(header + NEWLINE)
-            created_files.add(kiwi_file_path)
+                # Group only the minimal data by its timestep. The metadata merge
+                # is deferred to write time to avoid holding a full copy of the
+                # metadata row for every station/timestep in RAM.
+                rows_by_datetime.setdefault(cur_datetime, []).append(
+                    (station_id, cur_value, cur_qcode)
+                )
+        
+        except Exception as e:
+            logger.error(f"Error processing {cur_filename}: {e}")
+            continue
+    
+    # Write each output KIWI file once, containing all the station rows that have
+    # data for that timestep.
+    for cur_datetime in sorted(rows_by_datetime):
+        cur_year = cur_datetime.strftime("%Y")
+        cur_month = cur_datetime.strftime("%m")
+        cur_day = cur_datetime.strftime("%d")
 
-        open_kiwi_files[kiwi_file_path] = handle
-        return handle
+        # Create the output folder and file
+        working_folder = os.path.join(base_folder_meteo, cur_year, cur_month, cur_day)
+        os.makedirs(working_folder, exist_ok=True)
 
-    try:
-        timeseries_files_list = sorted(timeseries_files)
-        total_files = len(timeseries_files_list)
-        count_files = 0
+        kiwi_filename = cur_datetime.strftime(conf.input_timestamp_pattern)
+        kiwi_file = os.path.join(working_folder, kiwi_filename)
 
-        for cur_filename in timeseries_files_list:
-            base_name = os.path.basename(cur_filename)
-            # Extract station_id from filename: pr6_station_12345_timeseries.tsv
-            match = re.search(r'station_(\d+)_timeseries', base_name)
-            if not match:
-                continue
+        logger.info(f"Writing KIWI file: {kiwi_file}")
 
-            station_id = match.group(1)
+        # Merge each station's value/qcode with its metadata row only now, when
+        # writing, so the large metadata text is never duplicated in memory.
+        modified_rows = []
+        for station_id, cur_value, cur_qcode in rows_by_datetime[cur_datetime]:
             metadata_row = metadata_dict.get(station_id, "")
-
             if not metadata_row:
-                logger.warning(f"No metadata found for station {station_id}")
                 continue
+            modified_rows.append(
+                metadata_row.replace("{value}", cur_value).replace("{qcode}", cur_qcode)
+            )
 
-            percentage_files_processed = int((count_files / total_files) * 100)
-            logger.info(f"Processing file: {cur_filename} ({percentage_files_processed}%)")
+        if not modified_rows:
+            continue
 
-            # Read the timeseries data
-            try:
-                with open(cur_filename, 'r', encoding='utf-8') as f:
-                    data_lines = f.readlines()
-
-                # Skip header (first 9 lines) data starts from line 10 (index 9)
-                data_start = TIMESERIES_FILE_HEADER_LINES
-
-                for line in data_lines[data_start:]:
-                    fields = line.rstrip(NEWLINE).split(COLUMN_SEPARATOR)
-
-                    if len(fields) < MAX_TIMESERIES_FIELDS:
-                        continue
-
-                    cur_timestep = fields[TIMESERIES_IDX_TIMESTAMP]
-                    cur_value = fields[TIMESERIES_IDX_VALUE]
-                    cur_qcode = fields[TIMESERIES_IDX_QCODE]
-
-                    # Skip empty values
-                    if not cur_value or not cur_timestep:
-                        continue
-
-                    cur_datetime = datetime.strptime(cur_timestep, TIMESERIES_TIMESTAMP_FORMAT)
-
-                    # Parse the timestamp
-                    cur_year = cur_datetime.strftime("%Y")
-                    cur_month = cur_datetime.strftime("%m")
-                    cur_day = cur_datetime.strftime("%d")
-
-                    if int(cur_year) < start_year or int(cur_year) > end_year:
-                        continue
-
-                    # Resolve the output folder and file
-                    working_folder = os.path.join(base_folder_meteo, cur_year, cur_month, cur_day)
-                    kiwi_filename = cur_datetime.strftime(conf.input_timestamp_pattern)
-                    kiwi_file = os.path.join(working_folder, kiwi_filename)
-
-                    # Get a (cached) open handle; header is written on creation.
-                    f_out = get_kiwi_file(kiwi_file, working_folder)
-
-                    # Replace placeholders and append data
-                    modified_row = metadata_row.replace("{value}", cur_value).replace("{qcode}", cur_qcode)
-                    f_out.write(modified_row + NEWLINE)
-
-            except Exception as e:
-                logger.error(f"Error processing {cur_filename}: {e}")
-                continue
-    finally:
-        # Ensure all cached file handles are flushed and closed.
-        for handle in open_kiwi_files.values():
-            try:
-                handle.close()
-            except Exception as e:
-                logger.error(f"Error closing output file: {e}")
-
+        # Write header only when the file is created for the first time, then
+        # append all the station rows for this timestep in a single open/close.
+        file_exists = os.path.exists(kiwi_file)
+        with open(kiwi_file, 'a', encoding='utf-8') as f:
+            if not file_exists:
+                f.write(header + NEWLINE)
+            f.write(NEWLINE.join(modified_rows) + NEWLINE)
+    
     logger.info("FINISHED MERGING TIMESERIES")
 
 
