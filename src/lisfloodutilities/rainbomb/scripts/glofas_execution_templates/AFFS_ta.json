@@ -1,0 +1,31 @@
+{
+    "Execution": {
+	"@name": "AFFS_T24",
+	"@loggerLevel": "ERROR",
+	"@start": "",
+	"@end": "",
+    "OutMaps": {
+	"@format": "netcdf",
+	"@cloneMap": "/ec/ws4/tc/emos/work/cems/floods/glofas/assets/4.0/maps/template_Global_03min.nc",
+	"@fmap": 1,
+	"@scaleFactor": 0.1,
+	"@offset": 0.0,
+	"@valueFormat": "i2",
+	"@outputStepUnits": "D",
+	"@unitTime":24,
+	"@namePrefix":"ta",
+    "Interpolation": {
+	"@latMap": "/ec/ws4/tc/emos/work/cems/floods/glofas/assets/4.0/maps/template_Global_03min.nc",
+	"@lonMap": "/ec/ws4/tc/emos/work/cems/floods/glofas/assets/4.0/maps/template_Global_03min.nc",
+	"@mode": "bilinear_delaunay"
+	}
+    },
+    "Parameter": {
+	"@applyConversion": "k2c",
+	"@shortName": "2t",
+	"@correctionFormula": "p+gem-dem*0.0065",
+	"@demMap": "/ec/ws4/tc/emos/work/cems/floods/glofas/assets/4.0/maps/elv_Global_03min.nc",
+	"@gem": "(z/9.81)*0.0065"
+	}
+    }
+}

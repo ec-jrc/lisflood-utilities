@@ -1,0 +1,26 @@
+{
+    "Execution": {
+	"@name": "AFFS_RG24",
+	"@loggerLevel": "ERROR",
+	"@start": "", 
+	"@end": "",
+    "OutMaps": {
+	"@format": "netcdf",
+	"@cloneMap": "/ec/ws4/tc/emos/work/cems/floods/glofas/assets/4.0/maps/template_Global_03min.nc",
+	"@fmap": 1,
+	"@scaleFactor": 10000.0,
+	"@offset": 0.0,
+	"@valueFormat": "i2",
+	"@outputStepUnits": "D",
+	"@namePrefix": "rg",
+    "Interpolation": {
+	"@latMap": "/ec/ws4/tc/emos/work/cems/floods/glofas/assets/4.0/maps/template_Global_03min.nc",
+	"@lonMap": "/ec/ws4/tc/emos/work/cems/floods/glofas/assets/4.0/maps/template_Global_03min.nc",
+	"@mode": "bilinear_delaunay"
+	}
+    },
+    "Parameter": {
+	"@shortName": "ssrd"
+	}
+    }
+}
