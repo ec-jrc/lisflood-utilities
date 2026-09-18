@@ -619,12 +619,21 @@ def merge_timeseries_with_metadata(conf: Config, variable: str, base_path: str,
             station_id = fields[indices[METADATA_COL_STATION_ID]]
             metadata_dict[station_id] = line.rstrip(NEWLINE)
     
-    # Process each timeseries file
+    # Collect all timeseries files
     timeseries_files = []
     if os.path.exists(base_folder_timeseries):
         for f in os.listdir(base_folder_timeseries):
             if f.endswith('_timeseries.tsv'):
                 timeseries_files.append(os.path.join(base_folder_timeseries, f))
+    
+    # Read all the timeseries grouping the station rows by cur_datetime, so that
+    # every output KIWI file (associated with a single timestep) is opened and
+    # written only once instead of being reopened for every station row.
+    # To keep the memory footprint low we only store the minimal data needed
+    # (station_id, cur_value, cur_qcode); the merge with the (much larger)
+    # metadata row is done later, at write time.
+    # Structure: { cur_datetime: [(station_id, cur_value, cur_qcode), ...] }
+    rows_by_datetime = {}
     
     for cur_filename in sorted(timeseries_files):
         base_name = os.path.basename(cur_filename)
@@ -665,36 +674,58 @@ def merge_timeseries_with_metadata(conf: Config, variable: str, base_path: str,
                     continue
 
                 cur_datetime = datetime.strptime(cur_timestep, TIMESERIES_TIMESTAMP_FORMAT)
-                
-                # Parse the timestamp
-                cur_year = cur_datetime.strftime("%Y")
-                cur_month = cur_datetime.strftime("%m")
-                cur_day = cur_datetime.strftime("%d")
 
-                if int(cur_year) < start_year or int(cur_year) > end_year:
+                if cur_datetime.year < start_year or cur_datetime.year > end_year:
                     continue
 
-                # Create the output folder and file
-                working_folder = os.path.join(base_folder_meteo, cur_year, cur_month, cur_day)
-                os.makedirs(working_folder, exist_ok=True)
-                
-                kiwi_filename = cur_datetime.strftime(conf.input_timestamp_pattern)
-
-                kiwi_file = os.path.join(working_folder, kiwi_filename)
-                
-                # Write header if file doesn't exist
-                if not os.path.exists(kiwi_file):
-                    with open(kiwi_file, 'w', encoding='utf-8') as f:
-                        f.write(header + NEWLINE)
-                
-                # Replace placeholders and append data
-                modified_row = metadata_row.replace("{value}", cur_value).replace("{qcode}", cur_qcode)
-                with open(kiwi_file, 'a', encoding='utf-8') as f:
-                    f.write(modified_row + NEWLINE)
+                # Group only the minimal data by its timestep. The metadata merge
+                # is deferred to write time to avoid holding a full copy of the
+                # metadata row for every station/timestep in RAM.
+                rows_by_datetime.setdefault(cur_datetime, []).append(
+                    (station_id, cur_value, cur_qcode)
+                )
         
         except Exception as e:
             logger.error(f"Error processing {cur_filename}: {e}")
             continue
+    
+    # Write each output KIWI file once, containing all the station rows that have
+    # data for that timestep.
+    for cur_datetime in sorted(rows_by_datetime):
+        cur_year = cur_datetime.strftime("%Y")
+        cur_month = cur_datetime.strftime("%m")
+        cur_day = cur_datetime.strftime("%d")
+
+        # Create the output folder and file
+        working_folder = os.path.join(base_folder_meteo, cur_year, cur_month, cur_day)
+        os.makedirs(working_folder, exist_ok=True)
+
+        kiwi_filename = cur_datetime.strftime(conf.input_timestamp_pattern)
+        kiwi_file = os.path.join(working_folder, kiwi_filename)
+
+        logger.info(f"Writing KIWI file: {kiwi_file}")
+
+        # Merge each station's value/qcode with its metadata row only now, when
+        # writing, so the large metadata text is never duplicated in memory.
+        modified_rows = []
+        for station_id, cur_value, cur_qcode in rows_by_datetime[cur_datetime]:
+            metadata_row = metadata_dict.get(station_id, "")
+            if not metadata_row:
+                continue
+            modified_rows.append(
+                metadata_row.replace("{value}", cur_value).replace("{qcode}", cur_qcode)
+            )
+
+        if not modified_rows:
+            continue
+
+        # Write header only when the file is created for the first time, then
+        # append all the station rows for this timestep in a single open/close.
+        file_exists = os.path.exists(kiwi_file)
+        with open(kiwi_file, 'a', encoding='utf-8') as f:
+            if not file_exists:
+                f.write(header + NEWLINE)
+            f.write(NEWLINE.join(modified_rows) + NEWLINE)
     
     logger.info("FINISHED MERGING TIMESERIES")
 
