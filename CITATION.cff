@@ -46,7 +46,12 @@ authors:
     given-names: Nikolaos
     orcid: https://orcid.org/0000-0002-2430-3634
     affiliation: European Centre for Medium-Range Weather Forecasts
- 
+
+  - family-names: Jensen
+    given-names: Laura
+    orcid: https://orcid.org/0000-0002-8318-791X
+    affiliation: GFZ Helmholtz Centre for Geosciences
+
   - family-names: Lorini
     given-names: Valerio
     orcid: https://orcid.org/0000-0003-2148-5476
