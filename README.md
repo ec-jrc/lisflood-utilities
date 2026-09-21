@@ -87,6 +87,8 @@ NetCDF, PCRaster and TSS files.
 
 * __[generate_neighbours](#generate_neighbours)__ is a tool to generate neighbour indices for each grid point. It is used to reduce the computation time for the rainbomb correction by pre-computing and storing the indices of neighbours for each grid point. The resulting file is used as a parameter for the rainbomb tool.
 
+* __[twsmaps](#twsmaps)__ creates lakes and reservoirs extent maps in NetCDF format, needed for the output of Total Water Storage (TWS) maps in OS LISFLOOD. Each lake/reservoir polygon is rasterised on the LISFLOOD grid and cells whose covered fraction exceeds a threshold are assigned the lake/reservoir ID.
+
 The package contains convenient classes for reading/writing:
 
 * PCRasterMap
@@ -1419,6 +1421,71 @@ optional arguments:
                         era5
 ```
 
+
+## twsmaps
+
+The `twsmaps` tool creates lakes and reservoirs extent maps in NetCDF format. These maps are needed for the output of Total Water Storage (TWS) maps in OS LISFLOOD. For further background see the [LISFLOOD static maps documentation on reservoirs and lakes](https://ec-jrc.github.io/lisflood-code/4_Static-Maps_reservoirs-lakes/).
+
+The tool starts from a NetCDF file with the outlet locations and IDs of the lakes/reservoirs (e.g. `ec_res.nc` / `ec_lakes.nc`), a set of shapefiles with the lake/reservoir outlines (GRanD, HydroLAKES and, for the GloFAS domain, GLWD), and an Excel table matching the LISFLOOD IDs to the IDs of those source datasets. All input paths are passed as command-line arguments.
+
+For each lake/reservoir defined in the locations map, the corresponding polygon is intersected with the LISFLOOD grid. Grid cells whose covered fraction exceeds `thresh2` are assigned the lake/reservoir ID. Lakes/reservoirs that are too small (their area relative to the pixel area is below `thresh1`), that are missing from the matching table, or whose source dataset is not available, are assigned only to their outlet location pixel. The output is a NetCDF file with a single integer variable `polygon_id` (0 is NoData).
+
+Two domains are supported:
+
+* `GloFAS`: geographic coordinates (degrees), pixel area varies with latitude. Use the `-g` flag. GRanD, HydroLAKES and GLWD sources are used.
+* `ETRS89`: projected coordinates (meters). GRanD and HydroLAKES sources are used; a `lambert_azimuthal_equal_area` grid mapping is added to the output.
+
+### Usage
+
+```text
+usage: twsmaps [-h] -d {GloFAS,ETRS89} -t {lake,reservoir} [-g] -o OUTPUT
+               --file-shp1 FILE_SHP1 --file-shp2 FILE_SHP2 [--file-shp3 FILE_SHP3]
+               --file-tab FILE_TAB --file-loc FILE_LOC
+               [--thresh1 THRESH1] [--thresh2 THRESH2]
+
+options:
+  -h, --help            show this help message and exit
+  -d, --domain          domain: can be 'GloFAS' or 'ETRS89'
+  -t, --type            type: can be 'lake' or 'reservoir'
+  -g, --is-geographic   set if the input file has geographic coordinates (in degree), e.g. GloFAS;
+                        otherwise projected coordinates (in meter) are assumed, e.g. ETRS89 Use Case
+  -o, --output          output netcdf file path and name
+  --file-shp1           shapefile with GRanD reservoir outlines (GRAND_ID, AREA_SKM)
+  --file-shp2           shapefile with HydroLAKES outlines (Hylak_id, Lake_area)
+  --file-shp3           shapefile with GLWD outlines (GLWD_ID, AREA_SKM); required for the GloFAS domain
+  --file-tab            Excel table with the ID match between LISFLOOD and the source datasets
+  --file-loc            netcdf file with outlet locations and IDs of the lakes/reservoirs
+  --thresh1             lakes/res where (total_lake_area / cell_area) < thresh1 are assigned to
+                        the pixel of their outlet location; default: 0.05
+  --thresh2             percentage of grid cell covered by lake; if exceeded the grid cell is
+                        assigned with lake/res ID; default: 0.07
+```
+
+
+**Example (reservoirs, GloFAS domain)**
+
+```bash
+twsmaps -d GloFAS -t reservoir -g -o res_extent_GloFAS.nc \
+  --file-shp1 GRanD_reservoirs_v1_3.shp \
+  --file-shp2 HydroLAKES_polys_v10.shp \
+  --file-shp3 glwd_1.shp \
+  --file-tab glofas5_reservoirs.xlsx \
+  --file-loc reservoirs_glofas5_03min.nc
+```
+
+**Example (lakes, ETRS89 use case)**
+
+```bash
+twsmaps -d ETRS89 -t lake -o lake_extent_ETRS89.nc \
+  --file-shp1 GRanD_reservoirs_v1_3_ETRS89.shp \
+  --file-shp2 hydrolakes_ETRS89.shp \
+  --file-tab lakes_ETRS89_testcase.xlsx \
+  --file-loc ec_lakes.nc
+```
+
+### Output
+
+A NetCDF file that mirrors the coordinates of the input locations file, with a single integer variable `polygon_id` holding the lake/reservoir IDs at each covered grid cell. NoData is encoded as 0.
 
 ## Using `lisfloodutilities` programmatically
 

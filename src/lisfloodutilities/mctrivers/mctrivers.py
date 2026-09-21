@@ -12,8 +12,9 @@ import os
 from typing import List, Tuple
 import xarray as xr
 from earthkit.hydro import distance, move, upstream
+from earthkit.hydro.river_network import repair as river_network_repair
 from lisfloodutilities.cutmaps.helpers import get_river_network_from_map
-from .helpers import copy_coordinates_and_attributes, lddrepair, X_COORD_NAMES, Y_COORD_NAMES
+from .helpers import copy_coordinates_and_attributes, X_COORD_NAMES, Y_COORD_NAMES
 
 
 def getarg():
@@ -76,68 +77,25 @@ def mct_mask(channels_slope_file: str, ldd_file: str, uparea_file: str, mask_fil
     """
 
     # ---------------- Read LDD to get coordinates and repair it before creating network
-    LD_ds = xr.open_dataset(ldd_file)
+    ldd_file_to_use = ldd_file
+    LD_ds = xr.open_dataset(ldd_file_to_use)
     x_proj, y_proj = extract_coords(LD_ds, coords_names)
-
-    # Prepare LDD and repair it BEFORE creating the river network
-    LD = prepare_dataset(LD_ds, x_proj, y_proj, 'ldd')
-    LD = LD['ldd']  # Extract as Dataarray
-
-    # sometimes the masked value is flagged not with NaN (e.g., with cutmaps it was flagged with 0)
-    # LDD takes only integer values 1-9, so any other value needs to be masked
-    LD = LD.fillna(-1)  # fill NaN so it can be converted to integer with no issues
-    LD = LD.astype('int')
-    LD = LD.where((LD > 0) & (LD < 10)).fillna(-1)
+    LD_ds.close()
 
     # Create river network from original LDD to use in the lddrepair function in case of failure.
     # This is needed because if there are cycles in the LDD, the downstream and path functions will fail, 
     # and without the river network we can't run the lddrepair function to fix the LDD.;
     # This will help to ensure that the repaired LDD is hydrologically consistent
     try:
-        network = get_river_network_from_map(ldd_file)
+        network = get_river_network_from_map(ldd_file_to_use)
     except Exception as e:
         print(f"Error occurred while creating river network the LDD might have cycles. Trying to repair it: {e}")
-        # If there is an error, we can still attempt to repair the LDD without the network,
-        # but it may not be as effective in fixing cycles.
-        ldd_array = LD.values.astype(int)  # Ensure integer type
-        ldd_array = lddrepair(ldd_array)  # Repair LDD to remove cycles
-        
-        # Save repaired LDD to a temporary file for river network creation
-        with tempfile.NamedTemporaryFile(suffix='.nc', delete=False) as tmp:
-            tmp_path = tmp.name
-        
-        # Create a new dataset with the repaired LDD
-        LD_repaired = xr.DataArray(
-            ldd_array,
-            dims=[y_proj, x_proj],
-            # coords={y_proj: LD.coords[y_proj], x_proj: LD.coords[x_proj]}
-        )
-        LD_repaired.name = 'ldd'
-        LD_repaired = copy_coordinates_and_attributes(source=LD_ds, target=LD_repaired,
-                                                      y_proj=y_proj, x_proj=x_proj)
-        LD_repaired.to_netcdf(tmp_path)
-        LD_ds.close()
-
+        repaired_ldd_file = ldd_file.replace('.nc', '_repaired_by_mctrivers.nc')
+        river_network_repair(ldd_file_to_use, repaired_ldd_file, river_network_format='pcr_d8', input_source='file')
+        ldd_file_to_use = repaired_ldd_file
+        print(f'LDD repaired successfuly. Switch to repaired file: {repaired_ldd_file}')
         # Create river network from repaired LDD
-        network = get_river_network_from_map(tmp_path, export=False)
-
-        # Reload repaired LDD for further processing
-        LD_ds = xr.open_dataset(tmp_path)
-        LD = prepare_dataset(LD_ds, x_proj, y_proj, 'ldd')
-        LD = LD['ldd']
-        LD = LD.fillna(-1)
-        LD = LD.astype('int')
-        LD = LD.where((LD > 0) & (LD < 10)).fillna(-1)
-        ldd_array = LD.values.astype(int)
-        LD_ds.close()
-        LD_ds = None
-        # Clean up temporary file
-        try:
-            os.remove(tmp_path)
-        except OSError:
-            pass
-    if LD_ds is not None:
-        LD_ds.close()
+        network = get_river_network_from_map(repaired_ldd_file, export=False)
 
     # ---------------- Process channels slope netcdf
     CH = xr.open_dataset(channels_slope_file)
@@ -166,7 +124,7 @@ def mct_mask(channels_slope_file: str, ldd_file: str, uparea_file: str, mask_fil
     # ---------------- Read domain/basin (mask) area
     # Create domain mask from LDD - valid cells are those with valid LDD (1-9)
     # First, reload LDD to create the domain mask
-    LD_for_mask_ds = xr.open_dataset(ldd_file)
+    LD_for_mask_ds = xr.open_dataset(ldd_file_to_use)
     LD_for_mask = prepare_dataset(LD_for_mask_ds, x_proj, y_proj, 'ldd')
     LD_for_mask = LD_for_mask['ldd']
     LD_for_mask = LD_for_mask.fillna(0)  # Fill NaN with 0
@@ -180,10 +138,10 @@ def mct_mask(channels_slope_file: str, ldd_file: str, uparea_file: str, mask_fil
             # Combine with LDD mask
             MX = MX * LD_for_mask
         except:
-            print(f'The given mask path {mask_file} is not a valid path. Using LDD domain from {ldd_file}.')
+            print(f'The given mask path {mask_file} is not a valid path. Using LDD domain from {ldd_file_to_use}.')
             MX = LD_for_mask
     else:
-        print(f'No mask file provided. Using LDD domain from {ldd_file}.')
+        print(f'No mask file provided. Using LDD domain from {ldd_file_to_use}.')
         MX = LD_for_mask
 
     # use the exact same coords from channel slope file, just in case there are precision differences

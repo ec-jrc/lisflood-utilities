@@ -1,7 +1,6 @@
-import os
-import argparse
-import sys
+import contextlib
 import time
+import warnings
 from pathlib import Path
 from typing import List, Tuple, Union, Optional, Any
 import numpy as np
@@ -9,6 +8,63 @@ from netCDF4 import Dataset
 import xarray as xr
 from pyproj import CRS
 from earthkit.hydro import river_network, data_structures
+
+from dask.utils import format_time
+from dask.diagnostics.progress import ProgressBar
+
+
+class LabelledProgressBar(ProgressBar):
+    """A dask ProgressBar that displays a label (e.g. filename) alongside the progress."""
+
+    def __init__(self, label: str = '', *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Truncate long labels to keep the bar readable
+        max_label_len = 40
+        if len(label) > max_label_len:
+            label = '...' + label[-(max_label_len - 3):]
+        self._label = label
+
+    def _draw_bar(self, frac, elapsed):
+        """Draw the progress bar with the label, with aligned columns."""
+        bar = "#" * int(self._width * frac)
+        percent = int(100 * frac)
+        elapsed_str = self._format_elapsed(elapsed)
+        msg = "\r[{0:<{1}}] | {2:>3d}% Completed | {3} | {4}".format(
+            bar, self._width, percent, elapsed_str, self._label
+        )
+        with contextlib.suppress(ValueError):
+            if self._file is not None:
+                self._file.write(msg)
+                self._file.flush()
+
+    @staticmethod
+    def _format_elapsed(elapsed):
+        """Format elapsed time into a fixed-width 10-character string.
+
+        Examples:
+            '  100.43 ms'  ->  not possible, ms values are < 1000
+            '  456.12 ms'
+            '    1.50 s '
+            '   59.99 s '
+            '    1.23 m '
+            '   12.34 m '
+            '    1.00 hr'
+        """
+        if elapsed < 1:
+            # milliseconds: value up to 999.99
+            val = elapsed * 1000
+            return f"{val:>6.2f} ms "
+        elif elapsed < 60:
+            # seconds: value up to 59.99
+            return f"{elapsed:>6.2f} s  "
+        elif elapsed < 3600:
+            # minutes
+            val = elapsed / 60
+            return f"{val:>6.2f} m  "
+        else:
+            # hours
+            val = elapsed / 3600
+            return f"{val:>6.2f} hr "
 
 
 LATITUDE_VARIABLES = ['y', 'lat', 'latitude', 'nlat', 'lats', 'latitudes']
@@ -193,14 +249,18 @@ def copy_clone_geometry(src_ds: Dataset, dst_ds: Dataset) -> Dataset:
     # ----------- dimensions -------------------------------------------------
     for dim_name, dim in src_ds.dimensions.items():
         dst_ds.createDimension(dim_name, (len(dim) if not dim.isunlimited() else None))
-    total_dimensions = len(src_ds.dimensions.items())
+    # Use the maximum number of dimensions across all variables to identify the
+    # main data variable. This avoids copying the main raster when extra dimensions
+    # exist (e.g. from CRS/projection variables with their own dimensions).
+    max_var_dimensions = max(len(var.dimensions) for var in src_ds.variables.values()) if src_ds.variables else 0
     # ----------- coordinate variables ---------------------------------------
     # We copy everything that is not the main data variable (i.e. any
     # variable whose dimensions are a subset of the dimensions we just created).
     for var_name, var in src_ds.variables.items():
-        # Skip data variables that have more than one dimension (e.g. the raster itself).
-        # Most clones only have coordinate variables (e.g. lat, lon, x, y, time).
-        if len(var.dimensions) < total_dimensions:
+        # Skip data variables that have the same dimensionality as the main variable
+        # (e.g. the raster itself). Only coordinate variables (e.g. lat, lon, x, y, time)
+        # and auxiliary variables (e.g. CRS) with fewer dimensions are copied.
+        if len(var.dimensions) < max_var_dimensions:
             # Create the variable with the same datatype and attributes.
             new_var = dst_ds.createVariable(
                 var_name,
@@ -226,9 +286,12 @@ def get_crs(ds: Dataset) -> CRS:
     crs_var = None
     # If it exists, identify the variable containing the grid mapping
     for v in ds.variables.values():
-        if (getattr(v, "grid_mapping_name", None) is not None or
-            getattr(v, "grid_mapping", None) is not None):
+        if getattr(v, "grid_mapping_name", None) is not None:
             crs_var = v
+            break
+        crs_var_tmp = getattr(v, "grid_mapping", None)
+        if (crs_var_tmp is not None and hasattr(ds.variables[crs_var_tmp], "grid_mapping_name")):
+            crs_var = crs_var_tmp
             break
 
     proj_wkt = None
@@ -340,7 +403,13 @@ def bbox_from_netcdf(path: Path, time_index: int = 0) -> Tuple[float, float, flo
     Returns:
     min_x, max_x, min_y, max_y
     """
-    ds = xr.open_dataset(path)
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="Duplicate dimension names present",
+            category=UserWarning,
+        )
+        ds = xr.open_dataset(path)
     var_names = [n for n,da in ds.data_vars.items() if len(da.dims)>1]
     var_name = var_names[0]
     da = ds[var_name]
@@ -627,13 +696,20 @@ def write_output_nc(out_path: Union[Path, str], clone_path: Union[Path, str], po
         # We assume the clone has coordinate variables named exactly as the
         # dimensions (common convention).
         try:
-            coord_x = src.variables[dim_x][:]      # e.g. easting or longitude
-            coord_y = src.variables[dim_y][:]      # e.g. northing or latitude
+            # Retrieve raw coordinate variables (could be edge or centre values)
+            raw_coord_x = src.variables[dim_x][:]
+            raw_coord_y = src.variables[dim_y][:]
         except KeyError as exc:
             raise KeyError(
                 f"Clone file {clone_path} does not contain coordinate variables "
                 f"named after its dimensions ({dim_x}, {dim_y})."
             ) from exc
+
+        # Shift coordinates to cell centers if they are edge values (common in some clones).
+        # This is done by averaging adjacent coordinate values.
+        coords_were_shifted_to_center = True
+        coord_x = (raw_coord_x[:-1] + raw_coord_x[1:]) / 2.0
+        coord_y = (raw_coord_y[:-1] + raw_coord_y[1:]) / 2.0
 
         diff_x = np.diff(coord_x)
         diff_y = np.diff(coord_y)
@@ -648,16 +724,18 @@ def write_output_nc(out_path: Union[Path, str], clone_path: Union[Path, str], po
         # Determine the order of the y axis (ascending or descending)
         # This is important for correctly mapping the y coordinates to row indices.
         # Initialize defaults in case diff_y is neither strictly increasing nor decreasing
+        # Ascending order (e.g. latitude increasing from south to north)
         sorted_y_side = "left"
         sorted_y_offset = 0
-        if np.all(diff_y >= 0):
-            # Ascending order (e.g. latitude increasing from south to north)
-            sorted_y_side = "left"
-            sorted_y_offset = 0
-        elif np.all(diff_y <= 0):
+        if np.all(diff_y < 0):
             # Descending order (e.g. northing decreasing from top to bottom)
             sorted_y_side = "right"
-            sorted_y_offset = 1
+            sorted_y_offset = 1 if coords_were_shifted_to_center else 0 # If coordinates were shifted to center, we need to adjust the offset for searchsorted
+
+        # Determine X sorting side and offset similar to Y handling
+        # Fallback to left with no offset if not strictly monotonic
+        sorted_x_side = "left"
+        sorted_x_offset = 0
 
         resolution_x = np.round(np.abs(coord_x[1] - coord_x[0]), decimals=2)
         resolution_y = np.round(np.abs(coord_y[1] - coord_y[0]), decimals=2)
@@ -702,7 +780,7 @@ def write_output_nc(out_path: Union[Path, str], clone_path: Union[Path, str], po
         coord_x_sorted = np.sort(coord_x)
 
         # X values
-        col_idx = np.searchsorted(coord_x_sorted, xs, side="left")
+        col_idx = np.searchsorted(coord_x_sorted, xs, side=sorted_x_side) - sorted_x_offset
         
         # Adjust indices that fall on the right edge
         col_idx = np.clip(col_idx, 0, nx - 1)
