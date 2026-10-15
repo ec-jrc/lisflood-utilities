@@ -1,0 +1,26 @@
+{
+    "Execution": {
+	"@name": "AFFS_TP4",
+	"@loggerLevel": "ERROR",
+	"@start": "",
+	"@end": "",
+    "OutMaps": {
+	"@format": "netcdf",
+	"@cloneMap": "/ec/ws4/tc/emos/work/cems/floods/glofas/assets/4.0/maps/template_Global_03min.nc",
+	"@scaleFactor": 0.1,
+	"@offset": 0.0,
+	"@outputStepUnits": "D",
+	"@valueFormat": "i2",
+	"@namePrefix":"tp",
+    "Interpolation": {
+	"@latMap": "/ec/ws4/tc/emos/work/cems/floods/glofas/assets/4.0/maps/template_Global_03min.nc",
+	"@lonMap": "/ec/ws4/tc/emos/work/cems/floods/glofas/assets/4.0/maps/template_Global_03min.nc",
+	"@mode": "bilinear_delaunay"
+	}
+    },
+    "Parameter": {
+	"@applyConversion": "tomm",
+	"@shortName": "tp"
+	}
+    }
+}

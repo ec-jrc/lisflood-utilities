@@ -143,6 +143,7 @@ setup_args = dict(
                 'rainbomb: Correct rainbombs;'
                 'thresholds: discharge thresholds;'
                 'generate_neighbours: rainbomb correction neighbours;'
+                'twsmaps: TWS extent maps;'
                 'adjust_trends: adjust annual maxima trends;',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -155,7 +156,8 @@ setup_args = dict(
     license='EUPL 1.2',
     url='https://github.com/ec-jrc/lisflood-utilities',
     scripts=['bin/pcr2nc', 'bin/cutmaps', 'bin/compare', 'bin/nc2pcr', 'bin/thresholds', 'bin/gridding', 'bin/decumulate', 'bin/download_timeseries',
-             'bin/cddmap', 'bin/ncextract','bin/catchstats','bin/mctrivers','bin/lfcoords','bin/rainbomb', 'bin/generate_neighbours', 'bin/adjust_trends'],
+             'bin/cddmap', 'bin/ncextract','bin/catchstats','bin/mctrivers','bin/lfcoords','bin/rainbomb', 'bin/generate_neighbours',
+             'bin/twsmaps', 'bin/adjust_trends'],
     zip_safe=True,
     classifiers=[
           # complete classifier list: http://pypi.python.org/pypi?%3Aaction=list_classifiers

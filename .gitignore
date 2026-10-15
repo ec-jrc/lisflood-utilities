@@ -67,4 +67,7 @@ tests/data/thresholds/output/**/*.nc
 .project
 .pydevproject
 
+.kiro/
 .ipynb_checkpoints/
+*_debug.py
+*_debug.csv

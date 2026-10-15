@@ -1,3 +1,5 @@
 include src/lisfloodutilities/VERSION
 include LICENSE
 include requirements.txt
+# Exclude everything that is only needed for development/testing
+prune tests

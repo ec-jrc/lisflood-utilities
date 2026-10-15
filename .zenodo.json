@@ -1,6 +1,6 @@
 {
   "title": "ec-jrc/lisflood-utilities: A set of utilities for lisflood users",
-  "description": "Lisflood‑utilities is a set of utilities for lisflood users: define_waterregions, verify_waterregions, cutmaps, catchstats, compare, decumulate, gridding, lfcoords, mctrivers, nc2pcr, pcr2nc, ncextract, download_timeseries, rainbomb, thresholds, generate_neighbours.",
+  "description": "Lisflood‑utilities is a set of utilities for lisflood users: define_waterregions, verify_waterregions, cutmaps, catchstats, compare, decumulate, gridding, lfcoords, mctrivers, nc2pcr, pcr2nc, ncextract, download_timeseries, rainbomb, thresholds, generate_neighbours, twsmaps.",
   "creators": [
     {
       "name": "Russo, Carlo",
@@ -43,6 +43,11 @@
       "name": "Mastrantonas, Nikolaos",
       "affiliation": "European Centre for Medium-Range Weather Forecasts",
       "orcid": "0000-0002-2430-3634"
+    },
+    {
+      "name": "Jensen, Laura",
+      "affiliation": "GFZ Helmholtz Centre for Geosciences",
+      "orcid": "0000-0002-8318-791X"
     },
     {
       "name": "Lorini, Valerio",
