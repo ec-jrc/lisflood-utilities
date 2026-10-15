@@ -128,23 +128,22 @@ setup_args = dict(
     version=version,
     python_requires='>=3.10',
     packages=find_packages('src'),
-    description='A set of utilities for lisflood users.'
-                'define_waterregions, verify_waterregions;'
-                'cutmaps: cut netCDFs;'
-                'catchstats: get statistics;'
-                'compare: compare netCDFs;'
-                'decumulate: daily into 6h grids;'
-                'gridding: interpolate meteo vars;'
-                'lfcoords: finds in grids;'
-                'mctrivers: MCT routing mask;'
-                'nc2pcr, pcr2nc: Converts netCDF-PCRaster;'
-                'ncextract: extract netCDF;'
-                'download_timeseries: from WISKI API;'
-                'rainbomb: Correct rainbombs;'
-                'thresholds: discharge thresholds;'
-                'generate_neighbours: rainbomb correction neighbours;'
-                'twsmaps: TWS extent maps;'
-                'adjust_trends: adjust annual maxima trends;',
+    description='Utilities for LISFLOOD users: define/verify waterregions; '
+                'cutmaps: cut netCDFs; '
+                'catchstats: statistics; '
+                'compare: compare netCDFs; '
+                'decumulate: daily to 6h; '
+                'gridding: meteo interpolation; '
+                'lfcoords: finds in grids; '
+                'mctrivers: MCT routing mask; '
+                'nc2pcr, pcr2nc: netCDF-PCRaster; '
+                'ncextract: extract netCDF; '
+                'download_timeseries: WISKI API; '
+                'rainbomb: correct rainbombs; '
+                'thresholds: discharge thresholds; '
+                'generate_neighbours: rainbomb neighbours; '
+                'twsmaps: TWS extent maps; '
+                'adjust_trends: adjust annual maxima;',
     long_description=long_description,
     long_description_content_type='text/markdown',
     setup_requires=[
