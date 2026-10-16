@@ -128,22 +128,22 @@ setup_args = dict(
     version=version,
     python_requires='>=3.10',
     packages=find_packages('src'),
-    description='A set of utilities for lisflood users.'
-                'define_waterregions, verify_waterregions;'
-                'cutmaps: cut netCDFs;'
-                'catchstats: get statistics;'
-                'compare: compare netCDFs;'
-                'decumulate: daily into 6h grids;'
-                'gridding: interpolate meteo vars;'
-                'lfcoords: finds in grids;'
-                'mctrivers: MCT routing mask;'
-                'nc2pcr, pcr2nc: Converts netCDF-PCRaster;'
-                'ncextract: extract netCDF;'
-                'download_timeseries: from WISKI API;'
-                'rainbomb: Correct rainbombs;'
-                'thresholds: discharge thresholds;'
-                'generate_neighbours: rainbomb correction neighbours;'
-                'twsmaps: TWS extent maps;',
+    description='Utilities for LISFLOOD users: define/verify waterregions; '
+                'cutmaps: cut netCDFs; '
+                'catchstats: statistics; '
+                'compare: compare netCDFs; '
+                'decumulate: daily to 6h; '
+                'gridding: meteo interpolation; '
+                'lfcoords: finds in grids; '
+                'mctrivers: MCT routing mask; '
+                'nc2pcr, pcr2nc: netCDF-PCRaster; '
+                'ncextract: extract netCDF; '
+                'download_timeseries: WISKI API; '
+                'rainbomb: correct rainbombs; '
+                'thresholds: discharge thresholds; '
+                'generate_neighbours: rainbomb neighbours; '
+                'twsmaps: TWS extent maps; '
+                'adjust_trends: adjust annual maxima;',
     long_description=long_description,
     long_description_content_type='text/markdown',
     setup_requires=[
@@ -155,7 +155,8 @@ setup_args = dict(
     license='EUPL 1.2',
     url='https://github.com/ec-jrc/lisflood-utilities',
     scripts=['bin/pcr2nc', 'bin/cutmaps', 'bin/compare', 'bin/nc2pcr', 'bin/thresholds', 'bin/gridding', 'bin/decumulate', 'bin/download_timeseries',
-             'bin/cddmap', 'bin/ncextract','bin/catchstats','bin/mctrivers','bin/lfcoords','bin/rainbomb', 'bin/generate_neighbours', 'bin/twsmaps'],
+             'bin/cddmap', 'bin/ncextract','bin/catchstats','bin/mctrivers','bin/lfcoords','bin/rainbomb', 'bin/generate_neighbours',
+             'bin/twsmaps', 'bin/adjust_trends'],
     zip_safe=True,
     classifiers=[
           # complete classifier list: http://pypi.python.org/pypi?%3Aaction=list_classifiers
