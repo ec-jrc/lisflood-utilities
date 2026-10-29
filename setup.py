@@ -143,7 +143,8 @@ setup_args = dict(
                 'thresholds: discharge thresholds; '
                 'generate_neighbours: rainbomb neighbours; '
                 'twsmaps: TWS extent maps; '
-                'adjust_trends: adjust annual maxima;',
+                'adjust_trends: adjust annual maxima; '
+                'lddfix: repair LDD;',
     long_description=long_description,
     long_description_content_type='text/markdown',
     setup_requires=[
@@ -156,7 +157,7 @@ setup_args = dict(
     url='https://github.com/ec-jrc/lisflood-utilities',
     scripts=['bin/pcr2nc', 'bin/cutmaps', 'bin/compare', 'bin/nc2pcr', 'bin/thresholds', 'bin/gridding', 'bin/decumulate', 'bin/download_timeseries',
              'bin/cddmap', 'bin/ncextract','bin/catchstats','bin/mctrivers','bin/lfcoords','bin/rainbomb', 'bin/generate_neighbours',
-             'bin/twsmaps', 'bin/adjust_trends'],
+             'bin/twsmaps', 'bin/adjust_trends', 'bin/lddfix'],
     zip_safe=True,
     classifiers=[
           # complete classifier list: http://pypi.python.org/pypi?%3Aaction=list_classifiers

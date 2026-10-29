@@ -85,6 +85,8 @@ NetCDF, PCRaster and TSS files.
 
 * __[mctrivers](#mctrivers)__ creates a river mask for MCT diffusive river routing in LISFLOOD.
 
+* __[lddfix](#lddfix)__ repairs a local drain direction (LDD) NetCDF so the resulting river network is hydrologically sound, optionally substituting LDD values at user-specified cells before the final repair.
+
 * __[rainbomb](#rainbomb)__ is a tool to correct rainbomb artifacts in ERA5 daily precipitation data. A rainbomb is an unrealistically high rainfall value at a single grid point that is not supported by surrounding points. This utility identifies and corrects such artifacts by comparing each grid point against its neighbours and applying threshold-based corrections. The input file must be in the standard ERA5 resolution of approximately 31 km or 0.25 arc-degrees.
 
 * __[generate_neighbours](#generate_neighbours)__ is a tool to generate neighbour indices for each grid point. It is used to reduce the computation time for the rainbomb correction by pre-computing and storing the indices of neighbours for each grid point. The resulting file is used as a parameter for the rainbomb tool.
@@ -1293,6 +1295,72 @@ mctrivers -i changrad.nc -l ldd.nc -u upArea.nc -O chanmct.nc -m mask.nc -E Lat1
 ```python
 from lisfloodutilities.mctrivers.mctrivers import mct_mask
 mct_mask_ds = mct_mask(channels_slope_file='changrad.nc', ldd_file='ldd.nc', uparea_file='upArea.nc', mask_file='mask.nc', slp_threshold=0.0005, nloops=3, coords=["Lat1", "Lon1"])
+```
+
+
+## lddfix
+
+This tool repairs a local drain direction (LDD) map stored in NetCDF format so that the resulting river network is hydrologically sound. Every run ends with a mandatory repair step based on earthkit-hydro's river network repair, which guarantees the output LDD is consistent (no cycles, valid sinks, etc.).
+
+Before that final repair, the tool can optionally substitute LDD values at specific grid cells. This is useful to fix a known problem at a given location before letting the repair propagate a consistent network. Substitutions can be provided in two ways, and both can be combined:
+
+- A single cell on the command line, as a coordinate pair (lat, lon) plus the correct LDD value.
+- A TSV file listing many corrections, one per line, each with a coordinate pair (lat, lon) and the correct LDD value.
+
+When both are given, the TSV corrections are applied first and the single command-line correction is applied last, so it overrides any TSV row that targets the same cell. When no substitution is given, the tool simply runs the repair on the input LDD.
+
+The river network format determines the set of valid LDD values. The supported formats are `pcr_d8` (values 1-9, default), `esri_d8` and `merit_d8` (values 0, 1, 2, 4, 8, 16, 32, 64, 128).
+
+### Usage
+
+> __Note:__ This guide assumes you have installed the program with pip tool.
+> If you cloned the source code instead, just substitute the executable `lddfix` with `python bin/lddfix` that is in the root folder of the cloned project.
+
+The tool requires the following mandatory input argument:
+
+- `-i`, `--input`: Input LDD NetCDF file (ldd.nc)
+
+The tool can take the following additional input arguments:
+
+- `-o`, `--output`: Output file name (default: ldd_fixed.nc)
+- `-f`, `--format`: River network format, one of `pcr_d8`, `esri_d8`, `merit_d8` (default: pcr_d8)
+- `-c`, `--coordinate`: Single-coordinate substitution given as three values `LAT LON VALUE` (in lat lon order), where VALUE is the correct LDD value for the chosen format
+- `-t`, `--tsv`: TSV substitution file, each row containing `lat`, `lon` and the LDD value (tab-separated)
+- `-E`, `--coordsnames`: Coordinates names for lat, lon (in this order with space!) used in the NetCDF file. The function checks for 3 commonly used names (x, lon, rlon for longitudes, and y, lat, rlat for latitudes). Therefore, it is recommended to keep the default value.
+
+It can be used either from the command line, or also as a python function. Below follow some examples:
+
+Example of command that repairs an LDD using only the final repair step (no manual substitution), writing the result to the default output file:
+
+```bash
+lddfix -i ldd.nc -o ldd_fixed.nc
+```
+
+```python
+from lisfloodutilities.lddfix.lddfix import fix_ldd
+output_file = fix_ldd(input_file='ldd.nc', output_file='ldd_fixed.nc')
+```
+
+Example of command that substitutes the LDD value at a single cell (latitude 50.25, longitude 4.75, new value 6 in pcr_d8) before repairing:
+
+```bash
+lddfix -i ldd.nc -o ldd_fixed.nc -c 50.25 4.75 6
+```
+
+```python
+from lisfloodutilities.lddfix.lddfix import fix_ldd
+output_file = fix_ldd(input_file='ldd.nc', output_file='ldd_fixed.nc', coordinate=[50.25, 4.75, 6])
+```
+
+Example of command that applies a batch of corrections from a TSV file and then repairs, using the esri_d8 format:
+
+```bash
+lddfix -i ldd.nc -o ldd_fixed.nc -f esri_d8 -t corrections.tsv
+```
+
+```python
+from lisfloodutilities.lddfix.lddfix import fix_ldd
+output_file = fix_ldd(input_file='ldd.nc', output_file='ldd_fixed.nc', river_network_format='esri_d8', tsv_file='corrections.tsv')
 ```
 
 
