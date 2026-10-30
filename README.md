@@ -87,6 +87,8 @@ NetCDF, PCRaster and TSS files.
 
 * __[lddfix](#lddfix)__ repairs a local drain direction (LDD) NetCDF so the resulting river network is hydrologically sound, optionally substituting LDD values at user-specified cells before the final repair.
 
+* __[ldd2vec](#ldd2vec)__ converts a local drain direction (LDD) NetCDF raster into a vector line network (ESRI Shapefile): each flow cell becomes a line segment pointing to its downstream neighbour, and each pit/sink cell becomes a diagonal cross.
+
 * __[rainbomb](#rainbomb)__ is a tool to correct rainbomb artifacts in ERA5 daily precipitation data. A rainbomb is an unrealistically high rainfall value at a single grid point that is not supported by surrounding points. This utility identifies and corrects such artifacts by comparing each grid point against its neighbours and applying threshold-based corrections. The input file must be in the standard ERA5 resolution of approximately 31 km or 0.25 arc-degrees.
 
 * __[generate_neighbours](#generate_neighbours)__ is a tool to generate neighbour indices for each grid point. It is used to reduce the computation time for the rainbomb correction by pre-computing and storing the indices of neighbours for each grid point. The resulting file is used as a parameter for the rainbomb tool.
@@ -1361,6 +1363,71 @@ lddfix -i ldd.nc -o ldd_fixed.nc -f esri_d8 -t corrections.tsv
 ```python
 from lisfloodutilities.lddfix.lddfix import fix_ldd
 output_file = fix_ldd(input_file='ldd.nc', output_file='ldd_fixed.nc', river_network_format='esri_d8', tsv_file='corrections.tsv')
+```
+
+
+## ldd2vec
+
+This tool converts a local drain direction (LDD) map stored in NetCDF format into a vector line network saved as an ESRI Shapefile. It is useful to visualise or post-process an LDD raster as GIS line features.
+
+Every cell of the LDD raster is turned into one or more line features:
+
+- A **flow cell** becomes a single line segment running from the cell centre to the centre of its downstream neighbour, in the direction encoded by its LDD value.
+- A **pit/sink cell** (a cell with no downstream neighbour) becomes a diagonal cross (two line segments) drawn through the four corners of the cell, so sinks stay visible in the output.
+- **No-data/fill cells** are skipped. A flow cell whose downstream neighbour would fall outside the grid is also skipped. Any unrecognised LDD value is skipped with a non-fatal warning on stderr, and processing continues.
+
+Each output feature carries a single integer attribute `ldd` holding the source cell's LDD value. The coordinate reference system (CRS) of the input is carried over to the output when it can be determined from the NetCDF metadata; if the CRS is absent or cannot be interpreted, the shapefile set is written without a projection (`.prj`) and a warning is emitted.
+
+The river network format determines how LDD values map to flow directions. The supported formats are `pcr_d8` (values 1-9, where 5 is a pit, default), `esri_d8` and `merit_d8` (power-of-two values 1, 2, 4, 8, 16, 32, 64, 128, where 0 is a pit).
+
+### Usage
+
+> __Note:__ This guide assumes you have installed the program with pip tool.
+> If you cloned the source code instead, just substitute the executable `ldd2vec` with `python bin/ldd2vec` that is in the root folder of the cloned project.
+
+The tool requires the following mandatory input argument:
+
+- `-i`, `--input`: Input LDD NetCDF file (ldd.nc)
+
+The tool can take the following additional input arguments:
+
+- `-o`, `--output`: Output shapefile set name (default: ldd.shp). A trailing `.shp` is used as the common base name for the `.shp`, `.shx`, `.dbf` and (when a CRS is available) `.prj` components.
+- `-f`, `--format`: River network format, one of `pcr_d8`, `esri_d8`, `merit_d8` (default: pcr_d8)
+- `-E`, `--coordsnames`: Coordinates names for lat, lon (in this order with space!) used in the NetCDF file. The function checks for commonly used names (x, lon, rlon for longitudes, and y, lat, rlat for latitudes). Therefore, it is recommended to keep the default value.
+
+It can be used either from the command line, or also as a python function. Below follow some examples:
+
+Example of command that converts an LDD raster into a shapefile using the default pcr_d8 format, writing the result to the default output file:
+
+```bash
+ldd2vec -i ldd.nc -o ldd.shp
+```
+
+```python
+from lisfloodutilities.ldd2vec.ldd2vec import ldd_to_vector
+output_file = ldd_to_vector(input_file='ldd.nc', output_file='ldd.shp')
+```
+
+Example of command that converts an LDD raster encoded in the esri_d8 format:
+
+```bash
+ldd2vec -i ldd.nc -o ldd.shp -f esri_d8
+```
+
+```python
+from lisfloodutilities.ldd2vec.ldd2vec import ldd_to_vector
+output_file = ldd_to_vector(input_file='ldd.nc', output_file='ldd.shp', river_network_format='esri_d8')
+```
+
+Example of command that specifies the coordinate variable names explicitly (latitude `y`, longitude `x`):
+
+```bash
+ldd2vec -i ldd.nc -o ldd.shp -E y x
+```
+
+```python
+from lisfloodutilities.ldd2vec.ldd2vec import ldd_to_vector
+output_file = ldd_to_vector(input_file='ldd.nc', output_file='ldd.shp', coords_names=['y', 'x'])
 ```
 
 
