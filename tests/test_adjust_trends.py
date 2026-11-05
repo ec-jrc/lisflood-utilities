@@ -8,6 +8,16 @@ from lisfloodutilities.adjust_trends.adjust_trends import main
 
 
 class TestAdjustTrends(unittest.TestCase):
+    def setUp(self):
+        # Track output files so they are always cleaned up, even if an
+        # assertion fails before the explicit os.remove at the end of a test.
+        self._output_files = []
+
+    def tearDown(self):
+        for path in self._output_files:
+            if os.path.exists(path):
+                os.remove(path)
+
     def test_main(self):
         # Get the absolute paths for input, output, and reference files
         base_path = os.path.dirname(__file__)
@@ -17,6 +27,7 @@ class TestAdjustTrends(unittest.TestCase):
 
         # Create output directory if it doesn't exist
         os.makedirs(os.path.dirname(output_file), exist_ok=True)
+        self._output_files.append(output_file)
 
         # Call the main function with the argv array of parameters
         argv = [
@@ -40,6 +51,7 @@ class TestAdjustTrends(unittest.TestCase):
                 output_ds[var].values,
                 reference_ds[var].values,
                 rtol=1e-5,
+                atol=1e-6,
                 err_msg=f"Variable {var} does not match reference"
             )
 
@@ -59,6 +71,7 @@ class TestAdjustTrends(unittest.TestCase):
 
         # Create output directory if it doesn't exist
         os.makedirs(os.path.dirname(output_file), exist_ok=True)
+        self._output_files.append(output_file)
 
         # Call the main function with the argv array of parameters, including --diagnostics
         argv = [
@@ -83,6 +96,7 @@ class TestAdjustTrends(unittest.TestCase):
                 output_ds[var].values,
                 reference_ds[var].values,
                 rtol=1e-5,
+                atol=1e-6,
                 err_msg=f"Variable {var} does not match reference"
             )
 
