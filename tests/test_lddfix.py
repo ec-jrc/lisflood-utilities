@@ -2066,3 +2066,54 @@ class TestLddfixExamples:
         finally:
             self._rm_out()
 
+
+    # --- 3-arcmin single-coordinate substitution vs reference --------------
+
+    def test_single_coordinate_substitution_3arcmin_equals_reference(self):
+        """Running lddfix on the 3-arcmin input with a single-coordinate
+        substitution that changes the cell at lat 44.725 / lon 11.325 from 8 to
+        6 (-c 44.725 11.325 6) reproduces the static 3-arcmin reference exactly
+        (xarray.Dataset.equals).
+
+        Validates: Requirements 3.1, 3.4, 5.3
+        """
+        input_ldd = os.path.join(self.case_dir, "input", "ldd_3-arcmin.nc")
+        reference_ldd = os.path.join(self.case_dir, "reference", "ldd_3-arcmin.nc")
+
+        self._mk_out()
+        try:
+            out_path = os.path.join(self.out_dir, "ldd_3-arcmin_fixed.nc")
+
+            # Sanity: the input cell holds value 8 before the substitution.
+            in_ds = xr.open_dataset(input_ldd)
+            try:
+                ldd_name = list(in_ds.data_vars)[0]
+                input_value = int(
+                    in_ds[ldd_name].sel(lat=44.725, lon=11.325, method="nearest")
+                )
+            finally:
+                in_ds.close()
+            assert input_value == 8, (
+                f"input cell at (44.725, 11.325) is {input_value}, expected 8"
+            )
+
+            # lddfix -i input/ldd_3-arcmin.nc -o <out> -c 44.725 11.325 6
+            fix_ldd(
+                input_ldd,
+                output_file=out_path,
+                coordinate=[44.725, 11.325, 6.0],
+            )
+
+            reference = xr.open_dataset(reference_ldd)
+            generated = xr.open_dataset(out_path)
+            try:
+                all_equal = reference.equals(generated)
+            finally:
+                reference.close()
+                generated.close()
+            assert all_equal, (
+                "3-arcmin single-coordinate substitution output does not equal "
+                f"the reference {reference_ldd}"
+            )
+        finally:
+            self._rm_out()
