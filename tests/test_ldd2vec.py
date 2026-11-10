@@ -70,6 +70,18 @@ CASES: List[LddVecCase] = [
         reference_name="ldd.shp",
         river_network_format="pcr_d8",
     ),
+    LddVecCase(
+        name="pcr_d8_ldd_3arcmin",
+        input_name="ldd_3-arcmin.nc",
+        reference_name="ldd_3-arcmin.shp",
+        river_network_format="pcr_d8",
+    ),
+    LddVecCase(
+        name="pcr_d8_ldd_3arcmin_repaired",
+        input_name="ldd_3-arcmin_repaired.nc",
+        reference_name="ldd_3-arcmin_repaired.shp",
+        river_network_format="pcr_d8",
+    ),
 ]
 
 

@@ -776,6 +776,26 @@ def _reassert_output_metadata(
         for axis_name in (x_proj, y_proj):
             out_ldd[axis_name].attrs = dict(input_ds[axis_name].attrs)
 
+        # Restore the standalone grid_mapping (CRS) variable. The CF convention
+        # stores the CRS as a separate (usually scalar) variable named by the
+        # LDD variable's 'grid_mapping' attribute (e.g. 'crs'), carrying the
+        # projection metadata (spatial_ref/crs_wkt/GeoTransform/...). The repair
+        # drops that variable, and copy_coordinates_and_attributes only copies
+        # the attrs and a coordinate literally named 'grid_mapping' -- not a
+        # grid_mapping variable referenced by name. Without the variable the
+        # reasserted 'grid_mapping' attribute dangles, so downstream tools
+        # (e.g. ldd2vec) cannot resolve the CRS. Copy the referenced variable
+        # from the input onto the output so the geo-reference is preserved
+        # (Req 1.3, 7.4, 7.5).
+        grid_mapping_name = out_ldd.attrs.get("grid_mapping")
+        if (
+            grid_mapping_name is not None
+            and str(grid_mapping_name) in input_ds.variables
+            and str(grid_mapping_name) not in (x_proj, y_proj)
+        ):
+            gm_name = str(grid_mapping_name)
+            output_ds[gm_name] = input_ds[gm_name].copy(deep=True)
+
         # Reassert the input's LDD variable name. river_network_repair renames
         # the LDD data variable to 'ldd'; the output must preserve the input's
         # own variable name (e.g. 'ldd_repaired') so the written file stays

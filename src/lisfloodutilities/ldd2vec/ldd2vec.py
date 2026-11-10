@@ -509,9 +509,23 @@ def _build_features(
     n_rows = ldd.shape[0]
     n_cols = ldd.shape[1]
 
+    # When the LDD variable is stored as a float with a _FillValue, xarray's
+    # default mask_and_scale decodes no-data cells to NaN rather than the integer
+    # fill value. Only a floating-point array can hold NaN, so the per-cell NaN
+    # guard below is only needed (and only valid) for a float dtype.
+    ldd_is_float = np.issubdtype(ldd.dtype, np.floating)
+
     for row in range(n_rows):
         for col in range(n_cols):
-            v = int(ldd[row, col])
+            raw = ldd[row, col]
+
+            # No-data cell decoded to NaN: omit it before any int() conversion,
+            # which would otherwise raise "cannot convert float NaN to integer"
+            # (Req 3.8).
+            if ldd_is_float and np.isnan(raw):
+                continue
+
+            v = int(raw)
 
             # No-data / fill cell: omit entirely (Req 3.8).
             if v == fmt.fill:
