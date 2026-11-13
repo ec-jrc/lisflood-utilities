@@ -105,7 +105,7 @@ def coordinates_coarse(
             points_coarse.loc[ID, cols_coarse] = [area_coarse, lat_coarse, lon_coarse]
 
             # get the associated basin polygon
-            basin_coarse = basins.iloc[[i]] # type: ignore
+            basin_coarse = basins.iloc[[i]].copy() # type: ignore
             basin_coarse['ID'] = ID
             basin_coarse.set_index('ID', inplace=True)
             basin_coarse[cols] = area_ref, lat_ref, lon_ref

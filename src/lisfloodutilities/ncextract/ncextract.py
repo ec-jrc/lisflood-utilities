@@ -345,7 +345,7 @@ def extract_timeseries(
                                                                        output_file))
     
     if output is None:
-        return xr.concat(maps_poi, dim='id').compute()
+        return xr.concat(maps_poi, dim='id', data_vars='all', coords='different', compat='equals').compute()
     
     return None
     

@@ -72,6 +72,6 @@ class TestExtract(unittest.TestCase):
         inflow.name = 'inflow'
         
         # merge both extractions
-        output = xr.merge((outflow, inflow))
+        output = xr.merge((outflow, inflow), compat='no_conflicts')
 
         self.assertTrue(self.compare_datasets(output, expected))

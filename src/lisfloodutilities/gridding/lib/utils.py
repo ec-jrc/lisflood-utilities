@@ -531,6 +531,7 @@ class GriddingUtils(Printable):
         yp = np.array(y).astype(np.float32)
         values = np.array(z).astype(np.float32)
         df = None
+        weights_mode = 'parallel' if self.use_broadcasting else 'serial'
         if self.conf.interpolation_mode == 'cdd':
             scipy_interpolation = ScipyInterpolation(xp, yp, self.conf.grid_details, values,
                                                      self.conf.neighbours_near, mv_target, mv_source,
@@ -539,14 +540,14 @@ class GriddingUtils(Printable):
                                                      cdd_map=self.conf.cdd_map,
                                                      cdd_mode=self.conf.cdd_mode,
                                                      cdd_options=self.conf.cdd_options,
-                                                     use_broadcasting=self.use_broadcasting,
+                                                     weights_mode=weights_mode,
                                                      num_of_splits=self.conf.num_of_splits)
         else:
             scipy_interpolation = ScipyInterpolation(xp, yp, self.conf.grid_details, values,
                                                      self.conf.neighbours_near, mv_target, mv_source,
                                                      target_is_rotated=False, parallel=False,
                                                      mode=self.conf.interpolation_mode,
-                                                     use_broadcasting=self.use_broadcasting,
+                                                     weights_mode=weights_mode,
                                                      num_of_splits=self.conf.num_of_splits)
 
         # reset search radius to a fixed value
