@@ -167,7 +167,9 @@ def create_extent_map(domain, type, is_geographic, file_out, thresh1, thresh2,
     # ******************************************************
     # --- read raster file with locs of lakes/reservoirs ---
     ds = xr.open_dataset(file_loc)
-    locM = ds[varname].values.astype(np.int_)
+    # NaN (NoData in float32 locations maps, e.g. EFAS) is set to 0 before
+    # casting to integer to avoid the "invalid value encountered in cast" warning
+    locM = np.nan_to_num(ds[varname].values, nan=0.0).astype(np.int_)
 
     # --- compute pixel_area
     if is_geographic:

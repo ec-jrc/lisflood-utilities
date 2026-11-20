@@ -14,4 +14,3 @@ See the Licence for the specific language governing permissions and limitations 
 
 """
 
-from .twsmaps import *
