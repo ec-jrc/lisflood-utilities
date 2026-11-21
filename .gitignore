@@ -43,6 +43,9 @@ vignettes/*.pdf
 
 *.yaml
 .vscode/
+.kiro
+.clineignore
+.clinerules
 dist/
 *.egg-info/
 **/build/

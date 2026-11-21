@@ -47,6 +47,8 @@ NetCDF, PCRaster and TSS files.
 
 * __[thresholds](#thresholds)__ is a tool to compute the discharge return period thresholds from NetCDF4 file containing a discharge time series.
 
+* __[adjust_trends](#adjust_trends)__ is a tool to adjust gridded annual maximum discharge using a linear sqrt(R2)-weighted trend correction towards a chosen reference year.
+
 * __[water-demand-historic](#water-demand-historic)__ is a package allowing to generate sectoral (domestic, livestock, industry, and thermoelectric) water demand maps with monthly to yearly temporal steps for a range of past years, at the users’ defined spatial resolution and geographical extent. These maps are required by the LISFLOOD OS [water use module](https://ec-jrc.github.io/lisflood-model/2_18_stdLISFLOOD_water-use)
 
 * __[waterregions](#waterregions)__ is a package containing two scripts that allow to create and verify a water regions map, respectively.
@@ -400,6 +402,82 @@ options:
                         Input discharge files (annual maxima)
   -o OUTPUT, --output OUTPUT
                         Output thresholds file
+```
+
+## adjust_trends
+
+The adjust_trends tool adjusts gridded annual maximum discharge using a linear sqrt(R2)-weighted trend correction.
+It is used to post-process the annual maxima computed from the discharge of a LISFLOOD long term run, for example before computing return period thresholds with the [thresholds](#thresholds) tool.
+
+The tool is based on the original script written by **Ervin Zsoter (ECMWF)**, adapted as a lisflood-utilities tool by the EC-JRC.
+
+### Usage:
+For each grid cell with a complete valid annual-maxima series, an ordinary least-squares linear trend is fitted and each value is shifted towards the fitted trend level at the chosen reference year. The correction is weighted by the square root of the coefficient of determination R2 and the adjusted values are capped at zero:
+
+```text
+x = year - mean(years)
+T(year) = slope*x + intercept
+R2 = 1 - SSE/SST
+weight = sqrt(clip(R2, 0, 1))
+Qadj(year) = max(0, Q(year) + weight*(T(reference_year) - T(year)))
+```
+
+Constant series receive zero weight. Input values are otherwise unchanged apart from the weighted correction and non-negative cap. A grid cell is processed only if every annual value is finite and has absolute magnitude below 1e19. Masked input values are treated as missing. If any annual value is invalid, the entire output series for that cell is missing. Missing years are not fitted or reconstructed.
+
+#### Input
+The input must be a NetCDF file with:
+
+* a three-dimensional variable ordered (time, latitude, longitude), with a coordinate variable for each dimension;
+* at least two time steps, each belonging to a distinct calendar year;
+* a CF time coordinate with units; calendar defaults to "standard";
+* the reference year must occur in the input time coordinate.
+
+Years are taken directly from decoded timestamps. No adjustment is made for timestamps representing the end of a preceding annual period. Processing reads and writes latitude chunks (the default chunk size is 25 rows). POINT station inputs are not supported.
+
+#### Output
+The output NetCDF file contains:
+
+* the compressed float32 variable `annual_maximum_adjusted`, with fill value 1e20 and units copied from the input variable when available;
+* the three input coordinate variables and their attributes;
+* global metadata describing the source, years, reference year, method, valid fitted pixel count and number of values capped at zero.
+
+Other input variables and original global attributes are not copied.
+
+With `--diagnostics`, the following diagnostic variables are also written:
+
+| Variable | Description |
+| --- | --- |
+| `linear_trend` | fitted trend at each input year |
+| `linear_slope` | slope per year |
+| `linear_intercept` | trend value at mean(years) |
+| `linear_r2` | R2 before clipping for the weight |
+| `linear_sqrt_r2_weight` | sqrt(clip(R2, 0, 1)) |
+| `linear_trend_reference_value` | fitted trend at the reference year |
+| `linear_first_year_weighted_adjustment` | correction at the first input time step, before applying the non-negative cap |
+
+```text
+usage: adjust_trends [-h] [--variable VARIABLE] [--reference-year REFERENCE_YEAR]
+                     [--latitude-chunk LATITUDE_CHUNK] [--diagnostics] [--overwrite]
+                     input_file output_file
+
+Linear sqrt(R2)-weighted adjustment of annual maxima.
+
+positional arguments:
+  input_file            Input NetCDF file with annual maxima
+  output_file           Output NetCDF file with adjusted annual maxima
+
+options:
+  -h, --help            show this help message and exit
+  --variable VARIABLE   Annual-maximum discharge variable (default: var7)
+  --reference-year REFERENCE_YEAR
+                        Trend level to which all annual maxima are adjusted (default: 2025)
+  --latitude-chunk LATITUDE_CHUNK
+                        Number of latitude rows processed at once (default: 25)
+  --diagnostics         Also write fitted linear trend, slope, intercept, R2, sqrt(R2)
+                        weight and adjustment diagnostics
+  --overwrite           Overwrite the output file if it exists. An existing output is
+                        deleted before input validation; input and output paths must
+                        be different.
 ```
 
 ## water-demand-historic
@@ -1426,33 +1504,35 @@ optional arguments:
 
 The `twsmaps` tool creates lakes and reservoirs extent maps in NetCDF format. These maps are needed for the output of Total Water Storage (TWS) maps in OS LISFLOOD. For further background see the [LISFLOOD static maps documentation on reservoirs and lakes](https://ec-jrc.github.io/lisflood-code/4_Static-Maps_reservoirs-lakes/).
 
-The tool starts from a NetCDF file with the outlet locations and IDs of the lakes/reservoirs (e.g. `ec_res.nc` / `ec_lakes.nc`), a set of shapefiles with the lake/reservoir outlines (GRanD, HydroLAKES and, for the GloFAS domain, GLWD), and an Excel table matching the LISFLOOD IDs to the IDs of those source datasets. All input paths are passed as command-line arguments.
+The tool starts from a NetCDF file with the outlet locations and IDs of the lakes/reservoirs (e.g. `ec_res.nc` / `ec_lakes.nc`), a set of shapefiles with the lake/reservoir outlines (GRanD, HydroLAKES and, depending on the domain, GLWD or GDW), and an Excel table matching the LISFLOOD IDs to the IDs of those source datasets. All input paths are passed as command-line arguments. Source IDs that appear more than once in the table (with rows using that source) are resolved by keeping only the LISFLOOD ID with the largest area in the table.
 
 For each lake/reservoir defined in the locations map, the corresponding polygon is intersected with the LISFLOOD grid. Grid cells whose covered fraction exceeds `thresh2` are assigned the lake/reservoir ID. Lakes/reservoirs that are too small (their area relative to the pixel area is below `thresh1`), that are missing from the matching table, or whose source dataset is not available, are assigned only to their outlet location pixel. The output is a NetCDF file with a single integer variable `polygon_id` (0 is NoData).
 
-Two domains are supported:
+Three domains are supported:
 
 * `GloFAS`: geographic coordinates (degrees), pixel area varies with latitude. Use the `-g` flag. GRanD, HydroLAKES and GLWD sources are used.
 * `ETRS89`: projected coordinates (meters). GRanD and HydroLAKES sources are used; a `lambert_azimuthal_equal_area` grid mapping is added to the output.
+* `EFAS`: geographic coordinates (degrees). Use the `-g` flag. GRanD, HydroLAKES and GDW sources are used; the locations map variables are `lakes` / `reservoirs` and the LISFLOOD IDs are the GDW IDs.
 
 ### Usage
 
 ```text
-usage: twsmaps [-h] -d {GloFAS,ETRS89} -t {lake,reservoir} [-g] -o OUTPUT
+usage: twsmaps [-h] -d {GloFAS,ETRS89,EFAS} -t {lake,reservoir} [-g] -o OUTPUT
                --file-shp1 FILE_SHP1 --file-shp2 FILE_SHP2 [--file-shp3 FILE_SHP3]
                --file-tab FILE_TAB --file-loc FILE_LOC
                [--thresh1 THRESH1] [--thresh2 THRESH2]
 
 options:
   -h, --help            show this help message and exit
-  -d, --domain          domain: can be 'GloFAS' or 'ETRS89'
+  -d, --domain          domain: can be 'GloFAS' or 'ETRS89' or 'EFAS'
   -t, --type            type: can be 'lake' or 'reservoir'
-  -g, --is-geographic   set if the input file has geographic coordinates (in degree), e.g. GloFAS;
+  -g, --is-geographic   set if the input file has geographic coordinates (in degree), e.g. GloFAS, EFAS;
                         otherwise projected coordinates (in meter) are assumed, e.g. ETRS89 Use Case
   -o, --output          output netcdf file path and name
   --file-shp1           shapefile with GRanD reservoir outlines (GRAND_ID, AREA_SKM)
   --file-shp2           shapefile with HydroLAKES outlines (Hylak_id, Lake_area)
-  --file-shp3           shapefile with GLWD outlines (GLWD_ID, AREA_SKM); required for the GloFAS domain
+  --file-shp3           shapefile with GLWD outlines (GLWD_ID, AREA_SKM) for the GloFAS domain or
+                        GDW outlines (GDW_ID, AREA_SKM) for the EFAS domain; required for GloFAS and EFAS
   --file-tab            Excel table with the ID match between LISFLOOD and the source datasets
   --file-loc            netcdf file with outlet locations and IDs of the lakes/reservoirs
   --thresh1             lakes/res where (total_lake_area / cell_area) < thresh1 are assigned to
@@ -1481,6 +1561,17 @@ twsmaps -d ETRS89 -t lake -o lake_extent_ETRS89.nc \
   --file-shp2 hydrolakes_ETRS89.shp \
   --file-tab lakes_ETRS89_testcase.xlsx \
   --file-loc ec_lakes.nc
+```
+
+**Example (reservoirs, EFAS domain)**
+
+```bash
+twsmaps -d EFAS -t reservoir -g -o res_extent_EFAS.nc \
+  --file-shp1 GRanD_reservoirs_v1_3.shp \
+  --file-shp2 HydroLAKES_polys_v10.shp \
+  --file-shp3 GDW_reservoirs_v1_0.shp \
+  --file-tab EFAS_reservoirs_parameters.xlsx \
+  --file-loc res.nc
 ```
 
 ### Output

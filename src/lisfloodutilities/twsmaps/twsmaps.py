@@ -1,5 +1,5 @@
 """
-Laura Jensen, 2026/06/01
+Laura Jensen, 2026/11/10
 Contact: laura.jensen@gfz.de
 
 This script may be used under CC BY license (https://creativecommons.org/licenses/by/4.0/), which
@@ -28,6 +28,43 @@ import xarray as xr
 import shapely
 
 
+def delete_double(id_lisf, id_oth, locM, name_src, id_src, src_area):
+    """
+    WORKAROUND to avoid errors in the extent map due to double IDs in the lake/res
+    table (needed for EFAS). For every ID of the source dataset (e.g. GRAND_ID) that
+    appears more than once in the ID match table, only the LISFLOOD ID with the
+    largest area (AREA_SKM) is kept; all the other LISFLOOD IDs are set to 0 in locM.
+    """
+    u, u_idx, u_counts = np.unique(id_oth[~np.isnan(id_oth)], return_index=True, return_counts=True)
+    # check if there are multiple occurrences of some IDs
+    idx = np.where(u_counts > 1)
+    if len(idx[0]) > 0:
+        print(u[idx], 'from', name_src, 'is multiple times in table.')
+        # positions in the original table of the non-NaN entries of id_oth
+        pos_oth = np.where(~np.isnan(id_oth))[0]
+        # go through IDs that occur multiple times
+        for i in idx[0]:
+            # only if ID is used from corresponding source
+            #if id_src[int(u_idx[i])] == name_src:      # this is wrong because u_idx[i] is the position in the non-NaN array, not in the original table
+            if id_src[pos_oth[u_idx[i]]] == name_src:
+                print(name_src, 'ID:', u[i], 'LISF IDs:', id_lisf[np.where(id_oth == u[i])],
+                      'areas:', src_area[np.where(id_oth == u[i])])
+                # all LISF IDs and its areas that have this source ID
+                id_lisf_all = id_lisf[np.where(id_oth == u[i])]
+                area_all = src_area[np.where(id_oth == u[i])]
+                # delete ID with max. area
+                i_maxA = area_all.argmax()
+                id_del = np.delete(id_lisf_all, i_maxA)
+                print(id_lisf_all[i_maxA], 'is kept,', id_del, 'is/are removed.')
+                # set all other IDs to 0 in locM
+                for id_l in id_del:
+                    locM[locM == id_l] = 0
+    else:
+        print('There are no multiple', name_src, 'IDs in table.')
+
+    return locM
+
+
 def create_extent_map(domain, type, is_geographic, file_out, thresh1, thresh2,
                       file_shp1, file_shp2, file_tab, file_loc, file_shp3=None):
 
@@ -36,7 +73,8 @@ def create_extent_map(domain, type, is_geographic, file_out, thresh1, thresh2,
     # ******************************************************
     # --- file_shp1: shapefile with GRanD reservoir outlines (GRAND_ID, AREA_SKM)
     # --- file_shp2: shapefile with HydroLAKES outlines (Hylak_id, Lake_area)
-    # --- file_shp3: shapefile with GLWD outlines (GLWD_ID, AREA_SKM); GloFAS domain only
+    # --- file_shp3: shapefile with GLWD outlines (GLWD_ID, AREA_SKM) for the GloFAS domain
+    # ---             or GDW outlines (GDW_ID, AREA_SKM) for the EFAS domain
     # --- file_tab:  Excel table with the ID match between LISFLOOD and the source datasets
     # --- file_loc:  netcdf file with outlet locations and IDs of the lakes/reservoirs
     if domain == 'GloFAS':
@@ -51,6 +89,7 @@ def create_extent_map(domain, type, is_geographic, file_out, thresh1, thresh2,
             id_oth2 = tab.RES_ID.values
             id_oth3 = tab.GLWD_ID.values
             id_src = tab.CATCH_SRC.values
+            src_area = tab.AREA_SKM.values
             varname = "Band1"
 
         elif type == 'lake':
@@ -61,10 +100,11 @@ def create_extent_map(domain, type, is_geographic, file_out, thresh1, thresh2,
             id_oth2 = tab.HYLAK_ID.values
             id_oth3 = tab.GLWD_ID.values
             id_src = tab.CATCH_SRC.values
+            src_area = tab.AREA_SKM.values
             varname = "Band1"
 
         else:
-            raise ValueError('Invalid type.')
+            raise ValueError("Invalid type. Can be 'lake' or 'reservoir'.")
 
     elif domain == 'ETRS89':
         if type == 'reservoir':
@@ -74,6 +114,7 @@ def create_extent_map(domain, type, is_geographic, file_out, thresh1, thresh2,
             id_oth1 = tab.GRAND_ID.values
             id_oth2 = tab.HYLAK_ID.values
             id_src = tab.CATCH_SRC.values
+            src_area = tab.AREA_SKM.values
             varname = "resnew"
 
         elif type == 'lake':
@@ -83,19 +124,52 @@ def create_extent_map(domain, type, is_geographic, file_out, thresh1, thresh2,
             id_oth1 = tab.GRAND_ID.values
             id_oth2 = tab.HYLAK_ID.values
             id_src = tab.CATCH_SRC.values
+            src_area = tab.AREA_SKM.values
             varname = "lakesnew"
 
         else:
-            raise ValueError('Invalid type.')
+            raise ValueError("Invalid type. Can be 'lake' or 'reservoir'.")
+
+    elif domain == 'EFAS':
+        if file_shp3 is None:
+            raise ValueError('file_shp3 (GDW shapefile) is required for the EFAS domain.')
+
+        if type == 'reservoir':
+            # --- table with ID match
+            tab = pd.read_excel(file_tab, sheet_name="as_reservoirs")
+            id_lisf = tab.GDW_ID.values
+            id_oth1 = tab.GRAND_ID.values
+            id_oth2 = tab.HYLAK_ID.values
+            id_oth3 = tab.GDW_ID.values
+            id_src = tab.CATCH_SRC.values
+            src_area = tab.AREA_SKM.values
+            varname = "reservoirs"
+
+        elif type == 'lake':
+            # --- table with ID match
+            tab = pd.read_excel(file_tab)
+            id_lisf = tab.FID.values
+            id_oth1 = tab.GRAND_ID.values
+            id_oth2 = tab.HYLAK_ID.values
+            id_oth3 = tab.GDW_ID.values
+            id_src = tab.CATCH_SRC.values
+            src_area = tab.AREA_SKM.values
+            varname = "lakes"
+
+        else:
+            raise ValueError("Invalid type. Can be 'lake' or 'reservoir'.")
+
     else:
-        raise ValueError('Invalid type.')
+        raise ValueError("Invalid domain. Can be 'GloFAS' or 'ETRS89' or 'EFAS'.")
 
     # ******************************************************
     # *** load res/lakes IDs loc map
     # ******************************************************
     # --- read raster file with locs of lakes/reservoirs ---
     ds = xr.open_dataset(file_loc)
-    locM = ds[varname].values.astype(np.int_)
+    # NaN (NoData in float32 locations maps, e.g. EFAS) is set to 0 before
+    # casting to integer to avoid the "invalid value encountered in cast" warning
+    locM = np.nan_to_num(ds[varname].values, nan=0.0).astype(np.int_)
 
     # --- compute pixel_area
     if is_geographic:
@@ -119,6 +193,16 @@ def create_extent_map(domain, type, is_geographic, file_out, thresh1, thresh2,
         pixel_area = 6371000.0**2 * dx_rad * dy_rad * np.cos(lat_rad)
 
     # ******************************************************
+    # *** WORKAROUND to avoid errors in extent map due to double IDs in lake/res table (needed for EFAS)
+    # ******************************************************
+    locM = delete_double(id_lisf, id_oth1, locM, 'GRAND', id_src, src_area)
+    locM = delete_double(id_lisf, id_oth2, locM, 'HYLAK', id_src, src_area)
+    if domain == 'GloFAS':
+        locM = delete_double(id_lisf, id_oth3, locM, 'GLWD', id_src, src_area)
+    if domain == 'EFAS':
+        locM = delete_double(id_lisf, id_oth3, locM, 'GDW', id_src, src_area)
+
+    # ******************************************************
     # *** load shapefiles
     # ******************************************************
     print('Load shapefiles...')
@@ -137,6 +221,12 @@ def create_extent_map(domain, type, is_geographic, file_out, thresh1, thresh2,
         gdf = gpd.read_file(file_shp3)
         polygons3 = list(gdf.geometry)
         ids3 = list(gdf["GLWD_ID"])
+        area3 = list(gdf["AREA_SKM"]*1000*1000)
+
+    if domain == 'EFAS':
+        gdf = gpd.read_file(file_shp3)
+        polygons3 = list(gdf.geometry)
+        ids3 = list(gdf["GDW_ID"])
         area3 = list(gdf["AREA_SKM"]*1000*1000)
 
     # ******************************************************
@@ -195,6 +285,12 @@ def create_extent_map(domain, type, is_geographic, file_out, thresh1, thresh2,
                 polygons = polygons2
             # if GLWD is the source:
             elif (domain == 'GloFAS') and (id_src[idx_ref] == 'GLWD'):
+                id_ref = id_oth3[idx_ref]
+                ids = ids3
+                area = area3
+                polygons = polygons3
+            # if GDW is the source:
+            elif (domain == 'EFAS') and (id_src[idx_ref] == 'GDW'):
                 id_ref = id_oth3[idx_ref]
                 ids = ids3
                 area = area3
@@ -283,16 +379,16 @@ def main(argv=sys.argv):
         """,
         prog=prog,
     )
-    # --- domain: can be 'GloFAS' or 'ETRS89'
-    parser.add_argument("-d", "--domain", required=True, choices=['GloFAS', 'ETRS89'],
-                        help="domain: can be 'GloFAS' or 'ETRS89'")
+    # --- domain: can be 'GloFAS' or 'ETRS89' or 'EFAS'
+    parser.add_argument("-d", "--domain", required=True, choices=['GloFAS', 'ETRS89', 'EFAS'],
+                        help="domain: can be 'GloFAS' or 'ETRS89' or 'EFAS'")
     # --- type: can be 'lake' or 'reservoir'
     parser.add_argument("-t", "--type", required=True, choices=['lake', 'reservoir'],
                         help="type: can be 'lake' or 'reservoir'")
-    # --- is_geographic: True if input file has geographic coordinates (in degree), e.g. GloFAS
+    # --- is_geographic: True if input file has geographic coordinates (in degree), e.g. GloFAS, EFAS
     #                   False if input file has projected coordinates (in meter), e.g. ETRS89 Use Case
     parser.add_argument("-g", "--is-geographic", action="store_true", default=False,
-                        help="set if the input file has geographic coordinates (in degree), e.g. GloFAS; "
+                        help="set if the input file has geographic coordinates (in degree), e.g. GloFAS, EFAS; "
                              "otherwise projected coordinates (in meter) are assumed, e.g. ETRS89 Use Case")
     parser.add_argument("-o", "--output", required=True,
                         help="output netcdf file path and name")
@@ -302,7 +398,8 @@ def main(argv=sys.argv):
     parser.add_argument("--file-shp2", required=True,
                         help="shapefile with HydroLAKES outlines (Hylak_id, Lake_area)")
     parser.add_argument("--file-shp3", required=False, default=None,
-                        help="shapefile with GLWD outlines (GLWD_ID, AREA_SKM); required for the GloFAS domain")
+                        help="shapefile with GLWD outlines (GLWD_ID, AREA_SKM) for the GloFAS domain or "
+                             "GDW outlines (GDW_ID, AREA_SKM) for the EFAS domain; required for GloFAS and EFAS")
     parser.add_argument("--file-tab", required=True,
                         help="Excel table with the ID match between LISFLOOD and the source datasets")
     parser.add_argument("--file-loc", required=True,
